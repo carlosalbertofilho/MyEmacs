@@ -1,0 +1,49 @@
+#+title: Emacs literate configuration
+#+author: Carlos Alberto Filho
+#+Date: <2025-02-18 ter>
+#+STARTUP: show2levels indent hidestars
+#+PRIORITIES: header-args :tangle (let ((org-use-tag-inheritance t)) (if (member "INACTIVE" (org-get-tags))  "no" "init.el")))
+
+* Documentation
+
+This document is inspired by [[https://github.com/rougier/dotemacs/blob/master/dotemacs.org][dotemacs.org]], following a similar structure:
+
+Each subsection may be tagged with the following:
+
+- =:BINDING:=  Defines key bindings.
+- =:HOOK:=     Installs hooks.
+- =:ADVICE:=   Installs advice.
+- =:FACE:=     Modifies faces.
+- =:MODE:=     Activates modes.
+- =:DEFER:=    Indicates deferred (lazy load) content.
+- =:PERSONAL:= Contains personal content that should be adapted.
+- =:INACTIVE:= Indicates content that won't be exported.
+- =:BUGFIX:=   Includes temporary bug fixes.
+- =:OTHER:=    Specifies content to be exported to a different file.
+- =:TIMER:=    Installs a timer.
+- =:OS:=       Contains system-specific code.
+
+To extract all the code blocks into a single configuration file, I use the PRIORITIES tag to tangle files into [[~/.config/emacs/init.el]] and [[~/.config/emacs/early-init.el]]. If tangling does not run automatically, type the sequence =C-c C-v t= (org-babel-execute-subtree) to execute it.
+
+** To sort :INACTIVE:
+
+#+begin_src emacs-lisp
+
+(setq-default
+ ad-redefinition-action 'accept         ; Silence warnings for redefinition
+ custom-unlispify-menu-entries nil      ; Prefer kebab-case for titles
+ custom-unlispify-tag-names nil         ; Prefer kebab-case for symbols
+(put 'downcase-region 'disabled nil)    ; Enable downcase-region
+(put 'upcase-region 'disabled nil)      ; Enable upcase-region
+ native-comp-async-report-warnings-errors 'silent ; Skip compilation error buffers
+ read-process-output-max (* 1024 1024)  ; Increase read size per process
+
+#+end_src
+
+** To do [5/5] :INACTIVE:
+
+- [X] Tangle file when saving (org-auto-tangle)
+- [X] Hitting `space` on top node should open the node (instead of folding)
+- [X] Dim inactive entries in the sidebar
+- [X] Shift-tab to toggle sidebar (all entries)
+- [X] Filter sidebar (`f` key)

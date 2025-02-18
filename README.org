@@ -1,0 +1,8 @@
+#+title: Read me Emacs Configuration
+#+author: Carlos Alberto Filho
+#+date: <2025-02-18 ter>
+
+
+This is my personal Emacs configuration, inspired by [[github:rougier/nano-emacs][Nano Emacs]] by Nicolas P. Rougier.
+
+This document is written in Org format and cannot be used directly. It needs to be transformed to extract all the code blocks into a single configuration file. This is accomplished using the `org-babel-tangle` function, which extracts the bodies of all code blocks from the current file.
