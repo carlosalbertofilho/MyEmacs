@@ -2,7 +2,7 @@
 #+author: Carlos Alberto Filho
 #+Date: <2025-02-18 ter>
 #+STARTUP: show2levels indent hidestars
-#+PRIORITIES: header-args :tangle (let ((org-use-tag-inheritance t)) (if (member "INACTIVE" (org-get-tags))  "no" "init.el")))
+#+PRIORITIES: header-args :tangle (let ((org-use-tag-inheritance t)) (if (member "INACTIVE" (org-get-tags))  "no" "~/Downloads/init.el")))
 
 * Documentation
 
@@ -47,3 +47,226 @@ To extract all the code blocks into a single configuration file, I use the PRIOR
 - [X] Dim inactive entries in the sidebar
 - [X] Shift-tab to toggle sidebar (all entries)
 - [X] Filter sidebar (`f` key)
+* Core
+
+** Header
+
+Generate a header at the top of the tangled file to indicate it is generated and is not meant to be modified directly.
+
+#+begin_src emacs-lisp :epilogue (format-time-string ";; Last generated on %c")
+
+;; -*- lexical-binding: t -*-
+;; This file has been generated from dotemacs.org file. DO NOT EDIT.
+;; Sources are available from https://github.com/carlosalbertofilho/MyEmacs
+
+;; Copyright (C) 2025 Carlos Alberto Filho
+
+;; This file is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation; either version 3, or (at your option)
+;; any later version.
+
+;; This file is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; For a full copy of the GNU General Public License
+;; see <https://www.gnu.org/licenses/>.
+
+#+end_src
+
+#+begin_src emacs-lisp
+
+(defvar my/init-start-time (current-time) "Time when init.el was started")
+(defvar my/section-start-time (current-time) "Time when section was started")
+(defun my/report-time (section)
+  (message "%-36s %.2fs"
+           (concat section " " "section time: ")
+           (float-time (time-subtract (current-time) my/section-start-time))))
+(message "---------------------------------------------------------------")
+
+#+end_src
+
+
+** Early init :HOOK:OTHER:
+:PROPERTIES:
+:header-args:emacs-lisp: :tangle "~/Downloads/early-init.el"
+:END:
+
+This code is meant to go to the [[file:early-init.el][early-init.el]] file.
+
+#+begin_src emacs-lisp
+
+(setq
+ site-run-file nil                         ; No site-wide run-time initializations.
+ inhibit-default-init t                    ; No site-wide default library
+ gc-cons-threshold most-positive-fixnum    ; Very large threshold for garbage
+                                           ; collector during init
+ package-enable-at-startup nil)            ; We'll use straight.el
+
+(setq native-comp-eln-load-path
+      (list (expand-file-name "eln-cache" user-emacs-directory)))
+
+;; Reset garbage collector limit after init process has ended (8Mo)
+(add-hook 'after-init-hook
+          #'(lambda () (setq gc-cons-threshold (* 8 1024 1024))))
+
+#+end_src
+
+** Packages management :PERSONAL:
+
+Using [[https://github.com/raxod502/straight.el][straight.el]] for package management and disable checking (for speedup).
+
+#+begin_src emacs-lisp
+
+(setq straight-check-for-modifications nil)
+
+#+end_src
+
+#+begin_src emacs-lisp
+(defvar bootstrap-version)
+(let ((bootstrap-file
+       (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
+      (bootstrap-version 5))
+  (unless (file-exists-p bootstrap-file)
+    (with-current-buffer
+        (url-retrieve-synchronously
+         "https://raw.githubusercontent.com/raxod502/straight.el/develop/install.el"
+         'silent 'inhibit-cookies)
+      (goto-char (point-max))
+      (eval-print-last-sexp)))
+  (load bootstrap-file nil 'nomessage))
+
+#+end_src
+
+Library and theme load paths with a special case for mu4e (you may need to adapt this path).
+
+#+begin_src emacs-lisp
+
+(add-to-list 'load-path
+             (expand-file-name "lisp" user-emacs-directory))
+(add-to-list 'custom-theme-load-path
+             (expand-file-name "theme" user-emacs-directory))
+(add-to-list 'load-path
+  "/usr/local/Cellar/mu/1.6.10/share/emacs/site-lisp/mu/mu4e/mu4e.el")
+
+#+end_src
+
+** Packages installation
+
+Packages used in this specific configuration. You may want to adapt this list. The first time this sequence will be executed, *it will take a long time*. Then, at next restart, it should be very fast (less than 1 second because it won't install anything basically).
+
+#+begin_src emacs-lisp
+
+(setq package-list
+      '(cape                ; Completion At Point Extensions
+        orderless           ; Completion style for matching regexps in any order
+        vertico             ; VERTical Interactive COmpletion
+        marginalia          ; Enrich existing commands with completion annotations
+        consult             ; Consulting completing-read
+        corfu               ; Completion Overlay Region FUnction
+        deft                ; Quickly browse, filter, and edit plain text notes
+        elpher              ; A friendly gopher and gemini client
+        elfeed              ; Emacs Atom/RSS feed reader
+        elfeed-org          ; Configure elfeed with one or more org-mode files
+        f                   ; Modern API for working with files and directories
+        citar               ; Citation-related commands for org, latex, markdown
+        citeproc            ; A CSL 1.0.2 Citation Processor
+        flyspell-correct-popup ; Correcting words with flyspell via popup interface
+        flyspell-popup      ; Correcting words with Flyspell in popup menus
+        guess-language      ; Robust automatic language detection
+        helpful             ; A better help buffer
+        htmlize             ; Convert buffer text and decorations to HTML
+        mini-frame          ; Show minibuffer in child frame on read-from-minibuffer
+        imenu-list          ; Show imenu entries in a separate buffer
+        magit               ; A Git porcelain inside Emacs.
+        markdown-mode       ; Major mode for Markdown-formatted text
+        multi-term          ; Managing multiple terminal buffers in Emacs.
+        pinentry            ; GnuPG Pinentry server implementation
+        use-package         ; A configuration macro for simplifying your .emacs
+        vc-backup           ; VC backend for versioned backups
+        yaml-mode           ; YAML mode
+        consult-recoll      ; Consult interface for recoll query
+        org-auto-tangle     ; Tangle org file when it is saved
+        exec-path-from-shell; Get environment variables such as $PATH from the shell
+        which-key))         ; Display available keybindings in popup
+
+;; Install packages that are not yet installed
+(dolist (package package-list)
+  (straight-use-package package))
+
+;; Special case for pdf-tools that has recently (2022) changed maintainer
+(straight-use-package
+ '(pdf-tools :type git :host github :repo "vedang/pdf-tools"))
+
+;; Denote not yet on ELPA (2022-06-19)
+(straight-use-package
+ '(denote :type git :host github :repo "protesilaos/denote"))
+
+
+#+end_src
+
+My personal packages
+
+#+begin_src emacs-lisp
+
+;; Display org properties in the agenda buffer (modified version)
+(straight-use-package
+ '(org-agenda-property :type git :host github :repo "Malabarba/org-agenda-property"
+                       :fork (:host github :repo "rougier/org-agenda-property")))
+
+;; NANO splash
+(straight-use-package
+ '(nano-splash :type git :host github :repo "rougier/nano-splash"))
+
+;; NANO theme
+(straight-use-package
+ '(nano-theme :type git :host github :repo "rougier/nano-theme"))
+
+;; NANO modeline
+(straight-use-package
+ '(nano-modeline :type git :host github :repo "rougier/nano-modeline"))
+
+;; NANO agenda
+(straight-use-package
+ '(nano-agenda :type git :host github :repo "rougier/nano-agenda"))
+
+;; NANO agenda
+(straight-use-package
+ '(minibuffer-header :type git :host github :repo "rougier/minibuffer-header"))
+
+;; SVG tags, progress bars & icons
+(straight-use-package
+ '(svg-lib :type git :host github :repo "rougier/svg-lib"))
+
+;; Replace keywords with SVG tags
+(straight-use-package
+ '(svg-tag-mode :type git :host github :repo "rougier/svg-tag-mode"))
+
+;; Dashboard for mu4e
+(straight-use-package
+ '(mu4e-dashboard :type git :host github :repo "rougier/mu4e-dashboard"))
+
+;; Folding mode for mu4e
+(straight-use-package
+ '(mu4e-folding :type git :host github :repo "rougier/mu4e-folding"))
+
+;; Relative date formatting
+(straight-use-package
+ '(relative-date :type git :host github :repo "rougier/relative-date"))
+
+;; org imenu
+(straight-use-package
+ '(org-imenu :type git :host github :repo "rougier/org-imenu"))
+
+;; pdf-drop-mode
+(straight-use-package
+ '(pdf-drop-mode :type git :host github :repo "rougier/pdf-drop-mode"))
+
+
+;; Bilbliography manager in org mode
+(straight-use-package
+  '(org-bib :type git :host github :branch "org-imenu" :repo "rougier/org-bib-mode"))
+
+#+end_src
