@@ -20,104 +20,57 @@
 ;; ── dirvish core ────────────────────────────────────────────────────
 (use-package dirvish
   :after nerd-icons
-  :config
+  :init
   (dirvish-override-dired-mode 1)
+  :custom
+  (dirvish-quick-access-entries
+   '(("h" "~/"                    "Home")
+     ("d" "~/Downloads/"          "Downloads")
+     ("p" "~/Projects/"           "Projects")
+     ("c" "~/.config/"            "Config")
+     ("n" "~/org/notes"           "Notes")
+     ("e" "~/.config/emacs-vanilla/" "Emacs")))
+  :config
+  ;; Core settings
   (setq dirvish-attributes
         '(nerd-icons vc-state git-msg collapse)
         dirvish-side-width 30
-        dirvish-window-size 0.5
         dirvish-large-directory-threshold 1000
-        dirvish-default-layout 10
         dirvish-hide-cursor t
         dirvish-use-mode-line nil
-        dirvish-fullscreen nil)
+        dirvish-nerd-icons-height 16     ; was 12 (too small, causes giant icons)
+        dirvish-nerd-icons-offset -2
+        dirvish-side-auto-expand t
+        dirvish-side-open-file-action 'select
+        dirvish-subtree-always-show-state nil
+        dirvish-subtree-state-style "arrow"
+        dirvish-subtree-icon-scale-factor 1.0)
 
-  ;; Truncar linhas longas
+  ;; Preview in minibuffer
+  (dirvish-peek-mode 1)
+  (setq dirvish-peek-key 'any)
+
+  ;; VC preview dispatchers (must be at beginning for priority)
+  (setq dirvish-preview-dispatchers '(vc-log vc-diff vc-blame))
+
+  ;; Hooks
   (add-hook 'dirvish-mode-hook (lambda () (setq truncate-lines t)))
-
-  ;; Esconder detalhes por padrão (colunas extras)
   (add-hook 'dirvish-mode-hook (lambda () (dired-hide-details-mode 1))))
 
-;; ── dirvish-yank: copy/paste em 2 estágios (assíncrono) ────────────
-;; Fornece: dirvish-yank, dirvish-move, dirvish-symlink, dirvish-hardlink
-;; Todos executados de forma assíncrona.
-
-;; ── dirvish-rsync: integração com rsync ─────────────────────────────
-;; Fornece: dirvish-rsync, dirvish-rsync-switches-menu
-;; Menu transient para ajustar switches do rsync.
-
-;; ── dirvish-emerge: agrupamento de arquivos por critérios ──────────
-;; Agrupa como ibuffer: recentes, documentos, vídeos, imagens, etc.
-;; Colapsável com TAB. Configurado via dirvish-emerge-menu (transient).
-;; Ativado via dirvish-setup-hook acima.
-
-;; ── dirvish-peek: preview no minibuffer ─────────────────────────────
-;; Preview de arquivos enquanto navega candidatos no minibuffer.
-;; Funciona com vertico, ivy, icomplete.
-;; (Carregado on-demand pelo dirvish)
-(with-eval-after-load 'dirvish
-  (dirvish-peek-mode 1)
-  ;; Preview imediato ao mudar candidato
-  (setq dirvish-peek-key 'any))
-
-;; ── dirvish-vc: integração Git ──────────────────────────────────────
-;; Fornece: vc-state (bitmap), git-msg, vc-log/diff/blame preview.
-;; Menu transient: ? v no dirvish. (Carregado on-demand)
-(with-eval-after-load 'dirvish
-  ;; Colocar vc dispatchers no início para priorizar
-  (setq dirvish-preview-dispatchers
-        '(vc-log vc-diff vc-blame)))
-
-;; ── dirvish-icons: ícones nos arquivos ──────────────────────────────
-;; Suporta: nerd-icons, all-the-icons, vscode-icon
-;; Já temos nerd-icons instalado via Nix. (Carregado on-demand)
-(with-eval-after-load 'dirvish
-  (setq dirvish-nerd-icons-height 12
-        dirvish-nerd-icons-offset -2))
-
-;; ── dirvish-side: sidebar tipo treemacs ─────────────────────────────
-;; Toggle com M-x dirvish-side. Follow mode rastreia buffer atual.
-;; (Carregado on-demand pelo dirvish)
-(with-eval-after-load 'dirvish
-  (setq dirvish-side-width 30
-        dirvish-side-auto-expand t
-        dirvish-side-open-file-action 'select))
-
-;; ── dirvish-ls: menu transient para switches do ls ─────────────────
-;; M-x dirvish-ls-switches-menu para trocar switches rapidamente.
-
-;; ── dirvish-subtree: tree browser inline ────────────────────────────
-;; Expande diretórios como árvore inline. (Carregado on-demand)
-(with-eval-after-load 'dirvish
-  (setq dirvish-subtree-always-show-state nil
-        dirvish-subtree-state-style "arrow"
-        dirvish-subtree-icon-scale-factor 1.0))
-
-;; ── dirvish-history: navegação por histórico ────────────────────────
-;; Fornece: dirvish-history-jump, dirvish-history-go-forward/backward
-;; Navega por diretórios visitados recentemente.
-
-;; ── dirvish-quick-access: atalhos rápidos ───────────────────────────
-;; Acesso a lugares frequentes com 2 keystrokes. (Carregado on-demand)
-(with-eval-after-load 'dirvish
-  (setq dirvish-quick-access-entries
-        `(("h"  "~/"                    "Home")
-          ("d"  "~/Downloads/"          "Downloads")
-          ("p"  ,(expand-file-name "~/Projects/") "Projects")
-          ("c"  ,(expand-file-name "~/.config/")  "Config")
-          ("n"  ,(expand-file-name "~/org/notes") "Notes")
-          ("e"  ,(expand-file-name "~/.config/emacs-vanilla/") "Emacs"))))
-
-;; ── dirvish-collapse: colapsa caminhos nested únicos ───────────────
-;; Remove diretórios "vazios" desnecessários da visualização.
-
-;; ── dirvish-narrow: filtro live no buffer ──────────────────────────
-;; Filtra arquivos em tempo real enquanto digita.
-;; Suporta orderless e fd para dois níveis de filtro.
-;; (Carregado on-demand pelo dirvish)
-
-;; ── dirvish dispatch: menu de ajuda/cheatsheet ─────────────────────
-;; M-x dirvish-dispatch → menu transient com todos os comandos.
+;; ── dirvish extensions (all consolidated in dirvish :config above) ──
+;; dirvish-yank:    Multi-stage copy/paste (async)
+;; dirvish-rsync:   Integration with rsync
+;; dirvish-emerge:  Group files by filter criteria
+;; dirvish-peek:    Preview in minibuffer (enabled in :config)
+;; dirvish-vc:      Version control integration (enabled in :config)
+;; dirvish-icons:   File icons via nerd-icons (enabled in :config)
+;; dirvish-side:    Toggle sidebar
+;; dirvish-ls:      LS switches menu
+;; dirvish-subtree: Tree browser (enabled in :config)
+;; dirvish-history: History navigation
+;; dirvish-quick-access: Quick keys for places (enabled in :config)
+;; dirvish-collapse: Collapse unique nested paths
+;; dirvish-narrow:  Live filtering
 
 ;; ── ibuffer ─────────────────────────────────────────────────────────
 (use-package ibuffer

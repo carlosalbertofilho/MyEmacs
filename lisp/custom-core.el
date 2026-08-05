@@ -41,9 +41,6 @@
 (epa-file-enable)
 (setq epa-pinentry-mode 'loopback)
 
-;; ── SSH / TRAMP basics ──────────────────────────────────────────────
-(setq tramp-default-method "ssh")
-
 ;; ── Xterm mouse (tty) ───────────────────────────────────────────────
 (when (not (display-graphic-p))
   (xterm-mouse-mode 1))

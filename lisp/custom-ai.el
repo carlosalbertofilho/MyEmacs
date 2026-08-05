@@ -154,7 +154,9 @@ Sem advice: chama `+carlos/gptel-agent-add-project-dirs' diretamente."
                        :args ("-y" "@modelcontextprotocol/server-github")))))
   ;; Iniciar MCP automaticamente com gptel/superchat
   (with-eval-after-load 'gptel
-    (require 'gptel-integrations)))
+    (when (require 'gptel-integrations nil t)
+      ;; gptel-integrations loaded successfully
+      )))
 
 ;; ── SuperChat (Claude Code-style UI para gptel) ────────────────────
 ;; Não está no MELPA — instalar manualmente:
@@ -168,11 +170,13 @@ Sem advice: chama `+carlos/gptel-agent-add-project-dirs' diretamente."
   :after gptel
   :config
   ;; Backend padrão (herda do gptel ou usa llm.el)
-  (setq superchat-llm-backend
-        (make-llm-openai-compatible
-         :api-key (or (getenv "OPENCODE_API_KEY") "")
-         :endpoint "https://zen.opencode.ai/v1"
-         :chat-model "north-mini-code-free"))
+  ;; Guard against missing llm.el
+  (when (locate-library "llm")
+    (setq superchat-llm-backend
+          (make-llm-openai-compatible
+           :api-key (or (getenv "OPENCODE_API_KEY") "")
+           :endpoint "https://zen.opencode.ai/v1"
+           :chat-model "north-mini-code-free"))))
   ;; Idioma para variáveis de sistema
   (setq superchat-lang "English")
   ;; Timeout de resposta

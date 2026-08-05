@@ -91,11 +91,11 @@
         org-modern-label-border 0.5)
   ;; Timestamps estilizados
   (setq org-modern-timestamp t)
-  ;; Priority estilizado
+  ;; Priority estilizado (use text symbols for terminal compatibility)
   (setq org-modern-priority
-        '((?A . "🔴")
-          (?B . "🟡")
-          (?C . "🟢")))
+        '((?A . "[!A]")   ; was "🔴" — emojis may not render in terminal
+          (?B . "[~B]")   ; was "🟡"
+          (?C . "[iC]"))) ; was "🟢"
   ;; Checklist estilizado
   (setq org-modern-checkbox
         '((unordered . "•")

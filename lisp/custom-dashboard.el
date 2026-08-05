@@ -272,15 +272,19 @@ FACE é a face do texto (default: link)."
   (+carlos/dashboard-insert-heading "⚡" "Quick Actions" "q")
   (insert "\n")
 
-  (+carlos/dashboard-insert-button "f" "Find File"
-                                   (lambda () (interactive) (call-interactively #'consult-fzf)))
+  ;; Use consult-find as fallback if consult-fzf is not installed
+  (let ((find-cmd (if (fboundp 'consult-fzf) #'consult-fzf #'consult-find)))
+    (+carlos/dashboard-insert-button "f" "Find File"
+                                     (lambda () (interactive) (call-interactively find-cmd))))
   (+carlos/dashboard-insert-button "p" "Projects"
                                    (lambda () (interactive) (call-interactively #'project-switch-project)))
   (+carlos/dashboard-insert-button "a" "Agenda"
                                    (lambda () (interactive) (call-interactively #'org-agenda)))
   (insert "\n")
-  (+carlos/dashboard-insert-button "g" "Magit"
-                                   (lambda () (interactive) (call-interactively #'magit-status)))
+  ;; Guard magit-status in case magit is not loaded
+  (when (fboundp 'magit-status)
+    (+carlos/dashboard-insert-button "g" "Magit"
+                                     (lambda () (interactive) (call-interactively #'magit-status))))
   (+carlos/dashboard-insert-button "i" "AI Chat"
                                    (lambda () (interactive) (call-interactively #'gptel)))
   (+carlos/dashboard-insert-button "d" "Dirvish"
@@ -419,10 +423,14 @@ FACE é a face do texto (default: link)."
       (local-set-key (kbd "r") '+carlos/dashboard-refresh)
       (local-set-key (kbd "TAB") '+carlos/dashboard-next-section)
       (local-set-key (kbd "<backtab>") '+carlos/dashboard-prev-section)
-      (local-set-key (kbd "f") (lambda () (interactive) (call-interactively #'consult-fzf)))
+      ;; Use consult-find as fallback if consult-fzf is not installed
+      (let ((find-cmd (if (fboundp 'consult-fzf) #'consult-fzf #'consult-find)))
+        (local-set-key (kbd "f") (lambda () (interactive) (call-interactively find-cmd))))
       (local-set-key (kbd "p") (lambda () (interactive) (call-interactively #'project-switch-project)))
       (local-set-key (kbd "a") (lambda () (interactive) (call-interactively #'org-agenda)))
-      (local-set-key (kbd "g") (lambda () (interactive) (call-interactively #'magit-status)))
+      ;; Guard magit-status in case magit is not loaded
+      (when (fboundp 'magit-status)
+        (local-set-key (kbd "g") (lambda () (interactive) (call-interactively #'magit-status))))
       (local-set-key (kbd "i") (lambda () (interactive) (call-interactively #'gptel)))
       (local-set-key (kbd "d") (lambda () (interactive) (call-interactively #'dirvish))))
 

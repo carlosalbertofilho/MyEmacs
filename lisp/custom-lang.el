@@ -12,34 +12,45 @@
   (global-treesit-auto-mode 1))
 
 ;; ── eglot (built-in Emacs 29+) ──────────────────────────────────────
+;; NOTE: Avoid `prog-mode' hook — eglot-ensure on ALL prog modes causes slowdown.
+;; Use per-mode hooks instead (see language sections below).
 (use-package eglot
-  :hook ((prog-mode . eglot-ensure))
   :config
   ;; Ignorar formatação do servidor para C/C++ (Norma 42 controla)
   (add-to-list 'eglot-ignored-server-capabilities :documentFormattingProvider)
   (add-to-list 'eglot-ignored-server-capabilities :documentRangeFormattingProvider))
 
 ;; ── Go ──────────────────────────────────────────────────────────────
+(use-package go-ts-mode
+  :ensure nil
+  :mode ("\\.go\\'" . go-ts-mode)
+  :hook (go-ts-mode . eglot-ensure))
+
 (with-eval-after-load 'eglot
   (add-to-list 'eglot-server-programs
                '(go-ts-mode go-mode . ("gopls"))))
 
-(use-package go-ts-mode
-  :ensure nil
-  :mode ("\\.go\\'" . go-ts-mode))
-
 ;; ── TypeScript / React ──────────────────────────────────────────────
+(use-package typescript-ts-mode
+  :ensure nil
+  :mode (("\\.ts\\'"  . typescript-ts-mode)
+         ("\\.tsx\\'" . tsx-ts-mode))
+  :hook ((typescript-ts-mode tsx-ts-mode) . eglot-ensure))
+
 (with-eval-after-load 'eglot
   (add-to-list 'eglot-server-programs
                '((typescript-ts-mode tsx-ts-mode typescript-mode) .
                  ("typescript-language-server" "--stdio"))))
 
-(use-package typescript-ts-mode
-  :ensure nil
-  :mode (("\\.ts\\'"  . typescript-ts-mode)
-         ("\\.tsx\\'" . tsx-ts-mode)))
-
 ;; ── Python ──────────────────────────────────────────────────────────
+(use-package python
+  :ensure nil
+  :mode (("\\.py\\'" . python-ts-mode))
+  :hook (python-ts-mode . eglot-ensure)
+  :config
+  (setq python-shell-interpreter "ipython"
+        python-shell-interpreter-args "-i --simple-prompt --no-color-info"))
+
 (with-eval-after-load 'eglot
   ;; basedpyright como servidor principal
   (add-to-list 'eglot-server-programs
@@ -48,16 +59,15 @@
   (add-to-list 'eglot-server-programs
                '((python-ts-mode python-mode) . ("ruff" "server"))))
 
-(use-package python
-  :ensure nil
-  :mode (("\\.py\\'" . python-ts-mode))
-  :config
-  (setq python-shell-interpreter "ipython"
-        python-shell-interpreter-args "-i --simple-prompt --no-color-info"))
-
 ;; ── C / C++ (42 School) ─────────────────────────────────────────────
-;; eglot já está configurado; clangd é detectado automaticamente.
-;; A formatação é ignorada (ver eglot-ignored-server-capabilities acima).
+;; clangd is detected automatically by eglot.
+;; Formatting is ignored (see eglot-ignored-server-capabilities above).
+;; NOTE: No eglot-ensure hook — 42 School uses flycheck-norminette instead.
+
+;; ── Elisp ───────────────────────────────────────────────────────────
+(use-package emacs-lisp-mode
+  :ensure nil
+  :hook (emacs-lisp-mode . eglot-ensure))
 
 ;; ── Shell / Bash ────────────────────────────────────────────────────
 (use-package sh-script

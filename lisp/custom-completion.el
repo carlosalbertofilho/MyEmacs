@@ -26,14 +26,14 @@
 ;; ── consult ─────────────────────────────────────────────────────────
 (use-package consult
   :bind
-  (("C-x b"   . consult-buffer)
-   ("C-s"     . consult-line)
-   ("C-c s"   . consult-ripgrep)
-   ("C-c h"   . consult-history)
-   ("C-c i"   . consult-imenu)
-   ("C-c k"   . consult-keep-lines)
-   ("M-g g"   . consult-goto-line)
-   ("M-g M-g" . consult-goto-line)))
+   (("C-x b"   . consult-buffer)
+    ("C-s"     . consult-line)
+    ("C-c s"   . consult-ripgrep)
+    ("C-c /"   . consult-history)     ; was C-c h — freed for stdheader (42 School)
+    ("C-c i"   . consult-imenu)
+    ("C-c k"   . consult-keep-lines)
+    ("M-g g"   . consult-goto-line)
+    ("M-g M-g" . consult-goto-line)))
 
 ;; Preview on consult commands
 (with-eval-after-load 'consult

@@ -17,34 +17,35 @@
 (global-set-key (kbd "C-c s")   #'consult-ripgrep)
 (global-set-key (kbd "C-c S")   #'consult-line)
 
-;; ── Git (Magit — Fase 3 placeholder) ───────────────────────────────
-;; (global-set-key (kbd "C-c g") #'magit-status)
+;; ── Git (Magit) ─────────────────────────────────────────────────────
+(global-set-key (kbd "C-c g")   #'magit-status)
 
-;; ── AI (gptel — Fase 3 placeholder) ────────────────────────────────
-;; (global-set-key (kbd "C-c i p") #'gptel)
-;; (global-set-key (kbd "C-c i a") #'+carlos/gptel-agent-run)
+;; ── AI (gptel) ──────────────────────────────────────────────────────
+(global-set-key (kbd "C-c i")   #'gptel)
+(global-set-key (kbd "C-c I")   #'+carlos/gptel-agent-run)
 
-;; ── 42 School (Fase 2 placeholder) ─────────────────────────────────
-;; (global-set-key (kbd "C-c h") #'stdheader)
+;; ── 42 School ───────────────────────────────────────────────────────
+(global-set-key (kbd "C-c h")   #'stdheader)
 
-;; ── Just (Fase 2 placeholder) ──────────────────────────────────────
-;; (global-set-key (kbd "C-c j") #'justl)
-;; (global-set-key (kbd "C-c J") #'+carlos/just-check)
+;; ── Just ────────────────────────────────────────────────────────────
+(global-set-key (kbd "C-c j")   #'justl)
+(global-set-key (kbd "C-c J")   #'justl-compile)
 
-;; ── Denote (Fase 3 placeholder) ────────────────────────────────────
-;; (global-set-key (kbd "C-c n n") #'denote)
-;; (global-set-key (kbd "C-c n d") #'denote-date)
-;; (global-set-key (kbd "C-c n r") #'denote-rename-file)
+;; ── Denote ──────────────────────────────────────────────────────────
+(global-set-key (kbd "C-c n n") #'denote)
+(global-set-key (kbd "C-c n d") #'denote-date)
+(global-set-key (kbd "C-c n r") #'denote-rename-file)
+(global-set-key (kbd "C-c n b") #'denote-backlinks)
+(global-set-key (kbd "C-c n l") #'denote-link)
+(global-set-key (kbd "C-c n L") #'denote-link-dired)
+(global-set-key (kbd "C-c n s") #'+carlos/denote-silo-new)
 
 ;; ── Zen UI ──────────────────────────────────────────────────────────
 (global-set-key (kbd "C-c z")   #'olivetti-mode)
 
 ;; ── Terminal ────────────────────────────────────────────────────────
 (global-set-key (kbd "C-c t")   #'vterm)
-(global-set-key (kbd "C-c e")   #'eshell)
-
-;; ── Eshell ──────────────────────────────────────────────────────────
-(global-set-key (kbd "C-c E")   #'eshell)
+;; eshell bound in custom-term.el (C-c e)
 
 ;; ── Tab bar ─────────────────────────────────────────────────────────
 (global-set-key (kbd "C-c TAB") #'tab-bar-mode)
