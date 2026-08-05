@@ -60,6 +60,10 @@
   (dirvish-side-auto-expand t)
   (dirvish-side-open-file-action 'select)
   (dirvish-reuse-session 'open)
+  ;; Sidebar specific visual settings (evita truncamento de linhas)
+  (dirvish-side-attributes '(vc-state nerd-icons collapse subtree-state))
+  (dirvish-side-header-line-format '(:left (project)))
+  (dirvish-side-mode-line-format nil)
   ;; Preview dispatchers (correct values: file types, NOT vc commands)
   (dirvish-preview-dispatchers
    '(image gif video audio epub pdf archive))
