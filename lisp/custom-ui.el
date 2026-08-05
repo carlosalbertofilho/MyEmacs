@@ -9,7 +9,7 @@
 (use-package ef-themes
   :ensure t
   :demand t  ;; Force load now (theme must be active before modules load)
-  :init
+  :config
   ;; Mixed fonts: variable-pitch headings + fixed-pitch code
   (setq ef-themes-mixed-fonts t
         ef-themes-variable-pitch-ui t
@@ -22,9 +22,8 @@
           (5 . (variable-pitch bold 1.0))
           (6 . (variable-pitch bold 1.0))
           (7 . (variable-pitch bold 1.0))
-          (t . (variable-pitch bold 1.0))))
-  :config
-  (setq ef-themes-to-toggle '(ef-spring ef-winter))
+          (t . (variable-pitch bold 1.0)))
+        ef-themes-to-toggle '(ef-spring ef-winter))
   (load-theme 'ef-winter t))
 
 ;; ── mood-line ───────────────────────────────────────────────────────
