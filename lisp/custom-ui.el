@@ -53,5 +53,10 @@
 ;; Fringe
 (fringe-mode '(8 . 8))
 
+;; Divisórias de janela (permite redimensionar a sidebar com o mouse)
+(setq window-divider-default-places 'right-only
+      window-divider-default-right-width 1)
+(window-divider-mode 1)
+
 (provide 'custom-ui)
 ;;; custom-ui.el ends here
