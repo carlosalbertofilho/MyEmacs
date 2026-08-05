@@ -302,23 +302,27 @@ FACE é a face do texto (default: link)."
 
 (defun +carlos/dashboard-insert-agenda ()
   "Insere seção de agenda de hoje."
-  (when (featurep 'org)
+  (when (and (featurep 'org) org-agenda-files)
     (require 'org-agenda)
-    (let* ((today (format-time-string "%Y-%m-%d"))
-           (entries (org-agenda-get-day-entries nil (current-time) :timestamp)))
-      (when entries
+    (let* ((all-entries nil)
+           (count 0))
+      ;; Coleta entradas de todos os arquivos da agenda
+      (dolist (file org-agenda-files)
+        (when (and (stringp file) (file-exists-p file) (< count +carlos/dashboard-max-agenda))
+          (let ((entries (org-agenda-get-day-entries file (current-time) :timestamp)))
+            (dolist (entry entries)
+              (when (< count +carlos/dashboard-max-agenda)
+                (push entry all-entries)
+                (cl-incf count))))))
+      (when all-entries
         (+carlos/dashboard-insert-heading "📅" "Today's Agenda" "a")
         (insert "\n")
-
-        (let ((count 0))
-          (dolist (entry entries)
-            (when (< count +carlos/dashboard-max-agenda)
-              (let ((text (substring-no-properties (format "%s" entry))))
-                (insert "  ")
-                (insert (propertize (truncate-string-to-width text 70 nil nil t)
-                                    'face 'default))
-                (insert "\n")
-                (cl-incf count)))))
+        (dolist (entry (reverse all-entries))
+          (let ((text (substring-no-properties (format "%s" entry))))
+            (insert "  ")
+            (insert (propertize (truncate-string-to-width text 70 nil nil t)
+                                'face 'default))
+            (insert "\n")))
         (insert "\n")))))
 
 (defun +carlos/dashboard-insert-footer ()
