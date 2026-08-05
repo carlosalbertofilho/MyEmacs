@@ -11,9 +11,9 @@ mode, com IA unificada via =gptel=, integrada ao NixOS via Home Manager.
 - **Framework:** Emacs Bedrock (use-package nativo, Emacs 29+)
 - **Sem Evil:** keybindings 100% nativos com prefixo =C-c=
 - **IA:** gptel + gptel-agent + SuperChat + MCP (OpenCode Zen, Claude, Gemini, Ollama, MLX Local)
-- **42 School:** header42.el + flycheck-norminette.el preservados
+- **42 School:** header42.el + custom-norminette.el (JSON-based, eglot chain)
 - **Dashboard:** Estilo Nano Emacs (minimalista, tipografia premium)
-- **Arquivos:** Dirvish (13 extensões), ibuffer, TRAMP otimizado
+- **Arquivos:** Dirvish (13 extensões consolidadas), ibuffer, TRAMP otimizado
 
 * Estrutura
 
@@ -23,28 +23,49 @@ mode, com IA unificada via =gptel=, integrada ao NixOS via Home Manager.
 ├── init.el                 ← bootstrap, carrega módulos
 ├── custom-file.el          ← gerado por M-x customize
 ├── lisp/
-│   ├── custom-core.el      ← fontes, GPG, SSH, editor basics
-│   ├── custom-ui.el        ← ef-themes, mood-line, olivetti
-│   ├── custom-completion.el← vertico, consult, corfu, embark
-│   ├── custom-files.el     ← dirvish, ibuffer, TRAMP
-│   ├── custom-term.el      ← vterm, eshell
-│   ├── custom-lang.el      ← eglot, treesit, linguagens
-│   ├── custom-org.el       ← org-babel, jupyter, mermaid, pdf-tools
-│   ├── custom-42.el        ← header42, norminette, estilo C 42
+│   ├── custom-core.el      ← fontes, GPG, editor basics, line numbers
+│   ├── custom-ui.el        ← ef-themes, mood-line, olivetti, which-key
+│   ├── custom-completion.el← vertico, consult, corfu, marginalia, orderless, embark
+│   ├── custom-files.el     ← dirvish (consolidado), ibuffer, TRAMP, project
+│   ├── custom-term.el      ← vterm, eshell, eshell-prompt-extras
+│   ├── custom-lang.el      ← eglot (per-mode hooks), treesit, linguagens
+│   ├── custom-org.el       ← org-babel, jupyter, mermaid, pdf-tools, org-modern
+│   ├── custom-42.el        ← header42, custom-norminette, estilo C 42
 │   ├── custom-ai.el        ← gptel backends, gptel-agent, SuperChat, MCP
-│   ├── custom-knowledge.el ← denote (Zettelkasten)
-│   ├── custom-git.el       ← magit, just, commit com IA
-│   ├── custom-keybindings.el← atalhos C-c
-│   └── custom-dashboard.el ← dashboard estilo Nano Emacs
+│   ├── custom-knowledge.el ← denote (Zettelkasten + silos)
+│   ├── custom-git.el       ← magit, justl, commit com IA
+│   ├── custom-keybindings.el← atalhos C-c (todos habilitados)
+│   ├── custom-dashboard.el ← dashboard estilo Nano Emacs
+│   └── custom-norminette.el← norminette JSON-based + eglot chain
 ├── site-lisp/
-│   ├── header42.el
-│   └── flycheck-norminette.el
+│   └── header42.el
+├── docs/                   ← RAG reference docs (8 pacotes)
 ├── bin/
 │   └── emacs-vanilla       ← wrapper
-├── Justfile
+├── Justfile                ← run, install, compile, check, sync, test, deploy
 ├── README.org
-└── guia_emacs.org
+├── guia_emacs.org
+├── guia_detalhado.org
+├── meu_emacs.org           ← Master Plan (migração Doom → Vanilla)
+├── TODO.md                 ← Plano de correção e próximos passos
+└── roadmap.org             ← Histórico de ações realizadas
 #+end_src
+
+* Documentação RAG (docs/)
+
+Todos os pacotes principais possuem documentação de referência em =docs/=:
+
+| Pacote | Arquivo | Conteúdo |
+|--------+---------+----------|
+| Dirvish | =docs/dirvish-reference.org= | API, 13 extensões, hooks, pitfalls |
+| GPTel | =docs/gptel-reference.org= | Backends, agent, org integration, tools |
+| Completion | =docs/completion-stack.org= | Vertico, consult, corfu, marginalia, orderless, embark |
+| Magit | =docs/magit-reference.org= | Status, staging, commit, push/pull, log |
+| Denote | =docs/denote-reference.org= | Notes, silos, links, backlinks, keywords |
+| Org | =docs/org-ecosystem.org= | org-modern, ob-mermaid, jupyter, pdf-tools |
+| UI | =docs/ui-stack.org= | ef-themes, mood-line, olivetti, nerd-icons |
+| Terminal | =docs/term-stack.org= | vterm, eshell, eshell-prompt-extras |
+| Norminette | =docs/norminette-reference.org= | API JSON, error codes, integração eglot |
 
 * Instalação
 
@@ -61,6 +82,16 @@ O wrapper =emacs-vanilla= é criado automaticamente.
 #+begin_src shell
 git clone git@github.com:carlosalbertofilho/MyEmacs.git ~/.config/emacs-vanilla
 emacs --init-directory ~/.config/emacs-vanilla
+#+end_src
+
+** Sync para teste
+
+#+begin_src shell
+# No repo de trabalho
+git add -A && git commit -m "msg" && git push
+
+# No dir de teste
+cd ~/.config/emacs-vanilla && git stash && git pull && git stash pop
 #+end_src
 
 ** Compilar vterm (primeira vez, GUI)
@@ -92,6 +123,9 @@ Depois configurar em =custom-org.el=:
 | =just install= | Instala/atualiza pacotes |
 | =just compile= | Compila .el → .elc |
 | =just check= | Verifica erros de configuração |
+| =just sync= | Sync para ~/.config/emacs-vanilla |
+| =just test= | Testa no dir de sync |
+| =just deploy "msg"= | Commit, push, sync, test |
 
 * Backends de IA Configurados
 
@@ -103,27 +137,63 @@ Depois configurar em =custom-org.el=:
 | Ollama Local | qwen3.5:latest |
 | MLX Local | gemma-4-e2b, Qwen2.5-7B, Qwen3.5-9B, DeepSeek-R1-14B, Qwen3-14B |
 
+* Keybindings Principais
+
+| Ação | Atalho |
+|------+--------|
+| Buscar no projeto | =C-c s= (consult-ripgrep) |
+| Buscar no buffer | =C-c S= (consult-line) |
+| Trocar buffer | =C-x b= (consult-buffer) |
+| Magit status | =C-c g= |
+| gptel chat | =C-c i= |
+| gptel agente | =C-c I= |
+| Header 42 | =C-c h= |
+| Just recipes | =C-c j= |
+| Denote nota | =C-c n n= |
+| Terminal | =C-c t= (vterm) |
+| Eshell | =C-c e= |
+| Dashboard | =C-c d d= |
+| Zen mode | =C-c z= (olivetti) |
+| Navegar janelas | =Super+h/j/k/l= |
+
 * Status das Fases
 
 | Fase | Status |
 |------+--------|
 | Fase 0 — Fundação | ✅ DONE |
-| Fase 1 — Core + UX | ✅ DONE |
-| Fase 2 — Linguagens + 42 + Org | ✅ DONE |
+| Fase 1 — Core + UX | ✅ DONE (14 bugs corrigidos) |
+| Fase 2 — Linguagens + 42 + Org | ✅ DONE (norminette JSON reimplementado) |
 | Fase 3 — IA + Conhecimento + Git | ✅ DONE |
 | Fase 4 — Cutoff | ⏳ PENDENTE |
 
-* Bugs Conhecidos
+* Bugs Corrigidos (14)
 
-| Bug | Status | Workaround |
-|-----+--------+------------|
-| pdf-tools não compila no macOS | ⚠️ Known | Usar doc-view como fallback |
-| gptel-org-mode void function | ✅ Fixed | Guard com fboundp |
-| ob-gptel não existe no gptel 2026 | ✅ Fixed | Removido registro babel |
-| nerd-icons void function no dirvish | ✅ Fixed | :after nerd-icons |
-| org-agenda-get-day-entries nil | ✅ Fixed | Itera org-agenda-files |
-| Dirvish ícones gigantes | ⚠️ Pending | Ajustar height/offset |
-| Linhas longas no dirvish | ✅ Fixed | truncate-lines + hide-details |
+| # | Bug | Status |
+|---+-----+--------|
+| 1 | Keybinding conflitante =C-c h= (consult vs stdheader) | ✅ Fixed (movido para =C-c /=) |
+| 2 | =dirvish-default-layout 10= inválido | ✅ Fixed (removido) |
+| 3 | =dirvish-nerd-icons-height 12= (ícones gigantes) | ✅ Fixed (mudado para 16) |
+| 4 | 6 blocos =with-eval-after-load 'dirvish= dispersos | ✅ Fixed (consolidados em =:config=) |
+| 5 | TRAMP duplicado em 2 arquivos | ✅ Fixed (removido de custom-core.el) |
+| 6 | Eglot em =prog-mode= hook (lento) | ✅ Fixed (hooks por modo) |
+| 7 | Emojis em =org-modern-priority= (terminal) | ✅ Fixed (texto alternativo) |
+| 8 | SuperChat depende de =llm.el= | ✅ Fixed (guard com =locate-library=) |
+| 9 | =gptel-integrations= require sem verificação | ✅ Fixed (guard com =nil t=) |
+| 10 | Bindings comentados (placeholders) | ✅ Fixed (todos habilitados) |
+| 11 | Eshell bound 2x | ✅ Fixed (removido duplicata) |
+| 12 | =C-c E= para eshell | ✅ Fixed (removido) |
+| 13 | Dashboard usa =consult-fzf= (pode não existir) | ✅ Fixed (fallback =consult-find=) |
+| 14 | Dashboard usa =magit-status= sem check | ✅ Fixed (guard com =fboundp=) |
+
+* Norminette Integration
+
+A integração com a Norminette da 42 School foi reimplementada:
+
+- **JSON output:** Usa =-f json --no-colors= (parsing confiável)
+- **Buffer check:** =M-x custom-norminette-check-buffer= (verifica sem salvar)
+- **Contextual hints:** 20+ erros com dicas contextuais
+- **Eglot chain:** eglot (clangd LSP) → norminette (style checker)
+- **Error levels:** Error → flycheck error, Notice → flycheck warning
 
 * Fontes Pendentes (Nix)
 
@@ -136,8 +206,10 @@ Depois configurar em =custom-org.el=:
 
 - Emacs Bedrock: https://codeberg.org/ashton314/emacs-bedrock
 - gptel: https://github.com/karthink/gptel
+- gptel-agent: https://github.com/karthink/gptel-agent
 - Denote: https://protesilaos.com/emacs/denote
 - ef-themes: https://protesilaos.com/emacs/ef-themes
 - Dirvish: https://github.com/alexluigit/dirvish
+- Norminette: https://github.com/42School/norminette
 - SuperChat: https://github.com/yibie/superchat
 - MCP.el: https://github.com/lizqwerscott/mcp.el

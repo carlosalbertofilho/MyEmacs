@@ -281,11 +281,18 @@ C-x C-f /ssh:usuario@host:/caminho/arquivo
 |---------+--------|
 | =C-c s= | Busca (ripgrep) |
 | =C-c S= | Busca linha |
-| =C-c t= | Terminal |
+| =C-c /= | Histórico de comandos |
+| =C-c t= | Terminal (vterm) |
 | =C-c e= | Eshell |
 | =C-c z= | Zen mode |
 | =C-c d= | Dashboard |
 | =C-c TAB= | Tab bar |
+| =C-c g= | Magit (Git) |
+| =C-c i= | gptel chat |
+| =C-c I= | gptel agente |
+| =C-c h= | Header 42 |
+| =C-c j= | Just recipes |
+| =C-c n= | Denote (notas) |
 
 ** Comandos M-x Essenciais
 
@@ -307,6 +314,43 @@ C-x C-f /ssh:usuario@host:/caminho/arquivo
 3. =C-h m= → modos ativos no buffer
 4. =M-x describe-keymap= → todos os atalhos
 5. =M-x customize= → interface gráfica de configuração
+
+* 42 School — Norminette e Estilo C
+
+** Norminette (checker de estilo 42)
+
+A integração com a Norminette foi reimplementada usando output JSON:
+
+| Ação | Comando | Descrição |
+|------+---------+-----------|
+| Verificar buffer | =M-x custom-norminette-check-buffer= | Checa sem salvar arquivo |
+| Toggle checker | =M-x custom-norminette-toggle= | Liga/desliga |
+| Selecionar checker | =M-x custom-norminette-select-checker= | Ativa norminette |
+| Auto-check on save | Automático | Roda ao salvar arquivo .c/.h |
+
+** Chain de diagnóstico:**
+#+begin_src text
+eglot (clangd LSP) → norminette (style checker)
+       ↓                      ↓
+  syntax errors         norm violations
+#+end_src
+
+** Erros comuns com dicas:**
+| Erro | Dica |
+|------+------|
+| INVALID_HEADER | Use =C-c h= para inserir/atualizar header |
+| TOO_MANY_FUNCS | Máx 5 funções por arquivo — divida |
+| TOO_MANY_LINES | Máx 25 linhas por função — refatore |
+| SPACE_REPLACE_TAB | Use tabs para indentação |
+| TOO_MANY_VARIABLES | Máx 5 variáveis por função |
+
+** Estilo C 42 (automático em arquivos .c/.h):**
+- Tabs reais (width 4)
+- 80 colunas máx
+- 25 linhas máx por função
+- 5 variáveis máx por função
+- Header 42 obrigatório (=C-c h=)
+- Whitespace visível e cleanup no save
 
 * Progressão Sugerida
 
