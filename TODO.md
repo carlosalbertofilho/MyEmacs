@@ -55,6 +55,62 @@
 - [x] Configurar gptel-org para integração Org
 - [x] Criar +carlos/gptel-agent-run sem advice bug
 
+### 2026-08-05 — Pipeline de Lint + Zero Byte-Compile Warnings
+- [x] Criar `just lint` (compile + checkdoc)
+- [x] Criar `just checkdoc` (validação de docstrings)
+- [x] Criar `just check-all` (check + lint)
+- [x] Criar `just ci` (pipeline CI)
+- [x] Adicionar `elpaca-wait` após `elpaca-use-package` no `init.el`
+- [x] Corrigir variável obsoleta `epa-pinentry-mode` → `epg-pinentry-mode`
+- [x] Corrigir argumento não usado em `custom-norminette--parse-json`
+- [x] Corrigir docstring em `custom-term.el` (checkdoc warnings)
+- [x] Corrigir docstring em `custom-git.el` (single quotes)
+- [x] Adicionar forward declarations em `custom-ai.el` (10 variáveis/funções)
+- [x] Adicionar forward declarations em `custom-completion.el` (corfu function)
+- [x] Adicionar forward declarations em `custom-dashboard.el` (org-agenda, gptel)
+- [x] Adicionar forward declarations em `custom-git.el` (vc-git-root, gptel-*)
+- [x] Adicionar forward declarations em `custom-keybindings.el` (11 funções)
+- [x] Adicionar forward declarations em `custom-knowledge.el` (denote-directory)
+- [x] Adicionar forward declarations em `custom-writing.el` (markdown-*)
+- [x] Adicionar forward declarations em `custom-term.el` (eshell/eat/vterm)
+- [x] Renomear `corfu-enable-always-in-minibuffer` → `+carlos/corfu-enable-in-minibuffer`
+- [x] Mover `ob-mermaid` antes do org-babel com `elpaca-wait`
+- [x] Resultado: **zero warnings** no byte-compile + checkdoc
+
+### 2026-08-05 — Dirvish: Preview Dispatchers + Extensões
+- [x] Corrigir `dirvish-preview-dispatchers` (vc-log/vc-diff/vc-blame → image/gif/video/audio/epub/pdf/archive)
+- [x] Adicionar `subtree-state`, `file-time`, `file-size` a `dirvish-attributes`
+- [x] Adicionar keybindings: `; ? TAB o r s v N`
+- [x] Corrigir `tramp-use-ssh-controlmaster-options` → `tramp-use-connection-share`
+- [x] Ajustar `dirvish-large-directory-threshold` para 20000
+- [x] Remover `dirvish-peek-mode` desnecessário
+
+### 2026-08-05 — Org Mode Visual (Full Width + Hierarquia)
+- [x] Remover `olivetti` (centralização em 85 colunas)
+- [x] Aumentar heading sizes: H1:1.5, H2:1.3, H3:1.15, title:1.6
+- [x] Buffers full-width sem centralização
+- [x] Remover `org-hide-emphasis-markers` duplicado
+
+### 2026-08-05 — UI Fixes (Which-Key + Ef-Themes)
+- [x] Adicionar `(which-key-mode 1)` (faltava ativar)
+- [x] Remover which-key duplicado do `init.el`
+- [x] Adicionar `:demand t` ao `ef-themes` (não carregava por causa do defer)
+- [x] Mover `ef-themes` settings de `:init` para `:config` (defvaralias warnings)
+
+### 2026-08-05 — Terminal Fixes (Eshell + Eat)
+- [x] Corrigir `eshell-mode-map` void variable (mover para `with-eval-after-load`)
+- [x] Corrigir `eshell-path-extra` void variable (mover para hook + boundp)
+- [x] Consolidar bindings de AI tools no eshell `:config`
+- [x] Adicionar forward declarations (vterm-mode-map, eshell-mode-map, eat-*, vterm-*)
+- [x] Mover vterm keybinding para dentro do vterm `:config`
+
+### 2026-08-05 — Elpaca Bootstrap Fixes
+- [x] Adicionar `(elpaca-wait)` após `elpaca-use-package`
+- [x] Adicionar `:demand t` a vertico, marginalia, orderless, corfu
+- [x] Adicionar `:demand t` a ob-mermaid (antes do org-babel)
+- [x] Corrigir erro "Cannot load vertico/marginalia/orderless/corfu"
+- [x] Corrigir erro "Cannot open load file: ob-mermaid"
+
 ## Bugs Conhecidos
 
 | Bug | Severidade | Status | Notas |

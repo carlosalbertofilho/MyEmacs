@@ -108,6 +108,78 @@ Criar cache de referência para que agentes possam:
 
 *** Status: ⚠️ NEEDS FIX
 
+** 2026-08-05 — Pipeline de Lint + Zero Byte-Compile Warnings
+
+*** Feito
+- Criar =just lint= (=compile= + =checkdoc=)
+- Criar =just checkdoc= (validação de docstrings Emacs)
+- Criar =just check-all= (=check= + =lint=)
+- Criar =just ci= (pipeline CI)
+- Adicionar =(elpaca-wait)= após =elpaca-use-package= no =init.el=
+- Corrigir variável obsoleta =epa-pinentry-mode= → =epg-pinentry-mode=
+- Corrigir argumento não usado em =custom-norminette--parse-json=
+- Corrigir docstrings em =custom-term.el= e =custom-git.el= (checkdoc)
+- Adicionar forward declarations em 8 arquivos (60+ variáveis/funções)
+- Renomear =corfu-enable-always-in-minibuffer= → =+carlos/corfu-enable-in-minibuffer=
+- Mover =ob-mermaid= antes do org-babel com =elpaca-wait=
+- Resultado: **zero warnings** no byte-compile + checkdoc
+
+*** Status: ✅ DONE
+
+** 2026-08-05 — Dirvish: Preview Dispatchers + Extensões Corrigidas
+
+*** Feito
+- Corrigir =dirvish-preview-dispatchers= (valores errados vc-log/vc-diff/vc-blame → image/gif/video/audio/epub/pdf/archive)
+- Adicionar =subtree-state=, =file-time=, =file-size= a =dirvish-attributes=
+- Adicionar keybindings: =; ? TAB o r s v N= (recomendadas pela doc)
+- Corrigir =tramp-use-ssh-controlmaster-options= → =tramp-use-connection-share=
+- Ajustar =dirvish-large-directory-threshold= para 20000
+- Remover =dirvish-peek-mode= desnecessário
+
+*** Status: ✅ DONE
+
+** 2026-08-05 — Org Mode Visual (Full Width + Hierarquia)
+
+*** Feito
+- Remover =olivetti= (centralização em 85 colunas desperdiçava tela)
+- Aumentar heading sizes: H1:1.5, H2:1.3, H3:1.15, title:1.6
+- Buffers full-width sem centralização
+- Remover =org-hide-emphasis-markers= duplicado
+
+*** Status: ✅ DONE
+
+** 2026-08-05 — UI Fixes (Which-Key + Ef-Themes)
+
+*** Feito
+- Adicionar =(which-key-mode 1)= (faltava ativar)
+- Remover which-key duplicado do =init.el=
+- Adicionar =:demand t= ao =ef-themes= (não carregava por =use-package-always-defer=)
+- Mover =ef-themes= settings de =:init= para =:config= (defvaralias warnings)
+
+*** Status: ✅ DONE
+
+** 2026-08-05 — Terminal Fixes (Eshell + Eat)
+
+*** Feito
+- Corrigir =eshell-mode-map= void variable (mover para =with-eval-after-load=)
+- Corrigir =eshell-path-extra= void variable (mover para hook + =boundp=)
+- Consolidar bindings de AI tools no eshell =:config=
+- Adicionar forward declarations (=vterm-mode-map=, =eshell-mode-map=, =eat-*=, =vterm-*=)
+- Mover vterm keybinding para dentro do vterm =:config=
+
+*** Status: ✅ DONE
+
+** 2026-08-05 — Elpaca Bootstrap Fixes
+
+*** Feito
+- Adicionar =(elpaca-wait)= após =elpaca-use-package=
+- Adicionar =:demand t= a vertico, marginalia, orderless, corfu
+- Adicionar =:demand t= a ob-mermaid (antes do org-babel)
+- Corrigir erro "Cannot load vertico/marginalia/orderless/corfu"
+- Corrigir erro "Cannot open load file: ob-mermaid"
+
+*** Status: ✅ DONE
+
 * Decisões Arquiteturais
 
 ** Sem Evil Mode
