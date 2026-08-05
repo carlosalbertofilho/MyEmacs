@@ -1,0 +1,905 @@
+#+TITLE: 42 School Norminette Reference Guide
+#+AUTHOR: AI Agent (RAG Context)
+#+DATE: 2026-08-05
+#+DESCRIPTION: Comprehensive reference for the 42 School Norminette C/C++ style checker --- CLI API, JSON output, Emacs integration, and error codes
+#+filetags: :42:norminette:c:flycheck:eglot:style-checker:reference:
+
+* Norminette Reference Guide
+:PROPERTIES:
+:CREATED:  2026-08-05
+:UPDATED:  2026-08-05
+:VERSION:  3.x (Python >= 3.10)
+:REPO:     [[https://github.com/42School/norminette][github.com/42School/norminette]]
+:RAG_TAG:  norminette, 42-school, c-style, flycheck, eglot, linting
+:END:
+
+Norminette is the official coding style checker for 42 School's C curriculum.
+It enforces the school's coding norm (v4.1) on C and header files, checking for
+indentation, function length, naming conventions, include ordering, and many
+other style rules. It is a Python-based CLI tool that supports both humanized
+(terminal-friendly) and JSON (machine-parsable) output formats.
+
+This document serves as the authoritative RAG context for AI agents implementing
+or maintaining the Emacs integration (flycheck checker, eglot diagnostics, and
+buffer-level checking).
+
+* Table of Contents
+:PROPERTIES:
+:TOC:      include
+:END:
+- [[#installation][Installation]]
+- [[#cli-api][CLI API]]
+- [[#output-formats][Output Formats]]
+  - [[#json-output][JSON Output]]
+  - [[#humanized-output][Humanized Output]]
+- [[#exit-codes][Exit Codes]]
+- [[#error-codes][Error Codes Reference]]
+- [[#current-emacs-integration][Current Emacs Integration]]
+  - [[#flycheck-norminetteel][flycheck-norminette.el]]
+  - [[#custom-42el][custom-42.el]]
+  - [[#eglot-chaining][Eglot Chaining]]
+- [[#recommended-emacs-integration][Recommended Emacs Integration]]
+  - [[#json-based-flycheck-checker][JSON-Based Flycheck Checker]]
+  - [[#buffer-checking-with-cfile][Buffer Checking with --cfile]]
+  - [[#eglot-extra-diagnostics][Eglot Extra Diagnostics]]
+  - [[#json-parser-helper][JSON Parser Helper]]
+- [[#pitfalls-and-common-errors][Pitfalls and Common Errors]]
+- [[#best-practices][Best Practices]]
+- [[#nix-installation][Nix Installation]]
+- [[#docker-usage][Docker Usage]]
+- [[#github-actions][GitHub Actions]]
+- [[#useful-links][Useful Links]]
+
+* Installation
+:PROPERTIES:
+:RAG_IMPORTANT: t
+:END:
+
+Norminette requires Python >= 3.10.
+
+** Direct pip Installation
+
+#+begin_src shell
+# Install or upgrade
+python3 -m pip install -U norminette
+
+# Verify installation
+norminette --version
+#+end_src
+
+** pipx Installation (Recommended for Isolation)
+
+#+begin_src shell
+# Install pipx if not available
+sudo apt install pipx
+pipx ensurepath
+
+# Install norminette in isolated environment
+pipx install norminette
+#+end_src
+
+** Virtual Environment Installation
+
+#+begin_src shell
+python3 -m venv $HOME/.venv
+source $HOME/.venv/bin/activate
+python3 -m pip install --upgrade pip setuptools
+python3 -m pip install norminette
+echo "export PATH=\$PATH:$HOME/.venv/bin" >> $HOME/.${SHELL##/bin/}rc
+deactivate
+#+end_src
+
+** Upgrade Existing Installation
+
+#+begin_src shell
+python3 -m pip install --upgrade norminette
+#+end_src
+
+* CLI API
+:PROPERTIES:
+:RAG_IMPORTANT: t
+:END:
+
+#+begin_src shell
+usage: norminette [-h] [-d] [-o] [-v] [--cfile CFILE] [--hfile HFILE]
+                  [--filename FILENAME] [--use-gitignore]
+                  [-f {json,humanized}] [--no-colors] [-R R]
+                  [file ...]
+#+end_src
+
+** Options Reference
+
+| Flag              | Description                                              |
+|-------------------+----------------------------------------------------------|
+| =file=            | File(s) or folder(s) to check. Defaults to current folder|
+| =-d, --debug=     | Debug output (=-dd= for full tokenization)               |
+| =-o, --only-filename= | Show only filename instead of full path              |
+| =-v, --version=   | Show version                                             |
+| =--cfile CFILE=   | Pass C file content directly (stdin-like)                |
+| =--hfile HFILE=   | Pass header file content directly (stdin-like)           |
+| =--filename FILENAME= | Set filename when using =--cfile= or =--hfile=       |
+| =--use-gitignore= | Skip files matching .gitignore patterns                  |
+| =-f {json,humanized}= | Output format (default: =humanized=)                |
+| =--no-colors=     | Disable ANSI color codes in output                       |
+| =-R R=            | Compatibility flag for norminette v2 rules               |
+
+** Key Flags for Emacs Integration
+
+RAG context for AI agents: the following flags are critical for reliable Emacs
+integration:
+
+| Flag | Why It Matters |
+|------|----------------|
+| =-f json= | Produces machine-parsable output with line/column/highlight data |
+| =--no-colors= | Strips ANSI escape codes that break regex parsers |
+| =--cfile= | Checks buffer content without saving to disk |
+| =--filename= | Associates =--cfile= content with a virtual filename for error reporting |
+
+* Output Formats
+:PROPERTIES:
+:RAG_IMPORTANT: t
+:END:
+
+** JSON Output
+
+:PROPERTIES:
+:RAG_FLAG: -f json --no-colors
+:END:
+
+The JSON output format is the recommended format for programmatic integration.
+It provides structured data with precise line numbers, columns, and highlight
+lengths.
+
+#+begin_src json
+{
+  "files": [{
+    "path": "/path/to/file.c",
+    "status": "Error",
+    "errors": [{
+      "name": "INVALID_HEADER",
+      "text": "Missing or invalid 42 header",
+      "level": "Error",
+      "highlights": [{
+        "lineno": 1,
+        "column": 1,
+        "length": null,
+        "hint": null
+      }]
+    }]
+  }]
+}
+#+end_src
+
+** JSON Schema
+
+| Field | Type | Description |
+|-------+------+-------------|
+| =files= | array | List of checked files |
+| =files[].path= | string | Full path to the file |
+| =files[].status= | string | ="OK"= or ="Error"= |
+| =files[].errors= | array | List of violations (empty if status is OK) |
+| =files[].errors[].name= | string | Error code identifier (e.g., =INVALID_HEADER=) |
+| =files[].errors[].text= | string | Human-readable description |
+| =files[].errors[].level= | string | ="Error"= or ="Notice"= |
+| =files[].errors[].highlights= | array | Location data for each violation |
+| =files[].errors[].highlights[].lineno= | integer | 1-based line number |
+| =files[].errors[].highlights[].column= | integer | 1-based column number |
+| =files[].errors[].highlights[].length= | integer/null | Length of the highlighted region |
+| =files[].errors[].highlights[].hint= | string/null | Optional hint for fixing the error |
+
+#+begin_warning
+When =files[].status= is ="OK"=, the =errors= array is empty (=[]=), not absent.
+Handle both cases in parsers.
+#+end_warning
+
+** Humanized Output
+
+:PROPERTIES:
+:RAG_FLAG: default output (no -f flag)
+:END:
+
+The default humanized output is designed for terminal readability but is
+fragile for programmatic parsing due to ANSI color codes and variable spacing.
+
+#+begin_src shell
+file.c: Error!
+Error: INVALID_HEADER       (line:   1, col:   1):	Missing or invalid 42 header
+Error: SPACE_REPLACE_TAB    (line:   4, col:   5):	Found space when expecting tab
+#+end_src
+
+Notice format:
+#+begin_src shell
+file.c: OK!
+Notice: SOME_NOTICE           (line:  10, col:   1):	Some notice message
+#+end_src
+
+#+begin_warning
+The humanized output includes ANSI color escape codes by default. These
+manifest as sequences like =\033[31m= (red), =\033[0m= (reset), etc. Always
+use =--no-colors= when parsing this output, or prefer JSON output instead.
+#+end_warning
+
+* Exit Codes
+
+| Code | Meaning |
+|------+---------|
+| =0=  | No errors found (all files pass) |
+| =1=  | One or more errors found, or a CParsingError occurred |
+
+#+begin_warning
+Exit code 1 covers both style violations AND internal parsing errors. The JSON
+output must be inspected to distinguish between norm violations and parser
+crashes (CParsingError).
+#+end_warning
+
+* Error Codes Reference
+:PROPERTIES:
+:RAG_IMPORTANT: t
+:END:
+
+The following table lists common 42 Norm v4.1 error codes with descriptions
+and recommended hints for Emacs integration.
+
+** Indentation and Whitespace
+
+| Error Code | Description | Hint |
+|------------+-------------+------|
+| =SPACE_REPLACE_TAB= | Found space when expecting tab | Use tabs for indentation |
+| =TAB_REPLACE_SPACE= | Found tab when expecting space | Use spaces where expected |
+| =SPACE_BEFORE_FUNC= | Space before function name | Use tab |
+| =TOO_FEW_TAB= | Missing tabs for indent level | Add proper indentation |
+| =SPACE_BEFORE_NL= | Space before newline | Remove trailing whitespace |
+| =SPACE_EMPTY_LINE= | Space on empty line | Remove spaces from empty lines |
+| =SPACE_AFTER_CAST= | Missing space after cast | Add space after cast operator |
+| =EOL_OPERATOR= | Line ends with operator | Move operator to next line |
+| =BRACE_SHOULD_EOL= | Opening brace on wrong line | Move brace to new line |
+| =EXTRA_NEWLINE= | Extra newline at end of file | Remove extra newline |
+
+** Function Constraints
+
+| Error Code | Description | Hint |
+|------------+-------------+------|
+| =TOO_MANY_FUNCS= | More than 5 functions in one file | Split into multiple files |
+| =TOO_MANY_LINES= | Function exceeds 25 lines | Refactor function |
+| =TOO_MANY_ARGS= | Function has more than 4 arguments | Use struct or split |
+| =NO_ARGS_IN_MAIN= | main() should have void args | Use =int main(void)= |
+| =TOO_MANY_STMTS= | Too many statements in block | Refactor |
+| =FUNC_PROT_ON_SEP_LINE= | Function prototype on separate line | Move properly |
+
+** File Structure
+
+| Error Code | Description | Hint |
+|------------+-------------+------|
+| =INVALID_HEADER= | Missing or invalid 42 header | Use stdheader to insert/update |
+| =FILE_TOO_LONG= | File exceeds line limit | Split file |
+| =PREPROC_GLOBAL= | Preprocessor must be global | Move to top of file |
+| =INCLUDE_START_HEADER= | Include must start with header | Order includes properly |
+| =NL_AFTER_PREPROC= | Preprocessor must be followed by newline | Add blank line after =#include= |
+
+** Naming and Identifiers
+
+| Error Code | Description | Hint |
+|------------+-------------+------|
+| =FORBIDDEN_CHAR_NAME= | Variable/function name with forbidden chars | Use only alphanumeric + underscore |
+| =FORBIDDEN_CHR= | Forbidden character in name | Rename |
+| =IDENTIFIER_TOO_LONG= | Identifier exceeds max length | Shorten name |
+| =GLOBAL_VARIABLE_NAMING= | Global variable naming issue | Rename |
+
+** Variables and Scope
+
+| Error Code | Description | Hint |
+|------------+-------------+------|
+| =WRONG_SCOPE_VAR= | Variable in wrong scope | Move declaration |
+| =VAR_DECL_START_FUNC= | Variable declaration not at start of function | Move to top |
+| =TOO_MANY_VARIABLES= | More than 5 variables in function | Reduce variables |
+
+** Preprocessor
+
+| Error Code | Description | Hint |
+|------------+-------------+------|
+| =CONCAT_DIRECTIVE= | Preprocessor concatenation forbidden | Don't use =##= or =#= |
+| =PARENTHESIS_AROUND_RETURN= | Return value needs parentheses | Use =return (value);= |
+| =RETURN_PARENTHESIS= | Return with unnecessary parentheses | Remove parentheses |
+
+** CParsingError
+
+When norminette encounters a file it cannot parse, it emits a =CParsingError=
+instead of a structured error. This appears in JSON output differently and
+should be handled gracefully:
+
+#+begin_src json
+{
+  "files": [{
+    "path": "/path/to/file.c",
+    "status": "Error",
+    "errors": [{
+      "name": "CParsingError",
+      "text": "Parse error: unexpected token...",
+      "level": "Error",
+      "highlights": []
+    }]
+  }]
+}
+#+end_src
+
+#+begin_warning
+CParsingError often means the C code uses constructs norminette doesn't
+understand (e.g., certain macro patterns, C99 features). It is NOT a style
+violation --- it's a parser failure. Display it differently from norm errors.
+#+end_warning
+
+* Current Emacs Integration
+
+The current integration lives in two files and uses the legacy humanized output
+format with regex-based parsing.
+
+** flycheck-norminette.el
+
+:PROPERTIES:
+:FILE: site-lisp/flycheck-norminette.el
+:LINES: 179
+:END:
+
+This file defines the =c-norminette= flycheck checker.
+
+*** Current Checker Definition
+
+#+begin_src emacs-lisp
+(flycheck-define-checker c-norminette
+  "A C syntax checker using 42 School's Norminette."
+  :command ("norminette" source)
+  :error-patterns
+  ((error line-start
+          "Error: " (zero-or-more (not (any ?\n)))
+          "(line:" (zero-or-more space) line "," (zero-or-more space)
+          "col:" (zero-or-more space) column "):"
+          (zero-or-more space)
+          (message (zero-or-more not-newline))
+          line-end)
+   ;; ... more patterns
+   )
+  :error-filter (lambda (errors) ...)
+  :modes (c-mode c-ts-mode c++-mode c++-ts-mode)
+  :predicate (lambda () ...))
+#+end_src
+
+*** Current Issues
+
+| # | Issue | Severity | Details |
+|---+-------+----------+---------|
+| 1 | Humanized output parsing | HIGH | Regex breaks with ANSI color codes; brittle =error-filter= strips escape sequences |
+| 2 | Requires file save | HIGH | Uses =source= (file path) instead of =--cfile=; changes not checked until saved |
+| 3 | No highlight length | MEDIUM | Does not use =length= from JSON; can only highlight from column to EOL |
+| 4 | No =Notice= support | LOW | Humanized patterns handle =Notice= but without level distinction in display |
+| 5 | Duplicate stripping logic | LOW | Multiple =replace-regexp-in-string= calls for ANSI codes in =error-filter= |
+
+** custom-42.el
+
+:PROPERTIES:
+:FILE: lisp/custom-42.el
+:LINES: 65
+:END:
+
+This file loads and configures the norminette integration.
+
+#+begin_src emacs-lisp
+(require 'flycheck-norminette)
+(flycheck-norminette-setup)
+#+end_src
+
+** Eglot Chaining
+
+The current approach chains norminette after eglot's LSP checker:
+
+#+begin_src emacs-lisp
+(defun my-setup-flycheck-chain-after-eglot ()
+  "Adiciona c-norminette após o checker eglot."
+  (when (flycheck-checker-get 'eglot 'start)
+    (flycheck-add-next-checker 'eglot 'c-norminette t)))
+
+(add-hook 'eglot-managed-mode-hook #'my-setup-flycheck-chain-after-eglot)
+#+end_src
+
+*** Current Issues with Chaining
+
+| # | Issue | Details |
+|---+-------+---------|
+| 1 | Independent runs | Both eglot (clangd) and norminette run as separate flycheck checkers |
+| 2 | No unified diagnostics | Errors appear from two different sources with different styling |
+| 3 | Race conditions | Both may trigger on save, causing duplicate checks |
+
+* Recommended Emacs Integration
+:PROPERTIES:
+:RAG_AGENT: This section provides concrete implementation patterns for AI agents reimplementing the norminette integration.
+:END:
+
+** JSON-Based Flycheck Checker
+
+The recommended approach uses JSON output for reliable, color-free parsing:
+
+#+begin_src emacs-lisp
+(flycheck-define-checker c-norminette-json
+  "A C style checker using 42 School's Norminette (JSON output)."
+  :command ("norminette" "-f" "json" "--no-colors" source)
+  :error-parser flycheck-parse-json
+  :error-patterns
+  ((error line-start
+          (message (one-or-more not-newline))
+          line-end))
+  :error-filter
+  (lambda (errors)
+    (flycheck-sanitize-errors errors))
+  :modes (c-mode c-ts-mode)
+  :predicate
+  (lambda ()
+    (and buffer-file-name
+         (string-match-p "\\.\\(c\\|h\\)\\'" buffer-file-name)
+         (executable-find "norminette"))))
+#+end_src
+
+#+begin_info
+Flycheck's built-in =flycheck-parse-json= can parse JSON arrays directly.
+However, norminette's JSON wraps errors in a =files[].errors= structure, so a
+custom parser or =error-filter= is needed to extract the nested errors.
+#+end_info
+
+** Buffer Checking with --cfile
+
+To check unsaved buffer content (no disk write required), use the =--cfile=
+flag:
+
+#+begin_src emacs-lisp
+(defun norminette--check-buffer-content ()
+  "Run norminette on current buffer content without saving."
+  (when-let* ((filename (buffer-file-name))
+              (content (buffer-string))
+              (executable (executable-find "norminette")))
+    (let* ((cmd (format "norminette -f json --no-colors --cfile %s --filename %s"
+                        (shell-quote-argument content)
+                        (shell-quote-argument filename)))
+           (output (shell-command-to-string cmd)))
+      (norminette--parse-json-output output))))
+#+end_src
+
+#+begin_warning
+Passing large buffer contents via command-line arguments may hit shell
+argument length limits on some systems. For very large files, consider writing
+to a temporary file instead. A practical threshold is ~100KB.
+#+end_end_warning
+
+Alternative approach using process communication:
+
+#+begin_src emacs-lisp
+(defun norminette--check-buffer-via-process ()
+  "Run norminette using process stdin for buffer content."
+  (when-let* ((filename (buffer-file-name))
+              (executable (executable-find "norminette")))
+    (with-temp-buffer
+      (let ((process (apply #'start-process
+                            "norminette" (current-buffer)
+                            "norminette" "-f" "json" "--no-colors"
+                            "--filename" filename)))
+        ;; Send buffer content to process stdin
+        (process-send-string process (buffer-string))
+        (process-send-eof process)
+        ;; Wait and collect output
+        (while (accept-process-output process 1))
+        (norminette--parse-json-output (buffer-string))))))
+#+end_src
+
+** Eglot Extra Diagnostics
+
+For deeper integration, register norminette as an eglot diagnostic provider:
+
+#+begin_src emacs-lisp
+(with-eval-after-load 'eglot
+  (defun +carlos/eglot-norminette-diagnostics (_server buffer)
+    "Run norminette and report diagnostics to eglot."
+    (with-current-buffer buffer
+      (when-let* ((content (buffer-string))
+                  (filename (buffer-file-name))
+                  ((executable-find "norminette")))
+        (let* ((cmd (format "norminette -f json --no-colors --cfile %s --filename %s"
+                            (shell-quote-argument content)
+                            (shell-quote-argument filename)))
+               (raw-output (shell-command-to-string cmd)))
+          (when-let* ((parsed (norminette--parse-json-to-eglot raw-output filename)))
+            (eglot--signal-diagnostics
+             (eglot--current-server-or-lose)
+             (eglot--TextDocumentItem buffer)
+             parsed))))))
+#+end_src
+
+** JSON Parser Helper
+
+A reusable JSON parser that converts norminette output to flycheck error format:
+
+#+begin_src emacs-lisp
+(defun norminette--parse-json-output (output)
+  "Parse norminette JSON OUTPUT into a list of error plists.
+Each plist contains :line, :col, :level, :name, :message, and :length keys."
+  (when-let* ((data (json-read-from-string output))
+              (files (alist-get 'files data)))
+    (let ((file-data (car files))
+          (errors '()))
+      (dolist (err (alist-get 'errors file-data '()))
+        (let* ((name (alist-get 'name err))
+               (text (alist-get 'text err))
+               (level (alist-get 'level err))
+               (highlights (alist-get 'highlights err))
+               (highlight (car highlights))
+               (line (alist-get 'lineno highlight))
+               (col (alist-get 'column highlight))
+               (length (alist-get 'length highlight))
+               (hint (alist-get 'hint highlight)))
+          (push (list :line line
+                      :col col
+                      :level (if (string= level "Error") 'error 'warning)
+                      :name name
+                      :message text
+                      :length length
+                      :hint hint)
+                errors)))
+      (nreverse errors))))
+#+end_src
+
+** Error Level Mapping
+
+| JSON Level | Flycheck Level | Eglot Severity |
+|------------+----------------+----------------|
+| ="Error"= | =error= | =1= (Error) |
+| ="Notice"= | =warning= | =2= (Warning) |
+| =CParsingError= | =error= | =1= (Error) |
+
+** Contextual Hints
+
+Enhance error messages with actionable hints for common errors:
+
+#+begin_src emacs-lisp
+(defvar norminette--hint-map
+  '(("INVALID_HEADER" . "Use M-x stdheader or C-c h to insert/update the 42 header")
+    ("TOO_MANY_FUNCS" . "Maximum 5 functions per file; split into multiple files")
+    ("TOO_MANY_LINES" . "Functions must be <= 25 lines; refactor or extract helpers")
+    ("TOO_MANY_ARGS" . "Maximum 4 arguments; pack into a struct")
+    ("SPACE_REPLACE_TAB" . "Use tab characters (not spaces) for indentation")
+    ("TAB_REPLACE_SPACE" . "Use spaces (not tabs) in this context")
+    ("NO_ARGS_IN_MAIN" . "Use 'int main(void)' instead of 'int main()'")
+    ("BRACE_SHOULD_EOL" . "Opening brace must be on its own line")
+    ("PREPROC_GLOBAL" . "Preprocessor directives must be at top level (global scope)")
+    ("VAR_DECL_START_FUNC" . "Declare all variables at the start of the function")
+    ("TOO_MANY_VARIABLES" . "Maximum 5 variable declarations per function")
+    ("SPACE_EMPTY_LINE" . "Empty lines must not contain spaces or tabs")
+    ("EOL_OPERATOR" . "Move the operator to the beginning of the next line")
+    ("CONCAT_DIRECTIVE" . "Preprocessor concatenation (##) and stringification (#) are forbidden")
+    ("FORBIDDEN_CHR" . "Use only alphanumeric characters and underscores in names")
+    ("IDENTIFIER_TOO_LONG" . "Shorten the identifier name"))
+  "Alist mapping norminette error codes to helpful hints.")
+
+(defun norminette--enhance-message (error-name message)
+  "Enhance MESSAGE with a hint for ERROR-NAME if available."
+  (if-let* ((hint (alist-get error-name norminette--hint-map nil nil #'string=)))
+      (format "%s (%s)" message hint)
+    message))
+#+end_src
+
+* Pitfalls and Common Errors
+:PROPERTIES:
+:RAG_AGENT: Pay special attention to these when implementing or debugging.
+:END:
+
+** ANSI Color Codes in Humanized Output
+
+The default humanized output embeds ANSI escape codes for colors. A typical
+error line looks like:
+
+#+begin_src text
+\033[31mError:\033[0m SPACE_REPLACE_TAB    \033[36m(line:   4, col:   5):\033[0m	Found space when expecting tab
+#+end_src
+
+Solution: Always use =--no-colors= for programmatic parsing, or prefer JSON output.
+
+** Buffer vs. File Discrepancy
+
+When using =source= (file path) in the flycheck command, the checker reads from
+disk, not the buffer. This means unsaved changes are NOT checked.
+
+Solution: Use =--cfile= with buffer content and =--filename= for the path.
+
+** Shell Argument Length Limits
+
+Passing buffer content via =--cfile= as a command-line argument may exceed the
+shell's argument length limit (typically 128KB-2MB depending on OS).
+
+Solution: For files larger than ~100KB, write to a temporary file and pass the
+path instead. Or use =process-send-string= for stdin-based communication.
+
+** CParsingError vs. Style Errors
+
+Norminette emits =CParsingError= when it cannot parse the C code (syntax error,
+unsupported construct). This is NOT a style violation.
+
+Solution: Check for =CParsingError= in the error name and display it
+differently (e.g., as an =error= level with a distinct message prefix).
+
+** Empty highlights Array
+
+Some errors (like =CParsingError= or file-level errors) may have an empty
+=highlights= array. Accessing =(car highlights)= returns =nil=, and
+=(alist-get 'lineno nil)= returns =nil=.
+
+Solution: Guard against empty highlights:
+#+begin_src emacs-lisp
+(when-let* ((highlight (car highlights)))
+  ;; safely access lineno, column, etc.
+  )
+#+end_src
+
+** JSON nil vs. null
+
+In Emacs' JSON parser, JSON =null= maps to Elisp =nil=, and JSON =null= for
+=length= means "highlight to end of line."
+
+Solution: Treat =:length nil= as "no specific length" and highlight from column
+to end of line.
+
+** Flycheck Error Filter Returns
+
+The =:error-filter= function must RETURN the list of errors. The current
+implementation modifies errors in place with =dolist= but relies on
+=seq-filter= returning the final list. This works but is fragile.
+
+Solution: Use a cleaner functional approach:
+#+begin_src emacs-lisp
+:error-filter
+(lambda (errors)
+  (seq-filter
+   (lambda (err) (and (flycheck-error-line err)
+                      (not (string= (flycheck-error-message err) "OK"))))
+   (mapcar (lambda (err) ...) errors)))
+#+end_src
+
+* Best Practices
+:PROPERTIES:
+:RAG_AGENT: Follow these guidelines when implementing norminette integration.
+:END:
+
+1. **Always use JSON output** (= -f json --no-colors =) for reliable parsing.
+   Never regex-parse humanized output with ANSI codes.
+
+2. **Check unsaved buffers** with =--cfile= + =--filename= to provide
+   real-time feedback without requiring a save.
+
+3. **Chain after eglot**: Run norminette AFTER clangd (eglot) so that syntax
+   errors are reported first and style errors second. The order is:
+   =eglot (clangd LSP) → norminette (style checker)=.
+
+4. **Map JSON levels correctly**: ="Error"= → =error=, ="Notice"= →
+   =warning=.
+
+5. **Use highlight data**: The =length= field enables precise region
+   highlighting. When =length= is =null=, highlight from column to end of line.
+
+6. **Add contextual hints**: Map common error codes to actionable hints
+   (e.g., =INVALID_HEADER= → "Use stdheader").
+
+7. **Handle CParsingError gracefully**: Display parser failures as distinct
+   errors, not style violations.
+
+8. **Check executable exists**: Use =(executable-find "norminette")= before
+   attempting to run the checker.
+
+9. **Guard against missing highlights**: Some errors have no position data.
+   Fall back to line 1, column 1 or skip the error.
+
+10. **Use a single =use-package= block**: Consolidate all norminette-related
+    configuration into one block with =:config= rather than scattering
+    =with-eval-after-load= calls.
+
+* Nix Installation
+
+For Nix/NixOS/Home Manager users:
+
+#+begin_src nix
+# In home.packages or environment.systemPackages
+pkgs.python3Packages.norminette
+#+end_src
+
+Or as a Nixpkgs overlay:
+#+begin_src nix
+{ pkgs, ... }: {
+  environment.systemPackages = with pkgs; [
+    (python3.withPackages (ps: [ ps.norminette ]))
+  ];
+}
+#+end_src
+
+#+begin_info
+The Nix package may lag behind the latest pip release. If a specific norminette
+version is needed, use =pip install= in a virtual environment or =pipx= instead.
+#+end_info
+
+* Docker Usage
+
+Norminette can be run in a Docker container for CI or isolated environments:
+
+#+begin_src shell
+# Build the image
+docker build -t norminette .
+
+# Run on a project directory
+cd ~/42/ft_printf
+docker run --rm -v $PWD:/code norminette
+#+end_src
+
+The Dockerfile uses the official repository and installs via Poetry.
+
+* GitHub Actions
+
+A workflow example for running norminette in CI:
+
+#+begin_src yaml
+name: Norminette
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check-norminette:
+    name: Norminette
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install norminette
+        run: python3 -m pip install -U norminette
+
+      - name: Run norminette
+        run: norminette -f json --no-colors .
+#+end_src
+
+Using the official GitHub Action:
+#+begin_src yaml
+- name: Norminette
+  uses: 42School/norminette@<tag>
+  with:
+    args: '-R CheckForbiddenSourceHeader'
+#+end_src
+
+* Useful Links
+
+- **Official Repository**: [[https://github.com/42School/norminette][github.com/42School/norminette]]
+- **PyPI Package**: [[https://pypi.org/project/norminette/][pypi.org/project/norminette]]
+- **42 Norm Documentation**: PDF in [[https://github.com/42School/norminette/tree/master/pdf][norminette/pdf/]]
+- **Emacs flycheck-norminette**: =site-lisp/flycheck-norminette.el=
+- **Emacs custom-42**: =lisp/custom-42.el=
+
+* Appendix: Complete Reimplementation Template
+
+#+begin_src emacs-lisp
+;;; custom-norminette.el --- Norminette integration (JSON-based) -*- lexical-binding: t; -*-
+
+;;; Commentary:
+;; Modern norminette integration using JSON output for reliable parsing,
+;; buffer-level checking via --cfile, and contextual error hints.
+
+;;; Code:
+
+(require 'flycheck)
+(require 'json)
+
+;; ── Configuration ──────────────────────────────────────────────────
+
+(defcustom norminette-executable "norminette"
+  "Path to the norminette executable."
+  :type 'string
+  :group 'norminette)
+
+(defcustom norminette-max-buffer-size 100000
+  "Maximum buffer size (bytes) for --cfile checking.
+Buffers larger than this are checked via a temporary file."
+  :type 'integer
+  :group 'norminette)
+
+;; ── Hint Map ───────────────────────────────────────────────────────
+
+(defvar norminette-hint-map
+  '(("INVALID_HEADER" . "Use M-x stdheader or C-c h to insert/update the 42 header")
+    ("TOO_MANY_FUNCS" . "Maximum 5 functions per file; split into multiple files")
+    ("TOO_MANY_LINES" . "Functions must be <= 25 lines; refactor or extract helpers")
+    ("TOO_MANY_ARGS" . "Maximum 4 arguments; pack into a struct")
+    ("SPACE_REPLACE_TAB" . "Use tab characters (not spaces) for indentation")
+    ("NO_ARGS_IN_MAIN" . "Use 'int main(void)' instead of 'int main()'"))
+  "Alist mapping norminette error codes to helpful hints.")
+
+;; ── JSON Parser ────────────────────────────────────────────────────
+
+(defun norminette--parse-json (output)
+  "Parse norminette JSON OUTPUT into flycheck errors."
+  (when-let* ((data (json-read-from-string output))
+              (files (alist-get 'files data))
+              (file-data (car files)))
+    (let ((errors '()))
+      (dolist (err (alist-get 'errors file-data '()))
+        (let* ((name (alist-get 'name err))
+               (text (alist-get 'text err))
+               (level (alist-get 'level err))
+               (highlights (alist-get 'highlights err))
+               (highlight (car highlights))
+               (line (and highlight (alist-get 'lineno highlight)))
+               (col (and highlight (alist-get 'column highlight)))
+               (msg (if-let* ((hint (alist-get name norminette-hint-map nil nil #'string=)))
+                        (format "%s (%s)" text hint)
+                      text)))
+          (when line
+            (push (flycheck-error-new
+                   :line line
+                   :column (or col 1)
+                   :level (if (string= level "Error") 'error 'warning)
+                   :filename buffer-file-name
+                   :message msg
+                   :checker 'c-norminette-json)
+                  errors))))
+      (nreverse errors))))
+
+;; ── Flycheck Checker ───────────────────────────────────────────────
+
+(flycheck-define-checker c-norminette-json
+  "A C style checker using 42 School's Norminette (JSON output)."
+  :command ("norminette" "-f" "json" "--no-colors" source)
+  :error-parser
+  (lambda (output _checker)
+    (norminette--parse-json output))
+  :modes (c-mode c-ts-mode)
+  :predicate
+  (lambda ()
+    (and buffer-file-name
+         (string-match-p "\\.\\(c\\|h\\)\\'" buffer-file-name)
+         (executable-find norminette-executable))))
+
+;; ── Buffer-Level Check ─────────────────────────────────────────────
+
+(defun norminette-check-buffer ()
+  "Run norminette on the current buffer content without saving."
+  (interactive)
+  (unless (executable-find norminette-executable)
+    (user-error "Norminette not found. Install with: pip install -U norminette"))
+  (if (> (buffer-size) norminette-max-buffer-size)
+      ;; Large buffer: save and check file
+      (progn (save-buffer) (flycheck-buffer))
+    ;; Small buffer: use --cfile
+    (let* ((content (buffer-string))
+           (filename (or buffer-file-name "stdin"))
+           (cmd (format "%s -f json --no-colors --cfile %s --filename %s"
+                        norminette-executable
+                        (shell-quote-argument content)
+                        (shell-quote-argument filename)))
+           (output (shell-command-to-string cmd)))
+      (flycheck-display-errors (norminette--parse-json output)))))
+
+;; ── Setup ──────────────────────────────────────────────────────────
+
+(defun norminette-setup ()
+  "Enable norminette JSON-based flycheck checker."
+  (add-to-list 'flycheck-checkers 'c-norminette-json))
+
+(provide 'custom-norminette)
+;;; custom-norminette.el ends here
+#+end_src
+
+---
+
+*RAG context note: This reference file should be loaded by AI agents when
+implementing, debugging, or reimplementing any norminette-related Emacs
+integration. The key sections are [[*JSON Output][JSON Output]] for the data
+structure, [[*Recommended Emacs Integration][Recommended Emacs Integration]]
+for implementation patterns, and [[*Pitfalls and Common Errors][Pitfalls]] for
+debugging guidance.*
+
+*Norminette reference: 2026-08-05*

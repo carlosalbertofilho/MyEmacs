@@ -1,12 +1,12 @@
 ;;; custom-42.el --- 42 School configuration -*- lexical-binding: t; -*-
 
 ;;; Commentary:
-;; header42.el, flycheck-norminette.el, estilo C 42 (tabs, 80 cols, whitespace).
-;; Carrega os arquivos de site-lisp/.
+;; header42.el, custom-norminette.el (JSON-based, eglot chain),
+;; estilo C 42 (tabs, 80 cols, whitespace).
 
 ;;; Code:
 
-;; ── flycheck (dependency for flycheck-norminette) ──────────────────
+;; ── flycheck (dependency for norminette) ───────────────────────────
 (use-package flycheck
   :config
   (global-flycheck-mode 1)
@@ -19,20 +19,15 @@
   (add-hook 'emacs-lisp-mode-hook #'flycheck-mode)
   (add-hook 'lisp-interaction-mode-hook #'flycheck-mode))
 
-;; Nota: O checker `emacs-lisp` do flycheck exige buffer-file-name (arquivo salvo).
-;; No buffer *scratch* (lisp-interaction-mode), ele aparece como "automatically disabled".
-;; Para habilitar manualmente: C-u C-c ! x
-;; Em buffers com arquivo, a checagem funciona automaticamente.
-
 ;; ── site-lisp ───────────────────────────────────────────────────────
 (require 'header42)
-(require 'flycheck-norminette)
+
+;; ── norminette (new JSON-based integration) ────────────────────────
+(require 'custom-norminette)
+(custom-norminette-setup)
 
 ;; ── header42 ────────────────────────────────────────────────────────
 (header-42-enable)                    ; hooks + C-c h (fallback nativo)
-
-;; ── flycheck + norminette ──────────────────────────────────────────
-(flycheck-norminette-setup)
 
 ;; ── Estilo C 42 ─────────────────────────────────────────────────────
 (defun my-c-42-style ()
@@ -53,13 +48,9 @@
 (add-hook 'c-mode-hook #'my-c-42-style t)
 (add-hook 'c++-mode-hook #'my-c-42-style t)
 
-;; ── Chain eglot → norminette ───────────────────────────────────────
-(defun my-setup-flycheck-chain-after-eglot ()
-  "Adiciona c-norminette após o checker eglot."
-  (when (flycheck-checker-get 'eglot 'start)
-    (flycheck-add-next-checker 'eglot 'c-norminette t)))
-
-(add-hook 'eglot-managed-mode-hook #'my-setup-flycheck-chain-after-eglot)
+;; ── Chain eglot → norminette (handled by custom-norminette-setup) ──
+;; The custom-norminette-setup function automatically chains norminette
+;; after eglot diagnostics using flycheck-add-next-checker.
 
 (provide 'custom-42)
 ;;; custom-42.el ends here
