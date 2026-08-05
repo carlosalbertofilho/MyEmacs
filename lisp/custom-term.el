@@ -56,11 +56,10 @@
   :hook (eshell-mode . eat-eshell-mode)
   :config
   (setq eat-enable-mouse t             ;; Mouse support in TUIs
-        eat-kill-buffer-on-exit t)     ;; Clean up on exit
-  ;; Char-mode: just requires interactive input (y/n, prompts)
-  (add-to-list 'eat-semi-char-non-semi-commands "just")
-  (add-to-list 'eat-semi-char-non-semi-commands "opencode")
-  (add-to-list 'eat-semi-char-non-semi-commands "agy"))
+        eat-kill-buffer-on-exit t      ;; Clean up on exit
+        ;; Auto char-mode for interactive commands (y/n prompts, TUIs)
+        eat-semi-char-non-semi-commands
+        '("just" "opencode" "agy" "gemini" "htop" "ranger" "lazygit" "vim" "nano")))
 
 ;; Toggle between Emacs mode and Char mode (send keys directly to program)
 (with-eval-after-load 'eshell
