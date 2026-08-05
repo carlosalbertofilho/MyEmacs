@@ -58,8 +58,12 @@
 (use-package gptel-agent
   :after gptel
   :config
+  ;; Cria o diretório se não existir
+  (unless (file-directory-p "~/.agents/gptel/")
+    (make-directory (expand-file-name "~/.agents/gptel/") t))
+
   ;; Personas globais em ~/.agents/gptel/
-  (add-to-list 'gptel-agent-dirs "~/.agents/gptel/")
+  (add-to-list 'gptel-agent-dirs (expand-file-name "~/.agents/gptel/"))
 
   ;; Personas por projeto (.agents/gptel/ na raiz do repositório)
   (defun +carlos/gptel-agent-project-dirs ()
@@ -76,16 +80,23 @@ Sem advice: chamada direta antes de iniciar o agente."
 
 ;; ── gptel-quick ─────────────────────────────────────────────────────
 (use-package gptel-quick
+  :catch t
   :after gptel
   :config
   (setq gptel-quick-word-count 100
         gptel-quick-model 'north-mini-code-free))
 
 ;; ── ob-gptel (blocos Org-babel) ─────────────────────────────────────
-(with-eval-after-load 'org
-  (org-babel-do-load-languages
-   'org-babel-load-languages
-   (append org-babel-load-languages '((gptel . t)))))
+;; ob-gptel pode não estar disponível em todos os ELPA/MELPA mirrors
+;; Se disponível, carrega automaticamente; senão, ignora silenciosamente
+(with-eval-after-load 'gptel
+  (condition-case nil
+      (progn
+        (require 'ob-gptel)
+        (org-babel-do-load-languages
+         'org-babel-load-languages
+         (append org-babel-load-languages '((gptel . t)))))
+    (file-missing (message "ob-gptel: package not available, skipping"))))
 
 ;; ── Personas / Diretivas ────────────────────────────────────────────
 (with-eval-after-load 'gptel
