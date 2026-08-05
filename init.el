@@ -111,8 +111,8 @@
 (require 'custom-org)
 (require 'custom-42)
 (require 'custom-ai)
-;; (require 'custom-knowledge)     ; Fase 3: denote
-;; (require 'custom-git)           ; Fase 3: magit, just-mode
+(require 'custom-knowledge)
+(require 'custom-git)
 
 ;; ── Custom file (keep M-x customize out of init.el) ─────────────────
 (setq custom-file (expand-file-name "custom-file.el" user-emacs-directory))

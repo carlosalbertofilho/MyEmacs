@@ -42,11 +42,21 @@
   :config
   (add-to-list 'org-babel-load-languages '(jupyter . t)))
 
-;; ── pdf-tools (opcional) ───────────────────────────────────────────
+;; ── pdf-tools (opcional — não compila no macOS sem patch) ──────────
+;; No macOS, o epdfinfo falha com conflito de 'getline' no SDK.
+;; Usar DocView (built-in) como fallback no Darwin.
 (use-package pdf-tools
+  :if (not (eq system-type 'darwin))
   :config
   (pdf-tools-install :no-query)
   (setq pdf-view-display-size 'fit-width))
+
+;; Fallback: DocView no macOS
+(when (eq system-type 'darwin)
+  (use-package doc-view
+    :ensure nil
+    :config
+    (setq doc-view-resolution 300)))
 
 ;; ── org-noter (opcional, leitura de PDF com notas) ─────────────────
 (use-package org-noter
