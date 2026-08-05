@@ -1,0 +1,731 @@
+#+title: Dirvish Reference Guide
+#+author: AI Agent (RAG Context)
+#+date: 2026-08-05
+#+description: Comprehensive reference for the Dirvish Emacs package --- file manager built on Dired
+#+filetags: :emacs:dirvish:dired:file-manager:reference:
+
+* Dirvish Reference Guide
+:PROPERTIES:
+:CREATED:  2026-08-05
+:UPDATED:  2026-08-05
+:VERSION:  2.0+ (MELPA/nongnu ELPA)
+:REPO:     [[https://github.com/alexluigit/dirvish][github.com/alexluigit/dirvish]]
+:RAG_TAG:  dirvish, dired, file-manager, emacs-config
+:END:
+
+Dirvish is a modern file manager that enhances Emacs' built-in =dired= mode with
+a visual interface, sidebar, subtree navigation, file previews, version-control
+integration, and more. It is the primary file-management tool in this Emacs
+configuration (Vanilla Emacs migration from Doom Emacs, using the Bedrock
+template).
+
+* Table of Contents
+:PROPERTIES:
+:TOC:      include
+:END:
+- [[#installation][Installation]]
+- [[#activation][Activation]]
+- [[#core-concepts][Core Concepts]]
+- [[#entry-commands][Entry Commands]]
+- [[#custom-variables][Custom Variables]]
+  - [[#visual-attributes][Visual Attributes]]
+  - [[#quick-access-entries][Quick Access Entries]]
+  - [[#window-and-layout][Window and Layout]]
+  - [[#icon-settings][Icon Settings]]
+  - [[#subtree-settings][Subtree Settings]]
+  - [[#preview-settings][Preview Settings]]
+  - [[#mode-line-and-header-line][Mode-Line and Header-Line]]
+  - [[#session-and-behavior][Session and Behavior]]
+  - [[#performance][Performance]]
+- [[#extensions][Extensions]]
+- [[#hooks][Hooks]]
+- [[#key-bindings][Key Bindings]]
+- [[#recommended-configuration][Recommended Configuration]]
+- [[#troubleshooting-and-pitfalls][Troubleshooting and Pitfalls]]
+- [[#tramp-support][TRAMP Support]]
+- [[#comparison-with-dired][Comparison with Built-in Dired]]
+- [[#migration-from-doom-emacs][Migration from Doom Emacs]]
+- [[#useful-links][Useful Links]]
+
+* Installation
+:PROPERTIES:
+:RAG_IMPORTANT: t
+:END:
+
+Install Dirvish from MELPA or NonGNU ELPA:
+
+#+begin_src emacs-lisp
+M-x package-install RET dirvish RET
+#+end_src
+
+Or via =use-package= (preferred in this project):
+
+#+begin_src emacs-lisp
+(use-package dirvish
+  :ensure t
+  :init
+  (dirvish-override-dired-mode 1))
+#+end_src
+
+#+begin_note
+Dirvish depends on =dired= (built-in), =transient= (built-in since Emacs 28.1),
+and optionally =nerd-icons=, =all-the-icons=, or =vscode-icon= for icon support.
+Ensure =nerd-icons= is loaded before dirvish config that references it.
+#+end_note
+
+* Activation
+:PROPERTIES:
+:RAG_CRITICAL: t
+:END:
+
+Dirvish must be activated globally to override built-in Dired:
+
+#+begin_src emacs-lisp
+(dirvish-override-dired-mode 1)
+#+end_src
+
+#+begin_warning
+ALWAYS place =(dirvish-override-dired-mode 1)= in the =:init= block of =use-package=,
+NOT in =:config=. The =:init= block runs before the package is loaded, which is
+necessary for the override to take effect on all Dired buffers.
+
+WRONG:
+#+begin_src emacs-lisp
+(use-package dirvish
+  :config
+  (dirvish-override-dired-mode 1))  ;; Too late!
+#+end_src
+
+CORRECT:
+#+begin_src emacs-lisp
+(use-package dirvish
+  :init
+  (dirvish-override-dired-mode 1))  ;; Runs before package load
+#+end_src
+#+end_warning
+
+* Core Concepts
+:PROPERTIES:
+:RAG_SECTION: t
+:END:
+
+Dirvish does not replace Dired --- it enhances it. Key concepts:
+
+1. **Override mode** :: =dirvish-override-dired-mode= replaces all standard Dired
+   entry points (=dired=, =dired-jump=, =find-dired=, etc.) with Dirvish equivalents.
+2. **Root buffers** :: The main Dirvish buffer that displays directory listings.
+   Each root buffer manages its own set of pane windows.
+3. **Side window** :: A dedicated sidebar that mirrors the current directory tree.
+   Toggled with =dirvish-side=.
+4. **Subtree navigation** :: Expand/collapse subdirectories inline within the Dired
+   buffer, creating a tree-view experience.
+5. **Preview window** :: Show file contents (images, PDFs, text, etc.) in a
+   dedicated preview pane.
+6. **Attributes** :: Inline visual indicators (icons, git state, file size, etc.)
+   rendered within Dired listing lines.
+7. **Extensions** :: Optional modules loaded on demand (yank, rsync, emerge, peek,
+   vc, icons, side, ls, subtree, history, quick-access, collapse, narrow).
+
+* Entry Commands
+:PROPERTIES:
+:RAG_COMMANDS: t
+:END:
+
+| Command                  | Keybinding  | Description                                           |
+|--------------------------+-------------+-------------------------------------------------------|
+| =dirvish=                  | None by default | Open Dirvish in current directory or specified path |
+| =dirvish-dwim=             | None by default | Do-What-I-Mean: open file at point, or Dirvish     |
+| =dirvish-dispatch=         | =?= (in Dirvish) | Open transient help/cheatsheet menu                 |
+| =dirvish-side=             | None by default | Toggle the sidebar window                           |
+| =dirvish-history-jump=     | =r= (in config)  | Jump to previously visited directories              |
+| =dirvish-quicksort=         | =s= (in config)  | Sort directory listing                              |
+| =dirvish-narrow=           | =N= (in config)  | Live filter files by pattern                        |
+| =dirvish-quick-access=     | =o= (in config)  | Jump to quick-access entries                        |
+| =dirvish-vc-menu=          | =v= (in config)  | Version control operations                          |
+| =dirvish-subtree-toggle=   | =TAB= (in config) | Expand/collapse subdirectory at point               |
+| =dired-up-directory=       | =;= (in config)  | Go up one directory                                 |
+
+Recommended global bindings (add to your config):
+
+#+begin_src emacs-lisp
+(global-set-key (kbd "C-x C-j") #'dirvish-dwim)
+(global-set-key (kbd "C-x d")   #'dirvish)
+#+end_src
+
+* Custom Variables
+:PROPERTIES:
+:RAG_VARIABLES: t
+:END:
+
+All custom options should be set using =:custom= in =use-package= or via =setq=
+in the =:config= block. Do NOT mix =with-eval-after-load= blocks with =use-package=
+config --- consolidate everything into the main =use-package= declaration.
+
+** Visual Attributes
+:PROPERTIES:
+:RAG_ATTR: t
+:END:
+
+#+begin_src emacs-lisp
+(setq dirvish-attributes
+      '(vc-state subtree-state nerd-icons collapse git-msg file-time file-size))
+#+end_src
+
+Available attributes (order matters for rendering):
+
+| Attribute         | Description                                      | Dependency      |
+|-------------------+--------------------------------------------------+-----------------|
+| =subtree-state=     | Expansion indicator for subtree navigation       | =dirvish-subtree=  |
+| =nerd-icons=        | Nerd Font icons for files/directories            | =nerd-icons=       |
+| =all-the-icons=     | All-the-icons font icons                         | =all-the-icons=    |
+| =vscode-icon=       | VSCode-style icons                               | =vscode-icon=      |
+| =collapse=          | Collapse unique nested paths                     | =dirvish-collapse= |
+| =git-msg=           | Git commit message for tracked files             | =dirvish-vc=       |
+| =vc-state=          | Version control state indicator                  | =dirvish-vc=       |
+| =file-size=         | File size column                                 | None            |
+| =file-time=         | File modification time                           | None            |
+| =file-modes=        | File permission bits                             | None            |
+
+#+begin_note
+Attribute order in the list determines display order in the buffer.
+Only specify one icon backend (=nerd-icons=, =all-the-icons=, or =vscode-icon=).
+This project uses =nerd-icons=.
+#+end_note
+
+** Quick Access Entries
+:PROPERTIES:
+:RAG_QUICKACCESS: t
+:END:
+
+Quick access entries provide two-keystroke jumps to frequently used directories:
+
+#+begin_src emacs-lisp
+(setq dirvish-quick-access-entries
+      '(("h" "~/"                  "Home")
+        ("d" "~/Downloads/"        "Downloads")
+        ("p" "~/Projects/"         "Projects")
+        ("e" "~/.config/emacs/"    "Emacs")
+        ("n" "~/org/notes"         "Notes")
+        ("g" "~/Github/"           "Github")))
+#+end_src
+
+Format: =("key" "path" "description")=
+- =key= :: Single character used after invoking =dirvish-quick-access=
+- =path= :: Directory path (expanded at runtime)
+- =description= :: Label shown in the transient menu
+
+** Window and Layout
+:PROPERTIES:
+:RAG_LAYOUT: t
+:END:
+
+| Variable                       | Type     | Default | Description                                       |
+|--------------------------------+----------+---------+---------------------------------------------------|
+| =dirvish-side-width=             | integer  | 30      | Width of the side window in columns               |
+| =dirvish-fullscreen=             | boolean  | =t=       | Whether Dirvish occupies the entire frame          |
+| =dirvish-default-layout=         | integer  | 0       | Layout index (typically 0-5, NOT 10)               |
+| =dirvish-hide-cursor=            | boolean  | =t=       | Hide cursor in Dired buffers                       |
+| =dirvish-use-mode-line=          | symbol   | =t=       | =nil= to hide, ='global= to span all panes           |
+| =dirvish-window-size=            | N/A      | N/A     | NOT a standard dirvish variable --- see note below |
+
+#+begin_warning
+=dirvish-window-size= is NOT a standard Dirvish variable. To configure window
+ratios, use =dirvish-layout-recipes= instead:
+
+#+begin_src emacs-lisp
+(setq dirvish-layout-recipes
+      '((0 1 1)          ; Layout 0: single pane (full)
+        (1 2 1)          ; Layout 1: two panes, ratio 2:1
+        (2 1 1 1)))      ; Layout 2: three panes, ratio 1:1:1
+#+end_src
+#+end_warning
+
+** Icon Settings
+:PROPERTIES:
+:RAG_ICONS: t
+:END:
+
+| Variable                          | Type    | Recommended | Description                                  |
+|-----------------------------------+---------+-------------+----------------------------------------------|
+| =dirvish-nerd-icons-height=         | integer | 16-18       | Icon height in pixels                        |
+| =dirvish-nerd-icons-offset=         | integer | -2          | Vertical offset adjustment                   |
+| =dirvish-subtree-icon-scale-factor= | float   | 1.0         | Scale factor for subtree expansion icons     |
+
+#+begin_danger
+RAG TRAP: =dirvish-nerd-icons-height= of 12 makes icons TOO SMALL, not too large.
+The value represents the icon height in pixels. If you see giant icons, the value
+is likely set too HIGH (e.g., 40+), not too low. Recommended range: 16-18 for
+standard font sizes (14-16pt). Adjust based on your =default= face height.
+#+end_danger
+
+#+begin_src emacs-lisp
+(setq dirvish-nerd-icons-height 16    ; Standard size for 14-16pt fonts
+      dirvish-nerd-icons-offset -2)   ; Slight vertical adjustment
+#+end_src
+
+#+begin_note
+=nerd-icons= must be loaded and fonts installed before Dirvish can render icons.
+Ensure =(require 'nerd-icons)= or =(use-package nerd-icons)= appears before
+Dirvish configuration, or use =:after nerd-icons= in the =use-package= declaration.
+#+end_note
+
+** Subtree Settings
+:PROPERTIES:
+:RAG_SUBTREE: t
+:END:
+
+| Variable                             | Type    | Default | Description                                       |
+|--------------------------------------+---------+---------+---------------------------------------------------|
+| =dirvish-subtree-always-show-state=    | boolean | =nil=     | Show expansion indicator even when no dirs expanded |
+| =dirvish-subtree-state-style=          | symbol  | =arrow=   | Style: =arrow=, =bracket=, =icon=                    |
+| =dirvish-subtree-icon-scale-factor=    | float   | 1.0     | Scale factor for subtree icons                    |
+| =dirvish-side-auto-expand=             | boolean | =nil=     | Auto-expand parent directories in side window     |
+| =dirvish-side-open-file-action=        | symbol  | =reuse=   | Action when opening file from side: =reuse=, =new=, =split= |
+
+** Preview Settings
+:PROPERTIES:
+:RAG_PREVIEW: t
+:END:
+
+| Variable                          | Type    | Description                                    |
+|-----------------------------------+---------+------------------------------------------------|
+| =dirvish-preview-dispatchers=       | list    | List of preview strategies by file type        |
+
+Available preview dispatchers:
+
+#+begin_src emacs-lisp
+(setq dirvish-preview-dispatchers
+      '(image gif video audio epub pdf archive))
+#+end_src
+
+| Dispatcher | File Types Handled                      |
+|------------+-----------------------------------------|
+| =image=      | PNG, JPG, GIF, SVG, WebP, etc.          |
+| =gif=        | Animated GIFs                           |
+| =video=      | MP4, WebM, MOV, etc.                    |
+| =audio=      | MP3, WAV, FLAC, etc.                    |
+| =epub=       | EPUB e-books                            |
+| =pdf=        | PDF documents                           |
+| =archive=    | ZIP, TAR, GZ, etc.                      |
+
+** Mode-Line and Header-Line
+:PROPERTIES:
+:RAG_MODELINES: t
+:END:
+
+| Variable                    | Description                                    |
+|-----------------------------+------------------------------------------------|
+| =dirvish-use-mode-line=       | =nil= to hide, =t= for per-pane, ='global= to span |
+| =dirvish-mode-line-format=    | Format specification for mode-line             |
+| =dirvish-header-line-format=  | Format specification for header-line           |
+
+Available format segments:
+
+| Segment    | Purpose                               |
+|------------+---------------------------------------|
+| =sort=       | Current sort indicator                |
+| =symlink=    | Symlink status                        |
+| =omit=       | Omitted files count                   |
+| =yank=       | Yank (clipboard) status               |
+| =index=      | Current file position / total         |
+| =path=       | Current directory path                |
+| =disk-usage=  | Disk usage information                |
+
+Example configuration:
+
+#+begin_src emacs-lisp
+(setq dirvish-mode-line-format
+      '(:left (sort symlink) :right (omit yank index))
+      dirvish-header-line-format
+      '(:left (path) :right (disk-usage)))
+#+end_src
+
+** Session and Behavior
+:PROPERTIES:
+:RAG_SESSION: t
+:END:
+
+| Variable                   | Type    | Default | Description                                        |
+|----------------------------+---------+---------+----------------------------------------------------|
+| =dirvish-reuse-session=      | boolean | =t=       | Reuse existing Dired buffers on quit (=nil= kills all) |
+| =dirvish-large-directory-threshold= | integer | nil  | File count threshold for async =fd= opening          |
+
+** Performance
+:PROPERTIES:
+:RAG_PERF: t
+:END:
+
+#+begin_src emacs-lisp
+(setq dirvish-large-directory-threshold 20000)
+#+end_src
+
+Directories with more files than this threshold are opened asynchronously
+using =fd= (requires =fd= CLI tool installed). This prevents Emacs from
+freezing when opening directories with tens of thousands of files.
+
+* Extensions
+:PROPERTIES:
+:RAG_EXTENSIONS: t
+:END:
+
+Dirvish extensions are loaded on demand. They are part of the main package
+but must be explicitly required or activated.
+
+| Extension           | Feature                                      | Activation                        |
+|---------------------+----------------------------------------------+-----------------------------------|
+| =dirvish-yank=        | Multi-stage async copy/paste                   | Loaded when yanking               |
+| =dirvish-rsync=       | Rsync integration for file transfer            | Manual load                       |
+| =dirvish-emerge=      | Group files by filter (like ibuffer)           | =dirvish-emerge= command            |
+| =dirvish-peek=        | File preview in minibuffer                     | Manual load                       |
+| =dirvish-vc=          | Version control (git state, log, diff, blame)  | Automatic when =vc-state= in attrs |
+| =dirvish-icons=       | File icon rendering                            | Automatic when icon in attrs      |
+| =dirvish-side=        | Sidebar window                                 | =dirvish-side= command              |
+| =dirvish-ls=          | LS switches menu (Transient)                   | =dirvish-ls= command                |
+| =dirvish-subtree=     | Tree browser (expand/collapse directories)     | =dirvish-subtree-toggle=            |
+| =dirvish-history=     | History navigation                             | =dirvish-history-jump=              |
+| =dirvish-quick-access=| Quick keys for favorite places                 | =dirvish-quick-access=              |
+| =dirvish-collapse=    | Collapse unique nested paths                   | Automatic when =collapse= in attrs |
+| =dirvish-narrow=      | Live filtering of directory contents           | =dirvish-narrow= command            |
+
+To explicitly load an extension (rarely needed):
+
+#+begin_src emacs-lisp
+(require 'dirvish-yank)
+(require 'dirvish-rsync)
+(require 'dirvish-peek)
+#+end_src
+
+* Hooks
+:PROPERTIES:
+:RAG_HOOKS: t
+:END:
+
+| Hook                              | When Called                                          |
+|-----------------------------------+------------------------------------------------------|
+| =dirvish-setup-hook=                | When directory data for root buffer is ready         |
+| =dirvish-after-revert-hook=         | After =revert-buffer= is called                      |
+| =dirvish-find-entry-hook=           | Before opening a directory or file                   |
+| =dirvish-preview-setup-hook=        | When setting up a regular preview buffer             |
+| =dirvish-before-revert-hook=        | Before =revert-buffer= is called                     |
+| =dirvish-after-init-hook=           | After Dirvish initialization                         |
+| =dirvish-file-info-hook=            | When gathering file information                      |
+
+Example usage:
+
+#+begin_src emacs-lisp
+(add-hook 'dirvish-setup-hook
+          (lambda ()
+            "Custom setup after Dirvish directory data is ready."
+            (when (string-match-p "Projects" default-directory)
+              (message "Entered Projects directory"))))
+#+end_src
+
+* Key Bindings
+:PROPERTIES:
+:RAG_KEYS: t
+:END:
+
+** Dirvish Mode Map (recommended custom bindings)
+
+#+begin_src emacs-lisp
+(:map dirvish-mode-map
+ (";"   . dired-up-directory)     ; Parent directory
+ ("?"   . dirvish-dispatch)       ; Help / cheatsheet
+ ("TAB" . dirvish-subtree-toggle) ; Expand/collapse subtree
+ ("o"   . dirvish-quick-access)   ; Quick access menu
+ ("r"   . dirvish-history-jump)   ; History jump
+ ("s"   . dirvish-quicksort)      ; Sort options
+ ("v"   . dirvish-vc-menu)        ; Version control menu
+ ("N"   . dirvish-narrow))        ; Live narrow/filter
+#+end_src
+
+** Standard Dired Bindings (still available)
+
+| Key       | Command                  | Description                     |
+|-----------+--------------------------+---------------------------------|
+| =RET= / =f=    | =dired-find-file=          | Open file / enter directory     |
+| =o=         | =dired-find-file-other-window= | Open in other window            |
+| =d=         | =dired-flag-file-deletion=   | Flag file for deletion          |
+| =x=         | =dired-do-flagged-delete=    | Execute flagged deletions       |
+| =c=         | =dired-do-copy=              | Copy files                      |
+| =R=         | =dired-do-rename=            | Rename files                    |
+| =A=         =dired-do-chmod=             | Change file permissions           |
+| =g=         | =revert-buffer=              | Refresh directory listing       |
+| =+=         | =dired-create-directory=     | Create new directory            |
+| =W=         | =dired-copy-filename-as-kill=| Copy file name to kill ring     |
+| =&=         | =dired-do-async-shell-command= | Run shell command on files      |
+
+* Recommended Configuration
+:PROPERTIES:
+:RAG_CRITICAL: t
+:RAG_CONFIG: t
+:END:
+
+This is the recommended Dirvish configuration for this project (Vanilla Emacs,
+Doom migration, Bedrock template). Copy this block as-is and adjust paths to
+match your system.
+
+#+begin_src emacs-lisp
+;; ─────────────────────────────────────────────
+;; Dired base configuration
+;; ─────────────────────────────────────────────
+(use-package dired
+  :ensure nil  ;; Built-in
+  :custom
+  (dired-listing-switches
+   "-l --almost-all --human-readable --group-directories-first --no-group")
+  (dired-dwim-target t)
+  (dired-kill-when-opening-new-dired-buffer t))
+
+;; ─────────────────────────────────────────────
+;; Dirvish --- modern Dired replacement
+;; ─────────────────────────────────────────────
+(use-package dirvish
+  :ensure t
+  :init
+  ;; MUST be in :init, not :config
+  (dirvish-override-dired-mode 1)
+  :custom
+  ;; Quick-access entries (2-keystroke jumps)
+  (dirvish-quick-access-entries
+   '(("h" "~/"                    "Home")
+     ("d" "~/Downloads/"          "Downloads")
+     ("p" "~/Projects/"           "Projects")
+     ("e" "~/.config/emacs/"      "Emacs")
+     ("n" "~/org/notes"           "Notes")))
+  ;; Visual attributes (order matters)
+  (dirvish-attributes
+   '(vc-state subtree-state nerd-icons collapse git-msg file-time file-size))
+  ;; Icon settings
+  (dirvish-nerd-icons-height 16)     ; 16-18 for standard fonts
+  (dirvish-nerd-icons-offset -2)
+  ;; Window / layout
+  (dirvish-side-width 30)
+  (dirvish-large-directory-threshold 20000)
+  (dirvish-hide-cursor t)
+  (dirvish-use-mode-line nil)
+  ;; Preview
+  (dirvish-preview-dispatchers
+   '(image gif video audio epub pdf archive))
+  :bind
+  (:map dirvish-mode-map
+   (";"   . dired-up-directory)
+   ("?"   . dirvish-dispatch)
+   ("TAB" . dirvish-subtree-toggle)
+   ("o"   . dirvish-quick-access)
+   ("r"   . dirvish-history-jump)
+   ("s"   . dirvish-quicksort)
+   ("v"   . dirvish-vc-menu)
+   ("N"   . dirvish-narrow))
+  ;; Global key bindings
+  :bind
+  (("C-x C-j" . dirvish-dwim)
+   ("C-x d"   . dirvish)))
+#+end_src
+
+#+begin_note
+Key points:
+1. =dired= is built-in, so use =:ensure nil=
+2. =dirvish-override-dired-mode= MUST be in =:init=
+3. All custom variables in =:custom= block (use =use-package=)
+4. Consolidate all config into one =use-package= block
+5. Do NOT use multiple =with-eval-after-load 'dirvish= blocks
+#+end_note
+
+* Troubleshooting and Pitfalls
+:PROPERTIES:
+:RAG_TRAPS: t
+:RAG_CRITICAL: t
+:END:
+
+This section documents known pitfalls and traps when configuring Dirvish.
+These are critical for AI agents modifying this configuration.
+
+** TRAP 1: Icon height value is inverted
+:PROPERTIES:
+:RAG_TRAP: t
+:END:
+
+- **Wrong assumption:** =dirvish-nerd-icons-height 12= makes icons "too large"
+- **Reality:** The value is pixel height. 12 makes icons TOO SMALL. 40+ makes
+  them too large. Recommended: 16-18 for fonts sized 14-16pt.
+- **Fix:** Set =(setq dirvish-nerd-icons-height 16)=
+
+** TRAP 2: Multiple =with-eval-after-load= blocks
+:PROPERTIES:
+:RAG_TRAP: t
+:END:
+
+- **Problem:** Multiple =with-eval-after-load 'dirvish= blocks scattered across
+  config files cause ordering issues and make maintenance difficult.
+- **Fix:** Consolidate all Dirvish configuration into a single =use-package=
+  declaration with =:custom=, =:config=, and =:bind= sections.
+
+** TRAP 3: Invalid =dirvish-default-layout= value
+:PROPERTIES:
+:RAG_TRAP: t
+:END:
+
+- **Problem:** =dirvish-default-layout= takes a layout index number (typically
+  0-5), not arbitrary values like 10.
+- **Fix:** Use values 0-5, or define custom layouts in =dirvish-layout-recipes=.
+
+** TRAP 4: =dirvish-window-size= does not exist
+:PROPERTIES:
+:RAG_TRAP: t
+:END:
+
+- **Problem:** =dirvish-window-size= is NOT a standard Dirvish variable.
+  Setting it has no effect and may cause byte-compiler warnings.
+- **Fix:** Use =dirvish-layout-recipes= to define window size ratios:
+  #+begin_src emacs-lisp
+  (setq dirvish-layout-recipes
+        '((0 1 1)    ; Layout 0: full width
+          (1 2 1)    ; Layout 1: 2:1 ratio
+          (2 1 1 1))) ; Layout 2: 1:1:1 ratio
+  #+end_src
+
+** TRAP 5: Override mode in wrong =use-package= block
+:PROPERTIES:
+:RAG_TRAP: t
+:END:
+
+- **Problem:** Placing =(dirvish-override-dired-mode 1)= in =:config= instead of
+  =:init= means Dired buffers created before Dirvish loads won't be overridden.
+- **Fix:** Always use =:init (dirvish-override-dired-mode 1)=
+
+** TRAP 6: Icon backend load order
+:PROPERTIES:
+:RAG_TRAP: t
+:END:
+
+- **Problem:** =nerd-icons= (or other icon backend) must be loaded before Dirvish
+  tries to render icons. If =nerd-icons= is loaded after Dirvish, icons won't
+  appear or will cause errors.
+- **Fix:** Ensure =nerd-icons= package is configured before =dirvish=, or add
+  =:after nerd-icons= to the dirvish =use-package= declaration:
+  #+begin_src emacs-lisp
+  (use-package dirvish
+    :after nerd-icons
+    ...)
+  #+end_src
+
+** TRAP 7: TRAMP async process support
+:PROPERTIES:
+:RAG_TRAP: t
+:END:
+
+- **Problem:** Dirvish requires =tramp-direct-async-process= connection-local
+  profile for full TRAMP (remote file) functionality. Without it, remote
+  directory operations may be slow or fail.
+- **Fix:** Add connection-local profile:
+  #+begin_src emacs-lisp
+  (add-hook 'tramp-connection-properties
+            '(("direct-async-process" . t)))
+  #+end_src
+
+* TRAMP Support
+:PROPERTIES:
+:RAG_TRAMP: t
+:END:
+
+Dirvish supports remote file access via TRAMP. For optimal performance:
+
+1. Install =fd= on remote machines for async directory listing
+2. Enable direct async process support:
+
+#+begin_src emacs-lisp
+;; TRAMP connection-local profile for async processes
+(connection-local-set-profile-variables
+ 'dirvish-tramp-async
+ '((tramp-direct-async-process . t)))
+
+(connection-local-set-profile-enabler
+ 'dirvish-tramp-async
+ (lambda ()
+   (string-prefix-p "/ssh:" default-directory)))
+
+(add-hook 'tramp-connection-properties
+          '(("/ssh:" dirvish-tramp-async)))
+#+end_src
+
+#+begin_note
+The =fd= (find-duplicate) CLI tool must be installed on remote machines for
+async directory listing to work. Without it, Dirvish falls back to synchronous
+=ls=, which can be slow for large remote directories.
+#+end_note
+
+* Comparison with Built-in Dired
+:PROPERTIES:
+:RAG_COMPARISON: t
+:END:
+
+| Feature                | Dired (built-in)     | Dirvish                    |
+|------------------------+----------------------+----------------------------|
+| Directory listing      | Basic =ls= output      | Enhanced with icons/attrs  |
+| Subdirectory expand    | =dired-subtree= (pkg)  | Built-in (=dirvish-subtree=) |
+| File preview           | =dired-preview= (pkg)  | Built-in (multiple formats) |
+| Sidebar                | None                 | Built-in (=dirvish-side=)     |
+| Quick access           | =dired-guess-default=  | Built-in (=dirvish-quick-access=) |
+| Version control        | =vc-dired=             | Built-in (=dirvish-vc=)       |
+| History navigation     | =dired-history= (pkg)  | Built-in (=dirvish-history=)  |
+| Live filtering         | =dired-filter= (pkg)   | Built-in (=dirvish-narrow=)   |
+| Async large dirs       | None                 | Built-in (via =fd=)          |
+| Copy/paste             | =dired-do-copy=        | Async (=dirvish-yank=)        |
+| Configuration          | Many =setq= variables  | Unified =dirvish-* variables= |
+
+* Migration from Doom Emacs
+:PROPERTIES:
+:RAG_MIGRATION: t
+:END:
+
+If migrating from Doom Emacs (which uses =+dirvish= module), note:
+
+1. Doom sets =dirvish-override-dired-mode= automatically --- you must add it
+   explicitly in Vanilla Emacs
+2. Doom may use =all-the-icons= by default --- this project uses =nerd-icons=
+3. Doom's Dirvish module configures many defaults --- review all =dirvish-*=
+   variables in your Doom config and port the ones you want
+4. Doom uses =general.el= for keybindings --- convert to standard =:bind= in
+   =use-package=
+5. Remove any =(require '+dirvish)= or doom-specific dirvish references
+
+#+begin_src emacs-lisp
+;; Doom Emacs dirvish config (REMOVE this)
+;; (use-package! dirvish ...)
+
+;; Vanilla Emacs equivalent (USE this)
+(use-package dirvish
+  :ensure t
+  :init
+  (dirvish-override-dired-mode 1)
+  ;; ... rest of config
+  )
+#+end_src
+
+* Useful Links
+:PROPERTIES:
+:RAG_LINKS: t
+:END:
+
+| Resource                    | URL                                                         |
+|-----------------------------+-------------------------------------------------------------|
+| GitHub Repository           | [[https://github.com/alexluigit/dirvish][https://github.com/alexluigit/dirvish]]                       |
+| MELPA Package               | [[https://melpa.org/#/dirvish][https://melpa.org/#/dirvish]]                                 |
+| Dirvish Wiki                | [[https://github.com/alexluigit/dirvish/wiki][https://github.com/alexluigit/dirvish/wiki]]                     |
+| Nerd Icons                  | [[https://github.com/rainstormstudio/nerd-icons.el][https://github.com/rainstormstudio/nerd-icons.el]]                   |
+| Dired Manual (GNU)          | [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Dired.html][https://www.gnu.org/software/emacs/manual/html_node/emacs/Dired.html]] |
+| Emacs Bedrock Template      | [[https://github.com/bedrock-emacs/bedrock-emacs][https://github.com/bedrock-emacs/bedrock-emacs]]                       |
+
+* Local Variables
+:PROPERTIES:
+:RAG_LOCAL_VARS: t
+:END:
+
+#+begin_src emacs-lisp
+# Local Variables:
+# mode: org
+# eval: (org-indent-mode 1)
+# eval: (display-line-numbers-mode -1)
+# End:
+#+end_src

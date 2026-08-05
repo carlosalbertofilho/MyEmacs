@@ -1,0 +1,683 @@
+#+TITLE: Terminal Stack Reference Guide
+#+AUTHOR: Generated Reference
+#+DATE: 2026-08-05
+#+DESCRIPTION: Comprehensive reference for the Emacs terminal stack — vterm, eshell, eshell-prompt-extras, display buffer rules, and multiline helpers
+
+* Table of Contents
+:PROPERTIES:
+:TOC: :include all :ignore this
+:END:
+:CONTENTS:
+- [[#overview][Overview]]
+- [[#installation][Installation & Configuration]]
+- [[#vterm][VTerm]]
+- [[#vterm-multiline][VTerm Multiline Helper]]
+- [[#eshell][Eshell]]
+- [[#eshell-prompt-extras][Eshell Prompt Extras]]
+- [[#display-buffer-rules][Display Buffer Rules]]
+- [[#pitfalls][Pitfalls & Common Errors]]
+- [[#quick-reference-tables][Quick Reference Tables]]
+- [[#sample-configurations][Sample Configurations]]
+- [[#rag-context][RAG Context Notes]]
+:END:
+
+* Overview
+
+The Emacs terminal stack provides integrated shell environments within the
+editor. It offers two complementary approaches:
+
+- **VTerm** — a full terminal emulator using a compiled C module, providing
+  near-native terminal behavior with support for interactive programs,
+  ANSI colors, and complex TUI applications.
+
+- **Eshell** — a pure Elisp shell with deep Emacs integration, offering
+  Lisp expressions in commands, native file globbing, and seamless
+  interaction with Emacs buffers and variables.
+
+These are not competing tools but complementary: VTerm for full terminal
+compatibility, Eshell for Emacs-native scripting and quick commands.
+
+#+begin_warning
+This reference covers terminal packages only. See =completion-stack.org=
+for completion frameworks that enhance terminal input, and
+=completion-stack.org= for shell command completion via =embark=.
+#+end_warning
+
+* Package Summary
+
+| Package                | Author            | Purpose                         | Source   |
+|------------------------+-------------------+---------------------------------+----------|
+| vterm                  | AKIYAMA Kouhei    | Terminal emulator (C module)    | MELPA    |
+| eshell                 | Emacs core        | Elisp-based shell               | Built-in |
+| eshell-prompt-extras   | Gonçalo Torres    | Enhanced eshell prompts         | MELPA    |
+| Display buffer rules   | Emacs built-in    | Window placement control        | Emacs    |
+| Multiline helper       | Custom            | Clipboard paste to vterm        | Custom   |
+
+* Installation & Configuration
+
+#+begin_src elisp
+;; vterm — requires C module compilation
+(use-package vterm
+  :ensure t
+  ...)
+
+;; eshell — built-in
+(use-package eshell
+  :ensure nil
+  ...)
+
+;; eshell-prompt-extras
+(use-package eshell-prompt-extras
+  :ensure t
+  ...)
+
+;; Display buffer rules — built-in customization
+#+end_src
+
+* VTerm
+
+** Purpose
+
+VTerm is a terminal emulator for Emacs that uses a compiled C module
+(=vterm-module.so=) based on libvterm. It provides near-native terminal
+behavior, supporting:
+
+- Interactive programs (=vim=, =htop=, =ncdu=)
+- ANSI color codes and escape sequences
+- Mouse events in terminal applications
+- True color (24-bit) support
+- Bracketed paste mode
+
+** Configuration
+
+#+begin_src elisp
+(use-package vterm
+  :catch t
+  :config
+  ;; Remove Emacs bindings from vterm exceptions
+  (setq vterm-keymap-exceptions
+        (delete "C-c" (delete "C-u" (delete "C-g" vterm-keymap-exceptions))))
+  (setq vterm-max-scrollback 100000
+        vterm-copy-exclude-prompt t))
+#+end_src
+
+** Key Variables
+
+| Variable                        | Default | Recommended | Purpose                           |
+|---------------------------------+---------+-------------+-----------------------------------|
+| =vterm-keymap-exceptions=       | =list=  | =modified=  | Keys Emacs intercepts in vterm    |
+| =vterm-max-scrollback=          | =1000=  | =100000=    | Maximum scrollback buffer lines   |
+| =vterm-copy-exclude-prompt=     | =nil=   | =t=         | Exclude prompt when copying       |
+| =vterm-shell=                   | =/bin/sh=| =/bin/zsh= | Shell to start in vterm           |
+| =vterm-environment=             | =nil=   | =nil=       | Environment variables to pass     |
+| =vterm-buffer-name=             | =vterm= | =vterm=     | Base name for vterm buffers       |
+| =vterm-toggle-fullscreen=       | =nil=   | =nil=       | Toggle fullscreen on open         |
+
+** Keymap Exceptions Explained
+
+By default, vterm intercepts several key combinations that Emacs normally
+handles. The recommended configuration removes three common ones:
+
+#+begin_src elisp
+;; Remove these from exceptions so Emacs handles them normally
+(setq vterm-keymap-exceptions
+      (delete "C-c"                    ;; Remove C-c from exceptions
+              (delete "C-u"            ;; Remove C-u from exceptions
+                      (delete "C-g"    ;; Remove C-g from exceptions
+                              vterm-keymap-exceptions))))
+#+end_src
+
+| Key  | After Removal                          | Before Removal                     |
+|------+----------------------------------------+------------------------------------|
+| =C-c=| Emacs prefix key (used for custom bindings) | Sent to terminal as =C-c=       |
+| =C-u=| Emacs universal argument               | Sent to terminal as =C-u= (kill line) |
+| =C-g=| Emacs keyboard quit                    | Sent to terminal as =C-g= (SIGINT) |
+
+#+begin_warning
+Removing =C-g= from exceptions means you can no longer send SIGINT to
+terminal processes with =C-g=. Use =C-c C-c= or =q= instead within the
+terminal. This is a trade-off between Emacs integration and terminal control.
+#+end_warning
+
+** VTerm Key Bindings
+
+| Key          | Action                              |
+|--------------+-------------------------------------|
+| =C-c C-c=    | Send =C-c= to terminal (SIGINT)     |
+| =C-c C-v=    | Paste from clipboard                |
+| =C-c C-k=    | Kill terminal process               |
+| =M-RET=      | Toggle fullscreen                   |
+| =C-c C-y=    | Copy selection to kill ring         |
+
+** Compilation Requirements
+
+VTerm requires compilation of a C shared library (=vterm-module.so=). This
+happens automatically on most systems but may fail if:
+
+- No C compiler (=gcc=, =clang=) is installed
+- =cmake= is not available
+- =libtool= or =pkg-config= is missing
+- Header files for =libvterm= are not installed
+
+** Manual Compilation
+
+#+begin_src sh
+# Install build dependencies (macOS)
+brew install cmake libtool pkg-config
+
+# In Emacs, trigger compilation
+M-x vterm-install RET
+#+end_src
+
+Or from the package directory:
+
+#+begin_src sh
+cd ~/.emacs.d/straight/build/vterm/
+cmake .
+make
+#+end_src
+
+** Shell Configuration
+
+#+begin_src elisp
+;; Use zsh as the default shell in vterm
+(setq vterm-shell "/bin/zsh")
+
+;; Or use bash
+(setq vterm-shell "/bin/bash")
+
+;; Pass environment variables
+(setq vterm-environment '(("TERM" . "xterm-256color")))
+#+end_src
+
+* VTerm Multiline Helper
+
+** Purpose
+
+When pasting multiline commands into vterm, the terminal may interpret each
+line as a separate command. This helper function writes clipboard content as
+a single multiline input.
+
+** Configuration
+
+#+begin_src elisp
+(defun +carlos/vterm-write-multiline-prompt ()
+  "Write clipboard as multiline in vterm."
+  (interactive)
+  (when-let* ((text (or (car kill-ring) "")))
+    (vterm-send-string text)))
+
+(with-eval-after-load 'vterm
+  (define-key vterm-mode-map (kbd "C-c C-e") #'+carlos/vterm-write-multiline-prompt))
+#+end_src
+
+** Usage
+
+1. Copy multiline text (e.g., from a code block or another buffer)
+2. Switch to vterm buffer
+3. Press =C-c C-e= to paste the entire block at once
+
+** How It Works
+
+- Reads the most recent kill ring entry (clipboard)
+- Sends it as a single string to vterm using =vterm-send-string=
+- The terminal processes it as one paste operation, respecting newlines
+
+#+begin_warning
+=vterm-send-string= sends characters one at a time. For very large pastes
+(>10KB), consider using bracketed paste mode instead:
+=M-x vterm-yank= or =C-c C-v=. The multiline helper is best for moderate
+pastes where you want explicit control over the paste behavior.
+#+end_warning
+
+** Enhanced Version with Escaping
+
+#+begin_src elisp
+(defun +carlos/vterm-write-multiline-prompt-safe ()
+  "Write clipboard as multiline in vterm with basic escaping."
+  (interactive)
+  (when-let* ((text (or (car kill-ring) "")))
+    ;; Escape special shell characters if needed
+    (let ((escaped-text
+           (replace-regexp-in-string "\\\\" "\\\\\\\\" text)))
+      (vterm-send-string escaped-text))))
+#+end_src
+
+* Eshell
+
+** Purpose
+
+Eshell is a shell implemented entirely in Emacs Lisp. It provides:
+
+- Full Emacs integration (Lisp expressions in commands)
+- Native file globbing and completion
+- Pipeline support with Elisp functions
+- Alias and pcomplete support
+- No external dependencies
+
+** Configuration
+
+#+begin_src elisp
+(use-package eshell
+  :bind (("C-c e" . eshell))
+  :config
+  (setq eshell-buffer-name "*eshell*"
+        eshell-scroll-to-bottom-on-input t))
+#+end_src
+
+** Key Variables
+
+| Variable                            | Default          | Purpose                          |
+|-------------------------------------+------------------+----------------------------------|
+| =eshell-buffer-name=                | ="*eshell*"=     | Name of eshell buffer            |
+| =eshell-scroll-to-bottom-on-input=  | =nil=            | Auto-scroll on input             |
+| =eshell-prompt-function=            | =eshell-prompt=  | Custom prompt generator          |
+| =eshell-prompt-regexp=              | =pattern=        | Regex matching the prompt        |
+| =eshell-highlight-prompt=           | =t=              | Syntax highlight the prompt      |
+| =eshell-history-size=               | =500=            | Number of history entries        |
+| =eshell-destroy-buffer-when-process-dies=| =nil=        | Auto-kill buffer on exit         |
+
+** Key Bindings
+
+| Key       | Action                              |
+|-----------+-------------------------------------|
+| =C-c e=   | Open/switch to eshell               |
+| =C-c C-l= | Clear buffer (like =clear=)         |
+| =M-p=     | Previous command in history         |
+| =M-n=     | Next command in history             |
+| =C-c C-r= | Search history (like =Ctrl-R=)      |
+
+** Eshell vs VTerm
+
+| Feature                | Eshell                    | VTerm                     |
+|------------------------+---------------------------+---------------------------|
+| Implementation         | Pure Elisp                | C module (libvterm)       |
+| Interactive TUI        | No                        | Yes (=htop=, =vim=)       |
+| ANSI colors            | Basic                     | Full (24-bit)             |
+| Emacs integration      | Deep (Lisp in commands)   | Moderate (keybindings)    |
+| External commands      | Yes (via =call-process=)  | Yes (native)              |
+| Pipeline               | Elisp + shell             | Shell-native              |
+| Compilation required   | No                        | Yes (=vterm-module.so=)   |
+| Best for               | Quick commands, Elisp     | Full terminal sessions    |
+
+** Useful Eshell Patterns
+
+#+begin_src sh
+# Run Emacs command
+M-x describe-variable RET eshell-buffer-name RET
+
+# Use Elisp in eshell
+$ (buffer-name)
+$ (+ 1 2 3)
+
+# File operations (native eshell commands)
+$ ls -la ~/org/
+$ cat README.org
+$ mkdir -p ~/org/projects/new
+
+# Pipe through Elisp
+$ ls | (lambda (x) (format "Found: %s" x))
+
+# Redirect to Emacs buffer
+$ echo "hello" > #<buffer *scratch*>
+#+end_src
+
+* Eshell Prompt Extras
+
+** Purpose
+
+=eshell-prompt-extras= provides enhanced prompt themes for eshell, including
+the popular Lambda theme with Git integration, exit status indicators, and
+timestamp support.
+
+** Configuration
+
+#+begin_src elisp
+(use-package eshell-prompt-extras
+  :after eshell
+  :config
+  (setq eshell-highlight-prompt t
+        eshell-prompt-function #'epe-theme-lambda))
+#+end_src
+
+** Key Variables
+
+| Variable                      | Default              | Purpose                       |
+|-------------------------------+----------------------+-------------------------------+
+| =eshell-highlight-prompt=     | =t=                  | Enable prompt syntax coloring |
+| =eshell-prompt-function=      | =eshell-prompt=      | Custom prompt function        |
+| =epe-theme-lambda=            | =function=           | Lambda prompt theme           |
+| =eshell-prompt-regexp=        | =auto-set=           | Must match prompt output      |
+
+** Prompt Themes Available
+
+| Theme               | Features                              |
+|---------------------+---------------------------------------|
+| =epe-theme-lambda=  | Git status, path, exit code, lambda λ |
+| =epe-theme-dakrone= | Minimal, username, path               |
+| =epe-theme-paradox=| Colorful, multi-line                  |
+
+** Lambda Prompt Features
+
+The =epe-theme-lambda= prompt displays:
+
+- Current directory (truncated if too long)
+- Git branch and status (dirty, staged, etc.)
+- Exit status of the last command (red if non-zero)
+- A lambda character (λ) as the prompt symbol
+- Color-coded elements
+
+#+begin_src sh
+# Example output:
+~/Projects/MyEmacs [main ✓] λ
+$
+
+# After a failed command:
+~/Projects/MyEmacs [main ✗ 1] λ
+$
+#+end_src
+
+** Customizing the Prompt Regexp
+
+If you customize the prompt, you must also update the regexp:
+
+#+begin_src elisp
+(setq eshell-prompt-function #'epe-theme-lambda
+      eshell-prompt-regexp ".*λ ")
+#+end_src
+
+#+begin_warning
+The =eshell-prompt-regexp= must match the output of your prompt function.
+If it doesn't, features like =M-p= (history navigation) and =C-c C-r=
+(history search) may not work correctly. The =epe-theme-lambda= theme sets
+its own regexp, but custom prompts require manual configuration.
+#+end_warning
+
+* Display Buffer Rules
+
+** Purpose
+
+Display buffer rules control where new buffers appear in your Emacs frame.
+This is especially important for terminal buffers, which benefit from
+predictable placement (e.g., always at the bottom of the frame).
+
+** Configuration
+
+#+begin_src elisp
+;; Place vterm buffers at the bottom of the frame
+(add-to-list 'display-buffer-alist
+             '("\\*vterm"
+               (display-buffer-in-direction)
+               (direction . bottom)
+               (window-height . 0.4)))
+#+end_src
+
+** Display Buffer Alist Structure
+
+#+begin_src elisp
+(add-to-list 'display-buffer-alist
+             '("\\*PATTERN*"
+               (DISPLAY-FUNCTION)
+               (ARG . VALUE)
+               (ARG . VALUE)
+               ...))
+#+end_src
+
+** Available Display Functions
+
+| Function                        | Behavior                        |
+|---------------------------------+---------------------------------|
+| =display-buffer-in-direction=   | Open in a specified direction   |
+| =display-buffer-below-selected= | Open below current window       |
+| =display-buffer-reuse-window=   | Reuse existing window if open   |
+| =display-buffer-pop-up-window=  | Always create a new window      |
+| =display-buffer-same-window=    | Use the current window          |
+
+** Direction Arguments
+
+| Argument         | Values                          | Purpose                  |
+|------------------+---------------------------------+--------------------------|
+| =direction=      | =left=, =right=, =top=, =bottom=| Which side of the frame  |
+| =window-height=  | Float (=0.4=) or integer (=20=) | Height of new window     |
+| =window-width=   | Float or integer                | Width of new window      |
+| =dedicated=      | =t= or =nil=                    | Prevent other buffers    |
+
+** Multiple Display Rules
+
+#+begin_src elisp
+;; VTerm at the bottom (40% height)
+(add-to-list 'display-buffer-alist
+             '("\\*vterm"
+               (display-buffer-in-direction)
+               (direction . bottom)
+               (window-height . 0.4)))
+
+;; Eshell in a new window
+(add-to-list 'display-buffer-alist
+             '("\\*eshell*"
+               (display-buffer-pop-up-window)
+               (window-height . 0.3)))
+
+;; Compile buffer at the bottom (smaller)
+(add-to-list 'display-buffer-alist
+             '("\\*compilation\\*"
+               (display-buffer-in-direction)
+               (direction . bottom)
+               (window-height . 0.25)))
+#+end_src
+
+** Pattern Matching
+
+The first element is a regexp string that matches buffer names:
+
+| Pattern              | Matches                          |
+|----------------------+----------------------------------|
+| ="\\*vterm"=         | Any buffer starting with =*vterm= |
+| ="\\*eshell\\*"=     | Exact match =*eshell*=           |
+| ="\\*compilation\\*"=| Exact match =*compilation*=      |
+| ="\\*.*vterm.*\\*"=  | Any buffer containing =vterm=    |
+
+* Pitfalls & Common Errors
+
+** P1: VTerm C Module Compilation
+
+- **Symptom:** =vterm= loads but displays "vterm-module not compiled" error
+- **Cause:** =vterm-module.so= was not built during package installation
+- **Fix:** Run =M-x vterm-install= or compile manually:
+  =cd ~/.emacs.d/straight/build/vterm/ && cmake . && make=
+- **Severity:** High — vterm is non-functional without the module
+
+** P2: VTerm Compilation Prompt in Batch Mode
+
+- **Symptom:** In batch/daemon mode, Emacs hangs waiting for compilation
+  confirmation
+- **Cause:** =vterm= prompts to compile the module on first load
+- **Fix:** Pre-compile the module, or use advice to skip the prompt:
+  #+begin_src elisp
+  (defun +carlos/skip-vterm-compilation (&rest _) nil)
+  (advice-add 'vterm--maybe-compile :override #'+carlos/skip-vterm-compilation)
+  #+end_src
+- **Severity:** High — blocks headless/daemon startup
+
+** P3: VTerm Keymap Exceptions
+
+- **Symptom:** =C-c=, =C-u=, or =C-g= don't work as Emacs bindings in vterm
+- **Cause:** These keys are in =vterm-keymap-exceptions= by default
+- **Fix:** Remove them from the list as shown in the configuration
+- **Severity:** Medium — disrupts Emacs workflow in vterm
+
+** P4: Eshell Prompt Regex Mismatch
+
+- **Symptom:** History navigation (=M-p=, =M-n=) or search (=C-c C-r=)
+  doesn't work in eshell
+- **Cause:** =eshell-prompt-regexp= doesn't match the actual prompt output
+- **Fix:** Set =eshell-prompt-regexp= to match your prompt function's output
+- **Severity:** Medium — breaks core eshell functionality
+
+** P5: VTerm Multiline Escaping
+
+- **Symptom:** Pasted multiline commands fail or behave unexpectedly
+- **Cause:** Special characters in the pasted text are not escaped
+- **Fix:** Use =vterm-yank= (=C-c C-v=) for bracketed paste, or the
+  multiline helper with escaping for controlled paste
+- **Severity:** Medium — affects workflow efficiency
+
+** P6: Display Buffer Rules Not Matching
+
+- **Symptom:** vterm or eshell buffers don't appear in expected position
+- **Cause:** Display buffer regexp doesn't match the actual buffer name
+- **Fix:** Check buffer name with =M-x buffer-name= and adjust regexp
+- **Severity:** Low — cosmetic, easy to debug
+
+* Quick Reference Tables
+
+** Terminal Comparison
+
+| Feature                | VTerm                      | Eshell                     |
+|------------------------+----------------------------+----------------------------+
+| Implementation         | C module (libvterm)        | Pure Elisp                 |
+| TUI support            | Yes (full)                 | No                         |
+| ANSI color             | 24-bit true color          | Basic                      |
+| Emacs integration      | Keybindings only           | Deep (Lisp expressions)    |
+| Compilation needed     | Yes                        | No                         |
+| Interactive programs   | Yes (=vim=, =htop=, etc.)  | No                         |
+| Shell completion       | Via shell (zsh/bash)       | pcomplete (Emacs native)   |
+| Best use case          | Full terminal sessions     | Quick commands, scripting  |
+
+** Key Bindings Reference
+
+| Key         | Package       | Action                          |
+|-------------+---------------+---------------------------------|
+| =C-c e=     | eshell        | Open eshell                     |
+| =C-c C-e=   | vterm (custom)| Paste multiline from clipboard  |
+| =C-c C-v=   | vterm         | Yank (bracketed paste)          |
+| =C-c C-c=   | vterm         | Send SIGINT to terminal         |
+| =C-c C-k=   | vterm         | Kill terminal process           |
+| =M-p=       | eshell        | Previous history entry          |
+| =C-c C-r=   | eshell        | Search history                  |
+
+** Display Buffer Quick Reference
+
+| Buffer Pattern       | Position | Height | Function                     |
+|----------------------+----------+--------+------------------------------|
+| ="\\*vterm"=         | bottom   | 0.4    | =display-buffer-in-direction= |
+| ="\\*eshell\\*"=     | pop-up   | 0.3    | =display-buffer-pop-up-window= |
+| ="\\*compilation\\*"=| bottom   | 0.25   | =display-buffer-in-direction= |
+
+** External Dependencies
+
+| Dependency | Required By | Install Method                        |
+|------------+-------------+---------------------------------------|
+| =cmake=    | vterm       | =brew install cmake= (macOS)          |
+| =libtool=  | vterm       | =brew install libtool= (macOS)        |
+| =gcc/clang=| vterm       | =xcode-select --install= (macOS)      |
+| =zsh/bash= | vterm       | Pre-installed on most systems         |
+
+* Sample Configurations
+
+** Minimal Terminal Setup
+
+#+begin_src elisp
+;; VTerm
+(use-package vterm
+  :catch t
+  :config
+  (setq vterm-keymap-exceptions
+        (delete "C-c" (delete "C-u" (delete "C-g" vterm-keymap-exceptions))))
+  (setq vterm-max-scrollback 100000
+        vterm-copy-exclude-prompt t))
+
+;; Eshell
+(use-package eshell
+  :bind (("C-c e" . eshell))
+  :config
+  (setq eshell-buffer-name "*eshell*"
+        eshell-scroll-to-bottom-on-input t))
+#+end_src
+
+** Full Terminal Stack Configuration
+
+#+begin_src elisp
+;; ─── VTerm ────────────────────────────────────────────────────
+(use-package vterm
+  :catch t
+  :config
+  ;; Remove Emacs bindings from vterm exceptions
+  (setq vterm-keymap-exceptions
+        (delete "C-c" (delete "C-u" (delete "C-g" vterm-keymap-exceptions))))
+  (setq vterm-max-scrollback 100000
+        vterm-copy-exclude-prompt t)
+  (setq vterm-shell "/bin/zsh"))
+
+;; ─── VTerm Multiline Helper ───────────────────────────────────
+(defun +carlos/vterm-write-multiline-prompt ()
+  "Write clipboard as multiline in vterm."
+  (interactive)
+  (when-let* ((text (or (car kill-ring) "")))
+    (vterm-send-string text)))
+
+(with-eval-after-load 'vterm
+  (define-key vterm-mode-map (kbd "C-c C-e") #'+carlos/vterm-write-multiline-prompt))
+
+;; ─── Eshell ───────────────────────────────────────────────────
+(use-package eshell
+  :bind (("C-c e" . eshell))
+  :config
+  (setq eshell-buffer-name "*eshell*"
+        eshell-scroll-to-bottom-on-input t))
+
+;; ─── Eshell Prompt Extras ─────────────────────────────────────
+(use-package eshell-prompt-extras
+  :after eshell
+  :config
+  (setq eshell-highlight-prompt t
+        eshell-prompt-function #'epe-theme-lambda))
+
+;; ─── Display Buffer Rules ─────────────────────────────────────
+(add-to-list 'display-buffer-alist
+             '("\\*vterm"
+               (display-buffer-in-direction)
+               (direction . bottom)
+               (window-height . 0.4)))
+#+end_src
+
+* RAG Context Notes
+
+** For LLM Context Injection**
+
+When using this reference with AI assistants, include the following context points:
+
+- VTerm requires compilation of =vterm-module.so= (C module with cmake)
+- In batch/daemon mode, vterm compilation prompt appears — use advice to skip
+- =vterm-keymap-exceptions= — remove =C-c=, =C-u=, =C-g= for normal Emacs behavior
+- =eshell-prompt-extras= requires =epe-theme-lambda= function
+- =vterm-send-string= for multiline may need escaping for special characters
+- =display-buffer-alist= uses regex patterns to match buffer names
+- =display-buffer-in-direction= with =direction . bottom= places windows below
+- =vterm-copy-exclude-prompt=t= removes the prompt from copied text
+- =vterm-max-scrollback= of 100000 provides generous history for long sessions
+- eshell is built-in and requires no compilation
+
+** Package Relationships**
+
+#+begin_example
+vterm (C module, full terminal)
+├── multiline helper (custom function, uses vterm-send-string)
+│   └── bound to C-c C-e in vterm-mode-map
+└── display-buffer-alist (places vterm at bottom of frame)
+
+eshell (built-in, Elisp shell)
+└── eshell-prompt-extras (enhanced prompts)
+    └── epe-theme-lambda (specific prompt theme)
+#+end_example
+
+** Choosing Between VTerm and Eshell**
+
+- Use **VTerm** for: interactive programs (=vim=, =htop=, =tmux=), ANSI-heavy
+  output, running the same commands as your system terminal
+- Use **Eshell** for: quick file operations, Emacs Lisp expressions in commands,
+  scripting that benefits from Emacs integration, when you don't want to leave
+  the Emacs process
+
+---
+*Terminal stack reference generated: 2026-08-05*

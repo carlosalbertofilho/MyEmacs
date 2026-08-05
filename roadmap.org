@@ -1,0 +1,167 @@
+#+TITLE: Roadmap — MyEmacs Configuration
+#+AUTHOR: Carlos Filho
+#+DATE: 2026-08-05
+#+OPTIONS: toc:2 num:t
+
+* Visão Geral
+
+Este documento registra o histórico de ações realizadas no projeto MyEmacs
+(Vanilla Emacs migration from Doom Emacs). Serve como referência para agentes
+entenderem o estado atual do projeto e decisões tomadas.
+
+* Linha do Tempo
+
+** 2026-08-04 — Fundação (Fase 0)
+
+*** Feito
+- Clonar repo MyEmacs.git (zerado, commit vazio =6d009ba=)
+- Copiar =early-init.el= e =init.el= base do Emacs Bedrock
+- Configurar repositórios de pacotes (GNU ELPA + MELPA)
+- Criar =bin/emacs-vanilla= + wrapper Nix
+
+*** Status: ✅ DONE
+
+** 2026-08-05 — Core + UX Inicial
+
+*** Feito
+- Criar =custom-core.el= (fontes, GPG, SSH, editor defaults)
+- Criar =custom-ui.el= (ef-themes, mood-line, olivetti, which-key)
+- Criar =custom-completion.el= (vertico, consult, marginalia, orderless, embark, corfu)
+- Criar =custom-files.el= (dirvish, ibuffer, TRAMP, project)
+- Criar =custom-term.el= (vterm, eshell, eshell-prompt-extras)
+- Criar =custom-keybindings.el= (prefixos C-c)
+- Criar =custom-lang.el= (eglot, treesit-auto, linguagens)
+- Criar =custom-org.el= (org, babel, jupyter, pdf-tools, org-modern)
+- Criar =custom-42.el= (header42, flycheck-norminette, estilo C)
+- Criar =custom-ai.el= (gptel backends, gptel-agent, superchat, mcp)
+- Criar =custom-knowledge.el= (denote)
+- Criar =custom-git.el= (magit, justl, commit IA)
+- Criar =custom-dashboard.el= (Nano-style dashboard)
+
+*** Problemas Identificados
+- Keybinding conflitante =C-c h= (consult vs stdheader)
+- Dirvish ícones gigantes (height=12 errado)
+- Múltiplos blocos =with-eval-after-load 'dirvish= dispersos
+- TRAMP duplicado entre arquivos
+- Eglot em prog-mode hook (lento)
+
+*** Status: ⚠️ IN PROGRESS — Bugs identificados, correção pendente
+
+** 2026-08-05 — Documentação RAG
+
+*** Feito
+- Criar pasta =docs/= com estrutura de referência
+- Criar =docs/dirvish-reference.org= (731 linhas) — API completa, extensões, pitfalls
+- Criar =docs/gptel-reference.org= (489 linhas) — Backends, agent, org integration
+- Criar =docs/completion-stack.org= (452 linhas) — Vertico/consult/corfu/marginalia/orderless/embark
+- Criar =docs/magit-reference.org= (761 linhas) — Status, staging, commit, push/pull
+- Criar =docs/denote-reference.org= (892 linhas) — Notes, silos, links, backlinks
+- Criar =docs/org-ecosystem.org= (808 linhas) — org-modern, ob-mermaid, jupyter, pdf-tools
+- Criar =docs/ui-stack.org= (676 linhas) — ef-themes, mood-line, olivetti, nerd-icons
+- Criar =docs/term-stack.org= (683 linhas) — vterm, eshell, eshell-prompt-extras
+- Criar =AGENTS.md= — Guidelines de elisp, boas práticas, tabela de bugs
+- Atualizar =TODO.md= com plano de correção estruturado
+- Criar este =roadmap.org=
+
+*** Objetivo
+Criar cache de referência para que agentes possam:
+1. Consultar APIs reais dos pacotes (não suposições)
+2. Identificar pitfalls comuns antes de introduzir bugs
+3. Manter consistência com a arquitetura do projeto
+
+*** Status: ✅ DONE
+
+** 2026-08-05 — SuperChat + MCP
+
+*** Feito
+- Configurar =mcp.el= (servidores filesystem e github)
+- Configurar =superchat= (UI estilo Claude Code)
+- Atualizar =emacs.nix= com pacotes
+- Documentar comandos SuperChat/MCP
+
+*** Status: ✅ DONE
+
+** 2026-08-05 — Dirvish Extensões
+
+*** Feito
+- Integrar 13 extensões nativas do dirvish
+- Configurar quick-access, subtree, peek, emerge, vc, icons
+
+*** Problemas Identificados
+- 6 blocos =with-eval-after-load 'dirvish= dispersos (devem ser consolidados)
+- =dirvish-default-layout 10= é inválido
+- =dirvish-nerd-icons-height 12= causa ícones gigantes
+
+*** Status: ⚠️ NEEDS FIX
+
+** 2026-08-05 — AI/LLM
+
+*** Feito
+- Configurar 5 backends gptel (Zen, Claude, Gemini, Ollama, MLX)
+- Configurar gptel-agent com personas 42 School
+- Configurar gptel-org para integração Org
+- Criar =+carlos/gptel-agent-run= sem advice bug
+
+*** Problemas Identificados
+- =superchat= depende de =llm.el= (pode não existir)
+- =gptel-integrations= require sem verificação
+
+*** Status: ⚠️ NEEDS FIX
+
+* Decisões Arquiteturais
+
+** Sem Evil Mode
+- Keybindings 100% nativos com prefixo =C-c=
+- Navegação por =windmove= (Super+h/j/k/l)
+- Seleção nativa (C-SPC, M-w, C-w, C-y)
+
+** Nativo Primeiro
+- eglot (não lsp-mode)
+- treesit-auto (com treesit builtin)
+- use-package (não straight)
+- project.el (não projectile)
+
+** Declarativo no Nix
+- Todo binário de sistema via Home Manager
+- Repo Emacs não instala nada fora do MELPA/ELPA
+- emacs-jupyter via Nix (site-lisp/nix-elpa)
+
+** IA Unificada
+- Apenas gptel + gptel-agent
+- Descartar opencode.el, gemini-cli.el, macher, aider no Emacs
+- CLIs permanecem no terminal
+
+** 42 School Preservada
+- header42.el e flycheck-norminette.el portados
+- Style C 42 com tabs, 80 cols, whitespace
+- Chain eglot → norminette
+
+* Próximos Passos
+
+** Correções de Bugs (prioridade alta)
+1. Remover keybinding conflitante =C-c h=
+2. Corrigir dirvish ícones e layout
+3. Consolidar blocos dirvish
+4. Remover TRAMP duplicado
+5. Fix eglot prog-mode hook
+
+** Melhorias (prioridade média)
+6. Guardar emojis org-modern-priority
+7. Guardar superchat llm.el dependency
+8. Guardar gptel-integrations require
+9. Habilitar bindings comentados
+10. Remover eshell duplicado
+
+** Features (backlog)
+11. Adicionar fontes ao Nix
+12. Configurar Victor Mono com ligatures
+13. Refinar dashboard com tipografia
+14. Fase 4 — Cutoff final
+
+* Referências
+
+- Emacs Bedrock: https://codeberg.org/ashton314/emacs-bedrock
+- gptel: https://github.com/karthink/gptel
+- gptel-agent: https://github.com/karthink/gptel-agent
+- Dirvish: https://github.com/alexluigit/dirvish
+- Denote: https://protesilaos.com/emacs/denote

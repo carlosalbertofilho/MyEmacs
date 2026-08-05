@@ -1,0 +1,610 @@
+#+TITLE: Emacs Completion Stack Reference
+#+AUTHOR: Generated Reference
+#+DATE: 2026-08-05
+#+DESCRIPTION: Comprehensive reference for Vertico, Consult, Corfu, Marginalia, Orderless, Embark
+
+* Table of Contents
+:PROPERTIES:
+:TOC: :include all :ignore this
+:END:
+:CONTENTS:
+- [[#overview][Overview]]
+- [[#architecture][Architecture]]
+- [[#orderless][Orderless Completion Style]]
+- [[#vertico][Vertico Vertical Completion]]
+- [[#consult][Consult Commands]]
+- [[#corfu][Corfu In-Buffer Completion]]
+- [[#marginalia][Marginalia Annotations]]
+- [[#embark][Embark Context Actions]]
+- [[#embark-consult][Embark-Consult Integration]]
+- [[#complete-configuration][Complete Configuration]]
+- [[#keybindings][Keybinding Recommendations]]
+- [[#pitfalls][Pitfalls & Troubleshooting]]
+- [[#quick-reference-tables][Quick Reference Tables]]
+:END:
+
+* Overview
+
+The Emacs completion stack is a modular set of packages that replace and
+enhance Emacs' built-in completion system (icomplete, ido, helm, etc.). Each
+package handles a specific concern:
+
+| Package     | Concern                           | Analogy     |
+|-------------+-----------------------------------+-------------|
+| Orderless   | How candidates are matched        | The engine  |
+| Vertico     | How candidates are displayed      | The display |
+| Consult     | Enhanced commands with preview    | The tools   |
+| Corfu       | In-buffer auto-completion         | The assist  |
+| Marginalia  | Annotations on completion results | The detail  |
+| Embark      | Actions on completion candidates  | The power   |
+
+These packages work together via Emacs' standard =completion-at-point= and
+=completing-read= interfaces, so they are fully interoperable.
+
+* Architecture
+
+#+begin_example
+┌─────────────────────────────────────────────────────────┐
+│                    User Input                           │
+└────────────────────┬────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────┐
+│  Orderless: Filters & ranks candidates                 │
+│  (completion-styles, completion-category-overrides)     │
+└────────────────────┬────────────────────────────────────┘
+                     │
+                     ▼
+         ┌───────────┴───────────┐
+         ▼                       ▼
+┌─────────────────┐     ┌─────────────────┐
+│    Vertico      │     │      Corfu      │
+│ completing-read │     │ completing-at-  │
+│ (minibuffer UI) │     │ point (buffer)  │
+└────────┬────────┘     └────────┬────────┘
+         │                       │
+         ▼                       ▼
+┌─────────────────┐     ┌─────────────────┐
+│   Marginalia    │     │   Corfu-popup   │
+│ (annotations)   │     │   (doc popup)   │
+└────────┬────────┘     └─────────────────┘
+         │
+         ▼
+┌─────────────────┐     ┌─────────────────┐
+│    Consult      │     │     Embark      │
+│ (cmd + preview) │     │ (actions)       │
+└─────────────────┘     └─────────────────┘
+#+end_example
+
+* Orderless Completion Style
+
+Orderless is the completion style that powers flexible matching. Instead of
+requiring prefixes, it matches candidates by splitting the input into
+space-separated components and matching each in any order.
+
+** Enable Orderless
+#+begin_src elisp
+(use-package orderless
+  :ensure t
+  :config
+  (setq completion-styles '(orderless basic)
+        completion-category-overrides
+        '((file (styles partial-completion orderless)))))
+#+end_src
+
+** Key Variables
+| Variable                           | Default             | Description                                    |
+|------------------------------------+---------------------+------------------------------------------------|
+| =completion-styles=                | ='(basic)=          | List of completion styles to use               |
+| =completion-category-overrides=    | =nil=               | Per-category style overrides                   |
+| =orderless-matching-styles=        | =orderless-default= | List of orderless matching methods             |
+| =orderless-component-separator=    | =" "=               | Regex for splitting input into components      |
+
+** Matching Styles
+Orderless supports multiple matching methods that can be mixed:
+
+| Method                | Syntax Example    | Behavior                                    |
+|-----------------------+-------------------+---------------------------------------------|
+| =orderless-literal=   | =foo=             | Exact substring match                       |
+| =orderless-regexp=    | =^foo=            | Regex match                                 |
+| =orderless-prefixes=  | =f b=             | Each component matches a prefix             |
+| =orderless-flex=      | =f.o=             | Flex/fuzzy matching                         |
+| =orderless-initialism=| =fb=              | Initialism matching (f+b = foo bar)         |
+
+** Per-Category Overrides
+The =completion-category-overrides= variable lets you use different
+completion styles for different types of completion:
+
+#+begin_src elisp
+(setq completion-category-overrides
+      '((file (styles partial-completion orderless))   ;; Files: partial first
+        (buffer (styles orderless))                    ;; Buffers: orderless
+        (symbol (styles orderless basic))              ;; Symbols: orderless first
+        (consult-grep (styles orderless))))            ;; Grep: orderless
+#+end_src
+
+#+begin_warning
+The order in =completion-styles= matters. Styles are tried in sequence,
+and the first one that produces candidates wins. Put =orderless= first
+for maximum flexibility, or after =basic= for prefix-first behavior.
+#+end_warning
+
+** Using Orderless Dispatch Characters
+#+begin_src elisp
+;; Use = for literal, ~ for flex, # for initialism
+(setq orderless-style-dispatchers
+      '(orderless-literal-dispatch
+        orderless-flex-dispatch
+        orderless-initialism-dispatch))
+#+end_src
+
+* Vertico Vertical Completion
+
+Vertico replaces the default minibuffer completion UI with a clean,
+vertical list of candidates. It is minimal by design and delegates
+filtering to the completion style (Orderless).
+
+** Enable Vertico
+#+begin_src elisp
+(use-package vertico
+  :ensure t
+  :init
+  (vertico-mode 1)
+  :config
+  (setq vertico-cycle t))
+#+end_src
+
+** Key Variables
+| Variable            | Default | Description                                  |
+|---------------------+---------+----------------------------------------------|
+| =vertico-cycle=     | =nil=   | Cycle from last to first candidate           |
+| =vertico-count=     | 10      | Number of candidates to display              |
+| =vertico-resize=    | =nil=   | Whether/how the Vertico window resizes       |
+| =vertico-preselect= | =nil=   | Preselection behavior                        |
+
+** Key Functions
+| Function            | Description                                |
+|---------------------+--------------------------------------------|
+| =vertico-mode=      | Toggle Vertico completion mode             |
+| =vertico-next=      | Move to next candidate                     |
+| =vertico-previous=  | Move to previous candidate                 |
+| =vertico-insert=    | Insert candidate without exiting           |
+| =vertico-directory-up= | Navigate up a directory                 |
+
+** Minimal Config Needed
+Vertico requires almost no configuration. The defaults are excellent.
+The only recommended setting is =vertico-cycle= for circular navigation.
+
+* Consult
+
+Consult provides enhanced versions of common Emacs commands with live
+preview, narrowing, and better candidate formatting. It rebinds
+many built-in commands to Consult equivalents.
+
+** Enable Consult
+#+begin_src elisp
+(use-package consult
+  :ensure t
+  :bind
+  (("C-x b" . consult-buffer)
+   ("C-s" . consult-line)
+   ("C-c s" . consult-ripgrep)
+   ("M-g g" . consult-goto-line)
+   ("M-g i" . consult-imenu)
+   ("M-g M-g" . consult-goto-line)
+   ("M-y" . consult-yank-pop)
+   ("C-x C-b" . consult-buffer)))
+#+end_src
+
+** Key Commands
+| Command                  | Description                           | Preview |
+|--------------------------+---------------------------------------+---------|
+| =consult-buffer=         | Switch buffers (including recent)     | Yes     |
+| =consult-line=           | Search lines in current buffer        | Yes     |
+| =consult-ripgrep=        | Search project with ripgrep           | Yes     |
+| =consult-history=        | Browse command history                | No      |
+| =consult-imenu=          | Navigate imenu entries                | Yes     |
+| =consult-keep-lines=     | Filter lines matching pattern         | Yes     |
+| =consult-goto-line=      | Go to line number                     | Yes     |
+| =consult-flymake=        | Navigate flymake diagnostics          | Yes     |
+| =consult-compile-error=  | Navigate compilation errors           | Yes     |
+| =consult-register=       | Browse registers                      | No      |
+| =consult-mark=           | Navigate markers                      | Yes     |
+| =consult-outline=        | Navigate headings (outline mode)      | Yes     |
+| =consult-git-grep=       | Search with git grep                  | Yes     |
+| =consult-fd=             | Find files with fd                    | Yes     |
+| =consult-yank-pop=       | Kill ring browser (replaces C-y M-y)  | Yes     |
+| =consult-theme=          | Preview and select themes             | Live    |
+| =consult-recent-file=    | Browse recent files                   | Yes     |
+
+** Preview Configuration
+#+begin_src elisp
+;; Enable preview at point
+(consult-customize
+ consult-ripgrep consult-git-grep consult-grep
+ consult-bookmark consult-recent-file consult-xref
+ consult--source-recent-file consult--source-project-recent-file
+ :preview-key "M-.")
+
+;; Or enable global preview mode
+(global-set-key (kbd "M-.") #'consult-preview-at-point-mode)
+#+end_src
+
+** Consult Preview Key
+By default, many consult commands preview the candidate as you navigate.
+The preview key delays previewing until explicitly requested:
+
+#+begin_src elisp
+;; Delay preview until M-. is pressed
+(consult-customize
+ consult-line consult-ripgrep consult-buffer
+ :preview-key "M-.")
+
+;; Or disable preview entirely for specific commands
+(consult-customize
+ consult-history :preview-key nil)
+#+end_src
+
+* Corfu In-Buffer Completion
+
+Corfu provides in-buffer completion popup (like autocomplete/company)
+for =completion-at-point= sources. It appears directly at point.
+
+** Enable Corfu
+#+begin_src elisp
+(use-package corfu
+  :ensure t
+  :init
+  (global-corfu-mode 1)
+  :config
+  (setq corfu-auto t                ; Auto popup
+        corfu-auto-delay 0.1        ; Delay before popup (seconds)
+        corfu-auto-prefix 2         ; Min chars before popup
+        corfu-cycle t               ; Cycle through candidates
+        corfu-quit-at-boundary nil  ; Don't quit at word boundaries
+        corfu-quit-no-match nil))   ; Don't quit when no match
+#+end_src
+
+** Key Variables
+| Variable                | Default | Description                                    |
+|-------------------------+---------+------------------------------------------------|
+| =corfu-auto=            | =nil=   | Enable automatic popup                         |
+| =corfu-auto-delay=      | 0.2     | Delay before auto popup (seconds)              |
+| =corfu-auto-prefix=     | 2       | Minimum chars before auto popup                |
+| =corfu-cycle=           | =nil=   | Cycle from last to first candidate             |
+| =corfu-quit-at-boundary=| =t=     | Quit completion at word boundary               |
+| =corfu-quit-no-match=   | =t=     | Quit when no candidates match                  |
+| =corfu-preselect=       | =first= | Which candidate to preselect                   |
+
+** Corfu Popupinfo (Documentation)
+#+begin_src elisp
+;; Show documentation popup alongside candidates
+(use-package corfu
+  :config
+  (corfu-popupinfo-mode 1))
+#+end_src
+
+** Corfu in Minibuffer
+By default, Vertico handles minibuffer completion. Corfu can also
+provide completion in the minibuffer for specific scenarios:
+
+#+begin_src elisp
+;; Enable Corfu in minibuffer for shell/Eshell
+(defun corfu-enable-in-minibuffer ()
+  "Enable Corfu in the minibuffer."
+  (when (or (eq (current-local-map) minibuffer-local-completion-map)
+            (eq (current-local-map) minibuffer-local-filename-completion-map))
+    (setq-local corfu-auto nil)
+    (corfu-mode 1)))
+
+(add-hook 'minibuffer-setup-hook #'corfu-enable-in-minibuffer)
+#+end_src
+
+** Manual Corfu Trigger
+#+begin_src elisp
+;; Bind M-TAB or C-M-i to manually trigger Corfu
+(global-set-key (kbd "M-TAB") #'corfu-complete)
+(global-set-key (kbd "C-M-i") #'corfu-complete)
+#+end_src
+
+* Marginalia Annotations
+
+Marginalia adds helpful annotations to completion candidates in the
+minibuffer (file types, function signatures, buffer modes, etc.).
+
+** Enable Marginalia
+#+begin_src elisp
+(use-package marginalia
+  :ensure t
+  :init
+  (marginalia-mode 1))
+#+end_src
+
+** Key Variables
+| Variable                     | Default | Description                              |
+|------------------------------+---------+------------------------------------------|
+| =marginalia-annotators=      | =t=     | List of annotator functions or =t=       |
+| =marginalia-align=           | =right= | Alignment of annotations                 |
+| =marginalia-align-offset=    | 1       | Additional alignment offset              |
+
+** Custom Annotators
+#+begin_src elisp
+;; Customize which annotators are used
+(setq marginalia-annotators
+      '(marginalia-annotators-heavy marginalia-annotators-light nil))
+#+end_src
+
+* Embark Context Actions
+
+Embark provides contextual actions on the current completion candidate
+or thing at point. It is like a universal context menu for Emacs.
+
+** Enable Embark
+#+begin_src elisp
+(use-package embark
+  :ensure t
+  :bind
+  (("C-." . embark-act)
+   ("C-;" . embark-dwim)
+   ("C-h B" . embark-bindings)))
+#+end_src
+
+** Key Commands
+| Command        | Description                                         |
+|----------------+-----------------------------------------------------|
+| =embark-act=   | Act on candidate at point or thing at cursor        |
+| =embark-dwim=  | Do What I Mean - act without confirmation           |
+| =embark-export=| Export completion candidates to a dedicated buffer  |
+| =embark-collect=| Collect candidates into a selectable buffer        |
+| =embark-bindings=| Show all keybindings in a consult-like interface  |
+
+** Embark Keymap for Specific Types
+You can define actions for specific candidate types:
+
+#+begin_src elisp
+;; Example: Add custom action for file candidates
+(define-key embark-file-map (kbd "T") 'my-custom-file-action)
+#+end_src
+
+* Embark-Consult Integration
+
+Embark-Consult bridges Embark's action system with Consult's commands,
+allowing Embark to use Consult for certain actions (like searching).
+
+** Enable Integration
+#+begin_src elisp
+(use-package embark-consult
+  :ensure t
+  :after (embark consult)
+  :hook
+  (embark-collect-mode . consult-preview-at-point-mode))
+#+end_src
+
+** What It Provides
+- =embark-export= uses Consult commands where available
+- Consult grep results can be acted on with Embark
+- Buffer lists from =consult-buffer= support Embark actions
+
+* Complete Configuration
+
+Here is a complete, production-ready configuration combining all packages:
+
+#+begin_src elisp
+;; ============================================================
+;; ORDERLESS - Flexible completion matching
+;; ============================================================
+(use-package orderless
+  :ensure t
+  :config
+  (setq completion-styles '(orderless basic)
+        completion-category-defaults nil
+        completion-category-overrides
+        '((file (styles partial-completion orderless))
+          (buffer (styles orderless))
+          (symbol (styles orderless basic)))))
+
+;; ============================================================
+;; VERTICO - Vertical completion UI
+;; ============================================================
+(use-package vertico
+  :ensure t
+  :init
+  (vertico-mode 1)
+  :config
+  (setq vertico-cycle t
+        vertico-count 12))
+
+;; ============================================================
+;; MARGINALIA - Completion annotations
+;; ============================================================
+(use-package marginalia
+  :ensure t
+  :init
+  (marginalia-mode 1))
+
+;; ============================================================
+;; CONSULT - Enhanced commands with preview
+;; ============================================================
+(use-package consult
+  :ensure t
+  :bind
+  (("C-x b" . consult-buffer)
+   ("C-x C-b" . consult-buffer)
+   ("C-s" . consult-line)
+   ("C-c s" . consult-ripgrep)
+   ("C-c k" . consult-keep-lines)
+   ("M-g g" . consult-goto-line)
+   ("M-g i" . consult-imenu)
+   ("M-g M-g" . consult-goto-line)
+   ("M-y" . consult-yank-pop)
+   ("M-s l" . consult-line)
+   ("M-s f" . consult-fd)
+   ("M-s g" . consult-ripgrep))
+  :config
+  ;; Preview on demand with M-.
+  (consult-customize
+   consult-ripgrep consult-git-grep consult-grep
+   consult-bookmark consult-recent-file
+   :preview-key "M-."))
+
+;; ============================================================
+;; CORFU - In-buffer completion
+;; ============================================================
+(use-package corfu
+  :ensure t
+  :init
+  (global-corfu-mode 1)
+  :config
+  (setq corfu-auto t
+        corfu-auto-delay 0.1
+        corfu-auto-prefix 2
+        corfu-cycle t
+        corfu-quit-at-boundary nil
+        corfu-quit-no-match nil)
+  ;; Enable documentation popup
+  (corfu-popupinfo-mode 1))
+
+;; ============================================================
+;; EMBARK - Context actions
+;; ============================================================
+(use-package embark
+  :ensure t
+  :bind
+  (("C-." . embark-act)
+   ("C-;" . embark-dwim)
+   ("C-h B" . embark-bindings)))
+
+;; ============================================================
+;; EMBARK-CONSULT - Integration
+;; ============================================================
+(use-package embark-consult
+  :ensure t
+  :after (embark consult)
+  :hook
+  (embark-collect-mode . consult-preview-at-point-mode))
+#+end_src
+
+* Keybinding Recommendations
+
+** Recommended Keybindings
+| Keybinding | Command                  | Purpose                         |
+|------------+--------------------------+---------------------------------|
+| =C-x b=    | =consult-buffer=         | Switch buffers                  |
+| =C-s=      | =consult-line=           | Search lines                    |
+| =C-c s=    | =consult-ripgrep=        | Project search                  |
+| =C-c k=    | =consult-keep-lines=     | Filter lines                    |
+| =M-g g=    | =consult-goto-line=      | Go to line                      |
+| =M-g i=    | =consult-imenu=          | Navigate imenu                  |
+| =M-y=      | =consult-yank-pop=       | Kill ring browser               |
+| =C-.=      | =embark-act=             | Context actions                 |
+| =C-;=      | =embark-dwim=            | Quick action                    |
+| =M-TAB=    | =corfu-complete=         | Manual completion trigger       |
+
+* Pitfalls & Troubleshooting
+
+** Pitfall 1: Vertico and Corfu Conflict
+- Cause: Both try to handle completion simultaneously
+- Fix: Vertico handles =completing-read= (minibuffer), Corfu handles
+  =completion-at-point= (buffer). They operate on different interfaces and
+  should not conflict. If Corfu appears in the minibuffer unexpectedly,
+  disable it there:
+#+begin_src elisp
+(add-hook 'minibuffer-setup-hook
+          (lambda () (when (bound-and-true-p corfu-mode)
+                       (corfu-mode -1))))
+#+end_src
+
+** Pitfall 2: Orderless Not Actually Matching
+- Cause: =completion-styles= doesn't include orderless
+- Fix: Verify with =M-: completion-styles RET=
+#+begin_src elisp
+;; Ensure orderless is in the list
+(setq completion-styles '(orderless basic))
+#+end_src
+
+** Pitfall 3: Corfu Auto-Popup Too Aggressive
+- Cause: =corfu-auto-delay= too low or =corfu-auto-prefix= too small
+- Fix: Increase values:
+#+begin_src elisp
+(setq corfu-auto-delay 0.2   ; Was 0.1
+      corfu-auto-prefix 3)   ; Was 2
+#+end_src
+
+** Pitfall 4: Consult Preview Slows Down
+- Cause: Preview runs on every keystroke for large projects
+- Fix: Use =:preview-key= to delay preview:
+#+begin_src elisp
+(consult-customize consult-ripgrep :preview-key "M-.")
+#+end_src
+
+** Pitfall 5: Embark-act Shows No Actions
+- Cause: No actions defined for the current context
+- Fix: Install =embark-consult= and other embark extensions for more
+  context-specific actions. Also ensure the correct embark map is active:
+#+begin_src elisp
+M-x embark-bindings  ;; Shows available actions for current context
+#+end_src
+
+** Pitfall 6: File Completion Not Working as Expected
+- Cause: Orderless overrides partial-completion for files
+- Fix: Use =completion-category-overrides= to preserve partial-completion:
+#+begin_src elisp
+(setq completion-category-overrides
+      '((file (styles partial-completion orderless))))
+#+end_src
+
+** Pitfall 7: Corfu in Specific Major Modes
+- Cause: Some modes have broken =completion-at-point-functions=
+- Fix: Disable Corfu auto-completion in specific modes:
+#+begin_src elisp
+(defun corfu-disable-in-org ()
+  (setq-local corfu-auto nil))
+(add-hook 'org-mode-hook #'corfu-disable-in-org)
+#+end_src
+
+* Quick Reference Tables
+
+** Package Summary
+| Package     | Primary Function         | Mode to Enable      | Auto |
+|-------------+--------------------------+---------------------+------|
+| Orderless   | Completion matching      | Variable config     | Yes  |
+| Vertico     | Minibuffer UI            | =vertico-mode=      | No   |
+| Consult     | Enhanced commands        | N/A (commands)      | No   |
+| Corfu       | In-buffer completion     | =global-corfu-mode= | Yes  |
+| Marginalia  | Annotations              | =marginalia-mode=   | Yes  |
+| Embark      | Context actions          | N/A (commands)      | No   |
+
+** Essential Variables
+| Variable                           | Recommended Value           |
+|------------------------------------+-----------------------------|
+| =completion-styles=                | ='(orderless basic)=        |
+| =vertico-cycle=                    | =t=                         |
+| =corfu-auto=                       | =t=                         |
+| =corfu-auto-delay=                 | =0.1=                       |
+| =corfu-auto-prefix=                | =2=                         |
+| =corfu-cycle=                      | =t=                         |
+| =marginalia-mode=                  | =1= (enabled)               |
+
+** Consult Command Replacements
+| Built-in Command          | Consult Replacement     |
+|---------------------------+-------------------------|
+| =switch-to-buffer=        | =consult-buffer=        |
+| =occur=                   | =consult-keep-lines=    |
+| =line-number-mode goto=   | =consult-goto-line=     |
+| =imenu=                   | =consult-imenu=         |
+| =yank-pop=                | =consult-yank-pop=      |
+| =grep=                    | =consult-ripgrep=       |
+
+* Notes for RAG Context
+
+This reference covers the standard Emacs completion stack as used in
+2026. Key points for automated agents:
+
+1. Orderless must be in =completion-styles= for space-separated matching
+2. Vertico is minimal - almost no config needed beyond enabling
+3. Corfu and Vertico do NOT conflict (different interfaces)
+4. Use =completion-category-overrides= to customize per-type behavior
+5. Consult commands provide live preview by default
+6. Embark-act is the universal context action command
+7. Embark-consult integration requires both packages loaded
+8. File completion should preserve =partial-completion= as first style

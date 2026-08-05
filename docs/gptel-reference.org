@@ -1,0 +1,604 @@
+#+TITLE: GPTel Reference Guide
+#+AUTHOR: Generated Reference
+#+DATE: 2026-08-05
+#+DESCRIPTION: Comprehensive reference for gptel Emacs LLM client
+
+* Table of Contents
+:PROPERTIES:
+:TOC: :include all :ignore this
+:END:
+:CONTENTS:
+- [[#overview][Overview]]
+- [[#installation][Installation]]
+- [[#core-concepts][Core Concepts]]
+- [[#backend-registration][Backend Registration]]
+- [[#key-variables][Key Variables]]
+- [[#key-functions][Key Functions]]
+- [[#programmatic-api][Programmatic API (gptel-request)]]
+- [[#gptel-agent][GPTel Agent]]
+- [[#gptel-org][GPTel Org Integration]]
+- [[#system-prompts-directives][System Prompts & Directives]]
+- [[#tools][Tools]]
+- [[#pitfalls][Pitfalls & Common Errors]]
+- [[#quick-reference-tables][Quick Reference Tables]]
+- [[#sample-configurations][Sample Configurations]]
+:END:
+
+* Overview
+
+GPTel is a simple Large Language Model (LLM) client for Emacs that works in
+*any buffer*. It sends prompts from the current buffer to the configured backend
+and inserts responses inline. No special chat buffers required, though it
+provides one.
+
+- Works in any major mode
+- Supports multiple LLM providers simultaneously
+- Streaming responses
+- Tool use (function calling)
+- System prompt management via directives
+- Org mode integration via =gptel-org=
+
+* Installation
+
+#+begin_src elisp
+;; Install from MELPA
+M-x package-install RET gptel RET
+
+;; Ensure Transient 0.7.8+ is available
+;; (gptel's transient menu requires this version)
+
+;; Basic setup
+(use-package gptel
+  :ensure t
+  :config
+  ;; Enable org mode integration if available (gptel 2026+)
+  (when (require 'gptel-org nil t)
+    (when (fboundp 'gptel-org-mode)
+      (gptel-org-mode 1))))
+#+end_src
+
+#+begin_warning
+GPTel requires Transient >= 0.7.8. Older versions will cause errors when
+invoking =gptel-menu=.
+#+end_warning
+
+* Core Concepts
+
+** Any Buffer is a Chat Buffer
+Unlike traditional LLM clients, gptel does not require you to be in a special
+"chat" buffer. You can send prompts from =*scratch*=, a source file, an Org
+buffer, or any text buffer. The response is inserted directly after your prompt.
+
+** Backends and Models
+- A =backend= represents a provider API (OpenAI, Anthropic, Ollama, etc.)
+- A =model= is a specific model offered by a backend
+- Only one backend is active at a time (=gptel-backend=)
+- The active model is set via =gptel-model=
+
+** API Key Management
+The API key can be set as a string or a function. Using a function is
+recommended for security, as it can fetch the key from =auth-source=,
+environment variables, or external secret managers.
+
+#+begin_src elisp
+;; Direct string (less secure)
+(setq gptel-api-key "sk-...")
+
+;; Function (recommended)
+(setq gptel-api-key
+      (lambda ()
+        (getenv "OPENAI_API_KEY")))
+#+end_src
+
+* Backend Registration
+
+Backends must be registered before they can be used. Use =gptel-get-backend=
+to retrieve a registered backend by name.
+
+** OpenAI-Compatible
+#+begin_src elisp
+(gptel-make-openai "OpenAI"
+  :host "api.openai.com"
+  :protocol "https"
+  :stream t
+  :key #'gptel-api-key
+  :models '(gpt-4o gpt-4o-mini gpt-4-turbo))
+#+end_src
+
+** Anthropic
+#+begin_src elisp
+(gptel-make-anthropic "Anthropic"
+  :stream t
+  :key #'gptel-api-key
+  :models '(claude-sonnet-4-20250514 claude-opus-4-20250514))
+#+end_src
+
+** Google Gemini
+#+begin_src elisp
+(gptel-make-gemini "Gemini"
+  :stream t
+  :key #'gptel-api-key
+  :models '(gemini-2.5-pro gemini-2.5-flash))
+#+end_src
+
+** Ollama (Local)
+#+begin_src elisp
+(gptel-make-ollama "Ollama"
+  :host "localhost:11434"
+  :stream t
+  :models '(llama3.1 mistral phi3))
+#+end_src
+
+** DeepSeek
+#+begin_src elisp
+(gptel-make-deepseek "DeepSeek"
+  :stream t
+  :key #'gptel-api-key
+  :models '(deepseek-chat deepseek-reasoner))
+#+end_src
+
+** Backend Registration Table
+| Provider   | Function               | Key Params                          |
+|------------+------------------------+-------------------------------------|
+| OpenAI     | =gptel-make-openai=    | =:host=, =:protocol=, =:stream=     |
+| Anthropic  | =gptel-make-anthropic= | =:stream=, =:key=                   |
+| Gemini     | =gptel-make-gemini=    | =:stream=, =:key=                   |
+| Ollama     | =gptel-make-ollama=    | =:host=, =:stream=                  |
+| DeepSeek   | =gptel-make-deepseek=  | =:stream=, =:key=                   |
+
+* Key Variables
+
+| Variable                        | Type        | Description                                              |
+|---------------------------------+-------------+----------------------------------------------------------|
+| =gptel-backend=                 | object      | Currently active backend object                          |
+| =gptel-model=                   | symbol      | Currently active model symbol                            |
+| =gptel-api-key=                 | string/fn   | API key string or function returning key                 |
+| =gptel-directives=              | alist       | Named system prompts: =((name . "prompt text") ...)=     |
+| =gptel-include-tool-results=    | boolean     | Include tool results in buffer                           |
+| =gptel-use-curl=                | boolean     | Use =curl= instead of =url-retrieve= for requests        |
+| =gptel-include-reasoning=       | symbol/bool | How to handle reasoning content from models              |
+| =gptel-log-level=               | symbol      | Log verbosity: =nil=, =info=, =debug=                    |
+| =gptel-prompt-filter-hook=      | hook        | Functions run before sending prompts                     |
+| =gptel-post-response-functions= | hook        | Functions run after receiving responses                  |
+
+** Setting the Active Backend and Model
+#+begin_src elisp
+;; After registering backends:
+(setq gptel-backend (gptel-get-backend "OpenAI"))
+(setq gptel-model 'gpt-4o)
+#+end_src
+
+* Key Functions
+
+** =gptel-send=
+Send the region or text before point to the LLM. Response is inserted after
+point.
+
+#+begin_src elisp
+;; From any buffer:
+M-x gptel-send
+;; Or in transient menu:
+M-x gptel-menu
+#+end_src
+
+- Sends text from beginning of buffer (or region start) to point
+- Inserts response after point
+- Preserves buffer contents (no special mode required)
+
+** =gptel=
+Start a new dedicated chat buffer.
+
+#+begin_src elisp
+M-x gptel
+#+end_src
+
+- Opens a special =*gptel*= buffer for conversation-style interaction
+- Maintains conversation history
+- Useful for multi-turn conversations
+
+** =gptel-menu=
+Open the transient menu for configuring gptel options.
+
+#+begin_src elisp
+M-x gptel-menu
+#+end_src
+
+Available options in menu:
+- Switch backend
+- Switch model
+- Set system prompt / directive
+- Toggle streaming
+- Toggle tool use
+- Configure request parameters
+- View/send request
+
+** =gptel-get-backend=
+Retrieve a registered backend by name string.
+
+#+begin_src elisp
+(gptel-get-backend "OpenAI")     ;; Returns backend object or nil
+(gptel-get-backend "Ollama")    ;; Returns backend object or nil
+#+end_src
+
+#+begin_warning
+The backend MUST be registered before calling =gptel-get-backend=. Calling it
+with an unregistered name returns =nil=, which will cause errors.
+#+end_warning
+
+** =gptel-reset-buffer=
+Reset the current gptel buffer, clearing conversation history.
+
+* Programmatic API (gptel-request)
+
+=gptel-request= is the core programmatic API for sending requests outside of
+interactive buffer usage.
+
+** Signature
+#+begin_src elisp
+(gptel-request PROMPT &key BACKEND MODEL SYSTEM CALLBACK TOOLS STREAM TEMP)
+#+end_src
+
+** Parameters
+| Parameter    | Type     | Description                                         |
+|--------------+----------+-----------------------------------------------------|
+| =:backend=   | object   | Backend object (use =gptel-get-backend=)              |
+| =:model=     | symbol   | Model symbol                                        |
+| =:system=    | string   | System prompt override                              |
+| =:callback=  | function | Called with (response info) when complete             |
+| =:tools=     | list     | List of tool definitions                            |
+| =:stream=    | boolean  | Enable streaming                                    |
+| =:temp=      | number   | Temperature for generation                          |
+| =PROMPT=     | string   | The user prompt to send                             |
+
+** Example: Basic Request
+#+begin_src elisp
+(gptel-request "Explain quantum computing in one sentence."
+  :backend (gptel-get-backend "OpenAI")
+  :model 'gpt-4o
+  :callback (lambda (response info)
+              (when response
+                (message "Response: %s" response))))
+#+end_src
+
+** Example: With Custom System Prompt
+#+begin_src elisp
+(gptel-request "What is 2+2?"
+  :backend (gptel-get-backend "Anthropic")
+  :model 'claude-sonnet-4-20250514
+  :system "You are a helpful assistant that always gives short answers."
+  :callback (lambda (response info)
+              (message "Answer: %s" response)))
+#+end_src
+
+** Example: Multiple Requests (Batch)
+#+begin_src elisp
+(dolist (prompt '("Explain recursion" "Explain OOP" "Explain FP"))
+  (gptel-request prompt
+    :backend (gptel-get-backend "OpenAI")
+    :model 'gpt-4o-mini
+    :callback (lambda (response info)
+                (when response
+                  (with-current-buffer (get-buffer-create "*results*")
+                    (goto-char (point-max))
+                    (insert response "\n"))))))
+#+end_src
+
+** Callback Signature
+The callback function receives two arguments:
+1. =response= - The response string (or =nil= on error)
+2. =info= - Plalist with request metadata
+
+#+begin_src elisp
+(lambda (response info)
+  (cond
+   ((null response)
+    (message "Request failed: %s" (plist-get info :error)))
+   (t
+    (message "Success: %s" response))))
+#+end_src
+
+* GPTel Agent
+
+GPTel Agent provides preset configurations for different coding/analysis tasks.
+
+** Key Variables
+| Variable          | Type     | Description                                          |
+|-------------------+----------+------------------------------------------------------|
+| =gptel-agent-dirs= | list     | List of directories containing agent preset files    |
+
+** Key Functions
+| Function              | Description                                    |
+|-----------------------+------------------------------------------------|
+| =gptel-agent=         | Start an agent session                         |
+| =gptel-agent-update=  | Register agent presets from =gptel-agent-dirs= |
+
+** Setup
+#+begin_src elisp
+;; IMPORTANT: Set directories BEFORE calling gptel-agent-update
+(setq gptel-agent-dirs
+      '("~/.config/gptel/agents"
+        "~/.emacs.d/gptel-agents"))
+
+;; Then register presets
+(gptel-agent-update)
+
+;; Start an agent session
+M-x gptel-agent
+#+end_src
+
+#+begin_warning
+=gptel-agent-dirs= must be set BEFORE calling =gptel-agent-update=. Calling
+=gptel-agent-update= first will register nothing.
+#+end_warning
+
+#+begin_warning
+For gptel-agent, call project directories DIRECTLY. Do NOT use =advice-add= to
+modify agent directory behavior.
+#+end_warning
+
+* GPTel Org Integration
+
+In gptel 2026+, =gptel-org= replaces =ob-gptel= and =gptel-quick=. It provides
+Org mode integration for LLM-powered code blocks and org-specific features.
+
+** Enable gptel-org
+#+begin_src elisp
+(with-eval-after-load 'gptel
+  (when (require 'gptel-org nil t)
+    (when (fboundp 'gptel-org-mode)
+      (gptel-org-mode 1))))
+#+end_src
+
+** Safety Guards
+Always guard =gptel-org-mode= with =fboundp= because:
+1. The function may not exist in older gptel versions
+2. =gptel-org= may not be loadable on all Emacs installations
+
+#+begin_src elisp
+;; WRONG - will error if gptel-org is not available
+(gptel-org-mode 1)
+
+;; CORRECT - safe for all gptel versions
+(when (require 'gptel-org nil t)
+  (when (fboundp 'gptel-org-mode)
+    (gptel-org-mode 1)))
+#+end_src
+
+* System Prompts & Directives
+
+Directives are named system prompts stored in =gptel-directives=.
+
+** Defining Directives
+#+begin_src elisp
+(setq gptel-directives
+      '((default . "You are a helpful assistant.")
+        (coder . "You are an expert programmer. Write clean, documented code.")
+        (reviewer . "You are a code reviewer. Find bugs and suggest improvements.")
+        (writer . "You are a technical writer. Write clear, concise documentation.")))
+#+end_src
+
+** Using Directives
+- Via =gptel-menu=: Select a directive from the system prompt submenu
+- Programmatically: The directive is used as the =:system= parameter in requests
+
+* Tools
+
+GPTel supports tool use (function calling) for LLMs that support it.
+
+** Configuration
+#+begin_src elisp
+;; Include tool results in the buffer
+(setq gptel-include-tool-results t)
+#+end_src
+
+** gptel-request with Tools
+#+begin_src elisp
+(gptel-request "What's the weather in Paris?"
+  :backend (gptel-get-backend "OpenAI")
+  :model 'gpt-4o
+  :tools my-weather-tools
+  :callback (lambda (response info)
+              (message "Weather: %s" response)))
+#+end_src
+
+* Pitfalls & Common Errors
+
+** Pitfall 1: =gptel-org-mode= is void
+- Cause: Function doesn't exist in older gptel versions or =gptel-org= not loaded
+- Fix: Guard with =fboundp= and =require=
+#+begin_src elisp
+(when (require 'gptel-org nil t)
+  (when (fboundp 'gptel-org-mode)
+    (gptel-org-mode 1)))
+#+end_src
+
+** Pitfall 2: =ob-gptel= doesn't exist in gptel 2026+
+- Cause: Package was renamed/replaced
+- Fix: Use =gptel-org= instead
+#+begin_src elisp
+;; WRONG (gptel 2026+)
+(require 'ob-gptel)
+
+;; CORRECT (gptel 2026+)
+(require 'gptel-org nil t)
+#+end_src
+
+** Pitfall 3: =gptel-quick= doesn't exist
+- Cause: Removed/renamed in recent versions
+- Fix: Use =gptel-request= for programmatic access
+
+** Pitfall 4: Backend not registered before =gptel-get-backend=
+- Cause: =gptel-get-backend= returns =nil= for unregistered backends
+- Fix: Always register backends with =gptel-make-*= BEFORE calling =gptel-get-backend=
+#+begin_src elisp
+;; WRONG
+(setq gptel-backend (gptel-get-backend "OpenAI"))  ;; Returns nil!
+
+;; CORRECT
+(gptel-make-openai "OpenAI" :host "api.openai.com" :stream t)
+(setq gptel-backend (gptel-get-backend "OpenAI"))  ;; Returns backend
+#+end_src
+
+** Pitfall 5: API key as function
+- The =:key= parameter in backend registration accepts a function
+- This is useful for dynamic key retrieval
+#+begin_src elisp
+(gptel-make-openai "OpenAI"
+  :host "api.openai.com"
+  :stream t
+  :key (lambda () (getenv "OPENAI_API_KEY")))  ;; Function, not string
+#+end_src
+
+** Pitfall 6: =gptel-agent-dirs= must be set before =gptel-agent-update=
+- Cause: =gptel-agent-update= reads from =gptel-agent-dirs= at call time
+- Fix: Set the variable first, then call update
+#+begin_src elisp
+;; WRONG
+(gptel-agent-update)
+(setq gptel-agent-dirs '("~/.config/gptel/agents"))
+
+;; CORRECT
+(setq gptel-agent-dirs '("~/.config/gptel/agents"))
+(gptel-agent-update)
+#+end_src
+
+** Pitfall 7: =gptel-request= callback receives (response info)
+- Cause: Callback signature is two arguments, not one
+- Fix: Define callback with both parameters
+#+begin_src elisp
+;; WRONG
+(lambda (response) (message "%s" response))
+
+;; CORRECT
+(lambda (response info) (message "Response: %s, Info: %s" response info))
+#+end_src
+
+** Pitfall 8: gptel-agent project directories
+- For gptel-agent, call project directories DIRECTLY
+- Do NOT use =advice-add= to modify agent directory behavior
+
+* Quick Reference Tables
+
+** Backend Creation Functions
+| Function                    | Provider     | Minimum Params                    |
+|-----------------------------+--------------+-----------------------------------|
+| =gptel-make-openai=         | OpenAI       | =:host=, =:stream=                |
+| =gptel-make-anthropic=      | Anthropic    | =:stream=, =:key=                 |
+| =gptel-make-gemini=         | Google       | =:stream=, =:key=                 |
+| =gptel-make-ollama=         | Ollama       | =:host=, =:stream=                |
+| =gptel-make-deepseek=       | DeepSeek     | =:stream=, =:key=                 |
+
+** Interactive Commands
+| Command             | Keybinding    | Description                              |
+|---------------------+---------------+------------------------------------------|
+| =gptel-send=        | None default  | Send prompt from current buffer          |
+| =gptel=             | None default  | Open new chat buffer                     |
+| =gptel-menu=        | None default  | Open transient configuration menu        |
+| =gptel-agent=       | None default  | Start agent session                      |
+| =gptel-agent-update=| None default  | Register agent presets                   |
+| =gptel-reset-buffer=| None default  | Clear conversation history in buffer     |
+
+** Key Customization Variables
+| Variable                      | Default        | Description                         |
+|-------------------------------+----------------+-------------------------------------|
+| =gptel-backend=               | nil            | Active backend                      |
+| =gptel-model=                 | nil            | Active model                        |
+| =gptel-api-key=               | nil            | API key or function                 |
+| =gptel-directives=            | nil            | Named system prompts                |
+| =gptel-use-curl=              | t              | Use curl for requests               |
+| =gptel-include-tool-results=  | nil            | Include tool results in buffer      |
+| =gptel-include-reasoning=     | nil            | Handle reasoning content            |
+| =gptel-agent-dirs=            | nil            | Agent preset directories            |
+
+* Sample Configurations
+
+** Minimal Configuration
+#+begin_src elisp
+(use-package gptel
+  :ensure t
+  :config
+  (gptel-make-openai "OpenAI"
+    :host "api.openai.com"
+    :protocol "https"
+    :stream t
+    :key (lambda () (getenv "OPENAI_API_KEY"))
+    :models '(gpt-4o gpt-4o-mini))
+
+  (gptel-make-ollama "Ollama"
+    :host "localhost:11434"
+    :stream t
+    :models '(llama3.1 mistral))
+
+  (setq gptel-backend (gptel-get-backend "OpenAI"))
+  (setq gptel-model 'gpt-4o)
+
+  ;; Enable org integration (gptel 2026+)
+  (when (require 'gptel-org nil t)
+    (when (fboundp 'gptel-org-mode)
+      (gptel-org-mode 1))))
+#+end_src
+
+** Full Configuration with Directives and Agent
+#+begin_src elisp
+(use-package gptel
+  :ensure t
+  :config
+  ;; Register backends
+  (gptel-make-openai "OpenAI"
+    :host "api.openai.com"
+    :protocol "https"
+    :stream t
+    :key (lambda () (getenv "OPENAI_API_KEY"))
+    :models '(gpt-4o gpt-4o-mini gpt-4-turbo))
+
+  (gptel-make-anthropic "Anthropic"
+    :stream t
+    :key (lambda () (getenv "ANTHROPIC_API_KEY"))
+    :models '(claude-sonnet-4-20250514 claude-opus-4-20250514))
+
+  (gptel-make-ollama "Ollama"
+    :host "localhost:11434"
+    :stream t
+    :models '(llama3.1 mistral phi3))
+
+  ;; Set defaults
+  (setq gptel-backend (gptel-get-backend "OpenAI"))
+  (setq gptel-model 'gpt-4o)
+
+  ;; Define directives
+  (setq gptel-directives
+        '((default . "You are a helpful assistant.")
+          (coder . "You are an expert programmer. Write clean, well-documented code with appropriate error handling.")
+          (reviewer . "You are a senior code reviewer. Identify bugs, security issues, and suggest improvements.")
+          (writer . "You are a technical writer. Produce clear, concise documentation.")
+          (explain . "You are a patient teacher. Explain concepts step by step with examples.")))
+
+  ;; Agent setup (MUST set dirs before update)
+  (setq gptel-agent-dirs
+        '("~/.config/gptel/agents"))
+  (gptel-agent-update)
+
+  ;; Enable org integration
+  (when (require 'gptel-org nil t)
+    (when (fboundp 'gptel-org-mode)
+      (gptel-org-mode 1)))
+
+  ;; Use curl for better performance
+  (setq gptel-use-curl t)
+
+  ;; Include tool results
+  (setq gptel-include-tool-results t))
+#+end_src
+
+* Notes for RAG Context
+
+This reference covers gptel as of 2026. Key points for automated agents:
+
+1. Always guard =gptel-org-mode= with =fboundp=
+2. =ob-gptel= and =gptel-quick= do NOT exist in gptel 2026+
+3. Backends MUST be registered before =gptel-get-backend=
+4. =gptel-agent-dirs= MUST be set before =gptel-agent-update=
+5. =gptel-request= callbacks receive exactly two arguments: (response info)
+6. API keys can be functions for dynamic retrieval
+7. For gptel-agent, call project directories DIRECTLY (not via =advice-add=)
+8. Requires Transient >= 0.7.8

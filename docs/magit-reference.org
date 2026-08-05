@@ -1,0 +1,761 @@
+#+TITLE: Magit Reference Guide
+#+AUTHOR: Generated Reference
+#+DATE: 2026-08-05
+#+DESCRIPTION: Comprehensive reference for Magit - the Git porcelain for Emacs
+
+* Table of Contents
+:PROPERTIES:
+:TOC: :include all :ignore this
+:END:
+:CONTENTS:
+- [[#overview][Overview]]
+- [[#installation][Installation]]
+- [[#magit-status-buffer][Magit Status Buffer]]
+- [[#key-commands][Key Commands]]
+- [[#key-variables][Key Variables]]
+- [[#branch-management][Branch Management]]
+- [[#commit-workflow][Commit Workflow]]
+- [[#push-pull-remote][Push & Pull / Remote]]
+- [[#diff-and-log][Diff and Log]]
+- [[#stashing][Stashing]]
+- [[#rebasing][Rebasing]]
+- [[#tagging][Tagging]]
+- [[#submodule-support][Submodule Support]]
+- [[#integration-with-gptel][Integration with GPTel for Commit Messages]]
+- [[#pitfalls][Pitfalls & Common Errors]]
+- [[#quick-reference-tables][Quick Reference Tables]]
+- [[#sample-configurations][Sample Configurations]]
+:END:
+
+* Overview
+
+Magit is a complete Git porcelain interface for Emacs. It provides an intuitive
+transient-based UI for all common Git operations and more. Magit is widely
+considered one of the best Git interfaces available in any editor.
+
+- Transient-based command menus (prefix keys with =C-u= for options)
+- Full Git functionality accessible from =magit-status= buffer
+- Interactive staging/unstaging with fine-grained control
+- Branch visualization and management
+- Bisecting, rebasing, cherry-picking, and more
+- Integration with =vc-git= for version control indicators
+
+* Installation
+
+#+begin_src elisp
+;; Install from MELPA
+M-x package-install RET magit RET
+
+;; Verify installation
+M-x magit-status
+#+end_src
+
+#+begin_warning
+Magit requires Transient >= 0.4.0. Ensure your Transient package is up to date.
+#+end_warning
+
+#+begin_src elisp
+(use-package magit
+  :ensure t
+  :bind (("C-c g" . magit-status))
+  :config
+  (setq magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1))
+#+end_src
+
+* Magit Status Buffer
+
+The =magit-status= buffer is the central hub for all Git operations. Open it
+with =M-x magit-status= from any buffer within a Git repository.
+
+** Layout
+
+The status buffer shows sections in this order:
+1. *Header* - Repository path and branch info
+2. *Untracked files* - Files not yet tracked by Git
+3. *Unstaged changes* - Modified files not yet staged
+4. *Staged changes* - Files staged for commit
+5. *Unpushed/unpulled commits* - Remote tracking status
+6. *Recent commits* - Last few commits on current branch
+
+** Navigating Sections
+
+| Key          | Action                                      |
+|--------------+---------------------------------------------|
+| =TAB=        | Toggle section visibility (expand/collapse)  |
+| =S-TAB=      | Toggle all sections                          |
+| =n= / =p=    | Next / previous section                      |
+| =M-n= / =M-p=| Next / previous section (same level)         |
+| =g=          | Refresh status buffer                        |
+| =q=          | Quit Magit                                   |
+| =C-c C-c=    | Finish current action (commit, etc.)         |
+
+** Operating on Files
+
+In the status buffer, point must be on a file line to operate on it:
+
+| Key | Action                            |
+|-----+-----------------------------------|
+| =s= | Stage file or hunk under point    |
+| =u= | Unstage file or hunk under point  |
+| =k= | Discard changes in file or hunk   |
+| =v= | Reverse (undo) a commit           |
+| =d= | Show diff for file under point    |
+| =S= | Stage all changes                 |
+| =U= | Unstage all changes               |
+| =K= | Discard all changes               |
+
+* Key Commands
+
+** Transient Menus
+
+Magit uses Transient menus. Press a prefix key to open a menu, then a
+sub-key to choose the action.
+
+| Prefix | Menu                 | Common Actions                          |
+|--------+----------------------+-----------------------------------------|
+| =c=    | Commit               | =c= commit, =a= amend, =e= extend       |
+| =b=    | Branch               | =b= checkout, =c= create, =k= delete    |
+| =P=    | Push                 | =u= upstream, =p= elsewhere, =t= tag    |
+| =F=    | Pull                 | =p= from elsewhere, =u= from upstream   |
+| =l=    | Log                  | =l= current, =o= other, =L= limited     |
+| =d=    | Diff                 | =d= working tree, =r= range, =u= staged |
+| =t=    | Tag                  | =t= create, =k= delete                  |
+| =r=    | Rewrite (Rebase)     | =r= rebase, =e= reword, =s= squash      |
+| =z=    | Stash                | =z= save, =p= pop, =k= drop             |
+| =m=    | Merge                | =m= merge, =a= squash merge             |
+| =f=    | Fetch                | =f= elsewhere, =a= all, =u= upstream    |
+| =x=    | Reset                | =m= mixed, =s= soft, =h= hard           |
+| =w=    | Apply (Cherry-pick)  | =y= cherry-pick, =A= apply patch        |
+| =X=    | Ignore               | =l= locally, =g= globally               |
+
+** Essential Workflow Keys
+
+| Key   | Action                              |
+|-------+-------------------------------------|
+| =s=   | Stage file/hunk                     |
+| =u=   | Unstage file/hunk                   |
+| =c c= | Create commit (opens commit buffer) |
+| =P u= | Push to upstream                    |
+| =P p= | Push elsewhere                      |
+| =F p= | Pull from elsewhere                 |
+| =l l= | View log                            |
+| =b b= | Checkout branch                     |
+| =b c= | Create new branch                   |
+| =d d= | Diff                                |
+| =t t= | Create tag                          |
+| =q=   | Quit Magit                          |
+| =g=   | Refresh                             |
+
+* Key Variables
+
+** Display Configuration
+
+| Variable                              | Type     | Description                                          |
+|---------------------------------------+----------+------------------------------------------------------|
+| =magit-display-buffer-function=       | function | How Magit displays new buffers                       |
+| =magit-section-initial-visibility-alist= | alist  | Initial visibility of section types: =((type . show/hide))= |
+| =magit-revision-show-gravatars=       | boolean  | Show author/committer gravatars in log               |
+| =magit-auto-revert=                   | boolean  | Auto-revert Magit buffers when Git state changes     |
+| =magit-bury-buffer-function=          | function | How Magit buries/kills buffers on quit               |
+| =magit-generate-changelog-buffer-p=   | boolean  | Whether to generate changelog buffers                |
+
+** Commit Configuration
+
+| Variable                        | Type    | Description                                    |
+|---------------------------------+---------+------------------------------------------------|
+| =magit-commit-signoff=          | boolean | Automatically add =Signed-off-by= line           |
+| =magit-commit-ask-to-stage=     | boolean | Ask to stage unstaged files before commit        |
+| =magit-commit-show-diff=        | boolean | Show diff buffer alongside commit buffer         |
+| =magit-commit-amend-message=    | string  | Default message for amend commits                |
+| =magit-log-show-signature=      | boolean | Show GPG signatures in log                       |
+
+** Diff Configuration
+
+| Variable                              | Type   | Description                                    |
+|---------------------------------------+--------+------------------------------------------------|
+| =magit-diff-refine-hunk=              | symbol | Show refined (word-level) hunks: =t=, =nil=, =all= |
+| =magit-diff-paint-whitespace=         | symbol | Highlight whitespace errors: =t=, =nil=          |
+| =magit-diff-highlight-trailing=       | symbol | Highlight trailing whitespace                    |
+| =magit-diff-show-lines-boundary=      | symbol | Show boundary lines in diffs                     |
+
+** Recommended Settings
+
+#+begin_src elisp
+;; Display buffers in same window (except diffs)
+(setq magit-display-buffer-function
+      #'magit-display-buffer-same-window-except-diff-v1)
+
+;; Auto-revert status buffer when git state changes
+(setq magit-auto-revert t)
+
+;; Show gravatars in log
+(setq magit-revision-show-gravatars t)
+
+;; Add Signed-off-by to commits
+(setq magit-commit-signoff t)
+
+;; Show word-level refined hunks in diff
+(setq magit-diff-refine-hunk t)
+#+end_src
+
+* Branch Management
+
+All branch operations start with =b= prefix in the status buffer.
+
+** Interactive Commands
+
+| Key  | Function                   | Description                        |
+|------+----------------------------+------------------------------------|
+| =b b=| =magit-checkout=           | Checkout a branch                  |
+| =b c=| =magit-branch=             | Create and checkout a new branch   |
+| =b C=| =magit-branch-checkout=    | Checkout branch, create if absent  |
+| =b l=| =magit-branch-filter=      | Filter branch list                 |
+| =b k=| =magit-branch-delete=      | Delete a branch                    |
+| =b r=| =magit-branch-rename=      | Rename a branch                    |
+| =b s=| =magit-branch-spinoff=     | Create branch from uncommitted changes |
+| =b v=| =magit-branch-configure=   | Configure branch settings          |
+| =b u=| =magit-branch-set-upstream=| Set upstream for current branch    |
+| =b U=| =magit-branch-unset-upstream=| Remove upstream tracking         |
+
+** Programmatic Branch Operations
+
+#+begin_src elisp
+;; Get current branch name
+(magit-get-current-branch)
+
+;; Get upstream branch
+(magit-get-upstream-branch)
+
+;; List all branches
+(magit-list-branches)
+
+;; Create a branch programmatically
+(magit-run-git "branch" "new-branch")
+
+;; Checkout a branch
+(magit-run-git "checkout" "feature-branch")
+#+end_src
+
+* Commit Workflow
+
+** Creating a Commit
+
+1. Stage files with =s= in the status buffer
+2. Press =c c= to create a commit
+3. Enter commit message in the commit buffer
+4. Press =C-c C-c= to finalize the commit
+
+** Commit Buffer
+
+The commit buffer provides:
+- Commit message editing area
+- Diff of staged changes at the bottom
+- =C-c C-c= to commit
+- =C-c C-k= to cancel
+- =C-c C-a= to add Acked-by
+- =C-c C-s= to add Signed-off-by
+
+** Commit Variations
+
+| Key     | Function                    | Description                     |
+|---------+-----------------------------+---------------------------------|
+| =c c=   | =magit-commit=              | Normal commit                   |
+| =c a=   | =magit-commit-amend=        | Amend last commit               |
+| =c e=   | =magit-commit-extend=       | Extend last commit (keep msg)   |
+| =c f=   | =magit-commit-fixup=        | Create fixup commit             |
+| =c s=   | =magit-commit-squash=       | Create squash commit            |
+| =c A=   | =magit-commit-absorb=       | Absorb staged changes           |
+| =c w=   | =magit-commit-reword=       | Reword last commit message      |
+
+** Programmatic Commit
+
+#+begin_src elisp
+;; Get staged diff as string
+(magit-git-string "diff" "--cached")
+
+;; Get unstaged diff
+(magit-git-string "diff")
+
+;; Check if anything is staged
+(magit-git-string "diff" "--cached" "--quiet")
+;; Returns nil if nothing staged, non-nil otherwise
+#+end_src
+
+#+begin_warning
+=magit-git-string= requires Magit to be loaded. For vanilla Git access
+without Magit, use =(shell-command-to-string "git ...")= instead.
+#+end_warning
+
+* Push & Pull / Remote
+
+** Push Operations (=P= prefix)
+
+| Key  | Function                   | Description                          |
+|------+----------------------------+--------------------------------------|
+| =P u=| =magit-push=               | Push to upstream                     |
+| =P e=| =magit-push-elsewhere=     | Push to arbitrary remote/branch      |
+| =P p=| =magit-push-to-remote=     | Push to remote (sets upstream)       |
+| =P t=| =magit-push-tags=          | Push all tags                        |
+| =P f=| =magit-push-force=         | Force push (with confirmation)       |
+| =P T=| =magit-push-tag=           | Push a single tag                    |
+
+** Pull Operations (=F= prefix)
+
+| Key  | Function                   | Description                          |
+|------+----------------------------+--------------------------------------|
+| =F u=| =magit-pull=               | Pull from upstream                   |
+| =F p=| =magit-pull-elsewhere=     | Pull from arbitrary remote/branch    |
+| =F e=| =magit-fetch=              | Fetch (no merge)                     |
+| =F f=| =magit-fetch=              | Fetch from elsewhere                 |
+| =F a=| =magit-fetch-all=          | Fetch from all remotes               |
+
+** Remote Management
+
+| Key  | Function                   | Description                          |
+|------+----------------------------+--------------------------------------|
+| =C=  | =magit-remote=             | Remote management menu               |
+| =C a=| =magit-remote-add=         | Add a remote                         |
+| =C r=| =magit-remote-rename=      | Rename a remote                      |
+| =C k=| =magit-remote-remove=      | Remove a remote                      |
+| =C u=| =magit-remote-set-url=     | Change remote URL                    |
+
+* Diff and Log
+
+** Diff Operations (=d= prefix)
+
+| Key  | Function                   | Description                          |
+|------+----------------------------+--------------------------------------|
+| =d d=| =magit-diff=               | Diff working tree                    |
+| =d u=| =magit-diff-staged=        | Diff staged changes                  |
+| =d U=| =magit-diff-unstaged=      | Diff unstaged changes                |
+| =d r=| =magit-diff-range=         | Diff between two revisions           |
+| =d p=| =magit-diff-paths=         | Diff two files                       |
+| =d w=| =magit-diff-buffer-file=   | Diff current buffer file             |
+
+** Log Operations (=l= prefix)
+
+| Key  | Function                   | Description                          |
+|------+----------------------------+--------------------------------------|
+| =l l=| =magit-log-current=        | Log for current branch               |
+| =l o=| =magit-log-other=          | Log for specific branch/ref          |
+| =l L=| =magit-log=                | Log with options                     |
+| =l h=| =magit-log-head=           | Log for HEAD                         |
+| =l p=| =magit-log-pulls=          | Log showing pull merges              |
+| =l w=| =magit-log-buffer-file=    | Log for current buffer file          |
+
+** In the Log Buffer
+
+| Key  | Action                             |
+|------+------------------------------------|
+| =RET=| Show commit details                |
+| =p=  | Show patch for commit              |
+| =P=  | Cherry-pick commit                 |
+| =r=  | Revert commit                      |
+| =F=  | Fixup commit                       |
+| =s=  | Squash commit                      |
+| =d=  | Diff against parent                |
+| =q=  | Quit log buffer                    |
+
+* Stashing
+
+All stash operations start with =z= prefix.
+
+| Key  | Function                   | Description                          |
+|------+----------------------------+--------------------------------------|
+| =z z=| =magit-stash=              | Stash with message                   |
+| =z Z=| =magit-stash-snapshot=     | Snapshot without unstash             |
+| =z p=| =magit-stash-pop=          | Pop a stash                          |
+| =z a=| =magit-stash-apply=        | Apply a stash (keep it)              |
+| =z k=| =magit-stash-drop=         | Drop a stash                         |
+| =z v=| =magit-stash-show=         | Show stash contents                  |
+| =z l=| =magit-stash-list=         | List all stashes                     |
+| =z x=| =magit-stash-branch=       | Create branch from stash             |
+| =z f=| =magit-stash-file=         | Save stash to patch file             |
+
+* Rebasing
+
+All rebase operations start with =r= prefix.
+
+| Key   | Function                   | Description                          |
+|-------+----------------------------+--------------------------------------|
+| =r r= | =magit-rebase=             | Start interactive rebase             |
+| =r p= | =magit-rebase-onto=        | Rebase onto another branch           |
+| =r u= | =magit-rebase-to-upstream= | Rebase onto upstream                 |
+| =r e= | =magit-rebase-edit=        | Edit commit messages during rebase   |
+| =r s= | =magit-rebase-squash=      | Squash into previous commit          |
+| =r f= | =magit-rebase-fixup=       | Fixup into previous commit           |
+| =r d= | =magit-rebase-dirty=       | Rebase despite dirty working tree    |
+
+** During Interactive Rebase
+
+The rebase todo buffer lets you:
+- =p= to pick a commit
+- =r= to reword a commit message
+- =e= to edit a commit
+- =s= to squash into previous
+- =f= to fixup into previous
+- =d= / =k= to drop a commit
+- =x= to add an exec command
+- =b= to add a break
+- =C-c C-c= to start the rebase
+
+* Tagging
+
+All tag operations start with =t= prefix.
+
+| Key  | Function                   | Description                          |
+|------+----------------------------+--------------------------------------|
+| =t t=| =magit-tag=                | Create a tag                         |
+| =t c=| =magit-tag-create=         | Create annotated tag                 |
+| =t k=| =magit-tag-delete=         | Delete a tag                         |
+| =t p=| =magit-tag-prune=          | Prune local tags not on remote       |
+| =P t=| =magit-push-tags=          | Push all tags                        |
+| =P T=| =magit-push-tag=           | Push a specific tag                  |
+
+* Submodule Support
+
+Magit provides full submodule support.
+
+| Key  | Function                        | Description                     |
+|------+---------------------------------+---------------------------------|
+| =M=  | =magit-submodule=               | Submodule management menu       |
+| =M a=| =magit-submodule-add=           | Add a submodule                 |
+| =M i=| =magit-submodule-init=          | Initialize submodules           |
+| =M u=| =magit-submodule-update=        | Update submodules               |
+| =M s=| =magit-submodule-sync=          | Sync submodule URLs             |
+| =M k=| =magit-submodule-remove=        | Remove a submodule              |
+
+Open a submodule's status buffer by navigating to it in the status buffer
+and pressing =RET=.
+
+* Integration with GPTel for Commit Messages
+
+Use GPTel to generate commit messages from staged diffs.
+
+** Setup
+
+#+begin_src elisp
+(defun +carlos/gptel-generate-commit-message ()
+  "Generate commit message using IA from staged diff."
+  (interactive)
+  (unless (vc-git-root default-directory)
+    (user-error "Not in a Git repository"))
+  (let ((diff (shell-command-to-string "git diff --cached")))
+    (if (string-empty-p diff)
+        (user-error "Nothing staged for commit")
+      (gptel-request
+       (format "Generate a concise commit message for this diff:\n\n%s" diff)
+       :backend (gptel-get-backend "OpenCode Zen")
+       :model 'deepseek-v4-flash-free
+       :callback
+       (lambda (response _info)
+         (when response
+           (let ((msg (string-trim response)))
+             (kill-new msg)
+             (message "Commit message: %s" msg))))))))
+#+end_src
+
+** Usage
+
+1. Stage your changes in Magit (=s= on files/hunks)
+2. Run =M-x +carlos/gptel-generate-commit-message=
+3. The generated message is copied to the kill ring
+4. Open the commit buffer (=c c=) and =C-y= to paste
+
+** Alternative: Insert Directly into Commit Buffer
+
+#+begin_src elisp
+(defun +carlos/gptel-insert-commit-message ()
+  "Generate and insert commit message into current commit buffer."
+  (interactive)
+  (unless (eq major-mode 'git-commit-mode)
+    (user-error "Not in a git commit buffer"))
+  (let ((diff (shell-command-to-string "git diff --cached")))
+    (if (string-empty-p diff)
+        (user-error "Nothing staged for commit")
+      (gptel-request
+       (format "Generate a concise commit message for this diff:\n\n%s" diff)
+       :backend (gptel-get-backend "OpenCode Zen")
+       :model 'deepseek-v4-flash-free
+       :callback
+       (lambda (response _info)
+         (when response
+           (let ((msg (string-trim response)))
+             (with-current-buffer (current-buffer)
+               (goto-char (point-min))
+               (insert msg)))))))))
+
+;; Add to git-commit-mode-hook for easy access
+(add-hook 'git-commit-mode-hook
+          (lambda ()
+            (local-set-key (kbd "C-c C-g") #'+carlos/gptel-insert-commit-message)))
+#+end_src
+
+#+begin_warning
+=vc-git-root= and =shell-command-to-string= are the vanilla Emacs approach.
+Do NOT use =magit-git-string= if Magit may not be loaded - it requires the
+full Magit package to be initialized.
+#+end_warning
+
+* Pitfalls & Common Errors
+
+** Pitfall 1: Magit in batch mode
+- Cause: Magit requires a full Emacs instance with a display
+- Fix: Do not use Magit in =--batch= mode. Use plain =git= commands instead
+#+begin_src elisp
+;; WRONG - will fail in batch mode
+(magit-status)
+
+;; CORRECT for batch/scripts
+(shell-command-to-string "git status --porcelain")
+#+end_src
+
+** Pitfall 2: Not in a Git repository
+- Cause: =magit-status= called outside a Git repo
+- Fix: Ensure =default-directory= is within a Git repository
+#+begin_src elisp
+;; Check before calling magit
+(when (vc-git-root default-directory)
+  (magit-status))
+
+;; Or let magit prompt for repo directory
+(magit-status-setup-buffer "/path/to/repo")
+#+end_src
+
+** Pitfall 3: =magit-git-string= without Magit loaded
+- Cause: =magit-git-string= is a Magit function, not available without loading Magit
+- Fix: Use =shell-command-to-string= for vanilla Git access
+#+begin_src elisp
+;; WRONG (if magit not loaded)
+(magit-git-string "diff" "--cached")
+
+;; CORRECT (vanilla Emacs)
+(shell-command-to-string "git diff --cached")
+#+end_src
+
+** Pitfall 4: Commit with nothing staged
+- Cause: Attempting to commit when no files are staged
+- Fix: Stage files first, or use =magit-commit-ask-to-stage=
+#+begin_src elisp
+;; Check if anything is staged
+(let ((diff (shell-command-to-string "git diff --cached")))
+  (if (string-empty-p diff)
+      (message "Nothing staged")
+    (message "Ready to commit")))
+#+end_src
+
+** Pitfall 5: Display buffer behavior
+- Cause: Magit opens buffers in new windows by default
+- Fix: Set display function for single-window behavior
+#+begin_src elisp
+;; Open Magit in same window (except diff buffers)
+(setq magit-display-buffer-function
+      #'magit-display-buffer-same-window-except-diff-v1)
+
+;; Alternative: always use same window
+(setq magit-display-buffer-function #'magit-display-buffer-traditional)
+#+end_src
+
+** Pitfall 6: Magit and =magit-auto-revert=
+- Cause: Auto-revert can cause flickering in the status buffer
+- Fix: Disable if causing issues, or set interval
+#+begin_src elisp
+;; Disable auto-revert if flickering occurs
+(setq magit-auto-revert nil)
+
+;; Or use a longer interval
+(setq auto-revert-interval 5)
+#+end_src
+
+** Pitfall 7: Transient menu errors
+- Cause: Outdated Transient package
+- Fix: Update Transient to >= 0.4.0
+#+begin_src elisp
+;; Check Transient version
+(package-version-identity (cadr (assq 'transient package-alist)))
+#+end_src
+
+** Pitfall 8: Performance with large repos
+- Cause: Magit can be slow on very large repositories
+- Fix: Use =--no-optional-locks= and limit log depth
+#+begin_src elisp
+;; Speed up Magit for large repos
+(setq magit-git-global-arguments
+      '("--no-optional-locks"
+        "--literal-pathspecs"
+        "--no-pager"))
+
+;; Limit initial log display
+(setq magit-log-auto-more nil)
+#+end_src
+
+* Quick Reference Tables
+
+** Key Commands Quick Reference
+
+| Key    | Action                        | Context              |
+|--------+-------------------------------+----------------------|
+| =s=    | Stage file/hunk               | Status buffer        |
+| =u=    | Unstage file/hunk             | Status buffer        |
+| =c c=  | Create commit                 | Status buffer        |
+| =C-c C-c=| Finalize commit            | Commit buffer        |
+| =P u=  | Push upstream                 | Status buffer        |
+| =P p=  | Push elsewhere                | Status buffer        |
+| =F p=  | Pull from elsewhere           | Status buffer        |
+| =l l=  | View log                      | Status buffer        |
+| =b b=  | Checkout branch               | Status buffer        |
+| =b c=  | Create branch                 | Status buffer        |
+| =d d=  | Diff                          | Status buffer        |
+| =t t=  | Create tag                    | Status buffer        |
+| =z z=  | Create stash                  | Status buffer        |
+| =r r=  | Start rebase                  | Status buffer        |
+| =m m=  | Merge                         | Status buffer        |
+| =f f=  | Fetch                         | Status buffer        |
+| =x=    | Reset menu                    | Status buffer        |
+| =g=    | Refresh                       | Status buffer        |
+| =q=    | Quit Magit                    | Any Magit buffer     |
+
+** Key Variables Quick Reference
+
+| Variable                              | Default                  | Description                          |
+|---------------------------------------+--------------------------+--------------------------------------|
+| =magit-display-buffer-function=       | =magit-display-buffer-same-window-except-diff-v1= | Buffer display function |
+| =magit-section-initial-visibility-alist=| =((unpulled . show) (unpushed . show))= | Section visibility     |
+| =magit-revision-show-gravatars=       | =nil=                    | Show gravatars in log                |
+| =magit-commit-signoff=                | =nil=                    | Add Signed-off-by line               |
+| =magit-auto-revert=                   | =auto-revert-mode=       | Auto-revert Magit buffers            |
+| =magit-diff-refine-hunk=              | =nil=                    | Show word-level refined hunks        |
+| =magit-log-show-signature=            | =nil=                    | Show GPG signatures                  |
+| =magit-git-global-arguments=          | =("--no-pager" ...)=     | Global Git arguments                 |
+
+** Transient Prefix Menus
+
+| Prefix | Menu Name       | Purpose                              |
+|--------+-----------------+--------------------------------------|
+| =c=    | Commit          | Create, amend, fixup, squash commits |
+| =b=    | Branch          | Create, checkout, delete, rename     |
+| =P=    | Push            | Push commits and tags to remote      |
+| =F=    | Pull/Fetch      | Pull and fetch from remotes          |
+| =l=    | Log             | View commit history                  |
+| =d=    | Diff            | Compare revisions and files          |
+| =t=    | Tag             | Create, delete, push tags            |
+| =r=    | Rewrite/Rebase  | Interactive rebase, squash, fixup    |
+| =z=    | Stash           | Save, apply, pop, drop stashes       |
+| =m=    | Merge           | Merge branches                       |
+| =f=    | Fetch           | Fetch from remotes                   |
+| =x=    | Reset           | Soft, mixed, hard reset              |
+| =w=    | Apply           | Cherry-pick, apply patches           |
+| =M=    | Submodule       | Submodule management                 |
+
+* Sample Configurations
+
+** Minimal Configuration
+
+#+begin_src elisp
+(use-package magit
+  :ensure t
+  :bind (("C-c g" . magit-status))
+  :config
+  (setq magit-display-buffer-function
+        #'magit-display-buffer-same-window-except-diff-v1))
+#+end_src
+
+** Full Configuration
+
+#+begin_src elisp
+(use-package magit
+  :ensure t
+  :bind (("C-c g" . magit-status))
+  :config
+  ;; Display settings
+  (setq magit-display-buffer-function
+        #'magit-display-buffer-same-window-except-diff-v1
+        magit-bury-buffer-function #'magit-mode-quit-window
+        magit-auto-revert t)
+
+  ;; Commit settings
+  (setq magit-commit-signoff t
+        magit-commit-show-diff t
+        magit-commit-ask-to-stage t
+        magit-log-show-signature t)
+
+  ;; Diff settings
+  (setq magit-diff-refine-hunk t
+        magit-diff-paint-whitespace t)
+
+  ;; Section visibility
+  (setq magit-section-initial-visibility-alist
+        '((unpulled . show)
+          (unpushed . show)
+          (stashes . hide)
+          (modules . hide)))
+
+  ;; Git global arguments (performance)
+  (setq magit-git-global-arguments
+        '("--no-optional-locks"
+          "--literal-pathspecs"
+          "--no-pager")))
+
+;; Optional: Magit with GPTel commit message generation
+(defun +carlos/gptel-insert-commit-message ()
+  "Generate and insert commit message into current commit buffer."
+  (interactive)
+  (unless (eq major-mode 'git-commit-mode)
+    (user-error "Not in a git commit buffer"))
+  (let ((diff (shell-command-to-string "git diff --cached")))
+    (if (string-empty-p diff)
+        (user-error "Nothing staged for commit")
+      (gptel-request
+       (format "Generate a concise commit message for this diff:\n\n%s" diff)
+       :backend (gptel-get-backend "OpenCode Zen")
+       :model 'deepseek-v4-flash-free
+       :callback
+       (lambda (response _info)
+         (when response
+           (let ((msg (string-trim response)))
+             (with-current-buffer (current-buffer)
+               (goto-char (point-min))
+               (insert msg)))))))))
+
+(add-hook 'git-commit-mode-hook
+          (lambda ()
+            (local-set-key (kbd "C-c C-g") #'+carlos/gptel-insert-commit-message)))
+#+end_src
+
+** Large Repository Optimization
+
+#+begin_src elisp
+;; Optimize Magit for large repositories
+(setq magit-git-global-arguments
+      '("--no-optional-locks"
+        "--literal-pathspecs"
+        "--no-pager"
+        "-c" "core.preloadindex=true"
+        "-c" "core.fscache=true"))
+
+;; Disable auto-refresh to reduce I/O
+(setq magit-auto-revert nil)
+
+;; Limit status buffer sections
+(setq magit-status-sections-hook
+      '(magit-insert-branch-header
+        magit-insert-untracked-files
+        magit-insert-unstaged-changes
+        magit-insert-staged-changes
+        magit-insert-recent-commits))
+#+end_src
+
+* Notes for RAG Context
+
+This reference covers Magit with focus on practical usage patterns. Key points
+for automated agents:
+
+1. Magit requires a full Emacs instance - do not use in =--batch= mode
+2. =magit-status= requires being in a Git repository (check with =vc-git-root=)
+3. For commit message generation without Magit loaded, use =vc-git-root= and
+   =(shell-command-to-string "git diff --cached")=
+4. =magit-git-string= requires Magit - use =shell-command-to-string= for vanilla approach
+5. Magit's display function controls buffer behavior - set it for preferred UX
+6. Transient menus use prefix keys: =c=, =b=, =P=, =F=, =l=, =d=, =t=, =r=, =z=
+7. =C-c C-c= finalizes actions in Magit buffers (commits, rebases, etc.)
+8. =g= refreshes any Magit buffer; =q= quits

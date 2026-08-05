@@ -1,0 +1,808 @@
+#+TITLE: Org Ecosystem Reference Guide
+#+AUTHOR: Generated Reference
+#+DATE: 2026-08-05
+#+DESCRIPTION: Comprehensive reference for the Org mode ecosystem in Emacs — core org, org-modern, ob-mermaid, jupyter integration, pdf-tools, and org-noter
+
+* Table of Contents
+:PROPERTIES:
+:TOC: :include all :ignore this
+:END:
+:CONTENTS:
+- [[#overview][Overview]]
+- [[#installation][Installation & Configuration]]
+- [[#org-mode][Org Mode (Built-in)]]
+- [[#org-modern][Org Modern (by Daniel Mendler)]]
+- [[#ob-mermaid][OB Mermaid]]
+- [[#jupyter-integration][Jupyter Integration (ob-jupyter)]]
+- [[#pdf-tools][PDF Tools]]
+- [[#org-noter][Org Noter]]
+- [[#pitfalls][Pitfalls & Common Errors]]
+- [[#quick-reference-tables][Quick Reference Tables]]
+- [[#sample-configurations][Sample Configurations]]
+- [[#rag-context][RAG Context Notes]]
+:END:
+
+* Overview
+
+The Org mode ecosystem in Emacs extends the core plain-text authoring system
+with visual enhancements, code execution engines, document viewing, and
+annotated note-taking. Together these packages transform Org from a simple
+outliner into a comprehensive literate programming and knowledge management
+platform.
+
+#+begin_warning
+This reference covers packages only. See =denote-reference.org= for note-taking
+workflow using Denote, which sits on top of this Org ecosystem.
+#+end_warning
+
+* Package Summary
+
+| Package         | Author            | Purpose                              | Source      |
+|-----------------+-------------------+--------------------------------------+-------------|
+| org             | Carsten Dominick  | Core plain-text outliner & authoring   | Emacs built-in |
+| org-modern      | Daniel Mendler    | Visual enhancements for Org mode       | MELPA        |
+| ob-mermaid      | Multiple          | Mermaid diagram execution in Org babel | MELPA        |
+| jupyter         | Fredrik Bergroth  | Jupyter kernel integration for Org     | MELPA        |
+| pdf-tools       | Vedang Manerikar  | PDF viewing and annotation             | MELPA        |
+| org-noter       | Miguel Ruiz       | Synced PDF annotation with Org notes   | MELPA        |
+| markdown-mermaid| Multiple          | Mermaid rendering in Markdown mode     | MELPA        |
+
+* Installation & Configuration
+
+** Package Installation Methods
+
+All packages except =org= (built-in) are installed via =straight= or =use-package=:
+
+#+begin_src elisp
+;; Org is built into Emacs — never use :ensure t
+(use-package org
+  :ensure nil
+  ...)
+
+;; org-modern via package manager
+(use-package org-modern
+  :ensure t
+  ...)
+
+;; ob-mermaid
+(use-package ob-mermaid
+  :ensure t
+  ...)
+
+;; Jupyter integration — package is named `jupyter`, NOT `emacs-jupyter`
+(use-package jupyter
+  :ensure t
+  ...)
+
+;; PDF tools
+(use-package pdf-tools
+  :ensure t
+  ...)
+
+;; Org Noter
+(use-package org-noter
+  :ensure t
+  ...)
+
+;; markdown-mermaid (optional, for markdown mode)
+(use-package markdown-mermaid
+  :ensure t
+  ...)
+#+end_src
+
+* Org Mode (Built-in)
+
+** Core Configuration
+
+#+begin_src elisp
+(use-package org
+  :ensure nil
+  :config
+  (setq org-directory "~/org"
+        org-confirm-babel-evaluate nil
+        org-startup-indented t
+        org-startup-with-inline-images t
+        org-hide-emphasis-markers t
+        org-edit-src-content-indentation 2)
+  (org-babel-do-load-languages
+   'org-babel-load-languages
+   '((python . t)
+     (shell . t)
+     (emacs-lisp . t)
+     (mermaid . t)))
+  :bind (("C-c a" . org-agenda)))
+#+end_src
+
+** Key Variables Reference
+
+| Variable                        | Default | Recommended | Purpose                                  |
+|---------------------------------+---------+-------------+------------------------------------------|
+| =org-directory=                 | =~/org= | =~/org=     | Root directory for all Org files         |
+| =org-confirm-babel-evaluate=    | =t=     | =nil=       | Skip confirmation on source block exec   |
+| =org-startup-indented=          | =nil=   | =t=         | Indent headlines visually on startup     |
+| =org-startup-with-inline-images=| =nil=   | =t=         | Show inline images immediately           |
+| =org-hide-emphasis-markers=     | =nil=   | =t=         | Hide =*=, =/=, =_= emphasis markers      |
+| =org-edit-src-content-indentation= | =2=  | =2=         | Extra indentation inside source blocks   |
+
+** Babel Languages Configuration
+
+#+begin_src elisp
+(org-babel-do-load-languages
+ 'org-babel-load-languages
+ '((python . t)      ;; Python code execution
+   (shell . t)       ;; Shell commands
+   (emacs-lisp . t)  ;; Emacs Lisp evaluation
+   (mermaid . t)))   ;; Mermaid diagram generation
+#+end_src
+
+#+begin_warning
+Each language must be explicitly enabled. Adding a language here requires the
+corresponding =ob-= package to be available. Mermaid requires =ob-mermaid=
+to be installed separately.
+#+end_warning
+
+** Source Block Syntax
+
+#+begin_src org
+#+begin_src python :results output
+print("Hello from Org babel")
+#+end_src
+
+#+begin_src emacs-lisp :results value
+(+ 1 2 3)
+#+end_src
+
+#+begin_src shell :results output
+echo "Shell execution in Org"
+#+end_src
+#+end_src
+
+** Header Arguments Quick Reference
+
+| Header Arg       | Values                    | Purpose                         |
+|------------------+---------------------------+---------------------------------|
+| =:results=       | =output=, =value=, =none= | How to handle execution output  |
+| =:session=       | =NAME=, =none=            | Persistent execution session    |
+| =:noweb=         | =yes=, =no=, =tangle=     | Noweb reference expansion       |
+| =:tangle=        | =yes=, =no=, =filename=   | Extract code to external file   |
+| =:exports=       | =code=, =results=, =both= | What to export                  |
+| =:var=           | =name=value=              | Pass variables to source block  |
+
+* Org Modern (by Daniel Mendler)
+
+** Purpose
+
+Org-modern provides visual enhancements to Org mode without changing the
+underlying buffer content. It uses text properties and overlays to display
+cleaner, more readable Org documents while preserving plain-text
+compatibility.
+
+** Configuration
+
+#+begin_src elisp
+(use-package org-modern
+  :hook (org-mode . org-modern-mode)
+  :hook (org-agenda-finalize . org-modern-agenda)
+  :config
+  (setq org-modern-star '("◉" "○" "✸" "✿" "✤" "✜" "◆" "▶")
+        org-modern-replace-stars t
+        org-modern-fold-stars "◀"
+        org-modern-tag-face t
+        org-modern-label-border 0.5
+        org-modern-timestamp t
+        org-modern-priority '((?A . "🔴") (?B . "🟡") (?C . "🟢"))
+        org-modern-checkbox '((unordered . "•")
+                              (ordered . "✓")
+                              (transcoded . "✗"))
+        org-modern-table t
+        org-modern-progress nil
+        org-modern-target t
+        org-modern-block-name '((src . "⟨")
+                                (example . "⟨")
+                                (quote . "❝")
+                                (verse . "❞")
+                                (center . "◇"))
+        org-modern-horizontal-line "───"))
+#+end_src
+
+** Visual Customization Reference
+
+| Variable                   | Value                          | Effect                                |
+|----------------------------+--------------------------------+---------------------------------------|
+| =org-modern-star=          | =(list of 8 glyphs)=           | Custom headline bullet characters     |
+| =org-modern-replace-stars= | =t=                            | Replace =*= with modern bullets       |
+| =org-modern-fold-stars=    | ="◀"=                          | Folded headline indicator             |
+| =org-modern-tag-face=      | =t=                            | Style tags with faces                 |
+| =org-modern-label-border=  | =0.5=                          | Border width around labels            |
+| =org-modern-timestamp=     | =t=                            | Style timestamps                      |
+| =org-modern-priority=      | =alist of char → string=       | Priority emoji replacements           |
+| =org-modern-checkbox=      | =alist of state → string=      | Checkbox character replacements       |
+| =org-modern-table=         | =t=                            | Modern table rendering                |
+| =org-modern-progress=      | =nil=                          | Progress bar in tables (set =t=)      |
+| =org-modern-target=        | =t=                            | Style links/targets                   |
+| =org-modern-block-name=    | =alist of type → string=       | Block type indicators                 |
+| =org-modern-horizontal-line| ="───"=                        | Horizontal rule style                 |
+
+** Star Glyph Hierarchy
+
+The =org-modern-star= list maps to headline depth:
+
+| Depth | Glyph | Purpose                        |
+|-------+-------+--------------------------------|
+| 1     | ◉     | Top-level heading (H1)         |
+| 2     | ○     | Second level (H2)              |
+| 3     | ✸     | Third level (H3)               |
+| 4     | ✿     | Fourth level (H4)              |
+| 5     | ✤     | Fifth level (H5)               |
+| 6     | ✜     | Sixth level (H6)               |
+| 7+    | ◆ ▶   | Deep nesting (H7, H8)          |
+
+** Priority Emoji Configuration
+
+#+begin_src elisp
+;; Priority display with emoji
+(setq org-modern-priority
+      '((?A . "🔴")   ;; Highest priority — urgent
+        (?B . "🟡")   ;; Medium priority — important
+        (?C . "🟢"))) ;; Low priority — nice to have
+#+end_src
+
+#+begin_warning
+Emojis may not render in terminal Emacs. They display correctly only in GUI
+Emacs with a font that supports the required Unicode code points (e.g.,
+=Noto Color Emoji=, =Apple Color Emoji= on macOS). In terminal, priorities
+fall back to plain text =[#A]=, =[#B]=, =[#C]=.
+#+end_warning
+
+** Checkbox Styling
+
+#+begin_src elisp
+(setq org-modern-checkbox
+      '((unordered . "•")   ;; Unordered list item
+        (ordered . "✓")     ;; Checked item
+        (transcoded . "✗"))) ;; Cancelled item [-]
+#+end_src
+
+Corresponds to Org checkbox states:
+- =[ ]= → =•= (unchecked, unordered)
+- =[X]= → =✓= (checked, ordered)
+- =[-]= → =✗= (transcancelled)
+
+** Block Name Indicators
+
+#+begin_src elisp
+(setq org-modern-block-name
+      '((src . "⟨")     ;; Source blocks
+        (example . "⟨") ;; Example blocks
+        (quote . "❝")   ;; Quote blocks
+        (verse . "❞")   ;; Verse blocks
+        (center . "◇"))) ;; Center blocks
+#+end_src
+
+* OB Mermaid
+
+** Purpose
+
+=ob-mermaid= enables execution of Mermaid diagram code blocks within Org mode.
+It uses the Mermaid CLI (=mmdc=) to generate SVG or PNG images from diagram
+definitions.
+
+** Prerequisites
+
+- Node.js installed (for =mmdc= command)
+- Mermaid CLI: =npm install -g @mermaid-js/mermaid-cli=
+- Verify: =mmdc --version=
+
+** Configuration
+
+#+begin_src elisp
+(use-package ob-mermaid
+  :config
+  (setq ob-mermaid-cli-path "mmdc"))
+#+end_src
+
+** Usage in Org Files
+
+#+begin_src org
+#+begin_src mermaid :file diagrams/flowchart.svg :cmdline -w 800
+graph TD
+    A[Start] --> B{Decision}
+    B -->|Yes| C[Action 1]
+    B -->|No| D[Action 2]
+    C --> E[End]
+    D --> E
+#+end_src
+
+#+RESULTS:
+[[file:diagrams/flowchart.svg]]
+#+end_src
+
+** Header Arguments
+
+| Header Arg    | Default         | Purpose                             |
+|---------------+-----------------+-------------------------------------|
+| =:file=       | =diagram.png=   | Output file path                    |
+| =:cmdline=    | =""=            | Additional CLI arguments to =mmdc=  |
+| =:width=      | =800=           | Diagram width in pixels             |
+| =:height=     | =600=           | Diagram height in pixels            |
+| =:background= | =transparent=   | Background color                    |
+
+** Supported Diagram Types
+
+| Type           | Syntax Keyword      | Purpose                          |
+|----------------+---------------------+----------------------------------|
+| Flowchart      | =graph TD/LR/RL=    | Process flows, decision trees    |
+| Sequence       | =sequenceDiagram=   | Message sequences between actors |
+| Class Diagram  | =classDiagram=      | UML class relationships          |
+| State Diagram  | =stateDiagram-v2=   | State machines                   |
+| Gantt          | =gantt=             | Project timelines                |
+| Pie Chart      | =pie=               | Proportional data                |
+| ER Diagram     | =erDiagram=         | Entity relationship models       |
+| Mindmap        | =mindmap=           | Hierarchical idea maps           |
+
+* Jupyter Integration (ob-jupyter)
+
+** Purpose
+
+The =jupyter= package provides integration with Jupyter kernels, enabling
+interactive code execution from Org babel source blocks. It supports multiple
+kernels (Python, Julia, R, etc.) through the Jupyter protocol.
+
+#+begin_warning
+CRITICAL: The package name is =jupyter=, NOT =emacs-jupyter=. Installing
+=emacs-jupyter= will fail or install the wrong package.
+#+end_warning
+
+** Configuration
+
+#+begin_src elisp
+(use-package jupyter
+  :catch t
+  :config
+  ;; Must require 'org FIRST — ob-jupyter is NOT autoloaded
+  (require 'org)
+  (when (require 'ob-jupyter nil t)
+    (add-to-list 'org-babel-load-languages '(jupyter . t))))
+#+end_src
+
+** Loading Order
+
+The loading order is critical:
+
+1. =org= must be loaded before =ob-jupyter=
+2. =ob-jupyter= must be explicitly required (not autoloaded)
+3. =jupyter= must be added to =org-babel-load-languages=
+
+#+begin_warning
+If you add =jupyter= to =org-babel-load-languages= in your =org=
+configuration block, ensure the =jupyter= package loads AFTER =org=. The
+safest approach is to add it in the =jupyter= =:config= block as shown above,
+which guarantees correct ordering.
+#+end_warning
+
+** Available Jupyter Kernels
+
+| Kernel     | Install Command                              | Language    |
+|------------+----------------------------------------------+-------------|
+| Python     | =pip install jupyter=                        | Python 3.x  |
+| IPython    | =pip install ipykernel=                      | Python 3.x  |
+| Julia      | =using Pkg; Pkg.add("IJulia")=               | Julia 1.x   |
+| IRkernel   | =install.packages("IRkernel"); IRkernel::installspec()= | R       |
+| Bash       | =pip install bash_kernel=                    | Bash        |
+
+** Usage in Org Files
+
+#+begin_src org
+#+begin_src jupyter-python :session mypy :results output
+import numpy as np
+data = np.random.randn(100)
+print(f"Mean: {data.mean():.3f}")
+#+end_src
+
+#+begin_src jupyter-python :session mypy :results value
+# Reuse the session — `data` is still available
+data.std()
+#+end_src
+#+end_src
+
+** Session-Based Execution
+
+Sessions maintain state between source blocks:
+
+#+begin_src elisp
+;; Start a persistent Python session
+#+begin_src jupyter-python :session analysis
+import pandas as pd
+df = pd.read_csv("data.csv")
+#+end_src
+
+;; Subsequent blocks in same session share state
+#+begin_src jupyter-python :session analysis
+df.describe()
+#+end_src
+#+end_src
+
+** Kernel-Specific Language Identifiers
+
+| Org Language Identifier | Jupyter Kernel     |
+|-------------------------+--------------------|
+| =jupyter-python=        | Python (ipykernel) |
+| =jupyter-julia=         | Julia (IJulia)     |
+| =jupyter-R=             | R (IRkernel)       |
+| =jupyter-bash=          | Bash               |
+
+* PDF Tools
+
+** Purpose
+
+PDF Tools provides native PDF viewing, annotation, and text extraction within
+Emacs. It uses =epdfinfo=, a C server binary that interfaces with the Poppler
+PDF library.
+
+** macOS Compilation Note
+
+#+begin_danger
+On macOS, pdf-tools does NOT compile automatically. The =epdfinfo= server
+must be compiled manually at least once. This is a known limitation.
+#+end_danger
+
+** Prerequisites (macOS)**
+
+#+begin_src sh
+# Install required dependencies
+brew install poppler pkg-config
+#+end_src
+
+** Configuration
+
+#+begin_src elisp
+(use-package pdf-tools
+  :config
+  ;; Point to the compiled epdfinfo binary
+  (let ((bin (expand-file-name "build/server/epdfinfo" pdf-tools-directory)))
+    (when (file-executable-p bin)
+      (setq pdf-info-epdfinfo-program bin)))
+  ;; Install without prompting
+  (pdf-tools-install :no-query)
+  ;; Fit PDF to window width
+  (setq pdf-view-display-size 'fit-width))
+#+end_src
+
+** Manual Compilation (macOS)**
+
+If =pdf-tools-install= fails or the binary is missing:
+
+#+begin_src sh
+# Navigate to pdf-tools package directory
+cd ~/.emacs.d/straight/build/pdf-tools/
+
+# Compile the server
+make server/epdfinfo
+
+# Verify it's executable
+ls -la build/server/epdfinfo
+#+end_src
+
+Or from within Emacs:
+
+#+begin_src elisp
+;; Recompile the server
+M-x pdf-tools-install RET
+#+end_src
+
+** Key Variables
+
+| Variable                       | Value              | Purpose                           |
+|--------------------------------+--------------------+-----------------------------------|
+| =pdf-info-epdfinfo-program=    | =path/to/epdfinfo= | Path to compiled server binary    |
+| =pdf-view-display-size=        | =fit-width=        | How to size PDF in window         |
+| =pdf-tools-directory=          | =auto=             | Package installation directory    |
+
+** Key Bindings in pdf-view-mode
+
+| Key         | Action                          |
+|-------------+---------------------------------|
+| =n= / =SPC= | Next page                       |
+| =p= / =DEL= | Previous page                   |
+| =+= / =-=   | Zoom in / out                   |
+| =s=         | Search text                     |
+| =a=         | Add text annotation             |
+| =h=         | Highlight area                  |
+| =O=         | OCR text extraction             |
+| =K=         | Kill current page as image      |
+
+* Org Noter
+
+** Purpose
+
+Org Noter creates synchronized annotations between PDF documents (via
+pdf-tools) and Org mode notes. Clicking a note jumps to the exact PDF page;
+clicking a PDF location inserts a note at that position.
+
+** Configuration
+
+#+begin_src elisp
+(use-package org-noter
+  :after org
+  :config
+  (setq org-noter-notes-search-path '("~/org/notes")))
+#+end_src
+
+** Key Variables
+
+| Variable                       | Default           | Purpose                           |
+|--------------------------------+-------------------+-----------------------------------|
+| =org-noter-notes-search-path=  | =("~/org/notes")= | Where to look for/store notes     |
+| =org-noter-always-create-frame=| =t=               | Auto-create frame for notes       |
+| =org-noter-doc-property-in-notes=| =nil=           | Store doc path in notes           |
+
+** Workflow
+
+1. Open a PDF with =pdf-view-mode=
+2. Run =M-x org-noter=
+3. Select or create the associated Org notes file
+4. Annotate: =M-x org-noter-insert-note= (=i= by default)
+5. Navigate: click note → jump to PDF page, click PDF → insert note
+
+** Note Structure
+
+Org Noter creates notes with special properties:
+
+#+begin_src org
+* Document: My Research Paper.pdf
+:PROPERTIES:
+:NOTER_DOCUMENT: ~/papers/research.pdf
+:NOTER_PAGE: 1
+:END:
+
+** Notes from page 3
+:PROPERTIES:
+:NOTER_PAGE: 3
+:END:
+Important finding about methodology.
+
+** Notes from page 7
+:PROPERTIES:
+:NOTER_PAGE: 7
+:END:
+Contradicts earlier work (see page 3).
+#+end_src
+
+* Markdown Mermaid
+
+** Purpose
+
+=markdown-mermaid= renders Mermaid diagrams in =markdown-mode= buffers,
+complementing =ob-mermaid= which handles diagrams in Org mode.
+
+** Configuration
+
+#+begin_src elisp
+(use-package markdown-mermaid
+  :config
+  (setq markdown-mermaid-path "mmdc"))
+#+end_src
+
+** Usage
+
+Diagrams in markdown files are rendered automatically:
+
+#+begin_src markdown
+```mermaid
+graph LR
+    A --> B
+    B --> C
+```
+#+end_src
+
+* Pitfalls & Common Errors
+
+** P1: Wrong Package Name for Jupyter
+
+- **Symptom:** =use-package emacs-jupyter= fails or installs wrong package
+- **Cause:** Package on MELPA is named =jupyter=
+- **Fix:** Use =(use-package jupyter ...)=
+- **Severity:** High — prevents Jupyter integration entirely
+
+** P2: ob-jupyter Not Autoloaded
+
+- **Symptom:** =jupyter= added to =org-babel-load-languages= but =C-c C-c= on
+  =#+begin_src jupyter-python= fails with "no language" error
+- **Cause:** =ob-jupyter= is not autoloaded; =require= must happen after =org=
+  loads
+- **Fix:** Add =(require 'org)= and =(require 'ob-jupyter nil t)= in =jupyter=
+  =:config= block
+- **Severity:** High — silent failure, hard to debug
+
+** P3: Emojis Not Rendering in Terminal
+
+- **Symptom:** =org-modern-priority= shows =□= or boxes instead of emojis
+- **Cause:** Terminal lacks emoji font support
+- **Fix:** Use GUI Emacs with Noto Color Emoji font, or use plain text
+  priorities in terminal
+- **Severity:** Medium — cosmetic only
+
+** P4: pdf-tools Fails to Compile on macOS
+
+- **Symptom:** =pdf-tools-install= errors with missing =poppler= or =pkg-config=
+- **Cause:** macOS requires manual installation of C build dependencies
+- **Fix:** =brew install poppler pkg-config=, then =M-x pdf-tools-install=
+- **Severity:** High — pdf-tools is non-functional without compiled binary
+
+** P5: pdf-tools Install Prompt Interrupts Batch Mode
+
+- **Symptom:** Emacs hangs during startup asking to compile pdf-tools
+- **Cause:** =pdf-tools-install= prompts for confirmation by default
+- **Fix:** Use =(pdf-tools-install :no-query)= to skip prompt
+- **Severity:** Medium — blocks headless/daemon startup
+
+** P6: ob-mermaid Requires External mmdc
+
+- **Symptom:** Mermaid source blocks fail with "mmdc not found"
+- **Cause:** Mermaid CLI not installed globally
+- **Fix:** =npm install -g @mermaid-js/mermaid-cli=
+- **Severity:** Medium — only affects mermaid code blocks
+
+** P7: Org Loading Order with Babel Languages
+
+- **Symptom:** Babel language not recognized despite being in config
+- **Cause:** =org-babel-do-load-languages= called before =org= is fully loaded
+- **Fix:** Ensure =org-babel-do-load-languages= is in =org= =:config= block
+  or use =:after org= for dependent packages
+- **Severity:** Medium — affects code execution in Org
+
+* Quick Reference Tables
+
+** Package Quick Reference
+
+| Package          | Key Binding | Mode Hook           | Load Order     |
+|------------------+-------------+---------------------+----------------|
+| org              | =C-c a=     | =org-mode=          | First (built-in) |
+| org-modern       | none        | =org-mode=          | After org      |
+| ob-mermaid       | none        | none                | After org      |
+| jupyter          | none        | none                | After org      |
+| pdf-tools        | none        | =pdf-view-mode=     | Independent    |
+| org-noter        | none        | =org-mode=          | After org      |
+| markdown-mermaid | none        | =markdown-mode=     | Independent    |
+
+** External Dependencies
+
+| Dependency | Required By    | Install Method                        |
+|------------+----------------+---------------------------------------|
+| =mmdc=     | ob-mermaid, markdown-mermaid | =npm install -g @mermaid-js/mermaid-cli= |
+| =poppler=  | pdf-tools      | =brew install poppler= (macOS)        |
+| =pkg-config=| pdf-tools     | =brew install pkg-config= (macOS)     |
+| =jupyter=  | jupyter (pkg)  | =pip install jupyter=                 |
+
+** File Type Associations
+
+| File Extension | Major Mode     | Enhancement Packages         |
+|----------------+----------------+------------------------------|
+| =.org=         | =org-mode=     | org-modern, org-noter        |
+| =.pdf=         | =pdf-view-mode=| pdf-tools, org-noter         |
+| =.md=          | =markdown-mode=| markdown-mermaid             |
+
+* Sample Configurations
+
+** Minimal Org Setup
+
+#+begin_src elisp
+(use-package org
+  :ensure nil
+  :config
+  (setq org-directory "~/org"
+        org-confirm-babel-evaluate nil
+        org-startup-indented t)
+  (org-babel-do-load-languages
+   'org-babel-load-languages
+   '((python . t) (shell . t)))
+  :bind (("C-c a" . org-agenda)))
+#+end_src
+
+** Full Org Ecosystem Configuration
+
+#+begin_src elisp
+;; ─── Core Org ─────────────────────────────────────────────────
+(use-package org
+  :ensure nil
+  :config
+  (setq org-directory "~/org"
+        org-confirm-babel-evaluate nil
+        org-startup-indented t
+        org-startup-with-inline-images t
+        org-hide-emphasis-markers t
+        org-edit-src-content-indentation 2)
+  (org-babel-do-load-languages
+   'org-babel-load-languages
+   '((python . t) (shell . t) (emacs-lisp . t) (mermaid . t)))
+  :bind (("C-c a" . org-agenda)))
+
+;; ─── Visual Enhancement ───────────────────────────────────────
+(use-package org-modern
+  :hook (org-mode . org-modern-mode)
+  :hook (org-agenda-finalize . org-modern-agenda)
+  :config
+  (setq org-modern-star '("◉" "○" "✸" "✿" "✤" "✜" "◆" "▶")
+        org-modern-replace-stars t
+        org-modern-fold-stars "◀"
+        org-modern-tag-face t
+        org-modern-label-border 0.5
+        org-modern-timestamp t
+        org-modern-priority '((?A . "🔴") (?B . "🟡") (?C . "🟢"))
+        org-modern-checkbox '((unordered . "•") (ordered . "✓") (transcoded . "✗"))
+        org-modern-table t
+        org-modern-progress nil
+        org-modern-target t
+        org-modern-block-name '((src . "⟨") (example . "⟨") (quote . "❝") (verse . "❞") (center . "◇"))
+        org-modern-horizontal-line "───"))
+
+;; ─── Diagrams ─────────────────────────────────────────────────
+(use-package ob-mermaid
+  :config
+  (setq ob-mermaid-cli-path "mmdc"))
+
+;; ─── Jupyter Integration ──────────────────────────────────────
+(use-package jupyter
+  :catch t
+  :config
+  (require 'org)
+  (when (require 'ob-jupyter nil t)
+    (add-to-list 'org-babel-load-languages '(jupyter . t))))
+
+;; ─── PDF Viewing ──────────────────────────────────────────────
+(use-package pdf-tools
+  :config
+  (let ((bin (expand-file-name "build/server/epdfinfo" pdf-tools-directory)))
+    (when (file-executable-p bin)
+      (setq pdf-info-epdfinfo-program bin)))
+  (pdf-tools-install :no-query)
+  (setq pdf-view-display-size 'fit-width))
+
+;; ─── PDF Annotation ───────────────────────────────────────────
+(use-package org-noter
+  :after org
+  :config
+  (setq org-noter-notes-search-path '("~/org/notes")))
+#+end_src
+
+* RAG Context Notes
+
+** For LLM Context Injection**
+
+When using this reference with AI assistants (e.g., via =gptel=), include the
+following context points:
+
+- Org mode is built-in to Emacs; never use =:ensure t= for it
+- =jupyter= is the MELPA package name, not =emacs-jupyter=
+- =ob-jupyter= requires explicit =(require 'org)= before loading
+- pdf-tools on macOS needs =poppler= and =pkg-config= via Homebrew
+- =pdf-tools-install :no-query= prevents startup prompts
+- =org-modern-priority= emojis require GUI Emacs with emoji font support
+- =mmdc= (Mermaid CLI) must be installed globally via npm for diagram rendering
+- org-noter works with pdf-tools to create synced PDF/Org annotations
+- =org-babel-do-load-languages= must be called in =:config= after =org= loads
+
+** Package Relationships**
+
+- =org= → base layer; all other packages depend on or enhance it
+- =org-modern= → visual overlay; hooks into =org-mode= and =org-agenda=
+- =ob-mermaid= → babel language; requires =mermaid= in =org-babel-load-languages=
+- =jupyter= → provides =ob-jupyter=; must be added to =org-babel-load-languages=
+- =pdf-tools= → independent package; prerequisite for =org-noter=
+- =org-noter= → bridges =pdf-tools= and =org-mode=; needs both available
+- =markdown-mermaid= → parallel to =ob-mermaid= but for =markdown-mode=
+
+** Configuration Dependencies**
+
+#+begin_example
+org (built-in)
+├── org-modern (hooks into org-mode, org-agenda-finalize)
+├── ob-mermaid (registered via org-babel-do-load-languages)
+├── jupyter/ob-jupyter (registered via org-babel-do-load-languages, after org require)
+│   └── pdf-tools (prerequisite)
+│       └── org-noter (bridges pdf-tools and org-mode)
+└── markdown-mermaid (independent, hooks into markdown-mode)
+#+end_example
+
+---
+*Org ecosystem reference generated: 2026-08-05*
