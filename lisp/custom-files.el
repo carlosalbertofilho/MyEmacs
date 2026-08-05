@@ -98,11 +98,13 @@
   :ensure nil
   :config
   (setq project-switch-commands
-        '((project-find-file "Find file")
-          (project-find-regexp "Find regexp")
-          (project-dired "Dired")
-          (project-eshell "Eshell")
-          (project-compile "Compile"))))
+        '((?f project-find-file "Find file")
+          (?g project-find-regexp "Find regexp")
+          (?d project-dired "Dired")
+          (?e project-eshell "Eshell")
+          (?c project-compile "Compile")
+          (?j +carlos/project-just-run "Just (default)")
+          (?t +carlos/eat-just-recipe "Just recipe"))))
 
 (provide 'custom-files)
 ;;; custom-files.el ends here

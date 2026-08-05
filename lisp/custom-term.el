@@ -56,11 +56,45 @@
   :hook (eshell-mode . eat-eshell-mode)
   :config
   (setq eat-enable-mouse t             ;; Mouse support in TUIs
-        eat-kill-buffer-on-exit t))    ;; Clean up on exit
+        eat-kill-buffer-on-exit t)     ;; Clean up on exit
+  ;; Char-mode: just requires interactive input (y/n, prompts)
+  (add-to-list 'eat-semi-char-non-semi-commands "just")
+  (add-to-list 'eat-semi-char-non-semi-commands "opencode")
+  (add-to-list 'eat-semi-char-non-semi-commands "agy"))
 
 ;; Toggle between Emacs mode and Char mode (send keys directly to program)
 (with-eval-after-load 'eshell
   (define-key eshell-mode-map (kbd "C-c C-q") #'eat-toggle-char-mode))
+
+;; ── Just + Eat integration (Opção 2: Project.el) ──────────────────
+;; Run just recipes from project root in an eat buffer.
+(defun +carlos/project-just-run ()
+  "Run the default just recipe in project root using eat."
+  (interactive)
+  (when-let* ((root (project-root (project-current t))))
+    (let* ((buf-name (format "*just: %s*" (file-name-nondirectory (directory-file-name root))))
+           (eat-buf (eat-make-buffer buf-name)))
+      (with-current-buffer eat-buf
+        (cd root)
+        (eat-exec-cmd "just" nil))
+      (pop-to-buffer eat-buf))))
+
+(defun +carlos/eat-just-recipe (recipe)
+  "Run a specific just RECIPE in project root using eat."
+  (interactive
+   (list (completing-read "Just recipe: "
+                          (process-lines "just" "--summary"))))
+  (when-let* ((root (project-root (project-current t))))
+    (let* ((buf-name (format "*just: %s*" recipe))
+           (eat-buf (eat-make-buffer buf-name)))
+      (with-current-buffer eat-buf
+        (cd root)
+        (eat-exec-cmd "just" (list recipe)))
+      (pop-to-buffer eat-buf))))
+
+;; Bindings
+(global-set-key (kbd "C-c j j") #'+carlos/project-just-run)
+(global-set-key (kbd "C-c j r") #'+carlos/eat-just-recipe)
 
 ;; ── capf-autosuggest (Fish/Zsh-style inline completions) ───────────
 ;; Shows ghost text from history as you type. Press → or End to accept.
