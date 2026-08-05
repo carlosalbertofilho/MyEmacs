@@ -2,8 +2,10 @@
 
 ;;; Commentary:
 ;; gptel backends (OpenCode Zen, Zen Claude, Gemini, Ollama, MLX Local),
-;; gptel-agent, gptel-quick, ob-gptel, personas/diretivas,
+;; gptel-agent, gptel-org (integração Org), personas/diretivas,
 ;; +carlos/gptel-agent-run (reescrito sem advice bug).
+;; Nota: gptel 2026 NÃO distribui ob-gptel nem gptel-quick;
+;; integração Org é via gptel-org.
 
 ;;; Code:
 
@@ -78,13 +80,14 @@ Sem advice: chamada direta antes de iniciar o agente."
   ;; Registra os presets gptel-agent/gptel-plan e lê os sub-agentes
   (gptel-agent-update))
 
-;; ── gptel-org (integração Org — substitui ob-gptel) ─────────────────
-;; Em versões recentes do gptel a integração Org virou `gptel-org'
-;; (ob-gptel não é mais distribuído no pacote).
+;; ── gptel-org (integração Org — substitui ob-gptel/gptel-quick) ─────
+;; gptel 2026 usa gptel-org. ob-gptel e gptel-quick não são distribuídos.
 (with-eval-after-load 'gptel
-  (condition-case nil
-      (require 'gptel-org)
-    (file-missing (message "gptel-org: package not available, skipping"))))
+  (when (require 'gptel-org nil t)
+    (gptel-org-mode 1)
+    (org-babel-do-load-languages
+     'org-babel-load-languages
+     (append org-babel-load-languages '((gptel . t))))))
 
 ;; ── Personas / Diretivas ────────────────────────────────────────────
 (with-eval-after-load 'gptel

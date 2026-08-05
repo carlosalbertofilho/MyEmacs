@@ -1,0 +1,352 @@
+#+TITLE: Guia Prático — Emacs Vanilla (MyEmacs)
+#+AUTHOR: Carlos Filho
+#+DATE: 2026-08-05
+#+OPTIONS: toc:2 num:t
+
+* Introdução
+
+Este guia cobre movimentação, atalhos e truques do Emacs Vanilla (MyEmacs).
+Sem Evil mode — tudo usa atalhos nativos do Emacs com prefixo =C-c=.
+
+* Conceitos Fundamentais
+
+** Notação de Teclas
+
+| Notação | Significado |
+|---------+-------------|
+| =C-x= | Ctrl + x |
+| =M-x= | Alt (Option) + x, ou =Esc= depois =x= |
+| =C-c C-e= | Ctrl+c, depois Ctrl+e |
+| =s-h= | Super (Cmd) + h |
+| =RET= | Enter |
+| =DEL= | Backspace |
+
+** Prefixos
+
+- =C-x= : comandos de buffer/arquivo
+- =C-c= : comandos customizados (meus bindings)
+- =M-x= : executar qualquer comando pelo nome
+- =s-= (Super/Cmd) : navegação de janelas
+
+** Buffers e Janelas
+
+- *Buffer*: conteúdo editado (arquivo, terminal, chat)
+- *Janela*: divisão da tela que exibe um buffer
+- *Frame*: janela do sistema operacional (pode ter várias janelas internas)
+
+* Movimentação Básica
+
+** Cursor (sem Evil)
+
+| Atalho | Ação |
+|--------+------|
+| =C-f= / =C-b= | frente / trás (char) |
+| =C-n= / =C-p= | próxima / anterior linha |
+| =M-f= / =M-b= | frente / trás (palavra) |
+| =C-a= / =C-e= | início / fim da linha |
+| =M-a= / =M-e= | início / fim da sentença |
+| =M-{= / =M-}= | parágrafo anterior / próximo |
+| =C-v= / =M-v= | página abaixo / acima |
+| =C-l= | centralizar cursor na tela |
+
+** Navegação Rápida
+
+| Atalho | Ação |
+|--------+------|
+| =M-g M-g= | ir para linha |
+| =C-s= | buscar para frente (incremental) |
+| =C-r= | buscar para trás (incremental) |
+| =M-%= | buscar e substituir |
+| =C-c s= | buscar no projeto inteiro (ripgrep) |
+| =C-c S= | buscar no buffer atual |
+
+* Janelas e Buffers
+
+** Navegação de Janelas
+
+| Atalho | Ação |
+|--------+------|
+| =s-h/j/k/l= | mover entre janelas (Super + direcional) |
+| =C-x o= | outra janela |
+| =C-x 0= | fechar janela atual |
+| =C-x 1= | manter só esta janela |
+| =C-x 2= | dividir horizontalmente |
+| =C-x 3= | dividir verticalmente |
+| =C-x += | equalizar tamanho das janelas |
+
+** Buffers
+
+| Atalho | Ação |
+|--------+------|
+| =C-x b= | trocar buffer (com consult, busca fuzzy) |
+| =C-x C-b= | lista de buffers (ibuffer) |
+| =C-x k= | matar buffer atual |
+| =C-x C-f= | abrir arquivo |
+| =C-x C-s= | salvar arquivo |
+| =C-x s= | salvar todos os buffers modificados |
+
+* Arquivos e Diretórios
+
+| Atalho | Ação |
+|--------+------|
+| =C-x C-f= | abrir arquivo |
+| =C-x d= | abrir dired (gerenciador de arquivos) |
+| =C-x C-j= | abrir dired no diretório atual |
+| =d= | deletar arquivo (no dired) |
+| =R= | renomear (no dired) |
+| =C= | copiar (no dired) |
+| =+ = | criar diretório (no dired) |
+| =&= | executar comando shell nos arquivos marcados |
+
+* Busca e Substituição
+
+| Atalho | Ação |
+|--------+------|
+| =C-s= | buscar incremental (para frente) |
+| =C-r= | buscar incremental (para trás) |
+| =M-%= | buscar e substituir interativo |
+| =C-c s= | consult-ripgrep (busca no projeto) |
+| =C-c h= | consultar histórico de comandos |
+| =C-c i= | consultar imenu (índice do buffer) |
+| =C-c k= | manter linhas que match (filtrar buffer) |
+
+* Completamento
+
+** Vertico (minibuffer)
+
+- Aparece automaticamente ao digitar no minibuffer
+- =C-n= / =C-p= : navegar candidatos
+- =RET= : selecionar
+- =M-RET= : selecionar sem fechar minibuffer
+
+** Corfu (completamento inline)
+
+- Aparece automaticamente enquanto digita código
+- =TAB= : completar / próximo candidato
+- =S-TAB= : candidato anterior
+- =RET= : aceitar
+- =C-g= : cancelar
+
+** Consult
+
+- =C-x b= : buscar buffers (fuzzy)
+- =C-c s= : ripgrep no projeto
+- =C-c S= : buscar linhas no buffer
+
+** Embark
+
+- =C-.= : agir no candidato sob o cursor (contextual)
+- =C-;= : ação padrão no candidato
+
+* Terminal
+
+| Atalho | Ação |
+|--------+------|
+| =C-c t= | abrir vterm (terminal real) |
+| =C-c e= | abrir eshell (shell Emacs) |
+| =C-c C-e= | colar multiline no vterm |
+| =C-c= | funciona normalmente no vterm |
+| =C-u= | funciona normalmente no vterm |
+| =C-g= | funciona normalmente no vterm |
+
+* Linguagens e LSP (Eglot)
+
+| Atalho | Ação |
+|--------+------|
+| =M-x eglot-rename= | renomear símbolo (LSP) |
+| =M-x eglot-code-action= | code action (LSP) |
+| =M-x flycheck-buffer= | rodar checker atual |
+| =C-c ! l= | listar erros (flycheck) |
+| =C-c ! n= / =C-c ! p= | próximo / anterior erro |
+| =C-c ! x= | habilitar checker desabilitado |
+| =C-c ! c= | escolher checker |
+
+** 42 School (C/C++)
+
+- =C-c h= : inserir/atualizar header 42
+- Norminette roda automaticamente após eglot
+- Estilo 42: tabs reais, 80 cols, whitespace visível
+
+* IA (gptel)
+
+| Atalho | Ação |
+|--------+------|
+| =M-x gptel= | iniciar chat com IA |
+| =M-x +carlos/gptel-agent-run= | iniciar agente com tarefa |
+| =M-x +carlos/gptel-generate-commit-message= | gerar commit message |
+
+** Backends disponíveis
+
+- OpenCode Zen (cloud)
+- Zen Claude (cloud)
+- Gemini (cloud)
+- Ollama Local (localhost:11434)
+- MLX Local (localhost:8081, GPU M2)
+
+** Trocar modelo/backend
+
+No buffer gptel: =C-c C-m= para trocar modelo.
+
+* Org Mode
+
+| Atalho | Ação |
+|--------+------|
+| =C-c a= | agenda org |
+| =C-c C-t= | marcar TODO |
+| =C-c C-s= | agendar |
+| =C-c C-d= | deadline |
+| =C-c C-e= | exportar (HTML, PDF, etc) |
+| =C-c *= | criar heading |
+| =M-RET= | novo item/heading |
+| =M-S-RET= | novo item abaixo |
+| =M-↑= / =M-↓= | mover item/heading |
+| =C-c ^= | ordenar headings |
+| =TAB= | ciclar visibilidade (heading) |
+| =S-TAB= | ciclar visibilidade (global) |
+
+* Denote (Notas / Zettelkasten)
+
+| Atalho | Ação |
+|--------+------|
+| =C-c n n= | criar nova nota |
+| =C-c n d= | criar nota com data |
+| =C-c n r= | renomear nota |
+| =C-c n b= | ver backlinks |
+| =C-c n l= | criar link entre notas |
+| =C-c n L= | dired de notas linkadas |
+
+* Git (Magit)
+
+| Atalho | Ação |
+|--------+------|
+| =C-c g= | abrir magit status |
+| =s= | stage arquivo |
+| =u= | unstage arquivo |
+| =c c= | commit |
+| =P p= | push |
+| =F p= | pull |
+| =l l= | log |
+| =q= | fechar magit |
+
+* Just (Task Runner)
+
+| Atalho | Ação |
+|--------+------|
+| =C-c j= | rodar recipe just interativo |
+| =C-c J= | compilar (just check) |
+
+* Temas e UI
+
+| Atalho | Ação |
+|--------+------|
+| =M-x ef-themes-toggle= | alternar ef-spring / ef-winter |
+| =M-x load-theme RET= | carregar tema |
+| =C-c z= | modo zen (olivetti, foco na escrita) |
+| =M-x mood-line-customize= | customizar mode line |
+
+* Truques e Dicas
+
+** Undo/Redo
+
+| Atalho | Ação |
+|--------+------|
+| =C-x u= | undo |
+| =C-_= | undo (alternativo) |
+| =M-x vundo= | undo tree visual |
+
+** Seleção (sem Evil)
+
+| Atalho | Ação |
+|--------+------|
+| =C-SPC= | marcar início da seleção |
+| =M-w= | copiar seleção |
+| =C-w= | cortar seleção |
+| =C-y= | colar (yank) |
+| =M-y= | ciclar kill-ring (colar anterior) |
+
+** Macros
+
+| Atalho | Ação |
+|--------+------|
+| =C-x (= | iniciar gravação de macro |
+| =C-x )= | parar gravação |
+| =C-x e= | executar macro |
+| =C-u 10 C-x e= | executar 10 vezes |
+
+** Regiões retangulares
+
+| Atalho | Ação |
+|--------+------|
+| =C-x SPC= | selecionar retângulo |
+| =C-x r k= | matar retângulo |
+| =C-x r y= | yank retângulo |
+| =C-x r t= | preencher retângulo com texto |
+
+** Avaliar Elisp
+
+| Atalho | Ação |
+|--------+------|
+| =C-x C-e= | avaliar expressão antes do cursor |
+| =M-:= | avaliar expressão (minibuffer) |
+| =C-M-x= | avaliar defun (função inteira) |
+
+** Dica: encontrar qualquer comando
+
+=M-x= e digitar parte do nome. O consult faz busca fuzzy.
+
+** Dica: descobrir atalhos
+
+=C-h k= seguido do atalho → mostra o comando vinculado.
+=C-h f= seguido do nome → mostra documentação da função.
+
+** Dica: qual comando está neste atalho?
+
+=C-h k= e pressione o atalho. Mostra tudo.
+
+** Dica: ajuda contextual
+
+=C-h m= mostra todos os modos ativos e seus atalhos no buffer atual.
+
+* Problemas Comuns
+
+** vterm não funciona
+
+Compilar o módulo: =M-x vterm-install= (requer GUI, cmake, gcc).
+
+** pdf-tools não compila no macOS
+
+Compilar manualmente:
+#+begin_src shell
+cd ~/.config/emacs-vanilla/elpa/pdf-tools-*/
+./autogen.sh
+./configure --bindir=$(pwd)/build/server
+make
+#+end_src
+
+** Flycheck diz "no checker"
+
+No buffer =*scratch*=, o checker emacs-lisp exige arquivo salvo.
+Use =C-u C-c ! x= para habilitar manualmente, ou salve o arquivo.
+
+** Pacotes não instalam
+
+=M-x package-refresh-contents= e tente novamente.
+
+** Emacs lento na primeira abertura
+
+Normal — está baixando e compilando pacotes. Depois fica rápido.
+
+* Configuração Nix
+
+Para aplicar mudanças no Nix:
+#+begin_src shell
+dsw  # darwin-rebuild switch --flake .#agnes
+#+end_src
+
+O =emacs.nix= gerencia:
+- Emacs + dependências de sistema
+- LSP servers (gopls, typescript-language-server, basedpyright, clangd)
+- Ferramentas (norminette, mmdc, ripgrep, fd)
+- Fontes (JetBrainsMono Nerd Font, Symbola)
+- Wrapper =emacs-vanilla=
+- Activation (clone do MyEmacs.git)

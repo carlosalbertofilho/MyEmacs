@@ -1,0 +1,117 @@
+#+TITLE: MyEmacs — Emacs Vanilla (Bedrock)
+#+AUTHOR: Carlos Filho
+#+DATE: 2026-08-05
+#+OPTIONS: toc:2 num:t
+
+* Visão Geral
+
+Configuração modular do Emacs baseada no template *Emacs Bedrock*, sem Evil
+mode, com IA unificada via =gptel=, integrada ao NixOS via Home Manager.
+
+- Framework: Emacs Bedrock (use-package nativo, Emacs 29+)
+- Sem Evil: keybindings 100% nativos com prefixo =C-c=
+- IA: gptel + gptel-agent (OpenCode Zen, Claude, Gemini, Ollama, MLX Local)
+- 42 School: header42.el + flycheck-norminette.el preservados
+
+* Estrutura
+
+#+begin_src text
+~/.config/emacs-vanilla/
+├── early-init.el           ← startup rápido, GC, frame
+├── init.el                 ← bootstrap, carrega módulos
+├── custom-file.el          ← gerado por M-x customize
+├── lisp/
+│   ├── custom-core.el      ← fontes, GPG, SSH, editor basics
+│   ├── custom-ui.el        ← ef-themes, mood-line, olivetti
+│   ├── custom-completion.el← vertico, consult, corfu, embark
+│   ├── custom-files.el     ← dirvish, ibuffer, TRAMP
+│   ├── custom-term.el      ← vterm, eshell
+│   ├── custom-lang.el      ← eglot, treesit, linguagens
+│   ├── custom-org.el       ← org-babel, jupyter, mermaid, pdf-tools
+│   ├── custom-42.el        ← header42, norminette, estilo C 42
+│   ├── custom-ai.el        ← gptel backends, gptel-agent
+│   ├── custom-knowledge.el ← denote (Zettelkasten)
+│   ├── custom-git.el       ← magit, just, commit com IA
+│   └── custom-keybindings.el← atalhos C-c
+├── site-lisp/
+│   ├── header42.el
+│   └── flycheck-norminette.el
+├── bin/
+│   └── emacs-vanilla       ← wrapper
+├── Justfile
+└── README.org
+#+end_src
+
+* Instalação
+
+** Via Nix (Home Manager)
+
+#+begin_src shell
+dsw  # darwin-rebuild switch --flake .#agnes
+#+end_src
+
+O wrapper =emacs-vanilla= é criado automaticamente.
+
+** Manual
+
+#+begin_src shell
+git clone git@github.com:carlosalbertofilho/MyEmacs.git ~/.config/emacs-vanilla
+emacs --init-directory ~/.config/emacs-vanilla
+#+end_src
+
+** Compilar vterm (primeira vez, GUI)
+
+#+begin_src
+M-x vterm-install
+#+end_src
+
+** Compilar pdf-tools (macOS, primeira vez)
+
+#+begin_src shell
+cd ~/.config/emacs-vanilla/elpa/pdf-tools-*/
+./autogen.sh
+./configure --bindir=$(pwd)/build/server
+make
+#+end_src
+
+Depois configurar em =custom-org.el=:
+#+begin_src emacs-lisp
+(setq pdf-info-epdfinfo-program
+      (expand-file-name "build/server/epdfinfo" pdf-tools-directory))
+#+end_src
+
+* Comandos Just
+
+| Comando | Descrição |
+|---------+-----------|
+| =just run= | Abre o Emacs Vanilla |
+| =just install= | Instala/atualiza pacotes |
+| =just compile= | Compila .el → .elc |
+| =just check= | Verifica erros de configuração |
+
+* Backends de IA Configurados
+
+| Backend | Modelos |
+|---------+---------|
+| OpenCode Zen | deepseek-v4-flash-free, north-mini-code-free |
+| Zen Claude | claude-sonnet-5, claude-opus-5 |
+| Gemini | gemini-2.5-flash, gemini-2.5-pro |
+| Ollama Local | qwen3.5:latest |
+| MLX Local | gemma-4-e2b, Qwen2.5-7B, Qwen3.5-9B, DeepSeek-R1-14B, Qwen3-14B |
+
+* Status das Fases
+
+| Fase | Status |
+|------+--------|
+| Fase 0 — Fundação | ✅ DONE |
+| Fase 1 — Core + UX | ✅ DONE |
+| Fase 2 — Linguagens + 42 + Org | ✅ DONE |
+| Fase 3 — IA + Conhecimento + Git | ✅ DONE |
+| Fase 4 — Cutoff | ⏳ PENDENTE |
+
+* Referências
+
+- Emacs Bedrock: https://codeberg.org/ashton314/emacs-bedrock
+- gptel: https://github.com/karthink/gptel
+- Denote: https://protesilaos.com/emacs/denote
+- ef-themes: https://protesilaos.com/emacs/ef-themes

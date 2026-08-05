@@ -74,5 +74,48 @@
   :config
   (setq org-noter-notes-search-path '("~/org/notes")))
 
+;; ── org-modern: visual moderno para buffers Org ─────────────────────
+;; Estiliza headlines, keywords, tables, source blocks, tags, progress bars.
+;; Por Daniel Mendler (mesmo autor de vertico, consult, corfu).
+(use-package org-modern
+  :hook (org-mode . org-modern-mode)
+  :hook (org-agenda-finalize . org-modern-agenda)
+  :config
+  ;; Estrelas: substituir por bullet characters
+  (setq org-modern-star '("◉" "○" "✸" "✿" "✤" "✜" "◆" "▶"))
+  ;; Indicadores de folding
+  (setq org-modern-replace-stars t
+        org-modern-fold-stars "◀")
+  ;; Tags como labels com borda
+  (setq org-modern-tag-face t
+        org-modern-label-border 0.5)
+  ;; Timestamps estilizados
+  (setq org-modern-timestamp t)
+  ;; Priority estilizado
+  (setq org-modern-priority
+        '((?A . "🔴")
+          (?B . "🟡")
+          (?C . "🟢")))
+  ;; Checklist estilizado
+  (setq org-modern-checkbox
+        '((unordered . "•")
+          (ordered   . "✓")
+          (transcoded . "✗")))
+  ;; Table style
+  (setq org-modern-table t)
+  ;; Progress bars para keywords com progresso
+  (setq org-modern-progress nil)
+  ;; Internal targets estilizados
+  (setq org-modern-target t)
+  ;; Block names estilizados (src, example, quote, verse, center)
+  (setq org-modern-block-name
+        '((src . "⟨")
+          (example . "⟨")
+          (quote . "❝")
+          (verse . "❞")
+          (center . "◇")))
+  ;; Horizontal rules
+  (setq org-modern-horizontal-line "───"))
+
 (provide 'custom-org)
 ;;; custom-org.el ends here
