@@ -15,6 +15,15 @@
 - [x] Criar `AGENTS.md` — Guidelines de elisp, boas práticas, tabela de bugs conhecidos
 - [x] Definir workflow de sync: repo → `~/.config/emacs-vanilla` → test
 
+### 2026-08-05 — Reimplementação Norminette + Eglot
+- [x] Criar `docs/norminette-reference.org` (905 linhas) — API completa, JSON format, error codes
+- [x] Analisar integração atual flycheck-norminette (regex frágil, sem JSON, requer save)
+- [x] Criar `custom-norminette.el` com parsing JSON e suporte a buffer não salvo
+- [x] Adicionar hints contextuais para 20+ erros comuns
+- [x] Implementar chain automático eglot → norminette
+- [x] Adicionar `custom-norminette-check-buffer` (--cfile para verificar sem salvar)
+- [x] Atualizar `custom-42.el` para usar novo módulo
+
 ### 2026-08-05 — Correção de 14 Bugs
 - [x] Fix #1: Mover consult-history de C-c h para C-c / (liberar C-c h para stdheader)
 - [x] Fix #2: Remover dirvish-default-layout 10 (inválido, válido: 0-5)
