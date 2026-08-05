@@ -1,0 +1,321 @@
+#+TITLE: Guia Detalhado — MyEmacs (Fluência Progressiva)
+#+AUTHOR: Carlos Filho
+#+DATE: 2026-08-05
+#+OPTIONS: toc:3 num:t
+
+* Introdução
+
+Este guia é projetado para levar você do zero à fluência no MyEmacs de forma
+progressiva. Cada seção constrói sobre a anterior. Não tente aprender tudo de
+uma vez — domine um nível antes de avançar.
+
+** Filosofia
+
+- **Keyboard-first:** Tudo tem atalho. Mouse é opcional.
+- **C-c prefix:** Seus atalhos usam =C-c= seguido de letra.
+- **Progressivo:** Comece simples, adicione complexidade quando confortável.
+- **Consistente:** Mesmo padrão em todos os módulos.
+
+* Nível 1: Sobrevivência (Dia 1-3)
+
+** Abrir e Fechar
+
+| Ação | Atalho |
+|------+--------|
+| Abrir Emacs | =emacs-vanilla= |
+| Abrir arquivo | =C-x C-f= |
+| Salvar | =C-x C-s= |
+| Fechar buffer | =C-x k= |
+| Fechar Emacs | =C-x C-c= |
+
+** Movimentação Básica
+
+| Ação | Atalho | Equivalente Mouse |
+|------+--------+-------------------|
+| Mover cursor | =C-f= / =C-b= / =C-n= / =C-p= | ← → ↑ ↓ |
+| Pular palavra | =M-f= / =M-b= | Duplo clique |
+| Início/fim linha | =C-a= / =C-e= | Clique nas pontas |
+| Página | =C-v= / =M-v= | Scroll |
+| Centralizar | =C-l= | - |
+
+** Buffers e Janelas
+
+| Ação | Atalho |
+|------+--------|
+| Trocar buffer | =C-x b= |
+| Dividir horizontal | =C-x 2= |
+| Dividir vertical | =C-x 3= |
+| Uma só janela | =C-x 1= |
+| Fechar janela | =C-x 0= |
+| Próxima janela | =C-x o= |
+| Navegar janelas | =C-←= / =C-→= / =C-↑= / =C-↓= |
+
+** Exercício Nível 1
+
+1. Abra o Emacs
+2. Abra um arquivo qualquer (=C-x C-f=)
+3. Edite algumas linhas
+4. Salve (=C-x C-s=)
+5. Divida a janela (=C-x 3=)
+6. Abra outro arquivo na nova janela
+7. Feche tudo e saia
+
+* Nível 2: Produtividade (Dia 4-7)
+
+** Busca e Navegação
+
+| Ação | Atalho | O que faz |
+|------+--------|-----------|
+| Buscar no projeto | =C-c s= | Ripgrep em todos os arquivos |
+| Buscar no buffer | =C-c S= | Linha atual |
+| Ir para linha | =M-g M-g= | Pula para número |
+| Trocar buffer rápido | =C-x C-b= | Lista ibuffer |
+
+** Terminal Integrado
+
+| Ação | Atalho |
+|------+--------|
+| Abrir terminal | =C-c t= |
+| Abrir eshell | =C-c e= |
+| Fechar terminal | =C-d= |
+
+** Git (Magit)
+
+| Ação | Atalho |
+|------+--------|
+| Status Git | =M-x magit-status= |
+| Stage arquivo | =s= (no magit) |
+| Commit | =c c= (no magit) |
+| Push | =P u= (no magit) |
+| Sair magit | =q= |
+
+** Exercício Nível 2
+
+1. Abra um projeto Git
+2. Edite um arquivo
+3. Abra o Magit, stage e commit
+4. Abra o terminal, rode um comando
+5. Busque uma string no projeto
+
+* Nível 3: Organização (Semana 2)
+
+** Dashboard
+
+| Ação | Atalho |
+|------+--------|
+| Abrir dashboard | =C-c d d= |
+| Refresh dashboard | =C-c d r= |
+| Fechar dashboard | =q= |
+| Navegar seções | =TAB= / =S-TAB= |
+
+No dashboard:
+- =f= → Buscar arquivo
+- =p= → Trocar projeto
+- =a= → Ver agenda
+- =g= → Magit
+- =i= → Chat IA
+- =d= → Dirvish
+
+** Gerenciamento de Arquivos (Dirvish)
+
+| Ação | Atalho |
+|------+--------|
+| Abrir Dirvish | =M-x dirvish= |
+| Abrir arquivo | =RET= |
+| Voltar diretório | =^= |
+| Subir nível | =u= |
+| Copiar | =C= |
+| Mover | =M= |
+| Deletar | =D= |
+| Renomear | =R= |
+| Buscar | =/= |
+| Sair | =q= |
+
+** Denote (Zettelkasten)
+
+| Ação | Atalho |
+|------+--------|
+| Nova nota | =C-c n n= |
+| Nota com data | =C-c n d= |
+| Renomear nota | =C-c n r= |
+| Buscar notas | =C-c n s= |
+
+** Exercício Nível 3
+
+1. Abra o dashboard
+2. Navegue até um projeto
+3. Abra o Dirvish, explore arquivos
+4. Crie uma nota com Denote
+5. Use os atalhos do dashboard
+
+* Nível 4: IA Assistente (Semana 3)
+
+** Chat Básico (gptel)
+
+| Ação | Atalho |
+|------+--------|
+| Abrir chat | =M-x gptel= |
+| Enviar mensagem | =C-c RET= |
+| Trocar modelo | =C-c C-m= |
+| Limpar buffer | =C-c C-k= |
+
+** Agente (gptel-agent)
+
+| Ação | Atalho |
+|------+--------|
+| Iniciar agente | =M-x +carlos/gptel-agent-run= |
+| Tarefa interativa | Digite a tarefa no prompt |
+
+** SuperChat (UI Claude Code)
+
+| Ação | Atalho |
+|------+--------|
+| Abrir SuperChat | =M-x superchat= |
+| Trocar modelo | =/models= |
+| Salvar memória | =/remember texto= |
+| Buscar memória | =/recall keywords= |
+| Usar skill | =>code-review= |
+| Anexar arquivo | =#arquivo= |
+| Iniciar MCP | =/mcp-start= |
+
+** Personas 42 School
+
+No chat gptel, troque a diretiva:
+- =C-c C-m= → selecione =c-42= para C
+- =C-c C-m= → selecione =cpp-42= para C++
+- =C-c C-m= → selecione =python= para Python
+
+** Exercício Nível 4
+
+1. Abra o chat gptel
+2. Peça para explicar um conceito
+3. Troque o modelo
+4. Inicie um agente com uma tarefa
+5. Use uma persona 42 School
+
+* Nível 5: Org Mode (Semana 4)
+
+** Estrutura
+
+| Ação | Atalho |
+|------+--------|
+| Criar heading | =C-c *= |
+| Novo item | =M-RET= |
+| Mover item | =M-↑= / =M-↓= |
+| Promover | =M-←= |
+| Rebaixar | =M-→= |
+| Ciclar visão | =TAB= |
+| Ciclar global | =S-TAB= |
+
+** TODOs e Agenda
+
+| Ação | Atalho |
+|------+--------|
+| Marcar TODO | =C-c C-t= |
+| Agendar | =C-c C-s= |
+| Deadline | =C-c C-d= |
+| Ver agenda | =C-c a= |
+| Agenda hoje | =C-c a a= |
+| Agenda semana | =C-c a n= |
+
+** Blocos de Código
+
+#+begin_src org
+,#+begin_src python
+print("Hello, Emacs!")
+,#+end_src
+#+end_src
+
+| Ação | Atalho |
+|------+--------|
+| Executar bloco | =C-c C-c= (dentro do bloco) |
+| Criar bloco | =C-c C-,= |
+| Exportar | =C-c C-e= |
+
+** Exercício Nível 5
+
+1. Crie um arquivo .org
+2. Adicione headings com TODOs
+3. Agende uma tarefa
+4. Crie um bloco de código e execute
+5. Veja a agenda do dia
+
+* Nível 6: Fluência (Mês 2+)
+
+** Atalhos Avançados
+
+| Ação | Atalho |
+|------+--------|
+| Zen mode (foco) | =C-c z= |
+| Tab bar | =C-c TAB= |
+| Which-key (ajuda) | Pressione qualquer prefixo e espere |
+| Help comando | =C-h k= + atalho |
+| Help função | =C-h f= + nome |
+| Help modo | =C-h m= |
+
+** Completamento (Vertico/Consult/Corfu)
+
+- =C-x b= → Vertico filtra buffers
+- =C-c s= → Consult ripgrep no projeto
+- =M-x= → Vertico filtra comandos
+- Digite código → Corfu sugere autocompletar
+
+** TRAMP (Arquivos Remotos)
+
+#+begin_src
+C-x C-f /ssh:usuario@host:/caminho/arquivo
+#+end_src
+
+** Exercício Nível 6
+
+1. Use which-key para descobrir atalhos
+2. Edite um arquivo remoto via TRAMP
+3. Ative o zen mode para foco
+4. Use corfu para autocompletar código
+
+* Referências Rápidas
+
+** Prefixos C-c
+
+| Prefixo | Módulo |
+|---------+--------|
+| =C-c s= | Busca (ripgrep) |
+| =C-c S= | Busca linha |
+| =C-c t= | Terminal |
+| =C-c e= | Eshell |
+| =C-c z= | Zen mode |
+| =C-c d= | Dashboard |
+| =C-c TAB= | Tab bar |
+
+** Comandos M-x Essenciais
+
+| Comando | Uso |
+|---------+-----|
+| =magit-status= | Git interface |
+| =gptel= | Chat IA |
+| =superchat= | Chat IA avançado |
+| =dirvish= | File manager |
+| =ibuffer= | Buffer list |
+| =org-agenda= | Agenda view |
+| =denote= | Nova nota |
+| =vterm= | Terminal |
+
+** Dicas de Ouro
+
+1. =C-h k= + atalho → descobre o comando
+2. =C-h f= + nome → documentação da função
+3. =C-h m= → modos ativos no buffer
+4. =M-x describe-keymap= → todos os atalhos
+5. =M-x customize= → interface gráfica de configuração
+
+* Progressão Sugerida
+
+#+begin_src text
+Semana 1: Nível 1-2 (movimentação + busca + git)
+Semana 2: Nível 3 (dashboard + dirvish + denote)
+Semana 3: Nível 4 (IA + agentes + personas)
+Semana 4: Nível 5 (org mode + agenda + blocos)
+Mês 2+:  Nível 6 (fluência + atalhos avançados)
+#+end_src
+
+Não pule etapas. Domine cada nível antes de avançar.

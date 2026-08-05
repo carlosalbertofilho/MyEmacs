@@ -1,17 +1,19 @@
 #+TITLE: MyEmacs — Emacs Vanilla (Bedrock)
 #+AUTHOR: Carlos Filho
 #+DATE: 2026-08-05
-#+OPTIONS: toc:2 num:t
+#+OPTIONS: toc:3 num:t
 
 * Visão Geral
 
 Configuração modular do Emacs baseada no template *Emacs Bedrock*, sem Evil
 mode, com IA unificada via =gptel=, integrada ao NixOS via Home Manager.
 
-- Framework: Emacs Bedrock (use-package nativo, Emacs 29+)
-- Sem Evil: keybindings 100% nativos com prefixo =C-c=
-- IA: gptel + gptel-agent + SuperChat + MCP (OpenCode Zen, Claude, Gemini, Ollama, MLX Local)
-- 42 School: header42.el + flycheck-norminette.el preservados
+- **Framework:** Emacs Bedrock (use-package nativo, Emacs 29+)
+- **Sem Evil:** keybindings 100% nativos com prefixo =C-c=
+- **IA:** gptel + gptel-agent + SuperChat + MCP (OpenCode Zen, Claude, Gemini, Ollama, MLX Local)
+- **42 School:** header42.el + flycheck-norminette.el preservados
+- **Dashboard:** Estilo Nano Emacs (minimalista, tipografia premium)
+- **Arquivos:** Dirvish (13 extensões), ibuffer, TRAMP otimizado
 
 * Estrutura
 
@@ -32,14 +34,16 @@ mode, com IA unificada via =gptel=, integrada ao NixOS via Home Manager.
 │   ├── custom-ai.el        ← gptel backends, gptel-agent, SuperChat, MCP
 │   ├── custom-knowledge.el ← denote (Zettelkasten)
 │   ├── custom-git.el       ← magit, just, commit com IA
-│   └── custom-keybindings.el← atalhos C-c
+│   ├── custom-keybindings.el← atalhos C-c
+│   └── custom-dashboard.el ← dashboard estilo Nano Emacs
 ├── site-lisp/
 │   ├── header42.el
 │   └── flycheck-norminette.el
 ├── bin/
 │   └── emacs-vanilla       ← wrapper
 ├── Justfile
-└── README.org
+├── README.org
+└── guia_emacs.org
 #+end_src
 
 * Instalação
@@ -109,9 +113,31 @@ Depois configurar em =custom-org.el=:
 | Fase 3 — IA + Conhecimento + Git | ✅ DONE |
 | Fase 4 — Cutoff | ⏳ PENDENTE |
 
+* Bugs Conhecidos
+
+| Bug | Status | Workaround |
+|-----+--------+------------|
+| pdf-tools não compila no macOS | ⚠️ Known | Usar doc-view como fallback |
+| gptel-org-mode void function | ✅ Fixed | Guard com fboundp |
+| ob-gptel não existe no gptel 2026 | ✅ Fixed | Removido registro babel |
+| nerd-icons void function no dirvish | ✅ Fixed | :after nerd-icons |
+| org-agenda-get-day-entries nil | ✅ Fixed | Itera org-agenda-files |
+| Dirvish ícones gigantes | ⚠️ Pending | Ajustar height/offset |
+| Linhas longas no dirvish | ✅ Fixed | truncate-lines + hide-details |
+
+* Fontes Pendentes (Nix)
+
+- =space-grotesk= → Dashboard títulos
+- =inter= → Dashboard corpo
+- =victor-mono= → Código + Org mode (ligatures)
+- =nerd-fonts.jetbrains-mono= → Fallback ícones (já instalada)
+
 * Referências
 
 - Emacs Bedrock: https://codeberg.org/ashton314/emacs-bedrock
 - gptel: https://github.com/karthink/gptel
 - Denote: https://protesilaos.com/emacs/denote
 - ef-themes: https://protesilaos.com/emacs/ef-themes
+- Dirvish: https://github.com/alexluigit/dirvish
+- SuperChat: https://github.com/yibie/superchat
+- MCP.el: https://github.com/lizqwerscott/mcp.el

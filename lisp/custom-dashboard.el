@@ -18,35 +18,67 @@
 (require 'recentf)
 (require 'project)
 
+;; ── Fontes ──────────────────────────────────────────────────────────
+(defvar +carlos/dashboard-font-title "Space Grotesk"
+  "Fonte para títulos do dashboard.")
+
+(defvar +carlos/dashboard-font-body "Inter"
+  "Fonte para corpo do dashboard.")
+
+(defun +carlos/dashboard-font-available-p (font-name)
+  "Verifica se FONT-NAME está instalada no sistema."
+  (member font-name (font-family-list)))
+
+(defun +carlos/dashboard-font-face (family &optional height weight)
+  "Retorna plist de face com FAMILY, HEIGHT e WEIGHT."
+  (let ((font (if (+carlos/dashboard-font-available-p family)
+                  family
+                "JetBrainsMono Nerd Font")))
+    (append (list :family font)
+            (when height (list :height height))
+            (when weight (list :weight weight)))))
+
 ;; ── Faces ───────────────────────────────────────────────────────────
 (defface +carlos/dashboard-title
-  '((t :inherit bold :height 1.4))
+  `((t :inherit bold
+       ,@(+carlos/dashboard-font-face +carlos/dashboard-font-title 2.0 'bold)))
   "Face for dashboard title."
   :group 'dashboard)
 
 (defface +carlos/dashboard-subtitle
-  '((t :inherit shadow :height 1.1))
+  `((t :inherit shadow
+       ,@(+carlos/dashboard-font-face +carlos/dashboard-font-body 1.2 'normal)))
   "Face for dashboard subtitle."
   :group 'dashboard)
 
 (defface +carlos/dashboard-heading
-  '((t :inherit bold :height 1.1))
+  `((t :inherit bold
+       ,@(+carlos/dashboard-font-face +carlos/dashboard-font-title 1.3 'semibold)))
   "Face for section headings."
   :group 'dashboard)
 
 (defface +carlos/dashboard-key
-  '((t :inherit font-lock-keyword-face :weight bold))
+  `((t :inherit font-lock-keyword-face
+       ,@(+carlos/dashboard-font-face +carlos/dashboard-font-body 1.1 'bold)))
   "Face for shortcut keys."
   :group 'dashboard)
 
 (defface +carlos/dashboard-separator
-  '((t :inherit shadow :height 0.8))
+  `((t :inherit shadow
+       ,@(+carlos/dashboard-font-face +carlos/dashboard-font-body 0.8 'light)))
   "Face for separator lines."
   :group 'dashboard)
 
 (defface +carlos/dashboard-footer
-  '((t :inherit shadow :height 0.9))
+  `((t :inherit shadow
+       ,@(+carlos/dashboard-font-face +carlos/dashboard-font-body 1.1 'normal)))
   "Face for footer text."
+  :group 'dashboard)
+
+(defface +carlos/dashboard-body
+  `((t :inherit default
+       ,@(+carlos/dashboard-font-face +carlos/dashboard-font-body 1.4 'normal)))
+  "Face for dashboard body text."
   :group 'dashboard)
 
 ;; ── Configurações ───────────────────────────────────────────────────
@@ -119,8 +151,8 @@ FACE é a face do texto (default: link)."
   (insert "\n"))
 
 (defun +carlos/dashboard-separator ()
-  "Insere linha separadora."
-  (let ((width (window-body-width)))
+  "Insere linha separadora dinâmica."
+  (let ((width (max 40 (window-body-width))))
     (insert (propertize (make-string width ?─)
                         'face '+carlos/dashboard-separator))
     (insert "\n")))
@@ -132,6 +164,13 @@ FACE é a face do texto (default: link)."
      ((< seconds 60) (format "%ds" seconds))
      ((< seconds 3600) (format "%dm" (/ seconds 60)))
      (t (format "%dh %dm" (/ seconds 3600) (% (/ seconds 60) 60))))))
+
+(defun +carlos/dashboard-refresh-on-resize ()
+  "Rebuild dashboard on window resize."
+  (when (get-buffer +carlos/dashboard-buffer-name)
+    (with-current-buffer +carlos/dashboard-buffer-name
+      (when (eq major-mode 'fundamental-mode)
+        (+carlos/dashboard-build)))))
 
 ;; ── Splash Screen ───────────────────────────────────────────────────
 (defun +carlos/dashboard-splash ()
@@ -250,80 +289,90 @@ FACE é a face do texto (default: link)."
 
 (defun +carlos/dashboard-insert-recent-files ()
   "Insere seção de arquivos recentes."
-  (when (and recentf-mode recentf-list)
-    (+carlos/dashboard-insert-heading "📄" "Recent Files" "r")
-    (insert "\n")
+  (+carlos/dashboard-insert-heading "📄" "Recent Files" "r")
+  (insert "\n")
 
-    (let ((count 0))
-      (dolist (file recentf-list)
-        (when (< count +carlos/dashboard-max-recent)
-          (let* ((name (file-name-nondirectory file))
-                 (dir (file-name-directory file))
-                 (map (make-sparse-keymap)))
-            (define-key map [mouse-1] `(lambda () (interactive) (find-file ,file)))
-            (define-key map (kbd "RET") `(lambda () (interactive) (find-file ,file)))
-            (insert "  ")
-            (insert (propertize name
-                                'face 'link
-                                'mouse-face 'highlight
-                                'help-echo file
-                                'keymap map
-                                'follow-link t))
-            (insert (propertize (format "  %s" dir)
-                                'face 'shadow))
-            (insert "\n")
-            (cl-incf count)))))
-    (insert "\n")))
-
-(defun +carlos/dashboard-insert-projects ()
-  "Insere seção de projetos."
-  (let ((projects (project-known-project-roots)))
-    (when projects
-      (+carlos/dashboard-insert-heading "📁" "Projects" "p")
-      (insert "\n")
-
+  (if (and recentf-mode recentf-list)
       (let ((count 0))
-        (dolist (proj projects)
-          (when (< count +carlos/dashboard-max-projects)
-            (let* ((name (file-name-nondirectory (directory-file-name proj)))
+        (dolist (file recentf-list)
+          (when (< count +carlos/dashboard-max-recent)
+            (let* ((name (file-name-nondirectory file))
+                   (dir (file-name-directory file))
                    (map (make-sparse-keymap)))
-              (define-key map [mouse-1] `(lambda () (interactive) (project-switch-project ,proj)))
-              (define-key map (kbd "RET") `(lambda () (interactive) (project-switch-project ,proj)))
+              (define-key map [mouse-1] `(lambda () (interactive) (find-file ,file)))
+              (define-key map (kbd "RET") `(lambda () (interactive) (find-file ,file)))
               (insert "  ")
               (insert (propertize name
                                   'face 'link
                                   'mouse-face 'highlight
-                                  'help-echo proj
+                                  'help-echo file
                                   'keymap map
                                   'follow-link t))
+              (insert (propertize (format "  %s" dir)
+                                  'face 'shadow))
               (insert "\n")
               (cl-incf count)))))
-      (insert "\n"))))
+    (insert (propertize "  No recent files yet. Open some files to get started."
+                        'face 'shadow))
+    (insert "\n"))
+  (insert "\n"))
+
+(defun +carlos/dashboard-insert-projects ()
+  "Insere seção de projetos."
+  (+carlos/dashboard-insert-heading "📁" "Projects" "p")
+  (insert "\n")
+
+  (let ((projects (project-known-project-roots)))
+    (if projects
+        (let ((count 0))
+          (dolist (proj projects)
+            (when (< count +carlos/dashboard-max-projects)
+              (let* ((name (file-name-nondirectory (directory-file-name proj)))
+                     (map (make-sparse-keymap)))
+                (define-key map [mouse-1] `(lambda () (interactive) (project-switch-project ,proj)))
+                (define-key map (kbd "RET") `(lambda () (interactive) (project-switch-project ,proj)))
+                (insert "  ")
+                (insert (propertize name
+                                    'face 'link
+                                    'mouse-face 'highlight
+                                    'help-echo proj
+                                    'keymap map
+                                    'follow-link t))
+                (insert "\n")
+                (cl-incf count)))))
+      (insert (propertize "  No projects registered yet. Use C-x p f to find a project."
+                          'face 'shadow))
+      (insert "\n"))
+    (insert "\n")))
 
 (defun +carlos/dashboard-insert-agenda ()
   "Insere seção de agenda de hoje."
-  (when (and (featurep 'org) org-agenda-files)
+  (+carlos/dashboard-insert-heading "📅" "Today's Agenda" "a")
+  (insert "\n")
+
+  (when (featurep 'org)
     (require 'org-agenda)
     (let* ((all-entries nil)
            (count 0))
       ;; Coleta entradas de todos os arquivos da agenda
-      (dolist (file org-agenda-files)
+      (dolist (file (or org-agenda-files nil))
         (when (and (stringp file) (file-exists-p file) (< count +carlos/dashboard-max-agenda))
           (let ((entries (org-agenda-get-day-entries file (current-time) :timestamp)))
             (dolist (entry entries)
               (when (< count +carlos/dashboard-max-agenda)
                 (push entry all-entries)
                 (cl-incf count))))))
-      (when all-entries
-        (+carlos/dashboard-insert-heading "📅" "Today's Agenda" "a")
-        (insert "\n")
-        (dolist (entry (reverse all-entries))
-          (let ((text (substring-no-properties (format "%s" entry))))
-            (insert "  ")
-            (insert (propertize (truncate-string-to-width text 70 nil nil t)
-                                'face 'default))
-            (insert "\n")))
-        (insert "\n")))))
+      (if all-entries
+          (dolist (entry (reverse all-entries))
+            (let ((text (substring-no-properties (format "%s" entry))))
+              (insert "  ")
+              (insert (propertize (truncate-string-to-width text 70 nil nil t)
+                                  'face 'default))
+              (insert "\n")))
+        (insert (propertize "  No agenda items for today. Press C-c a a to view agenda."
+                            'face 'shadow))
+        (insert "\n"))))
+  (insert "\n"))
 
 (defun +carlos/dashboard-insert-footer ()
   "Insere footer com atalhos."
