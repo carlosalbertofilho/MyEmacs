@@ -39,8 +39,7 @@
 (menu-bar-mode -1)
 
 (setq default-frame-alist
-      '((fullscreen . maximized)
-        (vertical-scroll-bars . nil)
+      '((vertical-scroll-bars . nil)
         (horizontal-scroll-bars . nil)
         (background-color . "#000000")
         (foreground-color . "#ffffff")

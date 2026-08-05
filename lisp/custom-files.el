@@ -6,8 +6,18 @@
 ;;; Code:
 
 ;; ── dired base ──────────────────────────────────────────────────────
-(setq dired-listing-switches "-alh --group-directories-first"
-      dired-dwim-target t)
+(let ((args (list "-ahl" "-v" "--group-directories-first")))
+  (when (featurep :system 'bsd)
+    (if-let* ((gls (executable-find "gls")))
+        (setq insert-directory-program gls)
+      (setq args (list (car args)))))
+  (setq dired-listing-switches (string-join args " ")
+        dired-dwim-target t))
+
+(add-hook 'dired-mode-hook
+          (lambda ()
+            (when (file-remote-p default-directory)
+              (setq-local dired-actual-switches "-ahl"))))
 
 ;; ── nerd-icons (ícones para dirvish, dashboard, etc) ───────────────
 (use-package nerd-icons
@@ -36,7 +46,7 @@
   (dirvish-attributes
    '(vc-state subtree-state nerd-icons collapse git-msg file-time file-size))
   ;; Icon settings
-  (dirvish-nerd-icons-height 16)
+  (dirvish-nerd-icons-height 0.85)
   (dirvish-nerd-icons-offset -2)
   ;; Window / layout
   (dirvish-side-width 30)
@@ -49,6 +59,7 @@
   (dirvish-subtree-icon-scale-factor 1.0)
   (dirvish-side-auto-expand t)
   (dirvish-side-open-file-action 'select)
+  (dirvish-reuse-session 'open)
   ;; Preview dispatchers (correct values: file types, NOT vc commands)
   (dirvish-preview-dispatchers
    '(image gif video audio epub pdf archive))
@@ -66,6 +77,11 @@
   ;; Hooks
   (add-hook 'dirvish-mode-hook (lambda () (setq truncate-lines t)))
   (add-hook 'dirvish-mode-hook (lambda () (dired-hide-details-mode 1))))
+
+;; ── diredfl (syntax highlighting para dired/dirvish) ─────────────────
+(use-package diredfl
+  :ensure t
+  :hook ((dired-mode dirvish-directory-view-mode) . diredfl-mode))
 
 ;; ── ibuffer (built-in) ──────────────────────────────────────────────
 (use-package ibuffer

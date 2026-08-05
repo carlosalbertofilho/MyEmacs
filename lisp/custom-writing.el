@@ -11,18 +11,25 @@
 ;;; Code:
 
 (require 'subr-x)
+(require 'cl-lib)
 
 ;; Forward declarations for byte-compiler
 (defvar markdown-hide-markup)
 (defvar markdown-hide-urls)
 (defvar markdown-url-compose-char)
+(defvar org-tag-faces)
+(defvar org-todo-keyword-faces)
+(defvar org-priority-faces)
+(defvar org-modern-tag-faces)
+(defvar org-modern-todo-faces)
+(defvar org-modern-priority-faces)
+(defvar org-format-latex-options)
 
 ;; ── Org Modern (estilização moderna para Org e Markdown) ───────────
 (use-package org-modern
   :ensure t
   :hook ((org-mode . org-modern-mode)
-         (org-agenda-finalize . org-modern-agenda)
-         (markdown-mode . org-modern-markdown))
+         (org-agenda-finalize . org-modern-agenda))
   :init
   ;; Substituir elipse de folding padrão ("...") por seta elegante
   (setq org-modern-fold-stars " ▾")
@@ -61,43 +68,58 @@
         ;; Barra lateral elegante nos blocos de código
         org-modern-block-fringe t
         ;; Linha horizontal decorativa
-        org-modern-horizontal-line (make-string 40 ?─)))
+        org-modern-horizontal-line (make-string 40 ?─))
 
-;; ── Variável pitch-mode (fontes proporcionais para texto) ──────────
-;; Hook personalizado que aplica variable-pitch no corpo do texto
-;; mas mantém fixed-pitch em blocos de código, tabelas e marcações inline.
+  ;; Fix para checkboxes concluídos ficarem normais
+  (setf (alist-get ?X org-modern-checkbox) #("□x" 0 2 (composition ((2)))))
 
-(defun +carlos/writing-setup-variable-pitch ()
-  "Ativar variable-pitch no buffer atual, mantendo fixed-pitch em código e tabelas."
-  (variable-pitch-mode 1)
-  ;; Hierarchical heading sizes with variable-pitch (larger for better visibility)
-  (dolist (face-spec '((org-level-1 :height 1.5 :weight bold)
-                       (org-level-2 :height 1.3 :weight bold)
-                       (org-level-3 :height 1.15 :weight bold)
-                       (org-level-4 :height 1.05 :weight bold)
-                       (org-level-5 :height 1.0 :weight bold)
-                       (org-level-6 :height 1.0 :weight bold)
-                       (org-level-7 :height 1.0 :weight bold)
-                       (org-level-8 :height 1.0 :weight bold)
-                       (org-document-title :height 1.6 :weight bold)))
-    (when (facep (car face-spec))
-      (apply #'set-face-attribute (car face-spec) nil (cdr face-spec))))
-  ;; Garantir que faces de código usem fonte monoespaçada
-  (dolist (face '(org-code org-verbatim org-block org-block-begin-line org-block-end-line
-                  markdown-code markdown-html-attr-value
-                  markdown-markup-face))
-    (when (facep face)
-      (set-face-attribute face nil :inherit 'fixed-pitch)))
-  ;; Tabelas e tags devem permanecer monoespaçadas para alinhamento
-  (dolist (face '(org-table org-tag))
+  ;; Gerar pílulas coloridas (:inverse-video t) para tags, priorities e todos
+  (cl-flet ((new-spec (spec)
+                      (if (or (facep (cdr spec))
+                              (not (keywordp (car-safe (cdr spec)))))
+                          `(:inherit ,(cdr spec))
+                        (cdr spec))))
+    (when (boundp 'org-tag-faces)
+      (unless org-modern-tag-faces
+        (dolist (spec org-tag-faces)
+          (add-to-list 'org-modern-tag-faces `(,(car spec) :inverse-video t ,@(new-spec spec))))))
+    (when (boundp 'org-todo-keyword-faces)
+      (unless org-modern-todo-faces
+        (dolist (spec org-todo-keyword-faces)
+          (add-to-list 'org-modern-todo-faces `(,(car spec) :inverse-video t ,@(new-spec spec))))))
+    (when (boundp 'org-priority-faces)
+      (unless org-modern-priority-faces
+        (dolist (spec org-priority-faces)
+          (add-to-list 'org-modern-priority-faces `(,(car spec) :inverse-video t ,@(new-spec spec))))))))
+
+;; ── Org-appear (esconder/mostrar formatação dinamicamente) ────────
+(use-package org-appear
+  :ensure t
+  :hook (org-mode . org-appear-mode))
+
+;; ── Olivetti (centralização e foco de escrita) ─────────────────────
+(use-package olivetti
+  :ensure t
+  :hook ((org-mode markdown-mode) . olivetti-mode)
+  :config
+  (setq olivetti-body-width 100))
+
+;; ── Fontes Proporcionais (variable-pitch-mode) ─────────────────────
+(add-hook 'org-mode-hook #'variable-pitch-mode)
+(add-hook 'markdown-mode-hook #'variable-pitch-mode)
+
+;; Proteger faces para que tabelas, tags e código fiquem monoespaçados
+(with-eval-after-load 'org
+  (dolist (face '(org-table org-tag org-code org-block org-block-begin-line org-block-end-line org-date org-todo org-done org-document-info-keyword org-meta-line org-checkbox))
     (when (facep face)
       (set-face-attribute face nil :inherit 'fixed-pitch))))
 
-;; Auto-enable variable-pitch in Org and Markdown
-(add-hook 'org-mode-hook #'+carlos/writing-setup-variable-pitch)
-(add-hook 'markdown-mode-hook #'+carlos/writing-setup-variable-pitch)
+(with-eval-after-load 'markdown-mode
+  (dolist (face '(markdown-code-face markdown-inline-code-face markdown-markup-face))
+    (when (facep face)
+      (set-face-attribute face nil :inherit 'fixed-pitch))))
 
-;; ── Org-mode: ocultar marcadores de ênfase + full width ────────────
+;; ── Org-mode: ocultar marcadores de ênfase + LaTeX scaling ─────────
 (use-package org
   :ensure nil
   :custom
@@ -107,28 +129,11 @@
   (org-startup-indented t)
   ;; Imagens inline ao abrir
   (org-startup-with-inline-images t)
-  ;; Full width (no olivetti centering)
-  (org-startup-truncated nil))
-
-;; ── Markdown-mode: ocultar markup visualmente ──────────────────────
-(with-eval-after-load 'markdown-mode
-  ;; Ocultar todo o markup (asteriscos, colchetes, URLs)
-  (setq markdown-hide-markup t)
-  ;; Ocultar URLs em links (mostra "∞" no lugar)
-  (setq markdown-hide-urls t)
-  ;; Caractere placeholder para URLs escondidas
-  (setq markdown-url-compose-char "∞"))
-
-;; ── Ef-themes: compatibilidade com writing modes ───────────────────
-;; Ef-themes já configura faces corretamente, mas garantimos que
-;; variable-pitch e fixed-pitch herdem as cores do tema ativo.
-(with-eval-after-load 'ef-themes
-  ;; Garantir que a face variable-pitch use cores do tema
-  (set-face-attribute 'variable-pitch nil
-                      :inherit 'default)
-  ;; Fixed-pitch herda do tema para blocos de código
-  (set-face-attribute 'fixed-pitch nil
-                      :inherit 'default))
+  ;; Sem truncamento
+  (org-startup-truncated nil)
+  :config
+  ;; Escala de LaTeX de 1.5x
+  (plist-put org-format-latex-options :scale 1.5))
 
 (provide 'custom-writing)
 ;;; custom-writing.el ends here

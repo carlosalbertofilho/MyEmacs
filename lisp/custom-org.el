@@ -67,7 +67,8 @@
   (let ((bin (expand-file-name "build/server/epdfinfo" pdf-tools-directory)))
     (when (file-executable-p bin)
       (setq pdf-info-epdfinfo-program bin)))
-  (pdf-tools-install :no-query)
+  (unless noninteractive
+    (pdf-tools-install :no-query))
   (setq pdf-view-display-size 'fit-width)
   ;; Dark mode: invert PDF colors to match dark ef-themes
   (add-hook 'pdf-view-mode-hook #'pdf-view-midnight-minor-mode))

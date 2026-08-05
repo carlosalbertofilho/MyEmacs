@@ -63,6 +63,10 @@
   (elpaca-use-package-mode))
 (elpaca-wait)  ;; Block until elpaca-use-package is installed
 
+;; Ensure compat is managed by Elpaca and loaded early to avoid version conflict warnings
+(use-package compat :ensure t)
+(elpaca-wait)
+
 ;; use-package defaults (Elpaca handles :ensure automatically)
 (setq use-package-always-defer t
       use-package-expand-minimally t)
@@ -157,6 +161,10 @@
 (setq gc-cons-threshold (if (boundp 'bedrock--initial-gc-threshold)
                             bedrock--initial-gc-threshold
                           800000))
+
+;; Wait for all Elpaca packages to finish installing before completing initialization
+;; (prevents async load/require errors on cold startup)
+(elpaca-wait)
 
 (provide 'init)
 ;;; init.el ends here

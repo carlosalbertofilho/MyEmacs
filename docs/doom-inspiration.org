@@ -1,0 +1,380 @@
+#+title: Doom Emacs Inspiration Guide (Dirvish & Org Aesthetics)
+#+author: Research & Documentation Subagent
+#+date: 2026-08-05
+#+description: Detailed reference analysis of Doom Emacs configuration for Dirvish/Dired file management and Org-mode visual aesthetics, fonts, faces, and layouts.
+#+filetags: :emacs:doom:dirvish:dired:org-mode:aesthetics:ui:reference:
+
+* Doom Emacs Inspiration Guide
+:PROPERTIES:
+:CREATED:  2026-08-05
+:UPDATED:  2026-08-05
+:VERSION:  1.0
+:SOURCE:   /Users/carlosfilho/.config/doom/ and /Users/carlosfilho/.config/emacs/sources/doom+/
+:RAG_TAG:  doom-inspiration, dired, dirvish, org-mode, aesthetics, faces, fonts
+:END:
+
+This guide provides an authoritative reference of how Doom Emacs configures:
+1. *Dirvish and Dired* (switches, attributes, icons, modeline height sync, session reuse, debouncing, file omission, and syntax highlighting).
+2. *Org-Mode Aesthetics* (typography, heading scaling, emphasis markers, org-modern pill faces, org-appear dynamic toggling, mixed-pitch fonts, and presentation modes).
+
+It serves as the reference blueprint for migrating aesthetic features into our Vanilla Emacs configuration (~MyEmacs~).
+
+* Table of Contents
+:PROPERTIES:
+:TOC:      include
+:END:
+- [[#overview--scope][Overview & Scope]]
+- [[#doom-configuration-source-map][Doom Configuration Source Map]]
+- [[#dired--dirvish-configuration-analysis][Dired & Dirvish Configuration Analysis]]
+  - [[#dired-core-switches--tramp-safety][Dired Core Switches & TRAMP Safety]]
+  - [[#dirvish-attributes--icon-display][Dirvish Attributes & Icon Display]]
+  - [[#modeline--header-line-height-synchronization][Modeline & Header-Line Height Synchronization]]
+  - [[#session-reuse--cache-management][Session Reuse & Cache Management]]
+  - [[#dirvish-multi-frame-redisplay-debouncing][Dirvish Multi-Frame Redisplay Debouncing]]
+  - [[#file-omission--diredfl-syntax-highlighting][File Omission & Diredfl Syntax Highlighting]]
+- [[#org-mode-visuals--typography-analysis][Org-Mode Visuals & Typography Analysis]]
+  - [[#core-org-visual-defaults][Core Org Visual Defaults]]
+  - [[#todo-keywords--custom-face-inheritance][TODO Keywords & Custom Face Inheritance]]
+  - [[#org-modern-integration--checkbox-fix][Org-Modern Integration & Checkbox Fix]]
+  - [[#org-appear-dynamic-emphasis-toggling][Org-Appear Dynamic Emphasis Toggling]]
+  - [[#fonts--mixed-pitch-configuration][Fonts & Mixed-Pitch Configuration]]
+  - [[#theme-integration-doom-themes-org-config][Theme Integration (doom-themes-org-config)]]
+  - [[#distraction-free--presentation-modes][Distraction-Free & Presentation Modes]]
+- [[#comparison--migration-matrix][Comparison & Migration Matrix]]
+- [[#actionable-recommendations-for-myemacs][Actionable Recommendations for MyEmacs]]
+
+* Overview & Scope
+
+During the migration from Doom Emacs to Vanilla Emacs (using Emacs Bedrock), maintaining visual parity and UX enhancements from Doom is critical. Doom Emacs achieves its sleek aesthetic and responsive UI through specific hooks, custom faces, patched package behaviors, and curated options across its core modules (`emacs/dired`, `lang/org`, `ui/doom`, `ui/zen`).
+
+This document synthesizes findings from inspecting:
+- User Doom Directory: =/Users/carlosfilho/.config/doom/= (=init.el=, =config.el=, =packages.el=)
+- Doom Core Installation Directory: =/Users/carlosfilho/.config/emacs/sources/doom+/modules/=
+
+* Doom Configuration Source Map
+
+| Domain | File Path | Key Responsibilities |
+|--------+-----------+----------------------|
+| User Init | =~/.config/doom/init.el= | Enables =:emacs dired=, =:lang org=, =:ui doom=, =:ui zen= modules |
+| User Packages | =~/.config/doom/packages.el= | Package overrides (e.g. =org-noter=, =gptel=, =eat=, =plz=) |
+| User Config | =~/.config/doom/config.el= | Sets =doom-font= (JetBrainsMono), =doom-variable-pitch-font= (FiraCode), =doom-theme= ('doom-one) |
+| Dired Module Config | =.../modules/emacs/dired/config.el= | Configures =dired=, =dirvish=, =diredfl=, =dired-x=, switches, TRAMP fallback, modeline height sync |
+| Dired Module Packages | =.../modules/emacs/dired/packages.el= | Declares =dirvish= (custom recipe) and =diredfl= |
+| Org Module Config | =.../modules/lang/org/config.el= | Core org visual options, agenda faces, latex scaling, babel hooks |
+| Org Module Packages | =.../modules/lang/org/packages.el= | Pin definitions for =org=, =org-modern=, =org-appear=, =org-tree-slide=, =centered-window= |
+| Org Pretty Contrib | =.../modules/lang/org/contrib/pretty.el= | =org-modern-mode= setup, checkbox fix, =org-appear-mode=, face color inheritance |
+| Org Present Contrib | =.../modules/lang/org/contrib/present.el= | =org-tree-slide= presentation setup, slide text scaling, block hiding |
+| UI Theme Module | =.../modules/ui/doom/config.el= | =doom-themes-org-config= hook on =doom-load-theme=, =solaire-mode= |
+| UI Zen Module | =.../modules/ui/zen/config.el= | =mixed-pitch-mode= setup, fixed-pitch face exceptions, =writeroom-mode= |
+
+* Dired & Dirvish Configuration Analysis
+
+** Dired Core Switches & TRAMP Safety
+
+Doom uses GNU ~ls~ switches when available and falls back safely over remote TRAMP connections or non-GNU platforms:
+
+#+begin_src elisp
+(let ((args (list "-ahl" "-v" "--group-directories-first")))
+  (when (featurep :system 'bsd)
+    (if-let* ((gls (executable-find "gls")))
+        (setq insert-directory-program gls)
+      (setq args (list (car args)))))
+  (setq dired-listing-switches (string-join args " "))
+
+  ;; Fixes #1703: dired over TRAMP displays a blank screen when -v or --group-directories-first is used
+  (add-hook! 'dired-mode-hook
+    (defun +dired-disable-gnu-ls-flags-maybe-h ()
+      (when (or (file-remote-p default-directory)
+                (and (boundp 'ls-lisp-use-insert-directory-program)
+                     (not ls-lisp-use-insert-directory-program)))
+        (setq-local dired-actual-switches (car args))))))
+#+end_src
+
+*Key Takeaways:*
+- Switches used: ~-ahl -v --group-directories-first~.
+- ~-h~: Human-readable file sizes (KB, MB, GB).
+- ~-a~: Include hidden files (dotfiles).
+- ~-v~: Natural version sorting (file1, file2, file10 instead of file1, file10, file2).
+- ~--group-directories-first~: Directories appear before regular files.
+- Remote/TRAMP fallback: Overrides ~dired-actual-switches~ to ~-ahl~ (first argument only) to prevent TRAMP parse failures.
+
+** Dirvish Attributes & Icon Display
+
+Doom overrides standard Dired with Dirvish and dynamically builds ~dirvish-attributes~ based on active module flags:
+
+#+begin_src elisp
+(use-package! dirvish
+  :config
+  (dirvish-override-dired-mode)
+  
+  ;; Base attributes
+  (setq dirvish-attributes '(file-size)
+        dirvish-mode-line-format '(:left (sort file-time symlink) :right (omit yank index)))
+        
+  ;; VC integration
+  (when (modulep! :ui vc-gutter)
+    (when (or (daemonp) (display-graphic-p))
+      (push 'vc-state dirvish-attributes)))
+      
+  ;; Icon & Subtree integration
+  (when (modulep! +icons)
+    (setq dirvish-subtree-always-show-state t)
+    (cl-callf append dirvish-attributes '(nerd-icons subtree-state))))
+#+end_src
+
+*Attribute Stack in Full UI:*
+- ~nerd-icons~: Displays file/folder type icons using Nerd Fonts.
+- ~subtree-state~: Shows ~v~ / ~>~ expand collapse indicators for subtrees.
+- ~vc-state~: Adds version control status icons/indicators.
+- ~file-size~: Human-readable file size column.
+
+** Modeline & Header-Line Height Synchronization
+
+Doom ensures Dirvish mode-line and header-line match the height of ~doom-modeline~:
+
+#+begin_src elisp
+(when (modulep! :ui modeline)
+  (add-hook! 'dired-mode-hook
+    (defun +dired-update-mode-line-height-h ()
+      (when-let* ((height (bound-and-true-p doom-modeline-height)))
+        (setq dirvish-mode-line-height height
+              dirvish-header-line-height height)))))
+#+end_src
+
+*Why this matters:* Mismatched height between Dirvish header/mode-lines and standard mode-lines causes buffer jumpiness when switching windows.
+
+** Session Reuse & Cache Management
+
+#+begin_src elisp
+(setq dirvish-cache-dir (file-name-concat doom-cache-dir "dirvish/")
+      dirvish-reuse-session 'open)
+#+end_src
+
+- ~dirvish-reuse-session 'open~: Reuses existing Dirvish session when opening a directory from a file buffer, avoiding accumulating dead dired buffers while maintaining clean recovery.
+
+** Dirvish Multi-Frame Redisplay Debouncing
+
+Doom contains a critical bugfix for Dirvish when operating across multiple Emacs frames:
+
+#+begin_src elisp
+;; HACK: Guard dirvish-pre-redisplay-h so it only fires for the selected window in its frame
+;; Prevents feedback loops where frame A's redisplay triggers frame B's redisplay causing visible flickering.
+(defadvice! +dired--debounce-dirvish-redisplay-a (fn window)
+  :around #'dirvish-pre-redisplay-h
+  (when (eq (frame-selected-window) window)
+    (funcall fn window)))
+#+end_src
+
+** File Omission & Diredfl Syntax Highlighting
+
+1. *Dired-x Omission:*
+#+begin_src elisp
+(use-package! dired-x
+  :hook (dired-mode . dired-omit-mode)
+  :config
+  (setq dired-omit-verbose nil
+        dired-omit-files
+        (concat dired-omit-files
+                "\\|^\\.DS_Store\\'"
+                "\\|^flycheck_.*"
+                "\\|^\\.project\\(?:ile\\)?\\'"
+                "\\|^\\.\\(?:svn\\|git\\)\\'"
+                "\\|^\\.ccls-cache\\'"
+                "\\|\\(?:\\.js\\)?\\.meta\\'"
+                "\\|\\.\\(?:elc\\|o\\|pyo\\|swp\\|class\\)\\'")))
+#+end_src
+
+2. *Diredfl Syntax Highlighting:*
+#+begin_src elisp
+(use-package! diredfl
+  :hook (dired-mode . diredfl-mode)
+  :hook (dirvish-directory-view-mode . diredfl-mode))
+#+end_src
+
+* Org-Mode Visuals & Typography Analysis
+
+** Core Org Visual Defaults
+
+Doom configures core Org options in =+org-init-appearance-h=:
+
+#+begin_src elisp
+(setq org-indirect-buffer-display 'current-window
+      org-enforce-todo-dependencies t
+      org-fontify-done-headline t
+      org-fontify-quote-and-verse-blocks t
+      org-fontify-whole-heading-line t
+      org-hide-leading-stars t
+      org-hide-emphasis-markers t
+      org-pretty-entities t
+      org-image-actual-width nil
+      org-imenu-depth 6
+      org-startup-indented t
+      org-tags-column 0
+      org-use-sub-superscripts '{}
+      org-startup-folded nil)
+
+(plist-put org-format-latex-options :scale 1.5)
+#+end_src
+
+** TODO Keywords & Custom Face Inheritance
+
+Doom creates intermediate custom faces for TODO keyword states so they properly inherit from ~org-todo~:
+
+#+begin_src elisp
+(custom-declare-face '+org-todo-active  '((t (:inherit (bold font-lock-constant-face org-todo)))) "")
+(custom-declare-face '+org-todo-project '((t (:inherit (bold font-lock-doc-face org-todo)))) "")
+(custom-declare-face '+org-todo-onhold  '((t (:inherit (bold warning org-todo)))) "")
+(custom-declare-face '+org-todo-cancel  '((t (:inherit (bold error org-todo)))) "")
+
+(setq org-todo-keywords
+      '((sequence "TODO(t)" "PROJ(p)" "LOOP(r)" "STRT(s)" "WAIT(w)" "HOLD(h)" "IDEA(i)" "|" "DONE(d)" "KILL(k)")
+        (sequence "[ ](T)" "[-](S)" "[?](W)" "|" "[X](D)"))
+      org-todo-keyword-faces
+      '(("[-]"  . +org-todo-active)
+        ("STRT" . +org-todo-active)
+        ("[?]"  . +org-todo-onhold)
+        ("WAIT" . +org-todo-onhold)
+        ("HOLD" . +org-todo-onhold)
+        ("PROJ" . +org-todo-project)
+        ("NO"   . +org-todo-cancel)
+        ("KILL" . +org-todo-cancel)))
+#+end_src
+
+** Org-Modern Integration & Checkbox Fix
+
+When the ~+pretty~ flag is active, Doom loads ~org-modern~ in =lang/org/contrib/pretty.el=:
+
+#+begin_src elisp
+(use-package! org-modern
+  :hook (org-mode . org-modern-mode)
+  :hook (org-agenda-finalize . org-modern-agenda)
+  :init
+  (after! org
+    (setq org-hide-emphasis-markers t
+          org-pretty-entities t))
+  :config
+  ;; Fix for oversized Unicode checked box: swap with consistent composition symbol
+  (setf (alist-get ?X org-modern-checkbox) #("□x" 0 2 (composition ((2)))))
+
+  ;; Automatically port org-todo-keyword-faces, org-tag-faces, org-priority-faces to inverse-video pills
+  (letf! (defun new-spec (spec)
+           (if (or (facep (cdr spec))
+                   (not (keywordp (car-safe (cdr spec)))))
+               `(:inherit ,(cdr spec))
+             (cdr spec)))
+    (unless org-modern-tag-faces
+      (dolist (spec org-tag-faces)
+        (add-to-list 'org-modern-tag-faces `(,(car spec) :inverse-video t ,@(new-spec spec)))))
+    (unless org-modern-todo-faces
+      (dolist (spec org-todo-keyword-faces)
+        (add-to-list 'org-modern-todo-faces `(,(car spec) :inverse-video t ,@(new-spec spec)))))
+    (unless org-modern-priority-faces
+      (dolist (spec org-priority-faces)
+        (add-to-list 'org-modern-priority-faces `(,(car spec) :inverse-video t ,@(new-spec spec)))))))
+#+end_src
+
+** Org-Appear Dynamic Emphasis Toggling
+
+To prevent hidden emphasis markers from making editing cumbersome, ~org-appear-mode~ reveals hidden formatting markers when the cursor lands on them:
+
+#+begin_src elisp
+(use-package! org-appear
+  :hook (org-mode . org-appear-mode))
+#+end_src
+
+** Fonts & Mixed-Pitch Configuration
+
+Doom supports proportional fonts for prose while preserving monospace fonts for code, tables, and markup metadata:
+
+1. *Font Specs (=config.el=):*
+   - Monospace font: ~doom-font~ (~"JetBrainsMono Nerd Font"~ size 14)
+   - Variable-pitch font: ~doom-variable-pitch-font~ (~"FiraCode Nerd Font"~ or proportional font)
+
+2. *Mixed-Pitch Face Protection (=ui/zen/config.el=):*
+#+begin_src elisp
+(use-package! mixed-pitch
+  :defer t
+  :config
+  ;; Faces that MUST remain fixed-pitch (monospace) inside org buffers
+  (dolist (face '(solaire-line-number-face
+                  org-date
+                  org-footnote
+                  org-special-keyword
+                  org-property-value
+                  org-ref-cite-face
+                  org-tag
+                  org-todo-keyword-todo
+                  org-todo-keyword-habt
+                  org-todo-keyword-done
+                  org-todo-keyword-wait
+                  org-todo-keyword-kill
+                  org-todo-keyword-outd
+                  org-todo
+                  org-done
+                  font-lock-comment-face))
+    (add-to-list 'mixed-pitch-fixed-pitch-faces face)))
+#+end_src
+
+** Theme Integration (doom-themes-org-config)
+
+Doom automatically enhances Org headings, tables, and block backgrounds when loading themes:
+
+#+begin_src elisp
+(use-package! doom-themes
+  :hook (doom-load-theme . doom-themes-org-config))
+#+end_src
+
+*What ~doom-themes-org-config~ does:*
+- Scales heading sizes hierarchically (Level 1: 1.4x, Level 2: 1.3x, Level 3: 1.2x, Level 4: 1.1x).
+- Sets ~fixed-pitch~ font on Org tables, source block contents, inline code, and checkboxes to prevent table column misalignment.
+- Gives Org source blocks and quote blocks subtle background shading or vertical accent borders.
+
+** Distraction-Free & Presentation Modes
+
+1. *Writeroom Mode (=ui/zen/config.el=):*
+   - Text scaling: ~+zen-text-scale~ (default 2.0).
+   - Dynamic visual fill column adjustment on window resize/text scaling.
+
+2. *Org Tree Slide (=lang/org/contrib/present.el=):*
+   - ~+org-present-text-scale~: Text scale 5 for presentations.
+   - ~org-tree-slide-heading-emphasis t~.
+   - Hooks: Redisplays inline images automatically after slide navigation (`org-tree-slide-after-narrow-hook`).
+
+* Comparison & Migration Matrix
+
+| Feature | Doom Emacs Implementation | Current MyEmacs State | Proposed Action for MyEmacs |
+|---------+---------------------------+------------------------+-----------------------------|
+| Dired Switches | ~-ahl -v --group-directories-first~ + TRAMP fallback | Fixed string in ~custom-files.el~ | Implement remote TRAMP check to strip ~-v~ and ~--group-directories-first~ |
+| Dirvish Icons | ~nerd-icons~ + ~subtree-state~ + ~file-size~ + ~vc-state~ | ~dirvish-attributes~ configured in ~custom-files.el~ | Verify height scaling (~dirvish-mode-line-height~) and icon size (16-18) |
+| Dirvish Multi-frame | Debounce advice on ~dirvish-pre-redisplay-h~ | Not present | Add advice if multi-frame flickering occurs |
+| Dired Syntax | ~diredfl-mode~ on dired & dirvish view | ~diredfl~ installed in ~custom-files.el~ | Ensure hook on both ~dired-mode~ and ~dirvish-directory-view-mode~ |
+| Org Markers | ~org-hide-emphasis-markers t~ + ~org-appear-mode~ | Configured in ~custom-org.el~ | Verify ~org-appear~ reveals markers reliably |
+| Org Modern Pills | ~org-modern-mode~ + checkbox fix ~#("□x" ...)` | ~org-modern~ in ~custom-org.el~ | Apply checkbox fix & `:inverse-video t` inheritance helper |
+| Mixed-Pitch Faces | ~mixed-pitch-fixed-pitch-faces~ list in ~ui/zen~ | Standard ~org-mode~ fonts | Ensure table, todo, tag, and property faces inherit ~fixed-pitch~ |
+| LaTeX Preview Scale | ~(plist-put org-format-latex-options :scale 1.5)~ | Default scale (1.0) | Increase scale to 1.5 in ~custom-org.el~ |
+
+* Actionable Recommendations for MyEmacs
+
+To achieve Doom-grade aesthetics and reliability in ~MyEmacs~:
+
+1. *In ~custom-files.el~ (Dirvish / Dired):*
+   - Add TRAMP switch guard for GNU ~ls~ flags to prevent blank dired screens over remote SSH connections.
+   - Set ~dirvish-attributes '(nerd-icons subtree-state file-size vc-state)~.
+   - Ensure ~dirvish-mode-line-height~ and ~dirvish-header-line-height~ match custom mode-line height.
+   - Set ~dirvish-reuse-session 'open~.
+
+2. *In ~custom-org.el~ (Org Aesthetics):*
+   - Add ~org-appear~ to automatically reveal emphasis markers (~*~, ~/~, ~=~, ~~~) when cursor is on them.
+   - Add LaTeX preview scale: ~(plist-put org-format-latex-options :scale 1.5)~.
+   - Apply Doom's checkbox composition fix for ~org-modern-checkbox~: ~#("□x" 0 2 (composition ((2))))~.
+   - Ensure ~fixed-pitch~ face inheritance for Org tables, code blocks, and metadata tags so tables remain perfectly aligned.
+
+3. *In ~custom-ui.el~ (Fonts & Themes):*
+   - Maintain strict separation of ~doom-font~ (monospace) and ~doom-variable-pitch-font~ (proportional/prose).
+   - Configure ~doom-themes-org-config~ or equivalent heading scale rules.
+
+* RAG Context Notes & Audit Summary
+
+- *Audit Date:* 2026-08-05
+- *Audit Scope:* Doom core modules (=emacs/dired=, =lang/org=, =ui/doom=, =ui/zen=) and user DOOMDIR (=init.el=, =config.el=, =packages.el=).
+- *Status:* Complete. No changes were made to ~lisp/*.el~ in MyEmacs during this research phase. All findings recorded in ~docs/doom-inspiration.org~.

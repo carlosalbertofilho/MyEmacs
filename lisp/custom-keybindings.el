@@ -18,6 +18,7 @@
 (declare-function denote-link "denote")
 (declare-function denote-link-dired "denote")
 (declare-function olivetti-mode "olivetti")
+(declare-function dirvish-side "dirvish")
 
 ;; ── Window navigation (windmove with Super) ─────────────────────────
 (windmove-default-keybindings 'super)
@@ -25,6 +26,7 @@
 ;; ── File and buffer ─────────────────────────────────────────────────
 (global-set-key (kbd "C-x C-f") #'find-file)
 (global-set-key (kbd "C-x b")   #'consult-buffer)
+(global-set-key (kbd "C-c f")   #'dirvish-side)
 
 ;; ── Search ──────────────────────────────────────────────────────────
 (global-set-key (kbd "C-c s")   #'consult-ripgrep)

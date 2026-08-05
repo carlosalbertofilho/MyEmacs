@@ -180,6 +180,24 @@ Criar cache de referência para que agentes possam:
 
 *** Status: ✅ DONE
 
+** 2026-08-05 — Melhorias Visuais e Funcionais Dirvish, Org & Markdown (Inspirado no Doom)
+
+*** Feito
+- Corrigir ícones gigantes no Dirvish (~dirvish-nerd-icons-height 0.85~).
+- Adicionar suporte seguro a caminhos locais e remotos (TRAMP) nas switches do Dired com fallback para ~-ahl~.
+- Ativar a barra lateral do Dirvish (~dirvish-side~) e mapear ~C-c f~ globalmente.
+- Integrar ~diredfl~ para colorização de sintaxe avançada em dired e dirvish.
+- Integrar ~org-appear~ para esconder/revelar marcadores de formatação dinamicamente.
+- Corrigir checkboxes concluídos no ~org-modern~ usando composição compatível com Doom.
+- Portar a herança de faces de TODOs, Priorities e Tags para pílulas coloridas com efeito ~:inverse-video t~ no ~org-modern~.
+- Configurar escala LaTeX para ~1.5x~ no Org.
+- Simplificar setup de fontes proporcionais (~variable-pitch-mode~) mantendo tabelas/tags alinhados (~fixed-pitch~).
+- Habilitar centralização de prosa com ~olivetti-mode~ (largura 100).
+- Limpar configurações redundantes e conflitos de Markdown.
+- Validar tudo com compilação estrita zero warnings + checkdoc (~just lint~).
+
+*** Status: ✅ DONE
+
 * Decisões Arquiteturais
 
 ** Sem Evil Mode

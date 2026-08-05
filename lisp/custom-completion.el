@@ -6,6 +6,19 @@
 
 ;;; Code:
 
+;; Forward declarations for byte-compiler
+(declare-function vertico-mode "vertico")
+(declare-function marginalia-mode "marginalia")
+(declare-function global-corfu-mode "corfu")
+(declare-function embark-consult-help "embark-consult")
+
+;; Queue completion packages and wait to prevent race conditions during cold boot
+(elpaca vertico)
+(elpaca marginalia)
+(elpaca orderless)
+(elpaca corfu)
+(elpaca-wait)
+
 ;; ── vertico ─────────────────────────────────────────────────────────
 (use-package vertico
   :ensure t

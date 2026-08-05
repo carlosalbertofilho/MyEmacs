@@ -2,6 +2,20 @@
 
 ## Histórico de Mudanças
 
+### 2026-08-05 — Melhorias Visuais e Funcionais Dirvish, Org & Markdown (Inspirado no Doom)
+- [x] Corrigir ícones gigantes no Dirvish (`dirvish-nerd-icons-height 0.85`)
+- [x] Adicionar suporte seguro a TRAMP e switches inteligentes no Dired (`gls` fallback)
+- [x] Ativar barra lateral do Dirvish (`dirvish-side`) e mapear `C-c f` globalmente
+- [x] Integrar `diredfl` para colorização de sintaxe avançada em Dired/Dirvish
+- [x] Integrar `org-appear` para esconder/revelar marcadores de formatação dinamicamente
+- [x] Corrigir checkboxes concluídos no `org-modern` (símbolo do Doom)
+- [x] Portar colorização de Tags/TODOs/Priorities para pílulas coloridas `:inverse-video t` no `org-modern`
+- [x] Configurar escala LaTeX para `1.5x` no Org
+- [x] Simplificar setup de fontes proporcionais (`variable-pitch-mode`) mantendo tabelas/tags alinhados (`fixed-pitch`)
+- [x] Habilitar centralização de prosa com `olivetti-mode` (largura 100)
+- [x] Limpar configurações redundantes e conflitos de Markdown
+- [x] Validar tudo com compilação estrita zero warnings + checkdoc (`just lint`)
+
 ### 2026-08-05 — Documentação RAG e Análise de Bugs
 - [x] Criar pasta `docs/` com estrutura de referência
 - [x] Criar `docs/dirvish-reference.org` — API completa, extensões, pitfalls
@@ -163,11 +177,127 @@ Já instalada:
 | 13 | `consult-fzf` pode não existir | `custom-dashboard.el` | ✅ Fallback para `consult-find` |
 | 14 | `magit-status` sem check | `custom-dashboard.el` | ✅ Guard com `fboundp` |
 
+## Plano de Ação: Melhoria Visual e Funcional de Dirvish, Org e Markdown (Refinado com Inspirações do Doom)
+
+### 1. Enriquecer o Dirvish & Dired (Ícones, Extensões e Sidebar)
+**Arquivo:** `lisp/custom-files.el` (ver: [custom-files.el](file:///Users/carlosfilho/Projects/Github/MyEmacs/lisp/custom-files.el))
+- **Ação 1:** Corrigir os ícones gigantescos no Dirvish.
+  - Substituir: `(dirvish-nerd-icons-height 16)` por `(dirvish-nerd-icons-height 0.85)` (escala proporcional apropriada ao `nerd-icons`).
+- **Ação 2:** Adicionar suporte seguro a caminhos locais e remotos (TRAMP) nas switches do Dired, evitando telas em branco ao abrir conexões remotas.
+  - No `custom-files.el`, substituir a definição de `dired-listing-switches` por:
+    ```elisp
+    (let ((args (list "-ahl" "-v" "--group-directories-first")))
+      (when (featurep :system 'bsd)
+        (if-let* ((gls (executable-find "gls")))
+            (setq insert-directory-program gls)
+          (setq args (list (car args)))))
+      (setq dired-listing-switches (string-join args " ")))
+    ```
+  - E adicionar uma função/hook para conexões remotas:
+    ```elisp
+    (add-hook 'dired-mode-hook
+              (lambda ()
+                (when (file-remote-p default-directory)
+                  (setq-local dired-actual-switches "-ahl"))))
+    ```
+- **Ação 3:** Ativar a barra lateral do Dirvish (`dirvish-side`) como substituto do Treemacs/NeoTree.
+  - Configurar as variáveis do layout da sidebar em `:custom` no `dirvish`:
+    ```elisp
+    (dirvish-side-width 30)
+    (dirvish-side-auto-expand t)
+    (dirvish-side-open-file-action 'select)
+    (dirvish-reuse-session 'open)
+    ```
+  - Adicionar atalho global em `lisp/custom-keybindings.el` (ver: [custom-keybindings.el](file:///Users/carlosfilho/Projects/Github/MyEmacs/lisp/custom-keybindings.el)):
+    - Adicionar `(declare-function dirvish-side "dirvish")` no topo.
+    - Configurar binding global: `(global-set-key (kbd "C-c f") #'dirvish-side)`
+- **Ação 4:** Ativar o pacote `diredfl` para colorização de sintaxe avançada em dired e dirvish.
+  - Adicionar o bloco:
+    ```elisp
+    (use-package diredfl
+      :ensure t
+      :hook ((dired-mode dirvish-directory-view-mode) . diredfl-mode))
+    ```
+- **Ação 5:** Confirmar que as extensões nativas (`dirvish-subtree`, `dirvish-history`, `dirvish-narrow`) estão corretas na lista de `dirvish-attributes`.
+
+### 2. Melhorar Estética e Escrita de Org & Markdown (Aparência Estilo Doom)
+**Arquivo:** `lisp/custom-writing.el` (ver: [custom-writing.el](file:///Users/carlosfilho/Projects/Github/MyEmacs/lisp/custom-writing.el))
+- **Ação 1:** Adicionar o pacote `org-appear` para esconder/revelar marcadores de ênfase (como `*negrito*`, `/itálico/`, `=código=`) dinamicamente quando o cursor passa sobre eles.
+  - Adicionar o bloco:
+    ```elisp
+    (use-package org-appear
+      :ensure t
+      :hook (org-mode . org-appear-mode))
+    ```
+- **Ação 2:** Corrigir os checkboxes concluídos no `org-modern` que podem ficar desalinhados ou gigantescos.
+  - Em `:config` do `org-modern`, adicionar:
+    ```elisp
+    (setf (alist-get ?X org-modern-checkbox) #("□x" 0 2 (composition ((2)))))
+    ```
+- **Ação 3:** Portar a herança de faces de TODOs, Priorities e Tags para pílulas coloridas com efeito `:inverse-video t` nativo do tema.
+  - Em `:config` do `org-modern`, adicionar a macro de herança de faces do Doom:
+    ```elisp
+    (letf! (defun new-spec (spec)
+             (if (or (facep (cdr spec))
+                     (not (keywordp (car-safe (cdr spec)))))
+                 `(:inherit ,(cdr spec))
+               (cdr spec)))
+      (unless org-modern-tag-faces
+        (dolist (spec org-tag-faces)
+          (add-to-list 'org-modern-tag-faces `(,(car spec) :inverse-video t ,@(new-spec spec)))))
+      (unless org-modern-todo-faces
+        (dolist (spec org-todo-keyword-faces)
+          (add-to-list 'org-modern-todo-faces `(,(car spec) :inverse-video t ,@(new-spec spec)))))
+      (unless org-modern-priority-faces
+        (dolist (spec org-priority-faces)
+          (add-to-list 'org-modern-priority-faces `(,(car spec) :inverse-video t ,@(new-spec spec))))))
+    ```
+- **Ação 4:** Corrigir escala das equações matemáticas LaTeX.
+  - Adicionar em `:config` do `org` no `custom-writing.el` (ou em `custom-org.el`):
+    ```elisp
+    (plist-put org-format-latex-options :scale 1.5)
+    ```
+- **Ação 5:** Corrigir a face `variable-pitch` e simplificar o setup de fontes para prosa:
+  - Remover o bloco `(with-eval-after-load 'ef-themes ...)` no fim de `custom-writing.el`.
+  - Remover a complexa função `+carlos/writing-setup-variable-pitch` e os hooks correspondentes.
+  - Adicionar hooks nativos para ativar o modo de fonte proporcional no texto e manter tabelas/tags em fonte monoespaçada:
+    ```elisp
+    (add-hook 'org-mode-hook #'variable-pitch-mode)
+    (add-hook 'markdown-mode-hook #'variable-pitch-mode)
+    ```
+  - Proteger faces críticas para que continuem usando a fonte monoespaçada (`fixed-pitch`), evitando quebra de alinhamento em tabelas, blocos de código e metadados:
+    ```elisp
+    (dolist (face '(org-table org-tag org-code org-block org-block-begin-line org-block-end-line org-date org-todo org-done))
+      (when (facep face)
+        (set-face-attribute face nil :inherit 'fixed-pitch)))
+    ```
+- **Ação 6:** Reintroduzir o pacote `olivetti` para centralizar buffers de prosa (Org/Markdown) em telas largas, melhorando drasticamente a legibilidade.
+  - Adicionar o bloco:
+    ```elisp
+    (use-package olivetti
+      :ensure t
+      :hook ((org-mode markdown-mode) . olivetti-mode)
+      :config
+      (setq olivetti-body-width 100))
+    ```
+- **Ação 7:** Remover o bloco `(with-eval-after-load 'markdown-mode ...)` do arquivo `custom-writing.el` para evitar conflito com as configurações de `custom-markdown.el`.
+
+### 3. Validação dos Ajustes
+- **Ação 1:** Rodar `just check` no repositório para garantir que a sintaxe do Emacs Lisp esteja íntegra.
+- **Ação 2:** Sincronizar com o ambiente de testes e testar a inicialização:
+  ```bash
+  emacs --init-directory ~/.config/emacs-vanilla
+  ```
+- **Ação 3:** Abrir o Dirvish (`dired`) para conferir se os ícones estão proporcionais e se as linhas são listadas corretamente. Abrir a barra lateral com `C-c f` para validar o comportamento da sidebar. Abrir um arquivo `.org` e `.md` para verificar o alinhamento centralizado do Olivetti, a fonte proporcional no texto de leitura e as tabelas/código em fonte monoespaçada.
+
+### 4. Mudança de Versão
+- Atualizar o `roadmap.org` e `TODO.md` ao aplicar cada passo.
+
 ## Próximos Passos
 
 ### Pendentes (investigação)
 - [ ] **URGENTE**: Investigar `ob-mermaid` não encontrado em modo interativo (funciona em batch). Verificar: (1) pacote instalado via Elpaca? (2) autoloads gerados? (3) `elpaca-status` mostra instalado?
-- [ ] Investigar warning `compat loaded before Elpaca activation` — identificar qual pacote depende de compat e carrega antes da fila Elpaca
+- [x] Investigar warning `compat loaded before Elpaca activation` — identificar qual pacote depende de compat e carrega antes da fila Elpaca (Corrigido gerenciando compat via Elpaca com wait)
 - [ ] Investigar por que `consult` e `nerd-icons` não foram encontrados no MELPA durante `just check`
 - [ ] Verificar se pacotes estão em rebuild no MELPA ou se foram removidos/renomeados
 - [ ] Testar config completa em GUI (não batch) para verificar vterm-module
@@ -195,3 +325,5 @@ Já instalada:
 16. [ ] Refinar dashboard com tipografia nova
 17. [ ] Testar SuperChat com fontes instaladas
 18. [ ] Fase 4 — Cutoff (Doom → Vanilla final)
+19. [ ] Substituir o dashboard customizado atual pelo pacote `dashboard.el` usando um banner em formato de arte ASCII contendo "My Emacs"
+

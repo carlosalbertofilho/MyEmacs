@@ -203,6 +203,7 @@ All package APIs are documented in `docs/`. Reference these files before making 
 | Org Ecosystem | `docs/org-ecosystem.org` | org-modern, ob-mermaid, jupyter, pdf-tools, org-noter |
 | UI Stack | `docs/ui-stack.org` | ef-themes, mood-line, olivetti, nerd-icons, which-key |
 | Terminal | `docs/term-stack.org` | vterm, eshell, eshell-prompt-extras, display-buffer |
+| Doom Inspiration | `docs/doom-inspiration.org` | Doom Emacs configurations for Dirvish, Dired, Org aesthetics, fonts, and slides |
 
 **ALWAYS read the relevant doc file before modifying a package's configuration.**
 
@@ -219,7 +220,7 @@ All package APIs are documented in `docs/`. Reference these files before making 
 ### After Making Changes
 
 1. Run `just check` to verify config loads
-2. Test in `~/.config/emacs-vanilla` with `emacs --init-directory`
+2. Sincronizar obrigatoriamente as alterações com a pasta `~/.config/emacs-vanilla` e executar o teste com o comando `emacs --init-directory ~/.config/emacs-vanilla` (ambiente oficial de testes do usuário)
 3. Update `TODO.md` with the change
 4. Update `roadmap.org` with the action taken
 
@@ -233,6 +234,35 @@ feat(dashboard): add consult-fzf fallback
 chore(docs): add gptel reference documentation
 refactor(ai): remove advice-add from gptel-agent-run
 ```
+
+---
+
+## Multi-Agent Assisted Workflow (Política de Multiagentes)
+
+Este projeto adota uma arquitetura de trabalho assistido entre agentes com diferentes perfis de custo e performance (Pro/Opus, Medium/Flash, Lite) para maximizar a precisão e otimizar recursos:
+
+### 1. Papéis dos Agentes
+
+* **Agente Planejador / Arquiteto (Alta Performance - Modelo Pro/Opus)**
+  * **Responsabilidade:** Realizar diagnósticos de causa-raiz, leitura e análise de referências RAG complexas, e tomada de decisões estruturais.
+  * **Entregável:** Escrever um plano de implementação detalhado e passo a passo na seção "Plano de Ação" do [TODO.md](file:///Users/carlosfilho/Projects/Github/MyEmacs/TODO.md), indicando exatamente quais trechos de código e arquivos devem ser modificados. *Não deve aplicar as alterações diretamente.*
+
+* **Agente Executor (Rápido/Cheaper - Modelo Flash/Lite)**
+  * **Responsabilidade:** Consumir o plano detalhado em `TODO.md` e aplicar as alterações nos arquivos `.el` de destino.
+  * **Diretriz:** Seguir estritamente o código e as regras de elisp recomendadas no plano de ação, tratando erros sintáticos simples locais.
+
+* **Agente Auditor / Validador (Modelo Mediano/Audit - Modelo Medium/Flash)**
+  * **Responsabilidade:** Auditar e certificar o trabalho do Executor.
+  * **Ações Obrigatórias:**
+    1. Rodar os testes estritos de carga e compilação (`just check-all`, que executa compilação e checkdoc).
+    2. Garantir **zero warnings** na compilação (`byte-compile-error-on-warn t`).
+    3. Atualizar o histórico de mudanças no [TODO.md](file:///Users/carlosfilho/Projects/Github/MyEmacs/TODO.md) e [roadmap.org](file:///Users/carlosfilho/Projects/Github/MyEmacs/roadmap.org).
+
+### 2. Portões de Qualidade (Quality Gates)
+
+1. **Portão de Compilação:** Nenhuma alteração pode ser integrada se gerar warnings no compilador de Emacs Lisp. O comando `just compile` trata avisos como erros críticos.
+2. **Portão de Documentação:** Todo novo recurso ou mudança estrutural deve estar documentado em `docs/` ou no changelog antes da conclusão da tarefa.
+3. **Portão de Regras:** Verificar se o Executor não introduziu anti-padrões como `setq` em opções de customização globais, requires sem guardas (`nil t`), ou funções duplicadas.
 
 ---
 
