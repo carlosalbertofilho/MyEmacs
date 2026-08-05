@@ -153,20 +153,35 @@ Uses explicit paths since Eshell's PATH may differ from system shell."
 (add-hook 'eshell-mode-hook #'+carlos/eshell-ai-aliases)
 
 ;; Force char-mode for AI CLI tools when they start
-(defun +carlos/eshell-auto-char-mode-for-ai ()
-  "Automatically enter eat char-mode when running AI CLI tools."
-  (when (and (boundp 'eat-eshell-mode) eat-eshell-mode)
-    (let ((cmd (save-excursion
-                 (goto-char (point-max))
-                 (beginning-of-line)
-                 (buffer-substring-no-properties
-                  (line-beginning-position)
-                  (line-end-position)))))
-      (when (string-match-p "\\b\\(agy\\|gemini\\|opencode\\|oc\\b\\|ai\\b\\|aif\\|aireview\\|devenv\\)\\b" cmd)
-        ;; Small delay to let command start, then toggle char-mode
-        (run-with-timer 0.1 nil #'eat-toggle-char-mode)))))
+(defun +carlos/eshell-run-agy ()
+  "Run agy (Gemini CLI) with eat char-mode enabled."
+  (interactive)
+  (let ((agy-path (or (executable-find "agy")
+                      "/etc/profiles/per-user/carlosfilho/bin/agy")))
+    (if (file-executable-p agy-path)
+        (progn
+          (insert (concat agy-path " "))
+          (eshell-send-input)
+          ;; Toggle char-mode after command starts
+          (run-with-timer 0.2 nil #'eat-toggle-char-mode))
+      (message "agy not found"))))
 
-(add-hook 'eshell-pre-command-hook #'+carlos/eshell-auto-char-mode-for-ai)
+(defun +carlos/eshell-run-opencode ()
+  "Run opencode AI CLI with eat char-mode enabled."
+  (interactive)
+  (let ((oc-path (or (executable-find "opencode")
+                     "/var/folders/p6/jvskwtqn1tl1d75kgr4p32g00000gn/T/bunx-501-opencode-ai@latest/node_modules/.bin/opencode")))
+    (if (file-executable-p oc-path)
+        (progn
+          (insert (concat oc-path " "))
+          (eshell-send-input)
+          (run-with-timer 0.2 nil #'eat-toggle-char-mode))
+      (message "opencode not found"))))
+
+;; Bindings for AI tools in Eshell
+(with-eval-after-load 'eshell
+  (define-key eshell-mode-map (kbd "C-c a a") #'+carlos/eshell-run-agy)
+  (define-key eshell-mode-map (kbd "C-c a o") #'+carlos/eshell-run-opencode))
 
 ;; ── popper (Intelligent popup window management) ───────────────────
 ;; Classifies terminal buffers as popups — toggle/hide without messing layout.
