@@ -110,7 +110,7 @@
 (require 'custom-lang)
 (require 'custom-org)
 (require 'custom-42)
-;; (require 'custom-ai)            ; Fase 3: gptel, gptel-agent
+(require 'custom-ai)
 ;; (require 'custom-knowledge)     ; Fase 3: denote
 ;; (require 'custom-git)           ; Fase 3: magit, just-mode
 
