@@ -120,7 +120,9 @@
   (load custom-file))
 
 ;; ── Restore GC threshold ────────────────────────────────────────────
-(setq gc-cons-threshold (or bedrock--initial-gc-threshold 800000))
+(setq gc-cons-threshold (if (boundp 'bedrock--initial-gc-threshold)
+                            bedrock--initial-gc-threshold
+                          800000))
 
 (provide 'init)
 ;;; init.el ends here

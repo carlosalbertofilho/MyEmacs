@@ -15,9 +15,7 @@
   (dirvish-override-dired-mode 1)
   (setq dirvish-attributes '(vc-state nerd-icons collapse)
         dirvish-side-width 30
-        dirvish-window-size 0.5)
-  (dirvish-define-preset default
-    (dirvish-layout 10)))
+        dirvish-window-size 0.5))
 
 ;; ── ibuffer ─────────────────────────────────────────────────────────
 (use-package ibuffer

@@ -6,7 +6,18 @@
 ;;; Code:
 
 ;; ── vterm ───────────────────────────────────────────────────────────
+;; Prevent vterm from prompting for module compilation in batch mode
+(defun +carlos/vterm-skip-compile-prompt (orig-fun &rest args)
+  "Skip y-or-n-p prompts about vterm module compilation."
+  (if (and noninteractive (stringp (car args))
+           (string-match-p "vterm" (car args)))
+      nil
+    (apply orig-fun args)))
+
+(advice-add 'y-or-n-p :around #'+carlos/vterm-skip-compile-prompt)
+
 (use-package vterm
+  :catch t
   :config
   (setq vterm-keymap-exceptions
         (delete "C-c" (delete "C-u" (delete "C-g" vterm-keymap-exceptions))))
@@ -20,7 +31,8 @@
   (when-let* ((text (or (car kill-ring) "")))
     (vterm-send-string text)))
 
-(define-key vterm-mode-map (kbd "C-c C-e") #'+carlos/vterm-write-multiline-prompt)
+(with-eval-after-load 'vterm
+  (define-key vterm-mode-map (kbd "C-c C-e") #'+carlos/vterm-write-multiline-prompt))
 
 ;; ── eshell ──────────────────────────────────────────────────────────
 (use-package eshell

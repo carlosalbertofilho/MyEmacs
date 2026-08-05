@@ -62,6 +62,7 @@
       recentf-max-saved-items 50)
 
 ;; ── Server mode (emacsclient) ───────────────────────────────────────
+(require 'server)
 (unless (server-running-p)
   (server-start))
 
