@@ -5,6 +5,11 @@
 
 ;;; Code:
 
+;; Forward declarations for byte-compiler
+(declare-function vc-git-root "vc-git")
+(declare-function gptel-request "gptel")
+(declare-function gptel-get-backend "gptel")
+
 ;; ── magit ───────────────────────────────────────────────────────────
 ;; transient must be updated first (magit depends on transient >= 0.13)
 (use-package transient
@@ -36,7 +41,7 @@
 ;; Reescrito sem dependência de magit (usa vc-git / processo git)
 (defun +carlos/gptel-generate-commit-message ()
   "Gera uma mensagem de commit usando IA a partir do diff staged.
-Sem dependência de magit: usa 'git diff --cached' diretamente."
+Sem dependência de magit: usa \\='git diff --cached\\=' diretamente."
   (interactive)
   (unless (vc-git-root default-directory)
     (user-error "Not in a Git repository"))

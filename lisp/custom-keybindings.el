@@ -6,6 +6,19 @@
 
 ;;; Code:
 
+;; Forward declarations for byte-compiler
+(declare-function magit-status "magit")
+(declare-function gptel "gptel")
+(declare-function justl "justl")
+(declare-function justl-compile "justl")
+(declare-function denote "denote")
+(declare-function denote-date "denote")
+(declare-function denote-rename-file "denote")
+(declare-function denote-backlinks "denote")
+(declare-function denote-link "denote")
+(declare-function denote-link-dired "denote")
+(declare-function olivetti-mode "olivetti")
+
 ;; ── Window navigation (windmove with Super) ─────────────────────────
 (windmove-default-keybindings 'super)
 

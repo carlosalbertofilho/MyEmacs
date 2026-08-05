@@ -18,6 +18,11 @@
 (require 'recentf)
 (require 'project)
 
+;; Forward declarations for byte-compiler
+(defvar org-agenda-files)
+(declare-function org-agenda-get-day-entries "org-agenda")
+(declare-function gptel "gptel")
+
 ;; ── Fontes ──────────────────────────────────────────────────────────
 (defvar +carlos/dashboard-font-title "Space Grotesk"
   "Fonte para títulos do dashboard.")

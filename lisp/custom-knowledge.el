@@ -6,6 +6,10 @@
 
 ;;; Code:
 
+;; Forward declarations for byte-compiler
+(defvar denote-directory)  ;; dynamically bound in +carlos/denote-silo--with-dir
+(declare-function denote "denote")
+
 ;; ── denote ──────────────────────────────────────────────────────────
 (use-package denote
   :ensure t
@@ -36,7 +40,8 @@
   "Diretórios de notas extras (silos).")
 
 (defun +carlos/denote-silo--with-dir (dir fn)
-  "Call FN with `denote-directory' bound to DIR."
+  "Call FN with `denote-directory' dynamically bound to DIR."
+  ;; Use dynamic binding: fn may reference denote-directory internally
   (let ((denote-directory (expand-file-name dir)))
     (funcall fn)))
 

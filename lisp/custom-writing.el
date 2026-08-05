@@ -12,6 +12,11 @@
 
 (require 'subr-x)
 
+;; Forward declarations for byte-compiler
+(defvar markdown-hide-markup)
+(defvar markdown-hide-urls)
+(defvar markdown-url-compose-char)
+
 ;; ── Org Modern (estilização moderna para Org e Markdown) ───────────
 (use-package org-modern
   :ensure t

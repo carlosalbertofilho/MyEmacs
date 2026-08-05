@@ -70,13 +70,14 @@
         corfu-popupinfo-delay '(0.2 . 0.1)
         corfu-popupinfo-mode t))
 
-;; TAB/RET behavior with corfu
+;; Corfu minibuffer integration
+(defun +carlos/corfu-enable-in-minibuffer ()
+  "Enable Corfu in the minibuffer."
+  (setq-local corfu-echo-delay nil
+              corfu-popupinfo-delay nil))
+
 (with-eval-after-load 'corfu
-  (defun corfu-enable-always-in-minibuffer ()
-    "Enable Corfu in the minibuffer."
-    (setq-local corfu-echo-delay nil
-                corfu-popupinfo-delay nil))
-  (add-hook 'minibuffer-setup-hook #'corfu-enable-always-in-minibuffer 1))
+  (add-hook 'minibuffer-setup-hook #'+carlos/corfu-enable-in-minibuffer 1))
 
 (provide 'custom-completion)
 ;;; custom-completion.el ends here

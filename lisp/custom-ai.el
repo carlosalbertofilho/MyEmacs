@@ -9,6 +9,22 @@
 
 ;;; Code:
 
+;; Forward declarations for byte-compiler
+(defvar gptel-directives)
+(defvar gptel-agent-dirs)
+(defvar mcp-hub-servers)
+(defvar superchat-llm-backend)
+(defvar superchat-lang)
+(defvar superchat-response-timeout)
+(defvar superchat-context-message-count)
+(defvar superchat-conversation-history-limit)
+(defvar superchat-data-directory)
+(defvar superchat-llm-tool-names)
+(declare-function gptel-agent "gptel-agent")
+(declare-function gptel-get-backend "gptel")
+(declare-function gptel-send "gptel")
+(declare-function make-llm-openai-compatible "llm")
+
 ;; ── gptel core ──────────────────────────────────────────────────────
 (use-package gptel
   :ensure t
@@ -154,11 +170,8 @@ Sem advice: chama `+carlos/gptel-agent-add-project-dirs' diretamente."
                                  ,(expand-file-name "~/Projects"))))
           ("github" . (:command "npx"
                        :args ("-y" "@modelcontextprotocol/server-github")))))
-  ;; Iniciar MCP automaticamente com gptel/superchat
-  (with-eval-after-load 'gptel
-    (when (require 'gptel-integrations nil t)
-      ;; gptel-integrations loaded successfully
-      )))
+  ;; gptel-integrations is loaded automatically by gptel when needed
+  )
 
 ;; ── SuperChat (Claude Code-style UI para gptel) ────────────────────
 ;; Não está no MELPA — instalar manualmente:
