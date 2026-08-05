@@ -7,6 +7,7 @@ eln-cache/
 elpa/
 tree-sitter/
 site-lisp/nix-elpa/
+elpaca/
 recentf
 places
 *.elc

@@ -43,22 +43,17 @@
                   "--depth" "1" "--single-branch"
                   "https://github.com/progfolio/elpaca.git" repo))
   (unless (file-exists-p build)
-    (call-process "git" nil nil nil "-C" repo "fetch" "--depth" "1" "origin" "master")
-    (call-process "git" nil nil nil "-C" repo "checkout" "FETCH_HEAD")
-    (call-process "git" nil nil nil "-C" repo "submodule" "update" "--init" "--recursive" "--depth" "1"))
-  (unless (file-exists-p build)
     (with-current-buffer (get-buffer-create "*elpaca-bootstrap*")
       (let ((standard-output (current-buffer)))
+        (call-process "git" nil t nil "-C" repo "fetch" "--depth" "1" "origin" "master")
+        (call-process "git" nil t nil "-C" repo "checkout" "FETCH_HEAD")
+        (call-process "git" nil t nil "-C" repo "submodule" "update" "--init" "--recursive" "--depth" "1")
         (call-process "emacs" nil t nil "--batch" "-L" "." "-l" "elpaca.el"
-                      "--eval" "(elpaca-generate-autoloads \"elpaca\" default-directory)"))
-      (goto-char (point-min))
-      (while (re-search-forward "^[[:space:]]*$" nil t) (delete-region (line-beginning-position) (1+ (line-end-position))))
-      (write-region (point-min) (point-max) (expand-file-name "elpaca-autoloads.el" build)))))
+                      "--eval" "(elpaca-generate-autoloads \"elpaca\" default-directory)")))))
 
 (unless (require 'elpaca-autoloads nil t)
   (require 'elpaca)
-  (elpaca-generate-autoloads "elpaca" repo)
-  (let ((load-source-file-function nil)) (load "./elpaca-autoloads" nil t)))
+  (elpaca-generate-autoloads "elpaca" (expand-file-name "elpaca/" elpaca-sources-directory)))
 
 (add-hook 'after-init-hook #'elpaca-process-queues)
 (elpaca `(,@elpaca-order))

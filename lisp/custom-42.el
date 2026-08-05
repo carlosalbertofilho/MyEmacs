@@ -7,8 +7,11 @@
 ;;; Code:
 
 ;; ── flycheck (dependency for norminette) ───────────────────────────
+;; :demand t ensures flycheck is installed and loaded before custom-norminette
+;; tries to (require 'flycheck)
 (use-package flycheck
   :ensure t
+  :demand t
   :config
   (global-flycheck-mode 1)
   ;; Habilitar checker emacs-lisp em modos Elisp
@@ -19,6 +22,10 @@
   ;; Permitir checagem em buffers sem arquivo (ex: *scratch*)
   (add-hook 'emacs-lisp-mode-hook #'flycheck-mode)
   (add-hook 'lisp-interaction-mode-hook #'flycheck-mode))
+
+;; Wait for flycheck to be installed before loading custom-norminette
+;; (which has a hard (require 'flycheck) at the top)
+(elpaca-wait)
 
 ;; ── site-lisp ───────────────────────────────────────────────────────
 (require 'header42)
