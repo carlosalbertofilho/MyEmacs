@@ -9,8 +9,17 @@
 (setq dired-listing-switches "-alh --group-directories-first"
       dired-dwim-target t)
 
+;; ── nerd-icons (ícones para dirvish, dashboard, etc) ───────────────
+(use-package nerd-icons
+  :ensure t
+  :config
+  ;; Instala ícones na primeira execução se necessário
+  (unless (file-directory-p (expand-file-name "nerd-icons/fonts" user-emacs-directory))
+    (nerd-icons-install-fonts t)))
+
 ;; ── dirvish core ────────────────────────────────────────────────────
 (use-package dirvish
+  :after nerd-icons
   :config
   (dirvish-override-dired-mode 1)
   (setq dirvish-attributes
