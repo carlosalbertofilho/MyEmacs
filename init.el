@@ -92,31 +92,27 @@
 ;; Tab-bar
 (setopt tab-bar-show 1)
 
-;; ── Discovery aid ───────────────────────────────────────────────────
+;; ── Discovery aid (refined in custom-ui.el) ─────────────────────────
 (use-package which-key
   :config
   (which-key-mode))
 
-;; ── Theme (placeholder — Fase 1 will add ef-themes) ─────────────────
-(use-package emacs
-  :config
-  (load-theme 'modus-vivendi t))
+;; ── Theme (placeholder — ef-themes loaded in custom-ui.el) ──────────
+;; (load-theme 'modus-vivendi t) ; replaced by ef-themes
 
 ;; ── Modular configuration ───────────────────────────────────────────
-;; Uncomment as each module is created in subsequent phases:
-;;
-;; (require 'custom-core)          ; Fase 1: fonts, GPG, SSH, editor basics
-;; (require 'custom-ui)            ; Fase 1: ef-themes, mood-line, olivetti
-;; (require 'custom-completion)    ; Fase 1: vertico, consult, marginalia, orderless, embark, corfu
-;; (require 'custom-files)         ; Fase 1: dirvish, ibuffer, TRAMP
-;; (require 'custom-term)          ; Fase 1: vterm, eshell
+(require 'custom-core)
+(require 'custom-ui)
+(require 'custom-completion)
+(require 'custom-files)
+(require 'custom-term)
+(require 'custom-keybindings)
 ;; (require 'custom-lang)          ; Fase 2: eglot (go/ts/python/cc), treesit-auto
 ;; (require 'custom-org)           ; Fase 2: org-babel, jupyter, mermaid, pdf-tools
 ;; (require 'custom-42)            ; Fase 2: 42 School style, header42, norminette
 ;; (require 'custom-ai)            ; Fase 3: gptel, gptel-agent
 ;; (require 'custom-knowledge)     ; Fase 3: denote
 ;; (require 'custom-git)           ; Fase 3: magit, just-mode
-;; (require 'custom-keybindings)   ; Fase 1: C-c prefix keybindings
 
 ;; ── Custom file (keep M-x customize out of init.el) ─────────────────
 (setq custom-file (expand-file-name "custom-file.el" user-emacs-directory))
