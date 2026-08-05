@@ -123,12 +123,14 @@
         eshell-hist-file-size 10000
         eshell-cmpl-cycle-completions nil)
   ;; Sync PATH with system shell so Eshell can find npx, bunx, agy, etc.
-  (setq eshell-path-extra
-        (append '("/etc/profiles/per-user/carlosfilho/bin"
-                  "/var/folders/p6/jvskwtqn1tl1d75kgr4p32g00000gn/T/bunx-501-opencode-ai@latest/node_modules/.bin"
-                  "/run/current-system/sw/bin"
-                  "/nix/var/nix/profiles/default/bin")
-                eshell-path-extra)))
+  (with-eval-after-load 'esh-ext
+    (when (boundp 'eshell-path-extra)
+      (setq eshell-path-extra
+            (append '("/etc/profiles/per-user/carlosfilho/bin"
+                      "/var/folders/p6/jvskwtqn1tl1d75kgr4p32g00000gn/T/bunx-501-opencode-ai@latest/node_modules/.bin"
+                      "/run/current-system/sw/bin"
+                      "/nix/var/nix/profiles/default/bin")
+                    eshell-path-extra)))))
 
 ;; AI tool aliases for Eshell
 (defun +carlos/eshell-ai-aliases ()
