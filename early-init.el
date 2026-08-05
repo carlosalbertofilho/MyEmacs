@@ -17,6 +17,9 @@
 (setq warning-suppress-log-types '((comp) (bytecomp)))
 (setq native-comp-async-report-warnings-errors 'silent)
 
+;; Prefer loading newer source files over outdated compiled files
+(setq load-prefer-newer-source t)
+
 ;; ── Native compilation (Emacs 29+) ──────────────────────────────────
 ;; Parallel async compilation using all available cores
 (when (and (fboundp 'native-comp-available-p)

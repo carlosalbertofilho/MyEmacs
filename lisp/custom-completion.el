@@ -11,6 +11,8 @@
 (declare-function marginalia-mode "marginalia")
 (declare-function global-corfu-mode "corfu")
 (declare-function embark-consult-help "embark-consult")
+(declare-function elpaca "elpaca")
+(declare-function elpaca-wait "elpaca")
 
 ;; Queue completion packages and wait to prevent race conditions during cold boot
 (elpaca vertico)
