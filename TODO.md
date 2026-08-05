@@ -342,7 +342,7 @@ Já instalada:
 ### Backlog (feature work - ordenado por dificuldade)
 1. [ ] Testar SuperChat com fontes instaladas (Dificuldade: Muito Baixa - Validação visual)
 2. [ ] Substituir o dashboard customizado atual pelo pacote `dashboard.el` usando um banner em formato de arte ASCII contendo "My Emacs" (Dificuldade: Baixa - Configuração declarativa)
-3. [ ] Adicionar fontes ao Nix (space-grotesk, inter, victor-mono) (Dificuldade: Média - Edição de Home Manager externa)
+3. [x] Adicionar fontes ao Nix (space-grotesk, inter, victor-mono) (Dificuldade: Média - Edição de Home Manager externa) (Concluído declarativamente no Nix)
 4. [ ] Configurar Victor Mono com ligatures (Dificuldade: Média/Alta - Setup de composição de fontes para ligaduras no Emacs)
 5. [ ] Refinar o dashboard com a tipografia nova instalada (Dificuldade: Média/Alta - Estética fina)
 6. [ ] Fase 4 — Cutoff (Doom → Vanilla final) (Dificuldade: Alta - Transição e consolidação de workflows)
