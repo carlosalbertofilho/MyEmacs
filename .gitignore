@@ -1,0 +1,16 @@
+# Emacs generated
+custom-file.el
+auto-save-list/
+emacs-backup/
+backups/
+eln-cache/
+elpa/
+tree-sitter/
+*.elc
+*~
+\#*\#
+.\#*
+
+# OS
+.DS_Store
+Thumbs.db
