@@ -72,8 +72,8 @@
 ;; Suporta: nerd-icons, all-the-icons, vscode-icon
 ;; Já temos nerd-icons instalado via Nix. (Carregado on-demand)
 (with-eval-after-load 'dirvish
-  (setq dirvish-nerd-icons-height 16
-        dirvish-nerd-icons-offset 0))
+  (setq dirvish-nerd-icons-height 12
+        dirvish-nerd-icons-offset -2))
 
 ;; ── dirvish-side: sidebar tipo treemacs ─────────────────────────────
 ;; Toggle com M-x dirvish-side. Follow mode rastreia buffer atual.
