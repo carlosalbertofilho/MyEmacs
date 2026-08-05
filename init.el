@@ -21,6 +21,11 @@
 
 ;; ── Package repositories ────────────────────────────────────────────
 (require 'package)
+;; Emacs packages via Nix (Home Manager) — ex.: emacs-jupyter, que não está
+;; disponível nos archives ELPA/MELPA. O emacs.nix expõe o elisp em
+;; site-lisp/nix-elpa (buildEnv + home.file) como pacotes "instalados".
+(add-to-list 'package-directory-list
+             (expand-file-name "site-lisp/nix-elpa" user-emacs-directory))
 (setq package-archives
       '(("gnu"    . "https://elpa.gnu.org/packages/")
         ("nongnu" . "https://elpa.nongnu.org/nongnu/")

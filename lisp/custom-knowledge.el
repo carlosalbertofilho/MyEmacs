@@ -27,13 +27,28 @@
   (global-set-key (kbd "C-c n l") #'denote-link)
   (global-set-key (kbd "C-c n L") #'denote-link-dired))
 
-;; ── denote-silo-extras (notas em múltiplos diretórios) ─────────────
-(use-package denote-silo-extras
-  :catch t
-  :after denote
-  :config
-  (setq denote-silo-extras-directories
-        (list (expand-file-name "~/org/notes"))))
+;; ── denote-silo-extras (local) — notas em múltiplos diretórios ─────
+;; `denote-silo-extras' não existe como pacote; implementação local
+;; que cria notas em silos (diretórios extras) sem alterar o padrão.
+(defvar +carlos/denote-silo-directories
+  (list (expand-file-name "~/org/notes"))
+  "Diretórios de notas extras (silos).")
+
+(defun +carlos/denote-silo--with-dir (dir fn)
+  "Call FN with `denote-directory' bound to DIR."
+  (let ((denote-directory (expand-file-name dir)))
+    (funcall fn)))
+
+(defun +carlos/denote-silo-new (&optional dir)
+  "Create a new note in silo DIR.
+With prefix argument, prompt for the silo directory."
+  (interactive
+   (list (if current-prefix-arg
+             (completing-read "Silo: " +carlos/denote-silo-directories)
+           (car +carlos/denote-silo-directories))))
+  (+carlos/denote-silo--with-dir dir #'denote))
+
+(global-set-key (kbd "C-c n s") #'+carlos/denote-silo-new)
 
 (provide 'custom-knowledge)
 ;;; custom-knowledge.el ends here

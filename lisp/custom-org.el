@@ -21,8 +21,7 @@
    '((python . t)
      (shell . t)
      (emacs-lisp . t)
-     (mermaid . t)
-     (gptel . t)))
+     (mermaid . t)))
   :bind
   (("C-c a" . org-agenda)))
 
@@ -37,22 +36,33 @@
   (setq markdown-mermaid-path "mmdc"))
 
 ;; ── emacs-jupyter ───────────────────────────────────────────────────
-(use-package emacs-jupyter
+;; Pacote MELPA chama-se `jupyter' (o repo é emacs-jupyter); kernels
+;; fornecidos pelo env python do Nix (home/carlosfilho/emacs.nix).
+;; `ob-jupyter' não é autoloaded e não require org — precisa dos dois
+;; para definir `org-babel-execute:jupyter' e `org-babel-load-languages'.
+(use-package jupyter
   :catch t
   :config
-  (add-to-list 'org-babel-load-languages '(jupyter . t)))
+  (require 'org)
+  (when (require 'ob-jupyter nil t)
+    (add-to-list 'org-babel-load-languages '(jupyter . t))))
 
-;; ── pdf-tools (opcional — não compila no macOS sem patch) ──────────
-;; No macOS, o epdfinfo falha com conflito de 'getline' no SDK.
-;; Usar DocView (built-in) como fallback no Darwin.
+;; ── pdf-tools ───────────────────────────────────────────────────────
+;; macOS: o configure nao detecta `getline' (ac_cv_func_getline=no) e o
+;; gcc do Nix nao enxerga o SDK, entao `pdf-tools-install' nao consegue
+;; rebuildar. O binario epdfinfo e compilado manualmente uma vez em
+;; build/server/ (com HAVE_GETLINE + flags do SDK) e apontamos para ele
+;; para que o check passe e o rebuild nunca seja disparado.
 (use-package pdf-tools
-  :if (not (eq system-type 'darwin))
   :config
+  (let ((bin (expand-file-name "build/server/epdfinfo" pdf-tools-directory)))
+    (when (file-executable-p bin)
+      (setq pdf-info-epdfinfo-program bin)))
   (pdf-tools-install :no-query)
   (setq pdf-view-display-size 'fit-width))
 
-;; Fallback: DocView no macOS
-(when (eq system-type 'darwin)
+;; Fallback: DocView (built-in) apenas se pdf-tools nao estiver disponivel
+(unless (featurep 'pdf-view)
   (use-package doc-view
     :ensure nil
     :config

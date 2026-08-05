@@ -78,25 +78,13 @@ Sem advice: chamada direta antes de iniciar o agente."
   ;; Registra os presets gptel-agent/gptel-plan e lê os sub-agentes
   (gptel-agent-update))
 
-;; ── gptel-quick ─────────────────────────────────────────────────────
-(use-package gptel-quick
-  :catch t
-  :after gptel
-  :config
-  (setq gptel-quick-word-count 100
-        gptel-quick-model 'north-mini-code-free))
-
-;; ── ob-gptel (blocos Org-babel) ─────────────────────────────────────
-;; ob-gptel pode não estar disponível em todos os ELPA/MELPA mirrors
-;; Se disponível, carrega automaticamente; senão, ignora silenciosamente
+;; ── gptel-org (integração Org — substitui ob-gptel) ─────────────────
+;; Em versões recentes do gptel a integração Org virou `gptel-org'
+;; (ob-gptel não é mais distribuído no pacote).
 (with-eval-after-load 'gptel
   (condition-case nil
-      (progn
-        (require 'ob-gptel)
-        (org-babel-do-load-languages
-         'org-babel-load-languages
-         (append org-babel-load-languages '((gptel . t)))))
-    (file-missing (message "ob-gptel: package not available, skipping"))))
+      (require 'gptel-org)
+    (file-missing (message "gptel-org: package not available, skipping"))))
 
 ;; ── Personas / Diretivas ────────────────────────────────────────────
 (with-eval-after-load 'gptel

@@ -6,6 +6,9 @@ backups/
 eln-cache/
 elpa/
 tree-sitter/
+site-lisp/nix-elpa/
+recentf
+places
 *.elc
 *~
 \#*\#
