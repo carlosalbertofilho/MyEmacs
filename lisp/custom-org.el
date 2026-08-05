@@ -40,12 +40,6 @@
   :config
   (setq ob-mermaid-cli-path "mmdc"))
 
-;; ── markdown-mermaid ────────────────────────────────────────────────
-(use-package markdown-mermaid
-  :ensure t
-  :config
-  (setq markdown-mermaid-path "mmdc"))
-
 ;; ── emacs-jupyter ───────────────────────────────────────────────────
 ;; Repo: https://github.com/jupyter/emacs-jupyter
 ;; Kernels provided by Python env (pip/nix).
