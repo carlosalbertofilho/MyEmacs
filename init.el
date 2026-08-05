@@ -118,6 +118,10 @@
 (require 'custom-ai)
 (require 'custom-knowledge)
 (require 'custom-git)
+(require 'custom-dashboard)
+
+;; ── Dashboard startup hook ──────────────────────────────────────────
+(+carlos/dashboard-setup-startup-hook)
 
 ;; ── Custom file (keep M-x customize out of init.el) ─────────────────
 (setq custom-file (expand-file-name "custom-file.el" user-emacs-directory))

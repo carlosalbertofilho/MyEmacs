@@ -53,5 +53,9 @@
 (global-set-key (kbd "M-o")     #'other-window)
 (global-set-key (kbd "C-x k")   #'kill-current-buffer)
 
+;; ── Dashboard ───────────────────────────────────────────────────────
+(global-set-key (kbd "C-c d d") #'+carlos/dashboard-open)
+(global-set-key (kbd "C-c d r") #'+carlos/dashboard-refresh)
+
 (provide 'custom-keybindings)
 ;;; custom-keybindings.el ends here

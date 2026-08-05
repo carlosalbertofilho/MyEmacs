@@ -373,3 +373,51 @@ O =emacs.nix= gerencia:
 - Fontes (JetBrainsMono Nerd Font, Symbola)
 - Wrapper =emacs-vanilla=
 - Activation (clone do MyEmacs.git)
+
+* Dashboard (estilo Nano Emacs)
+
+** Filosofia
+
+Dashboard minimalista inspirado no =nano-emacs= de Nicolas Rougier:
+- Sem logo gigante, texto centralizado e elegante
+- Zero dependências extras (usa =recentf=, =project.el= nativos)
+- Keyboard-first: navegação por atalhos, mouse opcional
+- Integração direta com gptel, dirvish, magit
+
+** Atalhos
+
+| Atalho | Ação |
+|--------+------|
+| =C-c d d= | abrir dashboard |
+| =C-c d r= | refresh dashboard |
+| =q= / =C-g= | fechar dashboard |
+| =f= | find file (consult-fzf) |
+| =p= | switch project |
+| =a= | org agenda |
+| =g= | magit status |
+| =i= | gptel chat |
+| =d= | dirvish cwd |
+| =TAB= / =S-TAB= | navegar entre seções |
+
+** Widgets
+
+- *Quick Actions*: links clicáveis para comandos frequentes
+- *Recent Files*: últimos 8 arquivos (recentf)
+- *Projects*: últimos 5 projetos (project.el)
+- *Agenda*: itens de hoje (org-agenda)
+- *Footer*: atalhos + uptime
+
+** Splash Screen
+
+Ao iniciar Emacs (sem arquivos abertos):
+- Texto centralizado "MyEmacs" + versão + data
+- Fade-out em 0.5s ou qualquer tecla
+- Não aparece se abrir arquivo via linha de comando
+
+** Implementação
+
+Arquivo: =lisp/custom-dashboard.el=
+- =+carlos/dashboard-splash= → splash screen
+- =+carlos/dashboard-open= → buffer principal
+- =+carlos/dashboard-setup-startup-hook= → ativação automática
+- Integração com =emacs-startup-hook= e =server-after-make-frame-hook=
