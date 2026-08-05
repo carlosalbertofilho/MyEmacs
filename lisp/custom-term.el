@@ -145,7 +145,15 @@ ORIG-FUN and ARGS are passed to the original function."
     (eshell/alias "aif" "opencode fix $*")
     (eshell/alias "aireview" "opencode review $*")
     (eshell/alias "agy" "agy $*")
-    (eshell/alias "gemini" "agy $*")))
+    (eshell/alias "gemini" "agy $*")
+    ;; Aliases coloridos com ícones para listagem de diretórios
+    (if (executable-find "eza")
+        (progn
+          (eshell/alias "ls" "eza --icons --color=always --group-directories-first $*")
+          (eshell/alias "ll" "eza --icons --color=always --group-directories-first -la $*"))
+      (progn
+        (eshell/alias "ls" "ls --color=always $*")
+        (eshell/alias "ll" "ls --color=always -la $*")))))
 
 (add-hook 'eshell-mode-hook #'+carlos/eshell-ai-aliases)
 
