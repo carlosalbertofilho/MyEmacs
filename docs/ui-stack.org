@@ -15,6 +15,9 @@
 - [[#olivetti][Olivetti]]
 - [[#nerd-icons][Nerd Icons]]
 - [[#which-key][Which Key]]
+- [[#dashboard][Dashboard]]
+- [[#ligature][Ligature]]
+- [[#exec-path-from-shell-macos][Exec Path From Shell (macOS)]]
 - [[#visual-tweaks][Visual Tweaks]]
 - [[#pitfalls][Pitfalls & Common Errors]]
 - [[#quick-reference-tables][Quick Reference Tables]]
@@ -49,6 +52,9 @@ UI (vertico, orderless, marginalia, consult).
 | olivetti           | Ryan C. Thompson    | Distraction-free writing mode  | MELPA  |
 | nerd-icons         | Hongyu Ding         | Icon font integration          | MELPA  |
 | which-key          | Justin Burkett      | Keybinding discovery           | MELPA  |
+| dashboard          | Jeronimo Caranza    | Custom startup screen          | MELPA  |
+| ligature           | Mickey Petersen     | Typographical ligatures        | MELPA  |
+| exec-path-from-shell| Steve Purcell      | Inherit shell PATH in macOS    | MELPA  |
 | Visual tweaks      | Built-in            | Cursor, scroll, fringe config  | Emacs  |
 
 * Installation & Configuration
@@ -459,6 +465,87 @@ making Emacs's extensive keybinding system discoverable.
 ;; Don't show which-key for these prefixes
 (setq which-key-allow-evil-operators nil)
 (add-to-list 'which-key-unsupported-modes 'vterm-mode)
+#+end_src
+
+* Dashboard
+
+** Purpose
+
+Dashboard replaces the default startup screen (and custom nano-style screens) with a clean, informative startup screen featuring a customizable ASCII art banner and quick links to recent files and projects.
+
+** Configuration
+
+#+begin_src elisp
+(use-package dashboard
+  :ensure t
+  :demand t
+  :config
+  (dashboard-setup-startup-hook)
+  (setq dashboard-banner-logo-title "My Emacs")
+  (setq dashboard-startup-banner (expand-file-name "banner.txt" user-emacs-directory))
+  (setq dashboard-center-content t)
+  (setq dashboard-show-shortcuts nil)
+  (setq dashboard-items '((recents  . 5)
+                          (projects . 5)))
+  (setq dashboard-set-heading-icons t)
+  (setq dashboard-set-file-icons t)
+  (setq dashboard-display-icons-p t)
+  (setq dashboard-icon-type 'nerd-icons)
+  
+  (custom-set-faces
+   '(dashboard-heading ((t (:family "Space Grotesk" :weight bold :height 1.2))))
+   '(dashboard-items-face ((t (:family "Inter" :weight normal))))))
+#+end_src
+
+** Customization & Custom Font
+
+- **Banner:** The custom ASCII art is stored in =banner.txt= under the root Emacs directory.
+- **Typography:** Uses =Space Grotesk= for headings and =Inter= for list items to match the aesthetic theme.
+
+* Ligature
+
+** Purpose
+
+Ligature enables standard programming typographic ligatures (like ===, =!=, =->=, and ===>=) when using modern programming fonts like Victor Mono or JetBrains Mono.
+
+** Configuration
+
+#+begin_src elisp
+(use-package ligature
+  :ensure t
+  :config
+  ;; Enable ligatures for all programming modes
+  (ligature-set-ligatures 'prog-mode
+    '("|||>" "<|||" "<==>" "<!--" "####" "~~>" "***" "||=" "||>"
+      ":::" "::=" "=:=" "===" "==>" "=!=" "=>>" "=<<" "=/=" "!=="
+      "!!." ">=>" ">>=" ">>>" ">>-" ">->" "->>" "-->" "---" "-<<"
+      "<~~" "<~>" "<*>" "<||" "<|>" "<$>" "<==" "<=>" "<=<" "<->"
+      "<--" "<-<" "<<=" "<<-" "<<<" "<+>" "</>" "###" "#_(" "..<"
+      "..." "+++" "/==" "///" "_|_" "www" "&&" "^=" "~~" "~@" "~="
+      "~>" "~-" "**" "*>" "*/" "||" "|}" "|]" "|=" "|>" "|-" "{|"
+      "[|" "]#" "::" ":=" ":>" ":<" "$>" "==" "=>" "!=" "!!" ">:"
+      ">=" ">>" ">-" "-~" "-|" "->" "--" "-<" "<~" "<*" "<|" "<:"
+      "<$" "<=" "<>" "<-" "<<" "<+" "</" "#{" "#[" "#:" "#=" "#!"
+      "##" "#(" "#?" "#_" "%%" ".=" ".-" ".." ".?" "+>" "++" "?:"
+      "?=" "?." "??" ";;" "/*" "/=" "/>" "//" "__" "~~" "(*" "*)"
+      "\\\\" "://"))
+  (global-ligature-mode t))
+#+end_src
+
+* Exec Path From Shell (macOS)
+
+** Purpose
+
+Integrates graphical Emacs sessions on macOS (both GUI and daemon) with the login shell's path environment, ensuring that helper binaries like =rg=, =fd=, and Nix CLI tools can be resolved correctly.
+
+** Configuration
+
+#+begin_src elisp
+(use-package exec-path-from-shell
+  :ensure t
+  :if (memq window-system '(mac ns))
+  :config
+  (exec-path-from-shell-initialize))
 #+end_src
 
 * Visual Tweaks
