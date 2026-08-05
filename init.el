@@ -107,9 +107,9 @@
 (require 'custom-files)
 (require 'custom-term)
 (require 'custom-keybindings)
-;; (require 'custom-lang)          ; Fase 2: eglot (go/ts/python/cc), treesit-auto
-;; (require 'custom-org)           ; Fase 2: org-babel, jupyter, mermaid, pdf-tools
-;; (require 'custom-42)            ; Fase 2: 42 School style, header42, norminette
+(require 'custom-lang)
+(require 'custom-org)
+(require 'custom-42)
 ;; (require 'custom-ai)            ; Fase 3: gptel, gptel-agent
 ;; (require 'custom-knowledge)     ; Fase 3: denote
 ;; (require 'custom-git)           ; Fase 3: magit, just-mode
