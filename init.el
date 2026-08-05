@@ -113,6 +113,7 @@
 (require 'custom-term)
 (require 'custom-keybindings)
 (require 'custom-lang)
+(require 'custom-markdown)
 (require 'custom-org)
 (require 'custom-42)
 (require 'custom-ai)

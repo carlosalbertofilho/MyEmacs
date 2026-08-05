@@ -1,0 +1,492 @@
+#+TITLE: Markdown Mode & GFM Mode Reference
+#+AUTHOR: MyEmacs AI Agent
+#+DATE: 2026-08-05
+#+DESCRIPTION: Comprehensive reference for markdown-mode and gfm-mode in Emacs
+
+* Overview
+
+This document provides a complete reference for =markdown-mode= and =gfm-mode=,
+the two major modes available for editing Markdown files in Emacs. It is intended
+as RAG context for AI agents working on the MyEmacs Emacs configuration project.
+
+** What is markdown-mode?
+
+=markdown-mode= is a major mode for editing Markdown-formatted text files in
+GNU Emacs. It provides:
+
+- Syntax highlighting (font-lock) for all Markdown constructs
+- Easy insertion of common Markdown elements via keybindings
+- Live preview and export to HTML
+- Navigation between headings and list items
+- Table editing support
+
+** What is gfm-mode?
+
+=gfm-mode= is a variant of =markdown-mode= that implements /GitHub Flavored
+Markdown/ (GFM). It extends standard Markdown with:
+
+- Fenced code blocks with language specification (```)
+- GitHub-style tables with alignment
+- Task lists with clickable checkboxes
+- Strikethrough (~~text~~)
+- URL autolinking
+- Underscores inside words are not treated as italic
+
+** Recommendation**
+
+#+begin_quote
+Use =gfm-mode= for all Markdown files in Git repositories. It provides better
+support for modern Markdown features used on GitHub, GitLab, and other
+platforms. Configure =gfm-mode= as the default handler for all =.md= files.
+#+end_quote
+
+* Installation
+
+** Package Sources
+
+=markdown-mode= is available on:
+- MELPA (latest)
+- NonGNU ELPA (stable)
+
+** Basic use-package Configuration
+
+#+begin_src elisp
+(use-package markdown-mode
+  :ensure t
+  :mode (("README\\.md\\'" . gfm-mode)
+         ("\\.md\\'" . gfm-mode)
+         ("\\.markdown\\'" . gfm-mode)))
+#+end_src
+
+This associates all =.md=, =.markdown=, and =README.md= files with =gfm-mode=.
+
+** Full Recommended Configuration
+
+#+begin_src elisp
+(use-package markdown-mode
+  :ensure t
+  :mode (("README\\.md\\'" . gfm-mode)
+         ("\\.md\\'" . gfm-mode))
+  :init
+  (setq markdown-command "pandoc"
+        markdown-open-command "marked2")  ;; macOS Marked 2 app
+  :config
+  (setq markdown-enable-math t
+        markdown-enable-html t
+        markdown-fontify-code-blocks-natively t
+        markdown-gfm-use-electric-backquote t
+        markdown-make-gfm-checkboxes-buttons t
+        markdown-hide-urls nil
+        markdown-hide-markup nil
+        markdown-split-window-direction 'right
+        markdown-live-preview-delete-export 'delete-on-export)
+  :bind
+  (:map markdown-mode-map
+   ("C-c C-e" . markdown-do)))
+#+end_src
+
+* Key Differences: markdown-mode vs gfm-mode
+
+| Feature                | markdown-mode          | gfm-mode                     |
+|------------------------+------------------------+------------------------------|
+| Underscores in words   | Treated as italic      | Ignored inside words         |
+| Fenced code blocks     | Basic                  | Enhanced with language spec  |
+| Tables                 | Basic                  | GitHub-style with alignment  |
+| Task lists             | Basic                  | Checkbox buttons             |
+| URL autolinking        | No                     | Yes                          |
+| Strikethrough          | No                     | Yes (~~text~~)               |
+| Electric backquote     | No                     | Yes (``` inserts block)      |
+
+#+begin_note
+GFM checkboxes (=markdown-make-gfm-checkboxes-buttons=) work in both
+=markdown-mode= and =gfm-mode= -- the setting is not exclusive to GFM.
+#+end_note
+
+* Configuration Variables
+
+** Rendering & Export
+
+| Variable                           | Default        | Description                                                                 |
+|------------------------------------+----------------+-----------------------------------------------------------------------------|
+| =markdown-command=                 | ="markdown"=   | Command for rendering preview/export. Use ="pandoc"= or ="multimarkdown"=.   |
+| =markdown-open-command=            | =nil=          | Command for opening rendered output (e.g., Marked 2 on macOS).              |
+| =markdown-live-preview-delete-export= | =nil=       | Delete exported HTML after preview. Set to ='delete-on-export=.             |
+| =markdown-split-window-direction=  | =nil=          | Direction for preview window: ='right= or ='below=.                         |
+
+#+begin_src elisp
+(setq markdown-command "pandoc"
+      markdown-open-command "/Applications/Marked 2.app/Contents/MacOS/Marked 2"
+      markdown-live-preview-delete-export 'delete-on-export
+      markdown-split-window-direction 'right)
+#+end_src
+
+** Syntax Highlighting
+
+| Variable                                | Default | Description                                      |
+|-----------------------------------------+---------+--------------------------------------------------|
+| =markdown-enable-math=                  | =nil=   | Enable LaTeX math highlighting (= $...$ =).        |
+| =markdown-enable-html=                  | =nil=   | Enable HTML tag highlighting within Markdown.      |
+| =markdown-fontify-code-blocks-natively= | =nil=   | Fontify code in fenced blocks using major modes.   |
+
+#+begin_src elisp
+(setq markdown-enable-math t
+      markdown-enable-html t
+      markdown-fontify-code-blocks-natively t)
+#+end_src
+
+#+begin_note
+=markdown-fontify-code-blocks-natively= requires the language identifier after
+the backticks (e.g., =```python=) to correctly apply font-lock.
+#+end_note
+
+** GFM-Specific Settings
+
+| Variable                                   | Default | Description                                                |
+|--------------------------------------------+---------+------------------------------------------------------------|
+| =markdown-gfm-use-electric-backquote=      | =nil=   | Insert GFM code block on triple backquote.                 |
+| =markdown-make-gfm-checkboxes-buttons=     | =t=     | Make task list checkboxes clickable buttons.               |
+
+#+begin_src elisp
+(setq markdown-gfm-use-electric-backquote t
+      markdown-make-gfm-checkboxes-buttons t)
+#+end_src
+
+** Display & Appearance
+
+| Variable                          | Default | Description                                              |
+|-----------------------------------+---------+----------------------------------------------------------|
+| =markdown-hide-urls=              | =nil=   | Hide URLs in links, show ∞ instead.                      |
+| =markdown-hide-markup=            | =nil=   | Hide all markup for beautified view.                     |
+| =markdown-header-scaling=         | =nil=   | Scale headers by level (requires font config).           |
+| =markdown-list-indent-width=      | =4=     | Indent depth for nested lists.                           |
+| =markdown-indent-on-enter=        | =t=     | Auto-indent on RET.                                      |
+| =markdown-max-image-size=         | =nil=   | Max size for inline images ='(max-width . max-height)=.  |
+| =markdown-display-remote-images=  | =nil=   | Show remote images inline.                               |
+
+#+begin_src elisp
+(setq markdown-hide-urls nil          ;; nil = show full URLs
+      markdown-hide-markup nil        ;; nil = show markup delimiters
+      markdown-header-scaling t       ;; Scale headers by level
+      markdown-list-indent-width 2    ;; 2-space indent for lists
+      markdown-max-image-size '(600 . 400)
+      markdown-display-remote-images t)
+#+end_src
+
+#+begin_warning
+Remote images require =markdown-display-remote-images= set to =t=. Without
+this, inline image references to URLs will not render.
+#+end_warning
+
+** Insertion Behavior
+
+| Variable                        | Default | Description                                              |
+|---------------------------------+---------+----------------------------------------------------------|
+| =markdown-reference-location=   | ='header= | Where to insert reference definitions: ='header=, ='end=, or ='subtree=. |
+| =markdown-footnote-location=    | ='end=  | Where to insert footnotes (default: ='end=).             |
+
+#+begin_src elisp
+(setq markdown-reference-location 'subtree
+      markdown-footnote-location 'end)
+#+end_src
+
+* Key Commands
+
+** Text Styles (C-c C-s)
+
+All text styling commands are under the =C-c C-s= (style) prefix.
+
+| Keybinding     | Action                          | Example Output                  |
+|----------------+---------------------------------+---------------------------------|
+| =C-c C-s i=    | Insert italic                   | =_text_= or =*text*=            |
+| =C-c C-s b=    | Insert bold                     | =**text**=                      |
+| =C-c C-s c=    | Insert inline code              | =`code`=                        |
+| =C-c C-s k=    | Insert =<kbd>=                  | =<kbd>C-x C-f</kbd>=            |
+| =C-c C-s q=    | Insert blockquote               | => text=                        |
+| =C-c C-s p=    | Insert pre block                | Indented code block             |
+| =C-c C-s C=    | Insert GFM fenced code block    | =```language ... ```=           |
+| =C-c C-s h=    | Insert heading (auto level)     | Based on context                |
+| =C-c C-s 1=    | Insert heading level 1          | =# Heading=                     |
+| =C-c C-s 2=    | Insert heading level 2          | =## Heading=                    |
+| =C-c C-s 3=    | Insert heading level 3          | =### Heading=                   |
+| =C-c C-s 4=    | Insert heading level 4          | =#### Heading=                  |
+| =C-c C-s 5=    | Insert heading level 5          | =##### Heading=                 |
+| =C-c C-s 6=    | Insert heading level 6          | =###### Heading=                |
+| =C-c C-s -=    | Insert horizontal rule          | =---=                           |
+| =C-c C-s f=    | Insert footnote                 | =[^1]= + footnote definition    |
+| =C-c C-s t=    | Insert table                    | Creates table template          |
+
+** Links (C-c C-l)
+
+| Keybinding     | Action                          |
+|----------------+---------------------------------|
+| =C-c C-l=      | Insert or edit link             |
+| =C-c C-i=      | Insert or edit image            |
+| =C-c C-o=      | Open link at point in browser   |
+
+** Maintenance (C-c C-c)
+
+| Keybinding     | Action                          | Description                                        |
+|----------------+---------------------------------+----------------------------------------------------|
+| =C-c C-c m=    | Render Markdown                 | Runs =markdown-command= > =*markdown-output*=      |
+| =C-c C-c p=    | Preview in browser              | Renders and opens in browser                       |
+| =C-c C-c e=    | Export to HTML                  | Exports to =basename.html=                         |
+| =C-c C-c v=    | Export and view                 | Exports and opens in browser                       |
+| =C-c C-c l=    | Live preview mode               | Toggle live preview in Emacs window                |
+| =C-c C-c c=    | Check undefined refs            | Find references without definitions                |
+| =C-c C-c u=    | Check unused refs               | Find definitions without references                |
+| =C-c C-c n=    | Renumber ordered lists          | Fix ordered list numbering                         |
+| =C-c C-c ]=    | Complete headings/HRs           | Auto-complete heading or horizontal rule           |
+
+** Navigation
+
+| Keybinding        | Action                          |
+|-------------------+---------------------------------|
+| =C-c C-n=         | Next heading or list item       |
+| =C-c C-p=         | Previous heading or list item   |
+| =C-c C-f=         | Forward to same level           |
+| =C-c C-b=         | Backward to same level          |
+| =C-c C-u=         | Up to parent heading            |
+| =TAB=             | Cycle visibility (headings)     |
+| =S-TAB=           | Global cycle visibility         |
+| =M-{= / =M-}=     | Forward/backward paragraph      |
+| =C-M-{= / =C-M-}= | Forward/backward block          |
+
+** List Editing
+
+| Keybinding          | Action                          |
+|---------------------+---------------------------------|
+| =M-RET=             | New list item at current level  |
+| =C-c UP=            | Move list item up               |
+| =C-c DOWN=          | Move list item down             |
+| =C-c LEFT=          | Outdent list item               |
+| =C-c RIGHT=         | Indent list item                |
+
+** Table Editing
+
+| Keybinding          | Action                          |
+|---------------------+---------------------------------|
+| =TAB=               | Next cell / align table         |
+| =S-TAB=             | Previous cell                   |
+| =RET=               | Next row (creates if needed)    |
+| =C-c S-UP=          | Kill current row                |
+| =C-c S-DOWN=        | Insert row above                |
+| =C-c S-LEFT=        | Kill current column             |
+| =C-c S-RIGHT=       | Insert column                   |
+| =C-c C-c ^=         | Sort table                      |
+| =C-c C-c=           | Convert region to table         |
+| =C-c C-c t=         | Transpose table                 |
+
+** Promotion & Demotion
+
+| Keybinding                    | Action                          |
+|-------------------------------+---------------------------------|
+| =C-c C--= or =C-c LEFT=       | Promote (decrease heading level)|
+| =C-c C-= = or =C-c RIGHT=     | Demote (increase heading level) |
+
+#+begin_note
+Promotion/demotion works on headings, list items, and horizontal rules.
+#+end_note
+
+* Common Pitfalls
+
+| # | Pitfall | Solution |
+|---+---------+----------|
+| 1 | Using =markdown-mode= instead of =gfm-mode= for Git repos | Configure =.md= files to use =gfm-mode= via =:mode= in =use-package= |
+| 2 | =markdown-command= not installed | Install =pandoc= (recommended) or set to available renderer |
+| 3 | Code blocks not fontified natively | Set =markdown-fontify-code-blocks-natively= to =t= |
+| 4 | Remote images not displaying | Set =markdown-display-remote-images= to =t= |
+| 5 | Header scaling not working | Set =markdown-header-scaling= to =t= AND configure font faces |
+| 6 | Electric backquote not inserting GFM blocks | Set =markdown-gfm-use-electric-backquote= to =t= |
+| 7 | Tables not detected | Tables require a leading pipe character (=|column|) |
+| 8 | GFM checkboxes not clickable | Set =markdown-make-gfm-checkboxes-buttons= to =t= |
+
+** Detailed Explanations
+
+*** Pitfall 1: Wrong mode for Git repos
+
+Always use =gfm-mode= for files in Git repositories. Standard =markdown-mode=
+does not support fenced code blocks with language specifiers, GitHub tables,
+or task list checkboxes properly.
+
+#+begin_src elisp
+:mode (("README\\.md\\'" . gfm-mode)
+       ("\\.md\\'" . gfm-mode)
+       ("\\.markdown\\'" . gfm-mode))
+#+end_src
+
+*** Pitfall 2: Missing render command
+
+The default =markdown-command= is ="markdown"= (the Ruby gem). Most users
+should prefer =pandoc=:
+
+#+begin_src elisp
+(setq markdown-command "pandoc")
+#+end_src
+
+Verify the command is available:
+
+#+begin_src sh
+which pandoc
+#+end_src
+
+*** Pitfall 3: Code block editing in indirect buffer
+
+For editing code within fenced blocks in a separate buffer with the
+appropriate major mode, install the =edit-indirect= package:
+
+#+begin_src elisp
+(use-package edit-indirect
+  :ensure t)
+#+end_src
+
+*** Pitfall 4: Table detection requirements
+
+GFM tables require a leading pipe character for detection:
+
+#+begin_example
+| Header 1 | Header 2 |
+|----------|----------|
+| Cell 1   | Cell 2   |
+#+end_example
+
+A table without the leading pipe will not be recognized:
+
+#+begin_example
+Header 1 | Header 2
+---------|----------
+Cell 1   | Cell 2
+#+end_example
+
+*** Pitfall 5: Header scaling requirements
+
+Header scaling requires BOTH:
+1. =markdown-header-scaling= set to =t=
+2. Font face configuration for heading levels
+
+#+begin_src elisp
+(setq markdown-header-scaling t)
+;; Then configure faces, e.g.:
+(custom-set-faces
+ '(markdown-header-face-1 ((t (:height 1.8))))
+ '(markdown-header-face-2 ((t (:height 1.5))))
+ '(markdown-header-face-3 ((t (:height 1.3)))))
+#+end_src
+
+* Integration with MyEmacs
+
+** Where to configure
+
+Add markdown-mode configuration to a new =custom-markdown.el= file or
+append to =custom-completion.el= if keeping text-editing packages together.
+
+** Suggested use-package block for MyEmacs
+
+#+begin_src elisp
+;;; custom-markdown.el --- Markdown and GFM mode configuration -*- lexical-binding: t; -*-
+
+;;; Commentary:
+;; Configuration for markdown-mode and gfm-mode.
+;; Provides syntax highlighting, live preview, and GFM features.
+
+;;; Code:
+
+(use-package markdown-mode
+  :ensure t
+  :mode (("README\\.md\\'" . gfm-mode)
+         ("\\.md\\'" . gfm-mode)
+         ("\\.markdown\\'" . gfm-mode)
+         ("\\.mdx\\'" . gfm-mode))
+  :init
+  (setq markdown-command "pandoc")
+  :config
+  ;; Syntax highlighting
+  (setq markdown-enable-math t
+        markdown-enable-html t
+        markdown-fontify-code-blocks-natively t)
+  ;; GFM features
+  (setq markdown-gfm-use-electric-backquote t
+        markdown-make-gfm-checkboxes-buttons t)
+  ;; Display
+  (setq markdown-hide-urls nil
+        markdown-hide-markup nil
+        markdown-split-window-direction 'right
+        markdown-list-indent-width 2
+        markdown-display-remote-images t)
+  ;; Export behavior
+  (setq markdown-live-preview-delete-export 'delete-on-export
+        markdown-reference-location 'subtree
+        markdown-footnote-location 'end))
+
+(provide 'custom-markdown)
+;;; custom-markdown.el ends here
+#+end_src
+
+** Loading order
+
+Add =(require 'custom-markdown)= to =init.el= after =custom-completion=
+and before =custom-files=:
+
+#+begin_example
+custom-core
+custom-ui
+custom-completion
+custom-markdown     ;; <-- Add here
+custom-files
+custom-term
+...
+#+end_example
+
+* External Tools
+
+** pandoc
+
+Universal document converter. Recommended as =markdown-command=.
+
+#+begin_src sh
+# Install via Homebrew (macOS)
+brew install pandoc
+#+end_src
+
+** Marked 2
+
+macOS Markdown preview app. Use as =markdown-open-command=.
+
+#+begin_src elisp
+(setq markdown-open-command "/Applications/Marked 2.app/Contents/MacOS/Marked 2")
+#+end_src
+
+** grip
+
+GitHub-rendered preview server. Alternative for live preview.
+
+#+begin_src sh
+pip install grip
+#+end_src
+
+#+begin_src elisp
+(setq markdown-open-command "grip")
+#+end_src
+
+* Quick Reference Card
+
+** Most Used Keybindings
+
+| Key          | Action                  |
+|--------------+-------------------------|
+| =C-c C-s b=  | Bold                    |
+| =C-c C-s i=  | Italic                  |
+| =C-c C-s c=  | Inline code             |
+| =C-c C-s C=  | Fenced code block       |
+| =C-c C-s h=  | Heading                 |
+| =C-c C-l=    | Link                    |
+| =C-c C-o=    | Open link               |
+| =C-c C-c v=  | Export and view         |
+| =C-c C-c l=  | Live preview toggle     |
+| =M-RET=      | New list item           |
+| =TAB=        | Next cell / fold        |
+
+* Changelog
+
+| Date       | Change                          |
+|------------+---------------------------------|
+| 2026-08-05 | Initial reference document      |
