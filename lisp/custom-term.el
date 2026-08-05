@@ -59,7 +59,7 @@
         eat-kill-buffer-on-exit t      ;; Clean up on exit
         ;; Auto char-mode for interactive commands (y/n prompts, TUIs)
         eat-semi-char-non-semi-commands
-        '("just" "opencode" "agy" "gemini" "htop" "ranger" "lazygit" "vim" "nano")))
+        '("just" "opencode" "agy" "gemini" "htop" "btop" "ranger" "lazygit" "vim" "nano")))
 
 ;; Toggle between Emacs mode and Char mode (send keys directly to program)
 (with-eval-after-load 'eshell
