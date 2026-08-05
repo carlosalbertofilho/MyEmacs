@@ -150,7 +150,7 @@
 (require 'custom-dashboard)
 
 ;; ── Dashboard startup hook ──────────────────────────────────────────
-(+carlos/dashboard-setup-startup-hook)
+;; (O próprio custom-dashboard agora ativa o hook no :config de forma segura)
 
 ;; ── Custom file (keep M-x customize out of init.el) ─────────────────
 (setq custom-file (expand-file-name "custom-file.el" user-emacs-directory))

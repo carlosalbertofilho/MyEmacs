@@ -10,7 +10,9 @@
 
 (use-package dashboard
   :ensure t
+  :demand t
   :config
+  (dashboard-setup-startup-hook)
   (setq dashboard-banner-logo-title "My Emacs")
   (setq dashboard-startup-banner (expand-file-name "banner.txt" user-emacs-directory))
   (setq dashboard-center-content t)
