@@ -61,6 +61,7 @@
 ;; Elpaca + use-package integration
 (elpaca elpaca-use-package
   (elpaca-use-package-mode))
+(elpaca-wait)  ;; Block until elpaca-use-package is installed
 
 ;; use-package defaults (Elpaca handles :ensure automatically)
 (setq use-package-always-defer t

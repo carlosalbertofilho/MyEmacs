@@ -37,6 +37,7 @@
 ;; ── org-babel mermaid ───────────────────────────────────────────────
 (use-package ob-mermaid
   :ensure t
+  :demand t  ;; Required before org-babel-do-load-languages
   :config
   (setq ob-mermaid-cli-path "mmdc"))
 
