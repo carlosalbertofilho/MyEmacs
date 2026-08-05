@@ -45,7 +45,7 @@ check-all: check lint
 # Sync to test directory (~/.config/emacs-vanilla)
 sync:
     @echo "📦 Syncing to ~/.config/emacs-vanilla..."
-    @cd ~/.config/emacs-vanilla && git stash && git pull && git stash pop && rm -f lisp/*.elc && echo "✅ Sync complete" || echo "❌ Sync failed"
+    @cd ~/.config/emacs-vanilla && git stash && git pull && git stash pop && find . -name "*.elc" -type f -delete && echo "✅ Sync complete" || echo "❌ Sync failed"
 
 # Test in sync directory
 test:
