@@ -176,7 +176,7 @@ Sem advice: chama `+carlos/gptel-agent-add-project-dirs' diretamente."
           (make-llm-openai-compatible
            :api-key (or (getenv "OPENCODE_API_KEY") "")
            :endpoint "https://zen.opencode.ai/v1"
-           :chat-model "north-mini-code-free"))))
+           :chat-model "north-mini-code-free")))
   ;; Idioma para variáveis de sistema
   (setq superchat-lang "English")
   ;; Timeout de resposta
