@@ -17,6 +17,17 @@
 (setq warning-suppress-log-types '((comp) (bytecomp)))
 (setq native-comp-async-report-warnings-errors 'silent)
 
+;; ── Native compilation (Emacs 29+) ──────────────────────────────────
+;; Parallel async compilation using all available cores
+(when (and (fboundp 'native-comp-available-p)
+           (native-comp-available-p))
+  ;; Number of parallel compilation jobs (use all CPU cores)
+  (setq native-comp-async-jobs-number (num-processors))
+  ;; Defer compilation until first load (oat = on-the-fly)
+  (setq native-comp-deferred-compilation t)
+  ;; Compile packages natively on install (not just byte-compile)
+  (setq package-native-compile t))
+
 ;; ── Silence startup noise ───────────────────────────────────────────
 (setq inhibit-startup-echo-area-message (user-login-name))
 (setq inhibit-splash-screen t)
