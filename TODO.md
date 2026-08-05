@@ -339,11 +339,11 @@ Já instalada:
 ~~13. [ ] Fix #13: Guardar consult-fzf~~ ✅
 ~~14. [ ] Fix #14: Guardar magit-status~~ ✅
 
-### Backlog (feature work)
-12. [ ] Adicionar fontes ao Nix (space-grotesk, inter, victor-mono)
-15. [ ] Configurar Victor Mono com ligatures
-16. [ ] Refinar dashboard com tipografia nova
-17. [ ] Testar SuperChat com fontes instaladas
-18. [ ] Fase 4 — Cutoff (Doom → Vanilla final)
-19. [ ] Substituir o dashboard customizado atual pelo pacote `dashboard.el` usando um banner em formato de arte ASCII contendo "My Emacs"
+### Backlog (feature work - ordenado por dificuldade)
+1. [ ] Testar SuperChat com fontes instaladas (Dificuldade: Muito Baixa - Validação visual)
+2. [ ] Substituir o dashboard customizado atual pelo pacote `dashboard.el` usando um banner em formato de arte ASCII contendo "My Emacs" (Dificuldade: Baixa - Configuração declarativa)
+3. [ ] Adicionar fontes ao Nix (space-grotesk, inter, victor-mono) (Dificuldade: Média - Edição de Home Manager externa)
+4. [ ] Configurar Victor Mono com ligatures (Dificuldade: Média/Alta - Setup de composição de fontes para ligaduras no Emacs)
+5. [ ] Refinar o dashboard com a tipografia nova instalada (Dificuldade: Média/Alta - Estética fina)
+6. [ ] Fase 4 — Cutoff (Doom → Vanilla final) (Dificuldade: Alta - Transição e consolidação de workflows)
 

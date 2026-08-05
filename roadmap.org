@@ -198,6 +198,22 @@ Criar cache de referência para que agentes possam:
 
 *** Status: ✅ DONE
 
+** 2026-08-05 — Correção das Inicializações, Which-Key e Dirvish Sidebar
+
+*** Feito
+- Corrigir warning =compat loaded before Elpaca activation= reposicionando o compat após o carregamento do elpaca-use-package.
+- Corrigir erro de compilação em lote do =pdf-tools-install= em macOS adicionando a trava =unless noninteractive=.
+- Resolver erro de inicialização "Cannot load vertico/marginalia/orderless/corfu" forçando carregamento síncrono via =(elpaca <pkg>)= e =(elpaca-wait)= no topo do custom-completion.el, marcando-os como =:ensure nil= nos blocos use-package correspondentes.
+- Sanar warnings do compilador nativo (elpaca-wait, elpaca, global-corfu-mode, vertico-mode, marginalia-mode, embark-consult-help) no custom-completion.el com forward declarations (=declare-function=).
+- Resolver erro de inicialização "popper/vterm missing" tornando a trava =(elpaca-wait)= incondicional no final do init.el.
+- Adicionar a propriedade =load-prefer-newer-source t= no early-init.el para garantir que o Emacs sempre prefira arquivos de código-fonte .el mais novos sobre arquivos compilados .elc obsoletos.
+- Configurar a remoção recursiva de todos os arquivos .elc (=find . -name "*.elc" -type f -delete=) no alvo =sync= do Justfile para limpar o ambiente de testes de compilações antigas.
+- Remover propriedade =fullscreen . maximized= no default-frame-alist do early-init.el para permitir que o Emacs inicialize com tamanho de janela padrão do sistema.
+- Resolver ausência do =which-key= no Emacs 29 configurando-o com =:ensure t= e reduzindo o delay de ociosidade para =0.4= segundos.
+- Corrigir visual do Dirvish e sidebar que apareciam desconfigurados removendo a dependência bloqueante =:after nerd-icons= e forçando o carregamento do =nerd-icons= imediatamente com =:demand t=.
+
+*** Status: ✅ DONE
+
 * Decisões Arquiteturais
 
 ** Sem Evil Mode
