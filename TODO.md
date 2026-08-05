@@ -282,6 +282,26 @@ Já instalada:
     ```
 - **Ação 7:** Remover o bloco `(with-eval-after-load 'markdown-mode ...)` do arquivo `custom-writing.el` para evitar conflito com as configurações de `custom-markdown.el`.
 
+### 5. Plano de Ação: Correções do UI (Which-Key) e Otimização do Dirvish
+#### 1. Correção de Carregamento do `which-key` (Emacs 29)
+**Arquivo:** [custom-ui.el](file:///Users/carlosfilho/Projects/Github/MyEmacs/lisp/custom-ui.el)
+- **Ação:** O `which-key` é nativo apenas no Emacs 30+. No Emacs 29, ele precisa ser instalado via Elpaca.
+  - Alterar `:ensure nil` para `:ensure t` no `use-package which-key` e reduzir o delay `which-key-idle-delay` para `0.4` para exibição rápida.
+
+#### 2. Correção de Bloqueio do Dirvish (Ícones e Git sumidos)
+**Arquivo:** [custom-files.el](file:///Users/carlosfilho/Projects/Github/MyEmacs/lisp/custom-files.el)
+- **Ação:** Remover a linha `:after nerd-icons` da configuração do `dirvish` para liberar seu carregamento assíncrono.
+  - Definir `:demand t` em `nerd-icons` para garantir que o mapeador de fontes seja carregado logo na inicialização.
+
+#### 3. Melhorias e Extensões do Dirvish (Configuração Completa)
+**Arquivo:** [custom-files.el](file:///Users/carlosfilho/Projects/Github/MyEmacs/lisp/custom-files.el)
+- **Ação 1 (Sidebar Minimalista):** Garantir que `dirvish-side` tenha visual limpo e sem poluição visual.
+  - Ajustar o tamanho da sidebar `dirvish-side-width` para `30`.
+- **Ação 2 (Navegação Subtree):** Mapear atalho de árvore no dirvish-side.
+  - Confirmar a presença de `subtree-state` em `dirvish-attributes` e mapear `"TAB"` para `dirvish-subtree-toggle`.
+- **Ação 3 (Preview Dispatchers):**
+  - Adicionar suporte completo a previews configurando `dirvish-preview-dispatchers` com `'(image gif video audio epub pdf archive)`.
+
 ### 3. Validação dos Ajustes
 - **Ação 1:** Rodar `just check` no repositório para garantir que a sintaxe do Emacs Lisp esteja íntegra.
 - **Ação 2:** Sincronizar com o ambiente de testes e testar a inicialização:

@@ -22,6 +22,7 @@
 ;; ── nerd-icons (ícones para dirvish, dashboard, etc) ───────────────
 (use-package nerd-icons
   :ensure t
+  :demand t
   :config
   ;; Instala ícones na primeira execução se necessário
   (unless (file-directory-p (expand-file-name "nerd-icons/fonts" user-emacs-directory))
@@ -30,7 +31,6 @@
 ;; ── dirvish core ────────────────────────────────────────────────────
 (use-package dirvish
   :ensure t
-  :after nerd-icons
   :init
   (dirvish-override-dired-mode 1)
   :custom

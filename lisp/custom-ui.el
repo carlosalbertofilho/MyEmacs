@@ -34,9 +34,9 @@
 
 ;; ── which-key (built-in Emacs 30+, refine here) ─────────────────────
 (use-package which-key
-  :ensure nil
+  :ensure t
   :config
-  (setq which-key-idle-delay 0.8
+  (setq which-key-idle-delay 0.4
         which-key-show-early-on-C-h t)
   (which-key-mode 1))
 
