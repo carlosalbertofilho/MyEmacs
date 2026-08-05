@@ -6,6 +6,14 @@
 
 ;;; Code:
 
+;; ── ob-mermaid (must be installed before org-babel loads it) ────────
+(use-package ob-mermaid
+  :ensure t
+  :demand t
+  :config
+  (setq ob-mermaid-cli-path "mmdc"))
+(elpaca-wait)  ;; Ensure ob-mermaid is installed before org-babel uses it
+
 ;; ── org-mode ────────────────────────────────────────────────────────
 (use-package org
   :ensure nil
@@ -33,13 +41,6 @@
 (use-package org-fragtog
   :ensure t
   :hook (org-mode . org-fragtog-mode))
-
-;; ── org-babel mermaid ───────────────────────────────────────────────
-(use-package ob-mermaid
-  :ensure t
-  :demand t  ;; Required before org-babel-do-load-languages
-  :config
-  (setq ob-mermaid-cli-path "mmdc"))
 
 ;; ── emacs-jupyter ───────────────────────────────────────────────────
 ;; Repo: https://github.com/jupyter/emacs-jupyter
