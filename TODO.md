@@ -115,6 +115,8 @@
 
 | Bug | Severidade | Status | Notas |
 |-----|------------|--------|-------|
+| `compat loaded before Elpaca activation` | Baixa | ⚠️ Persistente | Pacote compat carregado como dependência antes da fila Elpaca processar. Não crítico, mas warning aparece em GUI. |
+| `Cannot open load file: ob-mermaid` | Alta | 🔴 **PERSISTENTE** | Mesmo com `:demand t` + `elpaca-wait` antes do org, ob-mermaid não encontra no load-path em modo interativo. Funciona em batch. Investigar se pacote está instalado corretamente via Elpaca. |
 | pdf-tools não compila macOS | Média | ⚠️ Workaround | Usar doc-view fallback |
 | consult/nerd-icons não no MELPA | Alta | 🔍 Investigando | Pacotes podem estar em rebuild |
 | vterm-module não compilado | Média | ℹ️ Info | Normal em batch mode, requer GUI |
@@ -164,6 +166,8 @@ Já instalada:
 ## Próximos Passos
 
 ### Pendentes (investigação)
+- [ ] **URGENTE**: Investigar `ob-mermaid` não encontrado em modo interativo (funciona em batch). Verificar: (1) pacote instalado via Elpaca? (2) autoloads gerados? (3) `elpaca-status` mostra instalado?
+- [ ] Investigar warning `compat loaded before Elpaca activation` — identificar qual pacote depende de compat e carrega antes da fila Elpaca
 - [ ] Investigar por que `consult` e `nerd-icons` não foram encontrados no MELPA durante `just check`
 - [ ] Verificar se pacotes estão em rebuild no MELPA ou se foram removidos/renomeados
 - [ ] Testar config completa em GUI (não batch) para verificar vterm-module
