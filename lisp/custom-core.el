@@ -39,7 +39,7 @@
 ;; ── GPG / EPA ───────────────────────────────────────────────────────
 (require 'epa-file)
 (epa-file-enable)
-(setq epa-pinentry-mode 'loopback)
+(setq epg-pinentry-mode 'loopback)
 
 ;; ── Xterm mouse (tty) ───────────────────────────────────────────────
 (when (not (display-graphic-p))

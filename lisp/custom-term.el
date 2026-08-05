@@ -7,10 +7,20 @@
 
 ;;; Code:
 
+;; Forward declarations for byte-compiler
+(declare-function eshell-send-input "esh-mode")
+(declare-function eat-toggle-char-mode "eat")
+(declare-function eat-exec-cmd "eat")
+(declare-function eat-make-buffer "eat")
+(declare-function vterm-send-string "vterm")
+(defvar vterm-mode-map)
+(defvar eshell-mode-map)
+
 ;; ── vterm ───────────────────────────────────────────────────────────
 ;; Prevent vterm from prompting for module compilation in batch mode
 (defun +carlos/vterm-skip-compile-prompt (orig-fun &rest args)
-  "Skip y-or-n-p prompts about vterm module compilation."
+  "Skip `y-or-n-p` prompt about vterm module compilation.
+ORIG-FUN and ARGS are passed to the original function."
   (if (and noninteractive (stringp (car args))
            (string-match-p "vterm" (car args)))
       nil
@@ -25,7 +35,9 @@
   (setq vterm-keymap-exceptions
         (delete "C-c" (delete "C-u" (delete "C-g" vterm-keymap-exceptions))))
   (setq vterm-max-scrollback 100000)
-  (setq vterm-copy-exclude-prompt t))
+  (setq vterm-copy-exclude-prompt t)
+  ;; Multiline prompt helper
+  (define-key vterm-mode-map (kbd "C-c C-e") #'+carlos/vterm-write-multiline-prompt))
 
 ;; Multiline prompt helper
 (defun +carlos/vterm-write-multiline-prompt ()
@@ -33,9 +45,6 @@
   (interactive)
   (when-let* ((text (or (car kill-ring) "")))
     (vterm-send-string text)))
-
-(with-eval-after-load 'vterm
-  (define-key vterm-mode-map (kbd "C-c C-e") #'+carlos/vterm-write-multiline-prompt))
 
 ;; ── vterm-toggle (IDE-style terminal drawer) ────────────────────────
 (use-package vterm-toggle
@@ -60,11 +69,6 @@
         ;; Auto char-mode for interactive commands (y/n prompts, TUIs)
         eat-semi-char-non-semi-commands
         '("just" "opencode" "agy" "gemini" "devenv" "htop" "btop" "ranger" "lazygit" "vim" "nano")))
-
-;; Toggle between Emacs mode and Char mode (send keys directly to program)
-(with-eval-after-load 'eat
-  (with-eval-after-load 'eshell
-    (define-key eshell-mode-map (kbd "C-c C-q") #'eat-toggle-char-mode)))
 
 ;; ── Just + Eat integration (Opção 2: Project.el) ──────────────────
 ;; Run just recipes from project root in an eat buffer.
@@ -132,7 +136,13 @@
                                       "/var/folders/p6/jvskwtqn1tl1d75kgr4p32g00000gn/T/bunx-501-opencode-ai@latest/node_modules/.bin"
                                       "/run/current-system/sw/bin"
                                       "/nix/var/nix/profiles/default/bin")
-                                    eshell-path-extra))))))
+                                      eshell-path-extra))))))
+
+;; Eshell keybindings (after eshell fully loads)
+(with-eval-after-load 'eshell
+  (define-key eshell-mode-map (kbd "C-c C-q") #'eat-toggle-char-mode)
+  (define-key eshell-mode-map (kbd "C-c A a") #'+carlos/eshell-run-agy)
+  (define-key eshell-mode-map (kbd "C-c A o") #'+carlos/eshell-run-opencode))
 
 ;; AI tool aliases for Eshell
 (defun +carlos/eshell-ai-aliases ()
@@ -181,12 +191,6 @@ Uses explicit paths since Eshell's PATH may differ from system shell."
           (eshell-send-input)
           (run-with-timer 0.2 nil #'eat-toggle-char-mode))
       (message "opencode not found"))))
-
-;; Bindings for AI tools in Eshell
-(with-eval-after-load 'eshell
-  (when (boundp 'eshell-mode-map)
-    (define-key eshell-mode-map (kbd "C-c A a") #'+carlos/eshell-run-agy)
-    (define-key eshell-mode-map (kbd "C-c A o") #'+carlos/eshell-run-opencode)))
 
 ;; ── popper (Intelligent popup window management) ───────────────────
 ;; Classifies terminal buffers as popups — toggle/hide without messing layout.

@@ -57,9 +57,8 @@
 
 ;; ── JSON Parser ─────────────────────────────────────────────────────
 
-(defun custom-norminette--parse-json (output &optional filename)
-  "Parse norminette JSON OUTPUT into flycheck errors.
-FILENAME is used to match errors to the current buffer."
+(defun custom-norminette--parse-json (output &optional _filename)
+  "Parse norminette JSON OUTPUT into flycheck errors."
   (when-let* ((data (ignore-errors (json-read-from-string output)))
               (files (alist-get 'files data))
               (file-data (car files))
@@ -142,7 +141,7 @@ See URL `https://github.com/42School/norminette' for more information."
 Uses --cfile to pass buffer content directly to norminette."
   (interactive)
   (unless (executable-find custom-norminette-executable)
-    (user-error "Norminette not found. Install with: python3 -m pip install norminette"))
+    (user-error "Norminette not found.  Install with: python3 -m pip install norminette"))
   (unless buffer-file-name
     (user-error "Buffer must be associated with a file"))
   (unless (string-match-p "\\.\\(c\\|h\\)\\'" buffer-file-name)
