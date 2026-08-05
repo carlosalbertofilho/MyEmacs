@@ -41,6 +41,7 @@ workflow using Denote, which sits on top of this Org ecosystem.
 |-----------------+-------------------+--------------------------------------+-------------|
 | org             | Carsten Dominick  | Core plain-text outliner & authoring   | Emacs built-in |
 | org-modern      | Daniel Mendler    | Visual enhancements for Org mode       | MELPA        |
+| org-fragtog     | io12              | Auto-toggle LaTeX preview on cursor    | MELPA        |
 | ob-mermaid      | Multiple          | Mermaid diagram execution in Org babel | MELPA        |
 | jupyter         | Fredrik Bergroth  | Jupyter kernel integration for Org     | MELPA        |
 | pdf-tools       | Vedang Manerikar  | PDF viewing and annotation             | MELPA        |
@@ -283,6 +284,49 @@ Corresponds to Org checkbox states:
         (verse . "❞")   ;; Verse blocks
         (center . "◇"))) ;; Center blocks
 #+end_src
+
+* LaTeX Fragment Preview
+
+** Native Org LaTeX Preview
+
+Org mode has built-in LaTeX fragment rendering using =dvipng= or =dvisvgm=.
+Fragments are rendered as inline images that blend with the surrounding text.
+
+#+begin_src elisp
+;; Render LaTeX fragments on file open
+(setq org-startup-with-latex-preview t)
+
+;; Adjust fragment scale to match your theme's font size
+(setq org-format-latex-options
+      (plist-put org-format-latex-options :scale 1.5))
+#+end_src
+
+Manual toggle: =C-c C-x C-l= (=org-toggle-latex-fragment=)
+
+** org-fragtog: Auto-Toggle on Cursor Movement
+
+=org-fragtog= automatically hides LaTeX previews when your cursor enters a
+fragment (for editing) and re-shows them when the cursor leaves.
+
+#+begin_src elisp
+(use-package org-fragtog
+  :hook (org-mode . org-fragtog-mode))
+#+end_src
+
+| Feature          | Description                                      |
+|------------------+--------------------------------------------------|
+| Package          | =org-fragtog= (MELPA)                            |
+| Author           | io12                                             |
+| Hook             | =org-mode= → =org-fragtog-mode=                  |
+| Behavior         | Hide on enter, show on leave                     |
+| Works with       | Org LaTeX fragments, Markdown math (same syntax) |
+| Requires         | =org-startup-with-latex-preview= for auto-render |
+
+#+begin_warning
+=org-fragtog= uses Org's native fragment preview system. It does NOT require
+a separate LaTeX installation for the toggle behavior, but =dvipng= or
+=dvisvgm= must be available for actual rendering.
+#+end_warning
 
 * OB Mermaid
 
@@ -666,6 +710,7 @@ graph LR
 |------------------+-------------+---------------------+----------------|
 | org              | =C-c a=     | =org-mode=          | First (built-in) |
 | org-modern       | none        | =org-mode=          | After org      |
+| org-fragtog      | =C-c C-x C-l=| =org-mode=        | After org      |
 | ob-mermaid       | none        | none                | After org      |
 | jupyter          | none        | none                | After org      |
 | pdf-tools        | none        | =pdf-view-mode=     | Independent    |

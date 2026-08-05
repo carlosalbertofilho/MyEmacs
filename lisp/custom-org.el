@@ -2,7 +2,7 @@
 
 ;;; Commentary:
 ;; org-mode, org-babel (python, shell, emacs-lisp, mermaid, gptel),
-;; emacs-jupyter, pdf-tools (opcional).
+;; emacs-jupyter, pdf-tools (opcional), LaTeX preview, org-fragtog.
 
 ;;; Code:
 
@@ -14,8 +14,12 @@
         org-confirm-babel-evaluate nil
         org-startup-indented t
         org-startup-with-inline-images t
+        org-startup-with-latex-preview t       ;; Render LaTeX fragments on open
         org-hide-emphasis-markers t
         org-edit-src-content-indentation 2)
+  ;; LaTeX fragment rendering scale
+  (setq org-format-latex-options
+        (plist-put org-format-latex-options :scale 1.5))
   (org-babel-do-load-languages
    'org-babel-load-languages
    '((python . t)
@@ -24,6 +28,10 @@
      (mermaid . t)))
   :bind
   (("C-c a" . org-agenda)))
+
+;; ── org-fragtog: auto-render LaTeX when cursor leaves ───────────────
+(use-package org-fragtog
+  :hook (org-mode . org-fragtog-mode))
 
 ;; ── org-babel mermaid ───────────────────────────────────────────────
 (use-package ob-mermaid
@@ -59,7 +67,9 @@
     (when (file-executable-p bin)
       (setq pdf-info-epdfinfo-program bin)))
   (pdf-tools-install :no-query)
-  (setq pdf-view-display-size 'fit-width))
+  (setq pdf-view-display-size 'fit-width)
+  ;; Dark mode: invert PDF colors to match dark ef-themes
+  (add-hook 'pdf-view-mode-hook #'pdf-view-midnight-minor-mode))
 
 ;; Fallback: DocView (built-in) apenas se pdf-tools nao estiver disponivel
 (unless (featurep 'pdf-view)
@@ -85,7 +95,7 @@
   (setq org-modern-star '("◉" "○" "✸" "✿" "✤" "✜" "◆" "▶"))
   ;; Indicadores de folding
   (setq org-modern-replace-stars t
-        org-modern-fold-stars "◀")
+        org-modern-fold-stars " ▾")
   ;; Tags como labels com borda
   (setq org-modern-tag-face t
         org-modern-label-border 0.5)
@@ -104,7 +114,7 @@
   ;; Table style
   (setq org-modern-table t)
   ;; Progress bars para keywords com progresso
-  (setq org-modern-progress nil)
+  (setq org-modern-progress t)
   ;; Internal targets estilizados
   (setq org-modern-target t)
   ;; Block names estilizados (src, example, quote, verse, center)
@@ -115,7 +125,7 @@
           (verse . "❞")
           (center . "◇")))
   ;; Horizontal rules
-  (setq org-modern-horizontal-line "───"))
+  (setq org-modern-horizontal-line (make-string 40 ?─)))
 
 (provide 'custom-org)
 ;;; custom-org.el ends here

@@ -3,6 +3,8 @@
 ;;; Commentary:
 ;; markdown-mode and gfm-mode for editing Markdown files.
 ;; Prefers gfm-mode for Git repositories (better code blocks, tables, task lists).
+;; LaTeX math rendering via markdown-enable-math.
+;; Markup hiding toggle: C-c C-x C-m (markdown-toggle-markup-hiding).
 
 ;;; Code:
 
@@ -19,11 +21,11 @@
   ;; Feature toggles
   (setq markdown-enable-math t              ; LaTeX math highlighting
         markdown-enable-html t              ; HTML tag highlighting
-        markdown-fontify-code-blocks-natively t ; Native syntax in code blocks
+        markdown-fontify-code-blocks-natively t   ; Native syntax in code blocks
         markdown-gfm-use-electric-backquote t   ; ``` inserts GFM block
         markdown-make-gfm-checkboxes-buttons t  ; Task lists clickable
         markdown-hide-urls nil              ; Show full URLs in links
-        markdown-hide-markup nil            ; Show raw markup
+        markdown-hide-markup nil            ; Toggle with C-c C-x C-m
         markdown-split-window-direction 'right  ; Preview on right
         markdown-live-preview-delete-export 'delete-on-export ; Clean up after preview
         markdown-reference-location 'header ; Ref defs before next heading
@@ -43,6 +45,12 @@
 ;; ── edit-indirect (for editing code blocks in indirect buffer) ──────
 (use-package edit-indirect
   :ensure t)
+
+;; ── markdown-mermaid: render Mermaid diagrams inline ────────────────
+;; Requires mmdc (@mermaid-js/mermaid-cli) installed via Nix.
+(use-package markdown-mermaid
+  :config
+  (setq markdown-mermaid-path "mmdc"))
 
 (provide 'custom-markdown)
 ;;; custom-markdown.el ends here

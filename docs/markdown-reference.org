@@ -436,6 +436,61 @@ custom-term
 ...
 #+end_example
 
+* LaTeX Math Rendering
+
+** markdown-enable-math
+
+Built-in feature of =markdown-mode= that highlights LaTeX math syntax:
+
+#+begin_src elisp
+(setq markdown-enable-math t)
+#+end_src
+
+This provides syntax highlighting for:
+- Inline math: =$E = mc^2$=
+- Display math: =$$\int_0^1 x^2 dx$$=
+- LaTeX environments: =\begin{equation} ... \end{equation}=
+
+** markdown-toggle-markup-hiding
+
+Toggle markup visibility with =C-c C-x C-m=. When enabled:
+- Brackets and URLs in links are hidden
+- =*= and =_= for italic/bold are hidden
+- List bullets replaced with Unicode characters
+
+#+begin_src elisp
+;; Default: nil (show markup). Toggle with C-c C-x C-m
+(setq markdown-hide-markup nil)
+#+end_src
+
+* Mermaid Diagram Rendering
+
+** markdown-mermaid
+
+Renders Mermaid diagrams inline in Markdown buffers using =mmdc=.
+
+#+begin_src elisp
+(use-package markdown-mermaid
+  :config
+  (setq markdown-mermaid-path "mmdc"))
+#+end_src
+
+** Prerequisites**
+
+- =mmdc= must be installed (provided by Nix =mermaid-cli= package)
+- In Nix config: =mermaid-cli= in =home.packages=
+
+** Usage Example**
+
+#+begin_example
+```mermaid
+graph TD
+    A[Start] --> B{Decision}
+    B -->|Yes| C[Action]
+    B -->|No| D[End]
+```
+#+end_example
+
 * External Tools
 
 ** pandoc
