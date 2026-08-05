@@ -182,27 +182,32 @@ compatibility.
 #+begin_src elisp
 (use-package org-modern
   :hook (org-mode . org-modern-mode)
-  :hook (org-agenda-finalize . org-modern-agenda)
+  :hook (org-agenda-finalize . org-modern-agada)
+  :hook (markdown-mode . org-modern-markdown)  ;; Also style Markdown!
+  :init
+  (setq org-modern-fold-stars " ▾")  ;; Elegant arrow instead of "..."
   :config
   (setq org-modern-star '("◉" "○" "✸" "✿" "✤" "✜" "◆" "▶")
         org-modern-replace-stars t
-        org-modern-fold-stars "◀"
+        org-modern-fold-stars " ▾"                ;; Custom fold indicator
         org-modern-tag-face t
         org-modern-label-border 0.5
         org-modern-timestamp t
-        org-modern-priority '((?A . "🔴") (?B . "🟡") (?C . "🟢"))
+        org-modern-priority '((?A . "[!A]")       ;; Text (terminal-safe)
+                              (?B . "[~B]")
+                              (?C . "[iC]"))
         org-modern-checkbox '((unordered . "•")
                               (ordered . "✓")
                               (transcoded . "✗"))
         org-modern-table t
-        org-modern-progress nil
+        org-modern-progress t                     ;; Enable progress bars
         org-modern-target t
         org-modern-block-name '((src . "⟨")
                                 (example . "⟨")
                                 (quote . "❝")
                                 (verse . "❞")
                                 (center . "◇"))
-        org-modern-horizontal-line "───"))
+        org-modern-horizontal-line (make-string 40 ?─)))
 #+end_src
 
 ** Visual Customization Reference
@@ -211,14 +216,14 @@ compatibility.
 |----------------------------+--------------------------------+---------------------------------------|
 | =org-modern-star=          | =(list of 8 glyphs)=           | Custom headline bullet characters     |
 | =org-modern-replace-stars= | =t=                            | Replace =*= with modern bullets       |
-| =org-modern-fold-stars=    | ="◀"=                          | Folded headline indicator             |
+| =org-modern-fold-stars=    | =" ▾"=                         | Folded headline indicator (arrow)     |
 | =org-modern-tag-face=      | =t=                            | Style tags with faces                 |
 | =org-modern-label-border=  | =0.5=                          | Border width around labels            |
 | =org-modern-timestamp=     | =t=                            | Style timestamps                      |
-| =org-modern-priority=      | =alist of char → string=       | Priority emoji replacements           |
+| =org-modern-priority=      | =alist of char → text=         | Priority text (terminal-safe)         |
 | =org-modern-checkbox=      | =alist of state → string=      | Checkbox character replacements       |
 | =org-modern-table=         | =t=                            | Modern table rendering                |
-| =org-modern-progress=      | =nil=                          | Progress bar in tables (set =t=)      |
+| =org-modern-progress=      | =t=                            | Progress bar in tables                |
 | =org-modern-target=        | =t=                            | Style links/targets                   |
 | =org-modern-block-name=    | =alist of type → string=       | Block type indicators                 |
 | =org-modern-horizontal-line| ="───"=                        | Horizontal rule style                 |
@@ -616,7 +621,9 @@ graph LR
 
 ** P3: Emojis Not Rendering in Terminal
 
-- **Symptom:** =org-modern-priority= shows =□= or boxes instead of emojis
+- **Symptom:** =org-modern-priority= shows text like =[!A]= instead of emojis
+  - **Cause:** Configuração atual usa texto (terminal-safe), não emojis
+  - **Fix:** Intencional — funciona em terminal e GUI. Para emojis, mude de volta
 - **Cause:** Terminal lacks emoji font support
 - **Fix:** Use GUI Emacs with Noto Color Emoji font, or use plain text
   priorities in terminal

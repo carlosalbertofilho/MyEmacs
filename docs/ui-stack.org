@@ -258,7 +258,7 @@ and long-form writing.
 
 | Variable                | Default | Purpose                              |
 |-------------------------+---------+--------------------------------------|
-| =olivetti-body-width=   | =80=    | Width of text area                   |
+| =olivetti-body-width=   | =85=    | Width of text area (characters)      |
 | =olivetti-style=        | =fancy= | Style preset (fancy, plain)          |
 | =olivetti-body-width=   | =0.8=   | When a float: 80% of window width    |
 | =olivetti-margin-width= | =nil=   | Fixed margin width in characters     |
@@ -287,10 +287,13 @@ For a fixed character width, use an integer instead.
 ** Auto-Enable for Specific Modes
 
 #+begin_src elisp
-;; Auto-enable olivetti for writing modes
+;; Auto-enable olivetti for writing modes (via custom-writing.el)
 (add-hook 'org-mode-hook #'olivetti-mode)
 (add-hook 'markdown-mode-hook #'olivetti-mode)
 (add-hook 'text-mode-hook #'olivetti-mode)
+
+;; variable-pitch for body text, fixed-pitch for code/tables
+;; See custom-writing.el for +carlos/writing-setup-variable-pitch
 #+end_src
 
 * Nerd Icons
