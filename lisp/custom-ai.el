@@ -84,7 +84,8 @@ Sem advice: chamada direta antes de iniciar o agente."
 ;; gptel 2026 usa gptel-org. ob-gptel e gptel-quick não são distribuídos.
 (with-eval-after-load 'gptel
   (when (require 'gptel-org nil t)
-    (gptel-org-mode 1)
+    (when (fboundp 'gptel-org-mode)
+      (gptel-org-mode 1))
     (org-babel-do-load-languages
      'org-babel-load-languages
      (append org-babel-load-languages '((gptel . t))))))
