@@ -152,6 +152,20 @@ Uses explicit paths since Eshell's PATH may differ from system shell."
 
 (add-hook 'eshell-mode-hook #'+carlos/eshell-ai-aliases)
 
+;; Force char-mode for AI CLI tools when they start
+(defun +carlos/eshell-auto-char-mode-for-ai ()
+  "Automatically enter eat char-mode when running AI CLI tools."
+  (when (and (boundp 'eat-eshell-mode) eat-eshell-mode)
+    (let ((cmd (save-excursion
+                 (goto-char eshell-last-output-end)
+                 (buffer-substring-no-properties
+                  (line-beginning-position)
+                  (line-end-position)))))
+      (when (string-match-p "\\b\\(agy\\|gemini\\|opencode\\|oc\\|ai\\|devenv\\)\\b" cmd)
+        (eat-toggle-char-mode)))))
+
+(add-hook 'eshell-pre-command-hook #'+carlos/eshell-auto-char-mode-for-ai)
+
 ;; ── popper (Intelligent popup window management) ───────────────────
 ;; Classifies terminal buffers as popups — toggle/hide without messing layout.
 (use-package popper
