@@ -1,7 +1,9 @@
 ;;; custom-term.el --- Terminal and shell -*- lexical-binding: t; -*-
 
 ;;; Commentary:
-;; vterm, eshell (+ eshell-prompt-extras).
+;; eat (ANSI/TUI in Eshell), vterm + vterm-toggle, capf-autosuggest,
+;; eshell-git-prompt (Starship-style), popper (window management),
+;; AI tool integration (opencode, agy/gemini-cli).
 
 ;;; Code:
 
@@ -35,6 +37,47 @@
 (with-eval-after-load 'vterm
   (define-key vterm-mode-map (kbd "C-c C-e") #'+carlos/vterm-write-multiline-prompt))
 
+;; ── vterm-toggle (IDE-style terminal drawer) ────────────────────────
+(use-package vterm-toggle
+  :ensure t
+  :after vterm
+  :bind
+  (("C-`" . vterm-toggle))
+  :config
+  (setq vterm-toggle-fullscreen-p nil
+        vterm-toggle-scope 'project    ;; Open in current project root
+        vterm-toggle-reuse-existing t))
+
+;; ── eat (Emulate A Terminal — ANSI/TUI in Eshell) ──────────────────
+;; Eat transforms Eshell into a hybrid: Emacs objects + full terminal emulation.
+;; Supports htop, ranger, lazygit, TUIs, ANSI graphics, mouse.
+(use-package eat
+  :ensure t
+  :hook (eshell-mode . eat-eshell-mode)
+  :config
+  (setq eat-enable-mouse t             ;; Mouse support in TUIs
+        eat-kill-buffer-on-exit t))    ;; Clean up on exit
+
+;; Toggle between Emacs mode and Char mode (send keys directly to program)
+(with-eval-after-load 'eshell
+  (define-key eshell-mode-map (kbd "C-c C-q") #'eat-toggle-char-mode))
+
+;; ── capf-autosuggest (Fish/Zsh-style inline completions) ───────────
+;; Shows ghost text from history as you type. Press → or End to accept.
+(use-package capf-autosuggest
+  :ensure t
+  :hook (eshell-mode . capf-autosuggest-mode)
+  :config
+  (setq capf-autosuggest-look-back 1000)) ;; Search back in history
+
+;; ── eshell-git-prompt (Starship/Oh My Zsh style) ───────────────────
+;; Replaces eshell-prompt-extras with modern Git-aware prompt.
+(use-package eshell-git-prompt
+  :ensure t
+  :after eshell
+  :config
+  (eshell-git-prompt-use-theme 'powerline))
+
 ;; ── eshell (built-in) ───────────────────────────────────────────────
 (use-package eshell
   :ensure nil
@@ -42,17 +85,51 @@
   (("C-c e" . eshell))
   :config
   (setq eshell-buffer-name "*eshell*"
-        eshell-scroll-to-bottom-on-input t))
+        eshell-scroll-to-bottom-on-input 'all
+        eshell-error-if-no-glob t
+        eshell-hist-file-size 10000
+        eshell-cmpl-cycle-completions nil))
 
-;; eshell-prompt-extras
-(use-package eshell-prompt-extras
+;; AI tool aliases for Eshell
+(defun +carlos/eshell-ai-aliases ()
+  "Add aliases for opencode and agy (Gemini CLI) in Eshell."
+  (when (fboundp 'eshell/alias)
+    ;; opencode: AI coding assistant CLI
+    (when (executable-find "opencode")
+      (eshell/alias "oc" "opencode $*"))
+    ;; agy: Gemini CLI agent
+    (when (executable-find "agy")
+      (eshell/alias "agy" "agy $*")
+      (eshell/alias "gemini" "agy $*"))
+    ;; Quick AI commands
+    (eshell/alias "ai" "opencode $*")
+    (eshell/alias "aif" "opencode fix $*")
+    (eshell/alias "aireview" "opencode review $*")))
+
+(add-hook 'eshell-mode-hook #'+carlos/eshell-ai-aliases)
+
+;; ── popper (Intelligent popup window management) ───────────────────
+;; Classifies terminal buffers as popups — toggle/hide without messing layout.
+(use-package popper
   :ensure t
-  :after eshell
+  :bind
+  (("C-`"   . popper-toggle-latest)
+   ("M-`"   . popper-cycle)
+   ("C-M-`" . popper-toggle-type))
+  :init
+  (setq popper-reference-buffers
+        '("\\*eshell\\*"
+          "\\*vterm\\*"
+          "\\*eat\\*"
+          "\\*compilation\\*"
+          "\\*async-shell-command\\*"
+          output-mode
+          help-mode))
   :config
-  (setq eshell-highlight-prompt t
-        eshell-prompt-function #'epe-theme-lambda))
+  (popper-mode 1)
+  (popper-echo-mode 1))  ;; Show popup info in echo area
 
-;; ── Display buffer rules ────────────────────────────────────────────
+;; ── Display buffer rules (fallback for non-popper windows) ─────────
 (add-to-list 'display-buffer-alist
              '("\\*vterm"
                (display-buffer-in-direction)
