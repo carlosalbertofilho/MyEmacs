@@ -1,7 +1,7 @@
 #+TITLE: Terminal Stack Reference Guide
-#+AUTHOR: Generated Reference
+#+AUTHOR: MyEmacs AI Agent
 #+DATE: 2026-08-05
-#+DESCRIPTION: Comprehensive reference for the Emacs terminal stack — vterm, eshell, eshell-prompt-extras, display buffer rules, and multiline helpers
+#+DESCRIPTION: Comprehensive reference for the Emacs terminal stack — eat, vterm, vterm-toggle, capf-autosuggest, eshell-git-prompt, popper, and just integration.
 
 * Table of Contents
 :PROPERTIES:
@@ -9,14 +9,18 @@
 :END:
 :CONTENTS:
 - [[#overview][Overview]]
-- [[#installation][Installation & Configuration]]
+- [[#architecture][Architecture]]
+- [[#eat][Eat (Emulate A Terminal)]]
 - [[#vterm][VTerm]]
-- [[#vterm-multiline][VTerm Multiline Helper]]
+- [[#vterm-toggle][VTerm Toggle]]
 - [[#eshell][Eshell]]
-- [[#eshell-prompt-extras][Eshell Prompt Extras]]
-- [[#display-buffer-rules][Display Buffer Rules]]
+- [[#eshell-git-prompt][Eshell Git Prompt]]
+- [[#capf-autosuggest][CAPF Autosuggest]]
+- [[#popper][Popper (Window Management)]]
+- [[#just-integration][Just + Eat Integration]]
+- [[#ai-tools][AI Tools Integration]]
 - [[#pitfalls][Pitfalls & Common Errors]]
-- [[#quick-reference-tables][Quick Reference Tables]]
+- [[#quick-reference][Quick Reference Tables]]
 - [[#sample-configurations][Sample Configurations]]
 - [[#rag-context][RAG Context Notes]]
 :END:
@@ -24,458 +28,456 @@
 * Overview
 
 The Emacs terminal stack provides integrated shell environments within the
-editor. It offers two complementary approaches:
+editor. It offers complementary approaches:
 
-- **VTerm** — a full terminal emulator using a compiled C module, providing
-  near-native terminal behavior with support for interactive programs,
-  ANSI colors, and complex TUI applications.
+- **Eat** — ANSI/TUI emulation inside Eshell (htop, ranger, lazygit work)
+- **VTerm** — full terminal emulator via C module (libvterm)
+- **Eshell** — pure Elisp shell with deep Emacs integration
+- **Popper** — intelligent popup window management for terminals
 
-- **Eshell** — a pure Elisp shell with deep Emacs integration, offering
-  Lisp expressions in commands, native file globbing, and seamless
-  interaction with Emacs buffers and variables.
-
-These are not competing tools but complementary: VTerm for full terminal
-compatibility, Eshell for Emacs-native scripting and quick commands.
+These are not competing tools but complementary: Eat for TUIs inside Eshell,
+VTerm for full terminal compatibility, Eshell for Emacs-native scripting,
+and Popper for clean window management.
 
 #+begin_warning
 This reference covers terminal packages only. See =completion-stack.org=
-for completion frameworks that enhance terminal input, and
-=completion-stack.org= for shell command completion via =embark=.
+for completion frameworks, and =package-management.org= for Elpaca setup.
 #+end_warning
+
+* Architecture
+
+#+begin_example
+┌─────────────────────────────────────────────────────────┐
+│                    Emacs Frame                         │
+│                                                         │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐ │
+│  │  Code Buffer│  │  Code Buffer│  │  Popper Popup   │ │
+│  │             │  │             │  │  (*eshell*)     │ │
+│  └─────────────┘  └─────────────┘  └─────────────────┘ │
+│                                                         │
+│  ┌───────────────────────────────────────────────────┐  │
+│  │  VTerm Drawer (C-\` toggle)                       │  │
+│  │  *vterm* — full terminal (libvterm)               │  │
+│  └───────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────┘
+
+Eshell + Eat = Hybrid shell:
+  - Emacs mode: C-a, C-e, C-k work (default)
+  - Char mode: keys go directly to TUI (auto-activates for htop, just, etc.)
+  - Toggle: C-c C-q
+#+end_example
 
 * Package Summary
 
-| Package                | Author            | Purpose                         | Source   |
-|------------------------+-------------------+---------------------------------+----------|
-| vterm                  | AKIYAMA Kouhei    | Terminal emulator (C module)    | MELPA    |
-| eshell                 | Emacs core        | Elisp-based shell               | Built-in |
-| eshell-prompt-extras   | Gonçalo Torres    | Enhanced eshell prompts         | MELPA    |
-| Display buffer rules   | Emacs built-in    | Window placement control        | Emacs    |
-| Multiline helper       | Custom            | Clipboard paste to vterm        | Custom   |
+| Package                | Author            | Purpose                              | Source   |
+|------------------------+-------------------+--------------------------------------+----------|
+| eat                    | AKIYAMA Kouhei    | ANSI/TUI emulation in Eshell         | MELPA    |
+| vterm                  | AKIYAMA Kouhei    | Terminal emulator (C module)         | MELPA    |
+| vterm-toggle           | JENSTORGAARD      | IDE-style terminal drawer            | MELPA    |
+| eshell                 | Emacs core        | Elisp-based shell                    | Built-in |
+| eshell-git-prompt      | Various           | Starship/Oh My Zsh style prompts     | MELPA    |
+| capf-autosuggest       | Various           | Fish/Zsh-style inline completions    | MELPA    |
+| popper                 | KARAHIN           | Intelligent popup window management  | MELPA    |
+| Just integration       | Custom            | Run just recipes via eat             | Custom   |
+| AI tool aliases        | Custom            | opencode, agy shortcuts in Eshell    | Custom   |
 
-* Installation & Configuration
+* Eat (Emulate A Terminal)
+
+** Purpose
+
+Eat adds full terminal emulation to Eshell. It solves Eshell's historical
+limitation: inability to run interactive TUI programs (htop, ranger, lazygit)
+without breaking the display.
+
+With Eat, Eshell becomes a hybrid:
+- **Emacs mode** (default): C-a, C-e, C-k work normally
+- **Char mode**: keys go directly to the running program (auto-activates for TUIs)
+
+** Features**
+- Full ANSI graphics support (colors, escape sequences)
+- TUI support: htop, ranger, lazygit, tmux, vim
+- Mouse support in terminal applications
+- Sixel image rendering (if Emacs compiled with image support)
+- Clipboard integration
+- Clear command works properly (clears buffer, not just scrolls)
+
+** Configuration**
 
 #+begin_src elisp
-;; vterm — requires C module compilation
-(use-package vterm
+(use-package eat
   :ensure t
-  ...)
+  :hook (eshell-mode . eat-eshell-mode)
+  :config
+  (setq eat-enable-mouse t             ;; Mouse support in TUIs
+        eat-kill-buffer-on-exit t)     ;; Clean up on exit
+  ;; Char-mode: commands that require interactive input
+  (add-to-list 'eat-semi-char-non-semi-commands "just")
+  (add-to-list 'eat-semi-char-non-semi-commands "opencode")
+  (add-to-list 'eat-semi-char-non-semi-commands "agy"))
 
-;; eshell — built-in
-(use-package eshell
-  :ensure nil
-  ...)
-
-;; eshell-prompt-extras
-(use-package eshell-prompt-extras
-  :ensure t
-  ...)
-
-;; Display buffer rules — built-in customization
+;; Toggle between Emacs mode and Char mode
+(with-eval-after-load 'eshell
+  (define-key eshell-mode-map (kbd "C-c C-q") #'eat-toggle-char-mode))
 #+end_src
+
+** Eat Modes
+
+| Mode          | When                    | Behavior                                |
+|---------------+-------------------------+-----------------------------------------|
+| Emacs mode    | At prompt (default)     | C-a, C-e, C-k, C-w work as Emacs keys   |
+| Char mode     | Running TUI (auto)      | All keys sent directly to program       |
+| Toggle        | C-c C-q (manual)        | Switch between modes                    |
+
+** Key Variables**
+
+| Variable                          | Default | Recommended | Purpose                          |
+|-----------------------------------+---------+-------------+----------------------------------|
+| =eat-enable-mouse=                | =nil=   | =t=         | Mouse support in TUIs            |
+| =eat-kill-buffer-on-exit=         | =nil=   | =t=         | Auto-kill buffer on program exit |
+| =eat-semi-char-non-semi-commands= | =list=  | =+just=     | Commands that trigger char mode  |
 
 * VTerm
 
 ** Purpose
 
-VTerm is a terminal emulator for Emacs that uses a compiled C module
-(=vterm-module.so=) based on libvterm. It provides near-native terminal
-behavior, supporting:
+VTerm is a terminal emulator for Emacs using a compiled C module (=vterm-module.so=)
+based on libvterm. It provides near-native terminal behavior.
 
-- Interactive programs (=vim=, =htop=, =ncdu=)
+** Features**
+- Interactive programs (vim, htop, ncdu)
 - ANSI color codes and escape sequences
 - Mouse events in terminal applications
 - True color (24-bit) support
 - Bracketed paste mode
 
-** Configuration
+** Configuration**
 
 #+begin_src elisp
 (use-package vterm
+  :ensure t
   :catch t
   :config
-  ;; Remove Emacs bindings from vterm exceptions
   (setq vterm-keymap-exceptions
         (delete "C-c" (delete "C-u" (delete "C-g" vterm-keymap-exceptions))))
   (setq vterm-max-scrollback 100000
         vterm-copy-exclude-prompt t))
 #+end_src
 
-** Key Variables
+** Key Variables**
 
 | Variable                        | Default | Recommended | Purpose                           |
 |---------------------------------+---------+-------------+-----------------------------------|
 | =vterm-keymap-exceptions=       | =list=  | =modified=  | Keys Emacs intercepts in vterm    |
 | =vterm-max-scrollback=          | =1000=  | =100000=    | Maximum scrollback buffer lines   |
 | =vterm-copy-exclude-prompt=     | =nil=   | =t=         | Exclude prompt when copying       |
-| =vterm-shell=                   | =/bin/sh=| =/bin/zsh= | Shell to start in vterm           |
-| =vterm-environment=             | =nil=   | =nil=       | Environment variables to pass     |
-| =vterm-buffer-name=             | =vterm= | =vterm=     | Base name for vterm buffers       |
-| =vterm-toggle-fullscreen=       | =nil=   | =nil=       | Toggle fullscreen on open         |
 
-** Keymap Exceptions Explained
+** Compilation Requirements**
 
-By default, vterm intercepts several key combinations that Emacs normally
-handles. The recommended configuration removes three common ones:
+VTerm requires =vterm-module.so= compilation. Dependencies:
+- =cmake=, =gcc= or =clang=, =libtool=
+- macOS: =brew install cmake libtool pkg-config=
 
-#+begin_src elisp
-;; Remove these from exceptions so Emacs handles them normally
-(setq vterm-keymap-exceptions
-      (delete "C-c"                    ;; Remove C-c from exceptions
-              (delete "C-u"            ;; Remove C-u from exceptions
-                      (delete "C-g"    ;; Remove C-g from exceptions
-                              vterm-keymap-exceptions))))
-#+end_src
-
-| Key  | After Removal                          | Before Removal                     |
-|------+----------------------------------------+------------------------------------|
-| =C-c=| Emacs prefix key (used for custom bindings) | Sent to terminal as =C-c=       |
-| =C-u=| Emacs universal argument               | Sent to terminal as =C-u= (kill line) |
-| =C-g=| Emacs keyboard quit                    | Sent to terminal as =C-g= (SIGINT) |
-
-#+begin_warning
-Removing =C-g= from exceptions means you can no longer send SIGINT to
-terminal processes with =C-g=. Use =C-c C-c= or =q= instead within the
-terminal. This is a trade-off between Emacs integration and terminal control.
-#+end_warning
-
-** VTerm Key Bindings
-
-| Key          | Action                              |
-|--------------+-------------------------------------|
-| =C-c C-c=    | Send =C-c= to terminal (SIGINT)     |
-| =C-c C-v=    | Paste from clipboard                |
-| =C-c C-k=    | Kill terminal process               |
-| =M-RET=      | Toggle fullscreen                   |
-| =C-c C-y=    | Copy selection to kill ring         |
-
-** Compilation Requirements
-
-VTerm requires compilation of a C shared library (=vterm-module.so=). This
-happens automatically on most systems but may fail if:
-
-- No C compiler (=gcc=, =clang=) is installed
-- =cmake= is not available
-- =libtool= or =pkg-config= is missing
-- Header files for =libvterm= are not installed
-
-** Manual Compilation
-
-#+begin_src sh
-# Install build dependencies (macOS)
-brew install cmake libtool pkg-config
-
-# In Emacs, trigger compilation
-M-x vterm-install RET
-#+end_src
-
-Or from the package directory:
-
-#+begin_src sh
-cd ~/.emacs.d/straight/build/vterm/
-cmake .
-make
-#+end_src
-
-** Shell Configuration
-
-#+begin_src elisp
-;; Use zsh as the default shell in vterm
-(setq vterm-shell "/bin/zsh")
-
-;; Or use bash
-(setq vterm-shell "/bin/bash")
-
-;; Pass environment variables
-(setq vterm-environment '(("TERM" . "xterm-256color")))
-#+end_src
-
-* VTerm Multiline Helper
+* VTerm Toggle
 
 ** Purpose
 
-When pasting multiline commands into vterm, the terminal may interpret each
-line as a separate command. This helper function writes clipboard content as
-a single multiline input.
+vterm-toggle provides IDE-style terminal drawer behavior. Press =C-`= to
+open/close a vterm buffer at the bottom of the frame, automatically cd'd
+to the current project root.
 
-** Configuration
-
-#+begin_src elisp
-(defun +carlos/vterm-write-multiline-prompt ()
-  "Write clipboard as multiline in vterm."
-  (interactive)
-  (when-let* ((text (or (car kill-ring) "")))
-    (vterm-send-string text)))
-
-(with-eval-after-load 'vterm
-  (define-key vterm-mode-map (kbd "C-c C-e") #'+carlos/vterm-write-multiline-prompt))
-#+end_src
-
-** Usage
-
-1. Copy multiline text (e.g., from a code block or another buffer)
-2. Switch to vterm buffer
-3. Press =C-c C-e= to paste the entire block at once
-
-** How It Works
-
-- Reads the most recent kill ring entry (clipboard)
-- Sends it as a single string to vterm using =vterm-send-string=
-- The terminal processes it as one paste operation, respecting newlines
-
-#+begin_warning
-=vterm-send-string= sends characters one at a time. For very large pastes
-(>10KB), consider using bracketed paste mode instead:
-=M-x vterm-yank= or =C-c C-v=. The multiline helper is best for moderate
-pastes where you want explicit control over the paste behavior.
-#+end_warning
-
-** Enhanced Version with Escaping
+** Configuration**
 
 #+begin_src elisp
-(defun +carlos/vterm-write-multiline-prompt-safe ()
-  "Write clipboard as multiline in vterm with basic escaping."
-  (interactive)
-  (when-let* ((text (or (car kill-ring) "")))
-    ;; Escape special shell characters if needed
-    (let ((escaped-text
-           (replace-regexp-in-string "\\\\" "\\\\\\\\" text)))
-      (vterm-send-string escaped-text))))
+(use-package vterm-toggle
+  :ensure t
+  :after vterm
+  :bind
+  (("C-`" . vterm-toggle))
+  :config
+  (setq vterm-toggle-fullscreen-p nil
+        vterm-toggle-scope 'project    ;; Open in current project root
+        vterm-toggle-reuse-existing t))
 #+end_src
+
+** Key Variables**
+
+| Variable                      | Default | Recommended | Purpose                          |
+|-------------------------------+---------+-------------+----------------------------------|
+| =vterm-toggle-fullscreen-p=   | =t=     | =nil=       | Don't take full frame            |
+| =vterm-toggle-scope=          | =project=| =project=   | Open in project root             |
+| =vterm-toggle-reuse-existing= | =nil=   | =t=         | Reuse existing vterm buffer      |
 
 * Eshell
 
 ** Purpose
 
-Eshell is a shell implemented entirely in Emacs Lisp. It provides:
+Eshell is a shell implemented entirely in Emacs Lisp with deep Emacs
+integration: Lisp expressions in commands, native file globbing, pipeline
+support with Elisp functions.
 
-- Full Emacs integration (Lisp expressions in commands)
-- Native file globbing and completion
-- Pipeline support with Elisp functions
-- Alias and pcomplete support
-- No external dependencies
-
-** Configuration
+** Configuration**
 
 #+begin_src elisp
 (use-package eshell
-  :bind (("C-c e" . eshell))
+  :ensure nil
+  :bind
+  (("C-c e" . eshell))
   :config
   (setq eshell-buffer-name "*eshell*"
-        eshell-scroll-to-bottom-on-input t))
+        eshell-scroll-to-bottom-on-input 'all
+        eshell-error-if-no-glob t
+        eshell-hist-file-size 10000
+        eshell-cmpl-cycle-completions nil)
+  ;; Sync PATH with system shell
+  (setq eshell-path-extra
+        (append '("/etc/profiles/per-user/carlosfilho/bin"
+                  "/run/current-system/sw/bin"
+                  "/nix/var/nix/profiles/default/bin")
+                eshell-path-extra)))
 #+end_src
 
-** Key Variables
+** Key Variables**
 
 | Variable                            | Default          | Purpose                          |
 |-------------------------------------+------------------+----------------------------------|
 | =eshell-buffer-name=                | ="*eshell*"=     | Name of eshell buffer            |
 | =eshell-scroll-to-bottom-on-input=  | =nil=            | Auto-scroll on input             |
-| =eshell-prompt-function=            | =eshell-prompt=  | Custom prompt generator          |
-| =eshell-prompt-regexp=              | =pattern=        | Regex matching the prompt        |
-| =eshell-highlight-prompt=           | =t=              | Syntax highlight the prompt      |
-| =eshell-history-size=               | =500=            | Number of history entries        |
-| =eshell-destroy-buffer-when-process-dies=| =nil=        | Auto-kill buffer on exit         |
+| =eshell-hist-file-size=             | =500=            | Number of history entries        |
+| =eshell-path-extra=                 | =nil=            | Extra PATH entries               |
 
-** Key Bindings
+** Eshell vs VTerm vs Eat
+
+| Feature                | Eshell + Eat              | VTerm                     | Eshell puro               |
+|------------------------+---------------------------+---------------------------+---------------------------|
+| Implementation         | Elisp + ANSI emulation    | C module (libvterm)       | Pure Elisp                |
+| Interactive TUI        | Yes (htop, ranger)        | Yes (full)                | No                        |
+| ANSI colors            | Full                      | 24-bit true color         | Basic                     |
+| Emacs integration      | Deep                      | Moderate                  | Deep                      |
+| Compilation required   | No                        | Yes                       | No                        |
+| Best for               | Daily use + TUIs          | Heavy terminal sessions   | Quick Elisp commands      |
+
+* Eshell Git Prompt
+
+** Purpose
+
+Replaces =eshell-prompt-extras= with a modern, Starship/Oh My Zsh-style prompt
+that displays Git status, branch, and path in a visually polished way.
+
+** Configuration**
+
+#+begin_src elisp
+(use-package eshell-git-prompt
+  :ensure t
+  :after eshell
+  :config
+  (eshell-git-prompt-use-theme 'powerline))
+#+end_src
+
+** Available Themes**
+
+| Theme        | Style                              |
+|--------------+------------------------------------|
+| =powerline=  | Segmented, Git status, modern      |
+| =robbyrussell=| Classic, minimal                  |
+| =sol=        | Colorful, multi-line               |
+| =tonfa=      | Clean, path + branch               |
+
+** Example Output**
+
+#+begin_src sh
+# With Git repo:
+~/Projects/MyEmacs [main ↑1 ✓] ❯
+
+# With uncommitted changes:
+~/Projects/MyEmacs [main ✎ ↑1] ❯
+#+end_src
+
+* CAPF Autosuggest
+
+** Purpose
+
+Provides Fish Shell / Zsh-autosuggestions style inline ghost text completions
+in Eshell. As you type, it shows matching commands from history in gray text.
+Press =→= or =End= to accept.
+
+** Configuration**
+
+#+begin_src elisp
+(use-package capf-autosuggest
+  :ensure t
+  :hook (eshell-mode . capf-autosuggest-mode)
+  :config
+  (setq capf-autosuggest-look-back 1000)) ;; Search back in history
+#+end_src
+
+** Key Variables**
+
+| Variable                          | Default | Purpose                           |
+|-----------------------------------+---------+-----------------------------------|
+| =capf-autosuggest-look-back=      | =500=   | Lines to search back in history   |
+
+** Usage**
+
+1. Type a command prefix (e.g., =git s=)
+2. Ghost text appears: =git s=tatus=
+3. Press =→= or =End= to accept
+4. Press =C-g= to dismiss
+
+* Popper (Window Management)
+
+** Purpose
+
+Popper classifies terminal buffers as "popups" — they appear in a dedicated
+area, can be toggled with a single key, and don't mess up your editing layout.
+Similar to Dirvish's sidebar behavior but for any buffer type.
+
+** Configuration**
+
+#+begin_src elisp
+(use-package popper
+  :ensure t
+  :bind
+  (("C-`"   . popper-toggle-latest)
+   ("M-`"   . popper-cycle)
+   ("C-M-`" . popper-toggle-type))
+  :init
+  (setq popper-reference-buffers
+        '("\\*eshell\\*"
+          "\\*vterm\\*"
+          "\\*eat\\*"
+          "\\*compilation\\*"
+          "\\*async-shell-command\\*"
+          output-mode
+          help-mode))
+  :config
+  (popper-mode 1)
+  (popper-echo-mode 1))  ;; Show popup info in echo area
+#+end_src
+
+** Key Bindings**
 
 | Key       | Action                              |
 |-----------+-------------------------------------|
-| =C-c e=   | Open/switch to eshell               |
-| =C-c C-l= | Clear buffer (like =clear=)         |
-| =M-p=     | Previous command in history         |
-| =M-n=     | Next command in history             |
-| =C-c C-r= | Search history (like =Ctrl-R=)      |
+| =C-`=     | Toggle latest popup                 |
+| =M-`=     | Cycle through popups                |
+| =C-M-`=   | Toggle popup type (side/bottom)     |
 
-** Eshell vs VTerm
+** Reference Buffers**
 
-| Feature                | Eshell                    | VTerm                     |
-|------------------------+---------------------------+---------------------------|
-| Implementation         | Pure Elisp                | C module (libvterm)       |
-| Interactive TUI        | No                        | Yes (=htop=, =vim=)       |
-| ANSI colors            | Basic                     | Full (24-bit)             |
-| Emacs integration      | Deep (Lisp in commands)   | Moderate (keybindings)    |
-| External commands      | Yes (via =call-process=)  | Yes (native)              |
-| Pipeline               | Elisp + shell             | Shell-native              |
-| Compilation required   | No                        | Yes (=vterm-module.so=)   |
-| Best for               | Quick commands, Elisp     | Full terminal sessions    |
+| Pattern                  | Matches                    |
+|--------------------------+----------------------------|
+| =\\*eshell\\*=           | Eshell buffers             |
+| =\\*vterm\\*=            | VTerm buffers              |
+| =\\*eat\\*=              | Eat buffers                |
+| =\\*compilation\\*=      | Compilation output         |
+| =output-mode=            | Async command output       |
+| =help-mode=              | Help buffers               |
 
-** Useful Eshell Patterns
+* Just + Eat Integration
 
-#+begin_src sh
-# Run Emacs command
-M-x describe-variable RET eshell-buffer-name RET
+** Purpose**
 
-# Use Elisp in eshell
-$ (buffer-name)
-$ (+ 1 2 3)
+Run Justfile recipes directly from Emacs in an eat buffer, with:
+- Project-aware execution (runs from project root)
+- Interactive recipe selection via completing-read
+- Full ANSI output and TUI support via eat
 
-# File operations (native eshell commands)
-$ ls -la ~/org/
-$ cat README.org
-$ mkdir -p ~/org/projects/new
-
-# Pipe through Elisp
-$ ls | (lambda (x) (format "Found: %s" x))
-
-# Redirect to Emacs buffer
-$ echo "hello" > #<buffer *scratch*>
-#+end_src
-
-* Eshell Prompt Extras
-
-** Purpose
-
-=eshell-prompt-extras= provides enhanced prompt themes for eshell, including
-the popular Lambda theme with Git integration, exit status indicators, and
-timestamp support.
-
-** Configuration
+** Configuration**
 
 #+begin_src elisp
-(use-package eshell-prompt-extras
-  :after eshell
-  :config
-  (setq eshell-highlight-prompt t
-        eshell-prompt-function #'epe-theme-lambda))
+(defun +carlos/project-just-run ()
+  "Run the default just recipe in project root using eat."
+  (interactive)
+  (when-let* ((root (project-root (project-current t))))
+    (let* ((buf-name (format "*just: %s*" (file-name-nondirectory (directory-file-name root))))
+           (eat-buf (eat-make-buffer buf-name)))
+      (with-current-buffer eat-buf
+        (cd root)
+        (eat-exec-cmd "just" nil))
+      (pop-to-buffer eat-buf))))
+
+(defun +carlos/eat-just-recipe (recipe)
+  "Run a specific just RECIPE in project root using eat."
+  (interactive
+   (list (completing-read "Just recipe: "
+                          (process-lines "just" "--summary"))))
+  (when-let* ((root (project-root (project-current t))))
+    (let* ((buf-name (format "*just: %s*" recipe))
+           (eat-buf (eat-make-buffer buf-name)))
+      (with-current-buffer eat-buf
+        (cd root)
+        (eat-exec-cmd "just" (list recipe)))
+      (pop-to-buffer eat-buf))))
+
+(global-set-key (kbd "C-c j j") #'+carlos/project-just-run)
+(global-set-key (kbd "C-c j r") #'+carlos/eat-just-recipe)
 #+end_src
 
-** Key Variables
+** Project Switch Menu**
 
-| Variable                      | Default              | Purpose                       |
-|-------------------------------+----------------------+-------------------------------+
-| =eshell-highlight-prompt=     | =t=                  | Enable prompt syntax coloring |
-| =eshell-prompt-function=      | =eshell-prompt=      | Custom prompt function        |
-| =epe-theme-lambda=            | =function=           | Lambda prompt theme           |
-| =eshell-prompt-regexp=        | =auto-set=           | Must match prompt output      |
+Added to =project-switch-commands=:
+- =?j= — Run default just recipe
+- =?t= — Select and run specific recipe
 
-** Prompt Themes Available
+** How It Works**
 
-| Theme               | Features                              |
-|---------------------+---------------------------------------|
-| =epe-theme-lambda=  | Git status, path, exit code, lambda λ |
-| =epe-theme-dakrone= | Minimal, username, path               |
-| =epe-theme-paradox=| Colorful, multi-line                  |
+1. =just --summary= reads all recipes from Justfile
+2. =completing-read= shows menu (Vertico/Consult compatible)
+3. Eat buffer opens in project root
+4. Recipe runs with full ANSI/TUI support
 
-** Lambda Prompt Features
+* AI Tools Integration
 
-The =epe-theme-lambda= prompt displays:
+** Purpose**
 
-- Current directory (truncated if too long)
-- Git branch and status (dirty, staged, etc.)
-- Exit status of the last command (red if non-zero)
-- A lambda character (λ) as the prompt symbol
-- Color-coded elements
+Add Eshell aliases for AI CLI tools (opencode, agy/gemini) with explicit
+paths since Eshell's PATH may differ from the system shell.
 
-#+begin_src sh
-# Example output:
-~/Projects/MyEmacs [main ✓] λ
-$
-
-# After a failed command:
-~/Projects/MyEmacs [main ✗ 1] λ
-$
-#+end_src
-
-** Customizing the Prompt Regexp
-
-If you customize the prompt, you must also update the regexp:
+** Configuration**
 
 #+begin_src elisp
-(setq eshell-prompt-function #'epe-theme-lambda
-      eshell-prompt-regexp ".*λ ")
+(defun +carlos/eshell-ai-aliases ()
+  "Add aliases for opencode and agy (Gemini CLI) in Eshell."
+  (when (fboundp 'eshell/alias)
+    ;; opencode: AI coding assistant CLI
+    (let ((oc-path (or (executable-find "opencode")
+                       "/var/folders/p6/jvskwtqn1tl1d75kgr4p32g00000gn/T/bunx-501-opencode-ai@latest/node_modules/.bin/opencode")))
+      (when (file-executable-p oc-path)
+        (eshell/alias "oc" (concat oc-path " $*"))
+        (eshell/alias "ai" (concat oc-path " $*"))
+        (eshell/alias "aif" (concat oc-path " fix $*"))
+        (eshell/alias "aireview" (concat oc-path " review $*"))))
+    ;; agy: Gemini CLI agent
+    (let ((agy-path (or (executable-find "agy")
+                        "/etc/profiles/per-user/carlosfilho/bin/agy")))
+      (when (file-executable-p agy-path)
+        (eshell/alias "agy" (concat agy-path " $*"))
+        (eshell/alias "gemini" (concat agy-path " $*"))))))
+
+(add-hook 'eshell-mode-hook #'+carlos/eshell-ai-aliases)
 #+end_src
 
-#+begin_warning
-The =eshell-prompt-regexp= must match the output of your prompt function.
-If it doesn't, features like =M-p= (history navigation) and =C-c C-r=
-(history search) may not work correctly. The =epe-theme-lambda= theme sets
-its own regexp, but custom prompts require manual configuration.
-#+end_warning
+** Available Aliases**
 
-* Display Buffer Rules
+| Alias     | Command          | Purpose                    |
+|-----------+------------------+----------------------------|
+| =oc=      | opencode         | AI coding assistant        |
+| =ai=      | opencode         | Quick AI command           |
+| =aif=     | opencode fix     | Fix code with AI           |
+| =aireview=| opencode review  | Review code with AI        |
+| =agy=     | agy              | Gemini CLI agent           |
+| =gemini=  | agy              | Alias for agy              |
 
-** Purpose
+** Char-Mode for AI Tools**
 
-Display buffer rules control where new buffers appear in your Emacs frame.
-This is especially important for terminal buffers, which benefit from
-predictable placement (e.g., always at the bottom of the frame).
-
-** Configuration
+AI CLI tools are added to =eat-semi-char-non-semi-commands= so they
+automatically enter char mode when run in Eshell + Eat, ensuring
+interactive prompts work correctly.
 
 #+begin_src elisp
-;; Place vterm buffers at the bottom of the frame
-(add-to-list 'display-buffer-alist
-             '("\\*vterm"
-               (display-buffer-in-direction)
-               (direction . bottom)
-               (window-height . 0.4)))
+(add-to-list 'eat-semi-char-non-semi-commands "opencode")
+(add-to-list 'eat-semi-char-non-semi-commands "agy")
 #+end_src
-
-** Display Buffer Alist Structure
-
-#+begin_src elisp
-(add-to-list 'display-buffer-alist
-             '("\\*PATTERN*"
-               (DISPLAY-FUNCTION)
-               (ARG . VALUE)
-               (ARG . VALUE)
-               ...))
-#+end_src
-
-** Available Display Functions
-
-| Function                        | Behavior                        |
-|---------------------------------+---------------------------------|
-| =display-buffer-in-direction=   | Open in a specified direction   |
-| =display-buffer-below-selected= | Open below current window       |
-| =display-buffer-reuse-window=   | Reuse existing window if open   |
-| =display-buffer-pop-up-window=  | Always create a new window      |
-| =display-buffer-same-window=    | Use the current window          |
-
-** Direction Arguments
-
-| Argument         | Values                          | Purpose                  |
-|------------------+---------------------------------+--------------------------|
-| =direction=      | =left=, =right=, =top=, =bottom=| Which side of the frame  |
-| =window-height=  | Float (=0.4=) or integer (=20=) | Height of new window     |
-| =window-width=   | Float or integer                | Width of new window      |
-| =dedicated=      | =t= or =nil=                    | Prevent other buffers    |
-
-** Multiple Display Rules
-
-#+begin_src elisp
-;; VTerm at the bottom (40% height)
-(add-to-list 'display-buffer-alist
-             '("\\*vterm"
-               (display-buffer-in-direction)
-               (direction . bottom)
-               (window-height . 0.4)))
-
-;; Eshell in a new window
-(add-to-list 'display-buffer-alist
-             '("\\*eshell*"
-               (display-buffer-pop-up-window)
-               (window-height . 0.3)))
-
-;; Compile buffer at the bottom (smaller)
-(add-to-list 'display-buffer-alist
-             '("\\*compilation\\*"
-               (display-buffer-in-direction)
-               (direction . bottom)
-               (window-height . 0.25)))
-#+end_src
-
-** Pattern Matching
-
-The first element is a regexp string that matches buffer names:
-
-| Pattern              | Matches                          |
-|----------------------+----------------------------------|
-| ="\\*vterm"=         | Any buffer starting with =*vterm= |
-| ="\\*eshell\\*"=     | Exact match =*eshell*=           |
-| ="\\*compilation\\*"=| Exact match =*compilation*=      |
-| ="\\*.*vterm.*\\*"=  | Any buffer containing =vterm=    |
 
 * Pitfalls & Common Errors
 
@@ -483,116 +485,104 @@ The first element is a regexp string that matches buffer names:
 
 - **Symptom:** =vterm= loads but displays "vterm-module not compiled" error
 - **Cause:** =vterm-module.so= was not built during package installation
-- **Fix:** Run =M-x vterm-install= or compile manually:
-  =cd ~/.emacs.d/straight/build/vterm/ && cmake . && make=
+- **Fix:** Run =M-x vterm-install= or install deps: =brew install cmake libtool=
 - **Severity:** High — vterm is non-functional without the module
 
-** P2: VTerm Compilation Prompt in Batch Mode
+** P2: Eshell PATH Missing Tools
 
-- **Symptom:** In batch/daemon mode, Emacs hangs waiting for compilation
-  confirmation
-- **Cause:** =vterm= prompts to compile the module on first load
-- **Fix:** Pre-compile the module, or use advice to skip the prompt:
-  #+begin_src elisp
-  (defun +carlos/skip-vterm-compilation (&rest _) nil)
-  (advice-add 'vterm--maybe-compile :override #'+carlos/skip-vterm-compilation)
-  #+end_src
-- **Severity:** High — blocks headless/daemon startup
+- **Symptom:** =which opencode= returns nil in Eshell but works in system shell
+- **Cause:** Eshell has isolated PATH that doesn't inherit from system
+- **Fix:** Add paths to =eshell-path-extra=
+- **Severity:** Medium — breaks AI tool aliases
 
-** P3: VTerm Keymap Exceptions
+** P3: Eat Char-Mode Not Activating
 
-- **Symptom:** =C-c=, =C-u=, or =C-g= don't work as Emacs bindings in vterm
-- **Cause:** These keys are in =vterm-keymap-exceptions= by default
-- **Fix:** Remove them from the list as shown in the configuration
-- **Severity:** Medium — disrupts Emacs workflow in vterm
+- **Symptom:** Interactive program (htop, just) breaks display in Eshell
+- **Cause:** Command not in =eat-semi-char-non-semi-commands=
+- **Fix:** Add command to list or toggle manually with =C-c C-q=
+- **Severity:** Medium — TUIs don't render correctly
 
-** P4: Eshell Prompt Regex Mismatch
+** P4: Eshell Git Prompt Regex Mismatch
 
-- **Symptom:** History navigation (=M-p=, =M-n=) or search (=C-c C-r=)
-  doesn't work in eshell
-- **Cause:** =eshell-prompt-regexp= doesn't match the actual prompt output
-- **Fix:** Set =eshell-prompt-regexp= to match your prompt function's output
+- **Symptom:** History navigation (=M-p=, =M-n=) doesn't work
+- **Cause:** =eshell-prompt-regexp= doesn't match prompt output
+- **Fix:** =eshell-git-prompt= sets its own regexp — don't override
 - **Severity:** Medium — breaks core eshell functionality
 
-** P5: VTerm Multiline Escaping
+** P5: Popper Not Recognizing Buffers
 
-- **Symptom:** Pasted multiline commands fail or behave unexpectedly
-- **Cause:** Special characters in the pasted text are not escaped
-- **Fix:** Use =vterm-yank= (=C-c C-v=) for bracketed paste, or the
-  multiline helper with escaping for controlled paste
-- **Severity:** Medium — affects workflow efficiency
-
-** P6: Display Buffer Rules Not Matching
-
-- **Symptom:** vterm or eshell buffers don't appear in expected position
-- **Cause:** Display buffer regexp doesn't match the actual buffer name
-- **Fix:** Check buffer name with =M-x buffer-name= and adjust regexp
+- **Symptom:** Terminal buffers don't appear as popups
+- **Cause:** Buffer name not in =popper-reference-buffers=
+- **Fix:** Add pattern to list (use =\\*PATTERN\\*= format)
 - **Severity:** Low — cosmetic, easy to debug
+
+** P6: Just Recipe Menu Empty
+
+- **Symptom:** =C-c j r= shows empty completion list
+- **Cause:** No Justfile in project root, or =just= not installed
+- **Fix:** Ensure Justfile exists and =just= is in PATH
+- **Severity:** Low — only affects just integration
 
 * Quick Reference Tables
 
 ** Terminal Comparison
 
-| Feature                | VTerm                      | Eshell                     |
-|------------------------+----------------------------+----------------------------+
-| Implementation         | C module (libvterm)        | Pure Elisp                 |
-| TUI support            | Yes (full)                 | No                         |
-| ANSI color             | 24-bit true color          | Basic                      |
-| Emacs integration      | Keybindings only           | Deep (Lisp expressions)    |
-| Compilation needed     | Yes                        | No                         |
-| Interactive programs   | Yes (=vim=, =htop=, etc.)  | No                         |
-| Shell completion       | Via shell (zsh/bash)       | pcomplete (Emacs native)   |
-| Best use case          | Full terminal sessions     | Quick commands, scripting  |
+| Feature                | Eshell + Eat              | VTerm                     | Eshell puro               |
+|------------------------+---------------------------+---------------------------+---------------------------|
+| Implementation         | Elisp + ANSI emulation    | C module (libvterm)       | Pure Elisp                |
+| TUI support            | Yes (htop, ranger)        | Yes (full)                | No                        |
+| ANSI color             | Full                      | 24-bit true color         | Basic                     |
+| Emacs integration      | Deep                      | Moderate                  | Deep                      |
+| Compilation needed     | No                        | Yes                       | No                        |
+| Best use case          | Daily use + TUIs          | Heavy terminal sessions   | Quick commands, scripting  |
 
 ** Key Bindings Reference
 
-| Key         | Package       | Action                          |
-|-------------+---------------+---------------------------------|
-| =C-c e=     | eshell        | Open eshell                     |
-| =C-c C-e=   | vterm (custom)| Paste multiline from clipboard  |
-| =C-c C-v=   | vterm         | Yank (bracketed paste)          |
-| =C-c C-c=   | vterm         | Send SIGINT to terminal         |
-| =C-c C-k=   | vterm         | Kill terminal process           |
-| =M-p=       | eshell        | Previous history entry          |
-| =C-c C-r=   | eshell        | Search history                  |
+| Key         | Package/Context  | Action                          |
+|-------------+------------------+---------------------------------|
+| =C-c e=     | eshell           | Open eshell                     |
+| =C-`=       | vterm-toggle     | Toggle vterm drawer             |
+| =C-`=       | popper           | Toggle latest popup             |
+| =C-c C-q=   | eat              | Toggle Emacs/Char mode          |
+| =C-c j j=   | just+eat         | Run default just recipe         |
+| =C-c j r=   | just+eat         | Select and run just recipe      |
+| =M-p=       | eshell           | Previous history entry          |
+| =→= / =End= | capf-autosuggest | Accept inline suggestion        |
 
 ** Display Buffer Quick Reference
 
-| Buffer Pattern       | Position | Height | Function                     |
-|----------------------+----------+--------+------------------------------|
-| ="\\*vterm"=         | bottom   | 0.4    | =display-buffer-in-direction= |
-| ="\\*eshell\\*"=     | pop-up   | 0.3    | =display-buffer-pop-up-window= |
-| ="\\*compilation\\*"=| bottom   | 0.25   | =display-buffer-in-direction= |
+| Buffer Pattern       | Manager  | Behavior                     |
+|----------------------+----------+------------------------------|
+| =\\*eshell\\*=      | popper   | Popup (toggle with C-`)       |
+| =\\*vterm\\*=       | popper   | Popup (toggle with C-`)       |
+| =\\*just: *\*=      | pop-to   | Full window (pop-to-buffer)   |
+| =\\*compilation\\*= | popper   | Popup                        |
 
 ** External Dependencies
 
-| Dependency | Required By | Install Method                        |
-|------------+-------------+---------------------------------------|
-| =cmake=    | vterm       | =brew install cmake= (macOS)          |
-| =libtool=  | vterm       | =brew install libtool= (macOS)        |
-| =gcc/clang=| vterm       | =xcode-select --install= (macOS)      |
-| =zsh/bash= | vterm       | Pre-installed on most systems         |
+| Dependency | Required By    | Install Method                        |
+|------------+----------------+---------------------------------------|
+| =cmake=    | vterm          | =brew install cmake= (macOS)          |
+| =libtool=  | vterm          | =brew install libtool= (macOS)        |
+| =gcc/clang=| vterm          | =xcode-select --install= (macOS)      |
+| =just=     | just+eat       | =brew install just=                   |
+| =opencode= | AI aliases     | =bunx opencode-ai@latest=             |
+| =agy=      | AI aliases     | Nix (emacs.nix)                       |
 
 * Sample Configurations
 
 ** Minimal Terminal Setup
 
 #+begin_src elisp
-;; VTerm
-(use-package vterm
-  :catch t
-  :config
-  (setq vterm-keymap-exceptions
-        (delete "C-c" (delete "C-u" (delete "C-g" vterm-keymap-exceptions))))
-  (setq vterm-max-scrollback 100000
-        vterm-copy-exclude-prompt t))
+;; Eshell + Eat (TUI support)
+(use-package eat
+  :ensure t
+  :hook (eshell-mode . eat-eshell-mode))
 
 ;; Eshell
 (use-package eshell
-  :bind (("C-c e" . eshell))
-  :config
-  (setq eshell-buffer-name "*eshell*"
-        eshell-scroll-to-bottom-on-input t))
+  :ensure nil
+  :bind (("C-c e" . eshell)))
 #+end_src
 
 ** Full Terminal Stack Configuration
@@ -600,84 +590,141 @@ The first element is a regexp string that matches buffer names:
 #+begin_src elisp
 ;; ─── VTerm ────────────────────────────────────────────────────
 (use-package vterm
+  :ensure t
   :catch t
   :config
-  ;; Remove Emacs bindings from vterm exceptions
   (setq vterm-keymap-exceptions
         (delete "C-c" (delete "C-u" (delete "C-g" vterm-keymap-exceptions))))
   (setq vterm-max-scrollback 100000
-        vterm-copy-exclude-prompt t)
-  (setq vterm-shell "/bin/zsh"))
+        vterm-copy-exclude-prompt t))
 
-;; ─── VTerm Multiline Helper ───────────────────────────────────
-(defun +carlos/vterm-write-multiline-prompt ()
-  "Write clipboard as multiline in vterm."
-  (interactive)
-  (when-let* ((text (or (car kill-ring) "")))
-    (vterm-send-string text)))
+;; ─── VTerm Toggle ────────────────────────────────────────────
+(use-package vterm-toggle
+  :ensure t
+  :after vterm
+  :bind (("C-`" . vterm-toggle))
+  :config
+  (setq vterm-toggle-fullscreen-p nil
+        vterm-toggle-scope 'project
+        vterm-toggle-reuse-existing t))
 
-(with-eval-after-load 'vterm
-  (define-key vterm-mode-map (kbd "C-c C-e") #'+carlos/vterm-write-multiline-prompt))
+;; ─── Eat (ANSI/TUI in Eshell) ───────────────────────────────
+(use-package eat
+  :ensure t
+  :hook (eshell-mode . eat-eshell-mode)
+  :config
+  (setq eat-enable-mouse t
+        eat-kill-buffer-on-exit t)
+  (add-to-list 'eat-semi-char-non-semi-commands "just")
+  (add-to-list 'eat-semi-char-non-semi-commands "opencode")
+  (add-to-list 'eat-semi-char-non-semi-commands "agy"))
 
-;; ─── Eshell ───────────────────────────────────────────────────
+;; ─── CAPF Autosuggest (Fish-style) ──────────────────────────
+(use-package capf-autosuggest
+  :ensure t
+  :hook (eshell-mode . capf-autosuggest-mode)
+  :config
+  (setq capf-autosuggest-look-back 1000))
+
+;; ─── Eshell Git Prompt ──────────────────────────────────────
+(use-package eshell-git-prompt
+  :ensure t
+  :after eshell
+  :config
+  (eshell-git-prompt-use-theme 'powerline))
+
+;; ─── Eshell ─────────────────────────────────────────────────
 (use-package eshell
+  :ensure nil
   :bind (("C-c e" . eshell))
   :config
   (setq eshell-buffer-name "*eshell*"
-        eshell-scroll-to-bottom-on-input t))
+        eshell-scroll-to-bottom-on-input 'all
+        eshell-hist-file-size 10000))
 
-;; ─── Eshell Prompt Extras ─────────────────────────────────────
-(use-package eshell-prompt-extras
-  :after eshell
+;; ─── Popper (Window Management) ─────────────────────────────
+(use-package popper
+  :ensure t
+  :bind
+  (("C-`"   . popper-toggle-latest)
+   ("M-`"   . popper-cycle)
+   ("C-M-`" . popper-toggle-type))
+  :init
+  (setq popper-reference-buffers
+        '("\\*eshell\\*" "\\*vterm\\*" "\\*eat\\*"
+          "\\*compilation\\*" output-mode help-mode))
   :config
-  (setq eshell-highlight-prompt t
-        eshell-prompt-function #'epe-theme-lambda))
+  (popper-mode 1)
+  (popper-echo-mode 1))
 
-;; ─── Display Buffer Rules ─────────────────────────────────────
-(add-to-list 'display-buffer-alist
-             '("\\*vterm"
-               (display-buffer-in-direction)
-               (direction . bottom)
-               (window-height . 0.4)))
+;; ─── Just + Eat Integration ─────────────────────────────────
+(defun +carlos/project-just-run ()
+  (interactive)
+  (when-let* ((root (project-root (project-current t))))
+    (let ((eat-buf (eat-make-buffer (format "*just: %s*" (file-name-nondirectory root)))))
+      (with-current-buffer eat-buf (cd root) (eat-exec-cmd "just" nil))
+      (pop-to-buffer eat-buf))))
+
+(defun +carlos/eat-just-recipe (recipe)
+  (interactive (list (completing-read "Just recipe: " (process-lines "just" "--summary"))))
+  (when-let* ((root (project-root (project-current t))))
+    (let ((eat-buf (eat-make-buffer (format "*just: %s*" recipe))))
+      (with-current-buffer eat-buf (cd root) (eat-exec-cmd "just" (list recipe)))
+      (pop-to-buffer eat-buf))))
+
+(global-set-key (kbd "C-c j j") #'+carlos/project-just-run)
+(global-set-key (kbd "C-c j r") #'+carlos/eat-just-recipe)
 #+end_src
 
 * RAG Context Notes
 
 ** For LLM Context Injection**
 
-When using this reference with AI assistants, include the following context points:
-
-- VTerm requires compilation of =vterm-module.so= (C module with cmake)
-- In batch/daemon mode, vterm compilation prompt appears — use advice to skip
-- =vterm-keymap-exceptions= — remove =C-c=, =C-u=, =C-g= for normal Emacs behavior
-- =eshell-prompt-extras= requires =epe-theme-lambda= function
-- =vterm-send-string= for multiline may need escaping for special characters
-- =display-buffer-alist= uses regex patterns to match buffer names
-- =display-buffer-in-direction= with =direction . bottom= places windows below
-- =vterm-copy-exclude-prompt=t= removes the prompt from copied text
-- =vterm-max-scrollback= of 100000 provides generous history for long sessions
-- eshell is built-in and requires no compilation
+- Eat transforms Eshell into a hybrid: Emacs objects + full terminal emulation
+- =eat-semi-char-non-semi-commands= controls which programs trigger char mode
+- =C-c C-q= toggles between Emacs mode and Char mode in eat
+- Eshell has isolated PATH — use =eshell-path-extra= for system tools
+- =eshell-git-prompt= replaces =eshell-prompt-extras= (don't use both)
+- =popper= manages terminal buffers as popups — doesn't mess up layout
+- Just integration uses =eat-make-buffer= + =eat-exec-cmd= for ANSI output
+- AI tool aliases use explicit paths (Eshell PATH ≠ system PATH)
+- =vterm-toggle= and =popper= both use =C-`= — popper takes precedence
 
 ** Package Relationships**
 
 #+begin_example
-vterm (C module, full terminal)
-├── multiline helper (custom function, uses vterm-send-string)
-│   └── bound to C-c C-e in vterm-mode-map
-└── display-buffer-alist (places vterm at bottom of frame)
+eshell (built-in)
+├── eat (eshell-mode hook → eat-eshell-mode)
+│   ├── char-mode auto-activates for: just, opencode, agy
+│   └── C-c C-q → toggle char mode
+├── capf-autosuggest (eshell-mode hook)
+├── eshell-git-prompt (powerline theme)
+└── AI aliases (eshell-mode hook → eshell/alias)
 
-eshell (built-in, Elisp shell)
-└── eshell-prompt-extras (enhanced prompts)
-    └── epe-theme-lambda (specific prompt theme)
+vterm (C module)
+└── vterm-toggle (C-` → toggle drawer)
+
+popper (window management)
+├── references: *eshell*, *vterm*, *eat*, *compilation*
+├── C-` → toggle latest popup
+├── M-` → cycle popups
+└── C-M-` → toggle type
+
+just + eat integration
+├── C-c j j → run default just recipe
+├── C-c j r → select recipe via completing-read
+└── project-switch-commands: ?j, ?t
 #+end_example
 
-** Choosing Between VTerm and Eshell**
+** Choosing Between Eshell+Eat and VTerm**
 
-- Use **VTerm** for: interactive programs (=vim=, =htop=, =tmux=), ANSI-heavy
-  output, running the same commands as your system terminal
-- Use **Eshell** for: quick file operations, Emacs Lisp expressions in commands,
-  scripting that benefits from Emacs integration, when you don't want to leave
-  the Emacs process
+- Use **Eshell + Eat** for: daily commands, TUIs (htop, ranger, lazygit),
+  AI CLI tools (opencode, agy), Emacs integration (Lisp expressions,
+  buffer redirection)
+- Use **VTerm** for: heavy terminal sessions, full shell compatibility,
+  when you need exact system terminal behavior
+- Use **both**: Eshell+Eat for daily use, VTerm via =C-`= for when you
+  need a real terminal
 
 ---
-*Terminal stack reference generated: 2026-08-05*
+*Terminal stack reference updated: 2026-08-05*
