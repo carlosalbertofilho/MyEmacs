@@ -121,10 +121,8 @@
 ;; Tab-bar
 (setopt tab-bar-show 1)
 
-;; ── Discovery aid (refined in custom-ui.el) ─────────────────────────
-(use-package which-key
-  :config
-  (which-key-mode))
+;; ── Discovery aid (loaded in custom-ui.el) ─────────────────────────
+;; which-key configured in custom-ui.el with proper settings
 
 ;; ── Theme (placeholder — ef-themes loaded in custom-ui.el) ──────────
 ;; (load-theme 'modus-vivendi t) ; replaced by ef-themes

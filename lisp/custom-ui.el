@@ -8,6 +8,7 @@
 ;; ── ef-themes ───────────────────────────────────────────────────────
 (use-package ef-themes
   :ensure t
+  :demand t  ;; Force load now (theme must be active before modules load)
   :init
   ;; Mixed fonts: variable-pitch headings + fixed-pitch code
   (setq ef-themes-mixed-fonts t
