@@ -16,12 +16,6 @@
   :config
   (mood-line-mode 1))
 
-;; ── olivetti (zen writing mode) ─────────────────────────────────────
-(use-package olivetti
-  :config
-  (setq olivetti-body-width 0.8)
-  (global-set-key (kbd "C-c z") #'olivetti-mode))
-
 ;; ── which-key (already loaded in init.el, refine here) ──────────────
 (use-package which-key
   :config

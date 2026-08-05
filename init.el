@@ -108,6 +108,7 @@
 ;; ── Modular configuration ───────────────────────────────────────────
 (require 'custom-core)
 (require 'custom-ui)
+(require 'custom-writing)
 (require 'custom-completion)
 (require 'custom-files)
 (require 'custom-term)
