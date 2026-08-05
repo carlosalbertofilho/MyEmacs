@@ -9,6 +9,8 @@
 
 ;; Forward declarations for byte-compiler
 (declare-function eshell-send-input "esh-mode")
+(declare-function eshell-kill-input "esh-mode")
+(declare-function eshell/alias "em-alias")
 (declare-function eat-toggle-char-mode "eat")
 (declare-function eat-exec-cmd "eat")
 (declare-function eat-make-buffer "eat")
@@ -126,17 +128,7 @@ ORIG-FUN and ARGS are passed to the original function."
         eshell-scroll-to-bottom-on-input 'all
         eshell-error-if-no-glob t
         eshell-hist-file-size 10000
-        eshell-cmpl-cycle-completions nil)
-  ;; Sync PATH with system shell so Eshell can find npx, bunx, agy, etc.
-  (add-hook 'eshell-mode-hook
-            (lambda ()
-              (when (boundp 'eshell-path-extra)
-                (setq-local eshell-path-extra
-                            (append '("/etc/profiles/per-user/carlosfilho/bin"
-                                      "/var/folders/p6/jvskwtqn1tl1d75kgr4p32g00000gn/T/bunx-501-opencode-ai@latest/node_modules/.bin"
-                                      "/run/current-system/sw/bin"
-                                      "/nix/var/nix/profiles/default/bin")
-                                      eshell-path-extra))))))
+        eshell-cmpl-cycle-completions nil))
 
 ;; Eshell keybindings (after eshell fully loads)
 (with-eval-after-load 'eshell
@@ -146,51 +138,35 @@ ORIG-FUN and ARGS are passed to the original function."
 
 ;; AI tool aliases for Eshell
 (defun +carlos/eshell-ai-aliases ()
-  "Add aliases for opencode and agy (Gemini CLI) in Eshell.
-Uses explicit paths since Eshell's PATH may differ from system shell."
+  "Add aliases for opencode and agy (Gemini CLI) in Eshell."
   (when (fboundp 'eshell/alias)
-    ;; opencode: AI coding assistant CLI (bunx temp path or npx)
-    (let ((oc-path (or (executable-find "opencode")
-                       "/var/folders/p6/jvskwtqn1tl1d75kgr4p32g00000gn/T/bunx-501-opencode-ai@latest/node_modules/.bin/opencode")))
-      (when (file-executable-p oc-path)
-        (eshell/alias "oc" (concat oc-path " $*"))
-        (eshell/alias "ai" (concat oc-path " $*"))
-        (eshell/alias "aif" (concat oc-path " fix $*"))
-        (eshell/alias "aireview" (concat oc-path " review $*"))))
-    ;; agy: Gemini CLI agent (Nix profile path)
-    (let ((agy-path (or (executable-find "agy")
-                        "/etc/profiles/per-user/carlosfilho/bin/agy")))
-      (when (file-executable-p agy-path)
-        (eshell/alias "agy" (concat agy-path " $*"))
-        (eshell/alias "gemini" (concat agy-path " $*"))))))
+    (eshell/alias "oc" "opencode $*")
+    (eshell/alias "ai" "opencode $*")
+    (eshell/alias "aif" "opencode fix $*")
+    (eshell/alias "aireview" "opencode review $*")
+    (eshell/alias "agy" "agy $*")
+    (eshell/alias "gemini" "agy $*")))
 
 (add-hook 'eshell-mode-hook #'+carlos/eshell-ai-aliases)
 
-;; Force char-mode for AI CLI tools when they start
-(defun +carlos/eshell-run-agy ()
-  "Run agy (Gemini CLI) with eat char-mode enabled."
+;; Interactive dispatchers for AI tools (Let Eat handle char-mode automatically)
+(defun +carlos/eshell-run-in-buffer (cmd)
+  "Execute CMD in the current Eshell buffer cleanly."
   (interactive)
-  (let ((agy-path (or (executable-find "agy")
-                      "/etc/profiles/per-user/carlosfilho/bin/agy")))
-    (if (file-executable-p agy-path)
-        (progn
-          (insert (concat agy-path " "))
-          (eshell-send-input)
-          ;; Toggle char-mode after command starts
-          (run-with-timer 0.2 nil #'eat-toggle-char-mode))
-      (message "agy not found"))))
+  (goto-char (point-max))
+  (eshell-kill-input)
+  (insert cmd)
+  (eshell-send-input))
+
+(defun +carlos/eshell-run-agy ()
+  "Run agy (Gemini CLI) in Eshell."
+  (interactive)
+  (+carlos/eshell-run-in-buffer "agy"))
 
 (defun +carlos/eshell-run-opencode ()
-  "Run opencode AI CLI with eat char-mode enabled."
+  "Run opencode AI CLI in Eshell."
   (interactive)
-  (let ((oc-path (or (executable-find "opencode")
-                     "/var/folders/p6/jvskwtqn1tl1d75kgr4p32g00000gn/T/bunx-501-opencode-ai@latest/node_modules/.bin/opencode")))
-    (if (file-executable-p oc-path)
-        (progn
-          (insert (concat oc-path " "))
-          (eshell-send-input)
-          (run-with-timer 0.2 nil #'eat-toggle-char-mode))
-      (message "opencode not found"))))
+  (+carlos/eshell-run-in-buffer "opencode"))
 
 ;; ── popper (Intelligent popup window management) ───────────────────
 ;; Classifies terminal buffers as popups — toggle/hide without messing layout.

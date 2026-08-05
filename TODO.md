@@ -18,6 +18,12 @@
   - Títulos estilizados em `Space Grotesk` e listagens em `Inter`.
 - [x] **Fase 4 — Preparação do Cutoff:**
   - Criado o script `bin/cutoff-migration.sh` para automatizar o backup do Doom e o link simbólico definitivo.
+- [x] **Ativação imediata do `which-key`:**
+  - Adicionada a flag `:demand t` ao `use-package which-key` para carregar e ativar o `which-key-mode` no startup, corrigindo a inatividade em sessões interativas.
+- [x] **Refatoração do Eshell (Auditoria do Opus):**
+  - Removidos caminhos temporários hardcoded e de perfil Nix.
+  - Aliases de IA (`oc`, `ai`, `aif`, `agy`, etc.) simplificados para invocar as ferramentas via PATH do sistema (que é importado com sucesso via `exec-path-from-shell`).
+  - Atalhos de disparo rápido (`C-c A a` / `C-c A o`) simplificados utilizando a API de buffer do Eshell, deixando a alternância automática de `char-mode` sob responsabilidade do interceptor de TUI do `eat`.
 
 ## 2. Bugs Conhecidos e Pendências (Investigação)
 
@@ -35,3 +41,16 @@
 
 ---
 > Para o histórico cronológico detalhado de conquistas e decisões arquiteturais do projeto, consulte o [roadmap.org](file:///Users/carlosfilho/Projects/Github/MyEmacs/roadmap.org).
+
+## 5. Auditoria e Plano Eshell, agy & opencode (Opus)
+
+### Diagnóstico (Auditoria de `custom-term.el`)
+1. **Caminhos Hardcoded (Frágeis):** A configuração antiga inseria caminhos no `eshell-path-extra` e aliases temporários do `bunx` do macOS que quebravam após reinicializações.
+2. **Herança de Variáveis de Ambiente:** Corrigido. Com a inclusão global do `exec-path-from-shell`, o Emacs GUI e daemon no macOS herdam fielmente os caminhos do terminal do usuário (Nix, Homebrew, Node).
+3. **Integração do `eat` (TUI):** As simulações de inputs baseadas em timers e injeção de texto foram removidas. Agora o Eshell envia a execução limpa de comandos de IA e o `eat` se encarrega de chavear o modo de caracteres para as TUIs interativas.
+
+### Plano de Ação Recomendado (Agente Executor)
+- [x] **1. Implementar `exec-path-from-shell` Globalmente** (Feito em `custom-core.el`)
+- [x] **2. Refatorar Aliases de IA (Remover Hardcodes)** (Feito em `custom-term.el`)
+- [x] **3. Otimizar os Atalhos de Teclado (`C-c A a` e `C-c A o`)** (Feito em `custom-term.el`)
+- [x] **4. Teste e Validação** (Feito com `just lint`)
