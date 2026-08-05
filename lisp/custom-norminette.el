@@ -174,7 +174,9 @@ Uses --cfile to pass buffer content directly to norminette."
   (add-to-list 'flycheck-checkers 'c-norminette)
 
   ;; Chain after eglot (run norminette after LSP diagnostics)
-  (when (fboundp 'flycheck-add-next-checker)
+  ;; Only if eglot checker is registered (not in batch mode)
+  (when (and (fboundp 'flycheck-add-next-checker)
+             (flycheck-checker-get 'eglot 'start))
     (flycheck-add-next-checker 'eglot 'c-norminette t))
 
   ;; Configure flycheck behavior
