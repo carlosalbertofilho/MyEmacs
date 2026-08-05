@@ -96,11 +96,16 @@
 (when (display-graphic-p)
   (context-menu-mode))
 
-;; Backup files in a centralized directory
-(let ((backup-dir (expand-file-name "backups/" user-emacs-directory)))
+;; Centralize backups and auto-saves in /tmp to prevent pollution in working directories
+(let ((backup-dir "/tmp/emacs-backups/")
+      (autosave-dir "/tmp/emacs-autosaves/"))
   (unless (file-directory-p backup-dir)
     (make-directory backup-dir t))
-  (setopt backup-directory-alist `(("." . ,backup-dir))))
+  (unless (file-directory-p autosave-dir)
+    (make-directory autosave-dir t))
+  (setq backup-directory-alist `(("." . ,backup-dir)))
+  (setq auto-save-file-name-transforms `((".*" ,autosave-dir t)))
+  (setq create-lockfiles nil))
 
 ;; Interface defaults
 (setopt line-number-mode t)
