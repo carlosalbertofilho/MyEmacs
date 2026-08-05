@@ -473,8 +473,9 @@ FACE é a face do texto (default: link)."
   (when +carlos/dashboard-show-splash
     (add-hook 'window-setup-hook #'+carlos/dashboard-splash))
 
-  ;; Dashboard como buffer inicial
-  (setq initial-buffer-choice #'+carlos/dashboard-open)
+  ;; Dashboard como buffer inicial (skip in batch mode)
+  (unless noninteractive
+    (setq initial-buffer-choice #'+carlos/dashboard-open))
 
   ;; Dashboard em novos frames (emacsclient)
   (add-hook 'server-after-make-frame-hook #'+carlos/dashboard-open)
