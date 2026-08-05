@@ -2,22 +2,26 @@
 
 ;;; Commentary:
 ;; vertico, consult, marginalia, orderless, embark, corfu.
+;; All packages installed via Elpaca (git-based, :ensure t by default).
 
 ;;; Code:
 
 ;; ── vertico ─────────────────────────────────────────────────────────
 (use-package vertico
+  :ensure t
   :config
   (vertico-mode 1)
   (setq vertico-cycle t))
 
 ;; ── marginalia ──────────────────────────────────────────────────────
 (use-package marginalia
+  :ensure t
   :config
   (marginalia-mode 1))
 
 ;; ── orderless ───────────────────────────────────────────────────────
 (use-package orderless
+  :ensure t
   :config
   (setq completion-styles '(orderless basic)
         completion-category-defaults nil
@@ -25,6 +29,7 @@
 
 ;; ── consult ─────────────────────────────────────────────────────────
 (use-package consult
+  :ensure t
   :bind
    (("C-x b"   . consult-buffer)
     ("C-s"     . consult-line)
@@ -42,17 +47,20 @@
 
 ;; ── embark ──────────────────────────────────────────────────────────
 (use-package embark
+  :ensure t
   :bind
   (("C-." . embark-act)
    ("C-;" . embark-dwim)))
 
 (use-package embark-consult
+  :ensure t
   :after (embark consult)
   :config
   (define-key embark-general-map "?" #'embark-consult-help))
 
 ;; ── corfu ───────────────────────────────────────────────────────────
 (use-package corfu
+  :ensure t
   :config
   (global-corfu-mode 1)
   (setq corfu-auto t

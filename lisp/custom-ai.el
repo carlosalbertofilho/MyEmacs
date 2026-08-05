@@ -11,6 +11,7 @@
 
 ;; ── gptel core ──────────────────────────────────────────────────────
 (use-package gptel
+  :ensure t
   :config
   ;; Incluir tool calls e resultados no buffer para visibilidade
   (setq gptel-include-tool-results t)
@@ -58,6 +59,7 @@
 
 ;; ── gptel-agent ─────────────────────────────────────────────────────
 (use-package gptel-agent
+  :ensure t
   :after gptel
   :config
   ;; Cria o diretório se não existir

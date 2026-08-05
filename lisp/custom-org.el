@@ -31,24 +31,28 @@
 
 ;; ── org-fragtog: auto-render LaTeX when cursor leaves ───────────────
 (use-package org-fragtog
+  :ensure t
   :hook (org-mode . org-fragtog-mode))
 
 ;; ── org-babel mermaid ───────────────────────────────────────────────
 (use-package ob-mermaid
+  :ensure t
   :config
   (setq ob-mermaid-cli-path "mmdc"))
 
 ;; ── markdown-mermaid ────────────────────────────────────────────────
 (use-package markdown-mermaid
+  :ensure t
   :config
   (setq markdown-mermaid-path "mmdc"))
 
 ;; ── emacs-jupyter ───────────────────────────────────────────────────
-;; Pacote MELPA chama-se `jupyter' (o repo é emacs-jupyter); kernels
-;; fornecidos pelo env python do Nix (home/carlosfilho/emacs.nix).
+;; Repo: https://github.com/jupyter/emacs-jupyter
+;; Kernels provided by Python env (pip/nix).
 ;; `ob-jupyter' não é autoloaded e não require org — precisa dos dois
 ;; para definir `org-babel-execute:jupyter' e `org-babel-load-languages'.
 (use-package jupyter
+  :ensure t
   :catch t
   :config
   (require 'org)
@@ -62,6 +66,7 @@
 ;; build/server/ (com HAVE_GETLINE + flags do SDK) e apontamos para ele
 ;; para que o check passe e o rebuild nunca seja disparado.
 (use-package pdf-tools
+  :ensure t
   :config
   (let ((bin (expand-file-name "build/server/epdfinfo" pdf-tools-directory)))
     (when (file-executable-p bin)
@@ -80,6 +85,7 @@
 
 ;; ── org-noter (opcional, leitura de PDF com notas) ─────────────────
 (use-package org-noter
+  :ensure t
   :after org
   :config
   (setq org-noter-notes-search-path '("~/org/notes")))
@@ -88,6 +94,7 @@
 ;; Estiliza headlines, keywords, tables, source blocks, tags, progress bars.
 ;; Por Daniel Mendler (mesmo autor de vertico, consult, corfu).
 (use-package org-modern
+  :ensure t
   :hook (org-mode . org-modern-mode)
   :hook (org-agenda-finalize . org-modern-agenda)
   :config

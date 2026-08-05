@@ -7,6 +7,7 @@
 
 ;; ── magit ───────────────────────────────────────────────────────────
 (use-package magit
+  :ensure t
   :bind
   (("C-c g" . magit-status))
   :config
@@ -14,10 +15,12 @@
 
 ;; ── just-mode ───────────────────────────────────────────────────────
 (use-package just-mode
+  :ensure t
   :mode ("Justfile\\'" . just-mode))
 
 ;; ── justl (interação com Justfile) ─────────────────────────────────
 (use-package justl
+  :ensure t
   :after just-mode
   :config
   (global-set-key (kbd "C-c j") #'justl)

@@ -7,17 +7,20 @@
 
 ;; ── ef-themes ───────────────────────────────────────────────────────
 (use-package ef-themes
+  :ensure t
   :config
   (setq ef-themes-to-toggle '(ef-spring ef-winter))
   (load-theme 'ef-winter t))
 
 ;; ── mood-line ───────────────────────────────────────────────────────
 (use-package mood-line
+  :ensure t
   :config
   (mood-line-mode 1))
 
-;; ── which-key (already loaded in init.el, refine here) ──────────────
+;; ── which-key (built-in Emacs 30+, refine here) ─────────────────────
 (use-package which-key
+  :ensure nil
   :config
   (setq which-key-idle-delay 0.8)
   (setq which-key-show-early-on-C-h t))

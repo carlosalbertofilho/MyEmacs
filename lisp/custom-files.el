@@ -19,6 +19,7 @@
 
 ;; ── dirvish core ────────────────────────────────────────────────────
 (use-package dirvish
+  :ensure t
   :after nerd-icons
   :init
   (dirvish-override-dired-mode 1)
@@ -72,8 +73,9 @@
 ;; dirvish-collapse: Collapse unique nested paths
 ;; dirvish-narrow:  Live filtering
 
-;; ── ibuffer ─────────────────────────────────────────────────────────
+;; ── ibuffer (built-in) ──────────────────────────────────────────────
 (use-package ibuffer
+  :ensure nil
   :bind
   (("C-x C-b" . ibuffer))
   :config
@@ -91,8 +93,9 @@
   (unless (file-directory-p cm-dir)
     (make-directory cm-dir t)))
 
-;; ── Project ─────────────────────────────────────────────────────────
+;; ── Project (built-in) ──────────────────────────────────────────────
 (use-package project
+  :ensure nil
   :config
   (setq project-switch-commands
         '((project-find-file "Find file")

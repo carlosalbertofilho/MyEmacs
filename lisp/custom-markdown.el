@@ -49,6 +49,7 @@
 ;; ── markdown-mermaid: render Mermaid diagrams inline ────────────────
 ;; Requires mmdc (@mermaid-js/mermaid-cli) installed via Nix.
 (use-package markdown-mermaid
+  :ensure t
   :config
   (setq markdown-mermaid-path "mmdc"))
 

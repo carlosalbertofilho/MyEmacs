@@ -8,6 +8,7 @@
 
 ;; ── treesit-auto ────────────────────────────────────────────────────
 (use-package treesit-auto
+  :ensure t
   :config
   (global-treesit-auto-mode 1))
 
@@ -15,6 +16,7 @@
 ;; NOTE: Avoid `prog-mode' hook — eglot-ensure on ALL prog modes causes slowdown.
 ;; Use per-mode hooks instead (see language sections below).
 (use-package eglot
+  :ensure nil
   :config
   ;; Ignorar formatação do servidor para C/C++ (Norma 42 controla)
   (add-to-list 'eglot-ignored-server-capabilities :documentFormattingProvider)
@@ -82,6 +84,7 @@
 
 ;; ── YAML ────────────────────────────────────────────────────────────
 (use-package yaml-mode
+  :ensure t
   :mode ("\\.ya?ml\\'" . yaml-mode))
 
 ;; ── Markdown ────────────────────────────────────────────────────────

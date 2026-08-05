@@ -8,6 +8,7 @@
 
 ;; ── denote ──────────────────────────────────────────────────────────
 (use-package denote
+  :ensure t
   :config
   (setq denote-directory (expand-file-name "~/org/notes")
         denote-known-keywords '("emacs" "nix" "42school" "python" "go" "typescript" "ai" "devops" "linux" "nixos")

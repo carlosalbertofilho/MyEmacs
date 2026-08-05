@@ -17,6 +17,7 @@
 (advice-add 'y-or-n-p :around #'+carlos/vterm-skip-compile-prompt)
 
 (use-package vterm
+  :ensure t
   :catch t
   :config
   (setq vterm-keymap-exceptions
@@ -34,8 +35,9 @@
 (with-eval-after-load 'vterm
   (define-key vterm-mode-map (kbd "C-c C-e") #'+carlos/vterm-write-multiline-prompt))
 
-;; ── eshell ──────────────────────────────────────────────────────────
+;; ── eshell (built-in) ───────────────────────────────────────────────
 (use-package eshell
+  :ensure nil
   :bind
   (("C-c e" . eshell))
   :config
@@ -44,6 +46,7 @@
 
 ;; eshell-prompt-extras
 (use-package eshell-prompt-extras
+  :ensure t
   :after eshell
   :config
   (setq eshell-highlight-prompt t

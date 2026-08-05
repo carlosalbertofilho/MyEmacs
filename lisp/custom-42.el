@@ -8,6 +8,7 @@
 
 ;; ── flycheck (dependency for norminette) ───────────────────────────
 (use-package flycheck
+  :ensure t
   :config
   (global-flycheck-mode 1)
   ;; Habilitar checker emacs-lisp em modos Elisp
