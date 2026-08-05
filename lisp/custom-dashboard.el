@@ -475,7 +475,11 @@ FACE é a face do texto (default: link)."
 
   ;; Dashboard como buffer inicial (skip in batch mode)
   (unless noninteractive
-    (setq initial-buffer-choice #'+carlos/dashboard-open))
+    ;; Use a function that creates/returns the dashboard buffer
+    (setq initial-buffer-choice
+          (lambda ()
+            (or (get-buffer +carlos/dashboard-buffer-name)
+                (+carlos/dashboard-open)))))
 
   ;; Dashboard em novos frames (emacsclient)
   (add-hook 'server-after-make-frame-hook #'+carlos/dashboard-open)
