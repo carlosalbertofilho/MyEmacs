@@ -1,0 +1,238 @@
+#+TITLE: Package Management Reference (Elpaca)
+#+AUTHOR: MyEmacs AI Agent
+#+DATE: 2026-08-05
+#+DESCRIPTION: Reference for Elpaca package management — git-based, async, native-compilation, lock file.
+
+* Overview
+
+Elpaca replaces package.el + MELPA as the package manager for MyEmacs.
+It installs packages directly from upstream git repositories, provides
+async parallel installation, native compilation on install, and a lock
+file for reproducibility.
+
+** Why Elpaca?
+
+| Problem | Solution |
+|---------+----------|
+| MELPA flaky (packages not found) | Installs from git repos directly |
+| No version pinning | Lock file (`elpaca-lock.el`) pins commits |
+| Slow startup | Async, parallel installation |
+| Byte-compile only | Native compilation (native-comp) on install |
+| Nix-only elisp | Portable — works anywhere with git + Emacs 29+ |
+
+* Architecture
+
+#+begin_src
+┌─────────────────────────────────────────────┐
+│              MyEmacs (portátil)              │
+│                                             │
+│  Elpaca → todos os pacotes elisp via git    │
+│  - magit, vertico, consult, corfu, etc      │
+│  - Lock file = reproducibilidade            │
+│  - Funciona em qualquer macOS/Linux          │
+└─────────────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────┐
+│         Nix (opcional, só para deps)        │
+│                                             │
+│  - Emacs binary (ou Homebrew/apt fallback)  │
+│  - rg, fd, mmdc, clangd, gopls, etc        │
+│  - Fonts (nerd-fonts, inter, victor-mono)   │
+│  - Python + Jupyter kernels                 │
+│  - poppler, imagemagick, ffmpegthumbnailer   │
+└─────────────────────────────────────────────┘
+#+end_src
+
+* Installation
+
+** Bootstrap Code (init.el)
+
+The Elpaca installer bootstraps itself on first run:
+
+#+begin_src elisp
+(defvar elpaca-installer-version 0.12)
+(defvar elpaca-directory (expand-file-name "elpaca/" user-emacs-directory))
+(defvar elpaca-builds-directory (expand-file-name "builds/" elpaca-directory))
+(defvar elpaca-sources-directory (expand-file-name "sources/" elpaca-directory))
+(defvar elpaca-order '(elpaca :repo "https://github.com/progfolio/elpaca.git"
+                              :ref nil :depth 1 :inherit ignore
+                              :files (:defaults "elpaca-test.el" (:exclude "extensions"))
+                              :build (:not elpaca-activate)))
+
+;; ... bootstrap code clones elpaca repo, generates autoloads ...
+
+(add-hook 'after-init-hook #'elpaca-process-queues)
+(elpaca `(,@elpaca-order))
+
+;; Elpaca + use-package integration
+(elpaca elpaca-use-package
+  (elpaca-use-package-mode))
+
+;; use-package defaults
+(setq use-package-always-defer t
+      use-package-expand-minimally t)
+#+end_src
+
+** use-package Integration
+
+With `elpaca-use-package-mode`, the `:ensure` keyword works automatically:
+
+#+begin_src elisp
+;; External package — Elpaca installs from git
+(use-package vertico :ensure t :config (vertico-mode 1))
+
+;; Built-in package — no installation needed
+(use-package org :ensure nil :config ...)
+
+;; Force immediate install and load (for hard requires)
+(use-package flycheck :ensure t :demand t)
+#+end_src
+
+* Key Commands
+
+| Command | Description |
+|---------+-------------|
+| =M-x elpaca-manager= | UI for managing packages |
+| =M-x elpaca-info= | completing-read package browser |
+| =M-x elpaca-try= | Install for current session only |
+| =M-x elpaca-fetch-all= | Fetch updates for all packages |
+| =M-x elpaca-merge-all= | Merge fetched updates |
+| =M-x elpaca-rebuild= | Rebuild a package |
+| =M-x elpaca-delete= | Remove a package |
+| =M-x elpaca-visit= | Open package source directory |
+| =M-x elpaca-log= | View package git logs |
+| =M-x elpaca-lock= | Generate lock file |
+
+* Lock File
+
+Generate a lock file for reproducibility:
+
+#+begin_src sh
+M-x elpaca-lock
+#+end_src
+
+This creates `elpaca-lock.el` which pins every package to a specific
+commit. Commit this file to version control for reproducible setups.
+
+Load the lock file in init.el:
+
+#+begin_src elisp
+(when (file-exists-p (expand-file-name "elpaca-lock.el" user-emacs-directory))
+  (load (expand-file-name "elpaca-lock.el" user-emacs-directory)))
+#+end_src
+
+* Native Compilation
+
+Native compilation is configured in `early-init.el`:
+
+#+begin_src elisp
+(when (and (fboundp 'native-comp-available-p)
+           (native-comp-available-p))
+  (setq native-comp-async-jobs-number (num-processors))
+  (setq native-comp-deferred-compilation t)
+  (setq package-native-compile t))
+#+end_src
+
+- =native-comp-async-jobs-number=: Parallel jobs (all CPU cores)
+- =native-comp-deferred-compilation=: Compile on first load (oat)
+- =package-native-compile=: Compile natively on install
+
+* Batch Mode
+
+Elpaca processes queues asynchronously. In batch mode, use
+=(elpaca-wait)= to block until packages are installed:
+
+#+begin_src elisp
+;; In a file that has hard requires:
+(use-package flycheck :ensure t :demand t)
+(elpaca-wait)  ;; Block until flycheck is installed
+(require 'custom-norminette)  ;; Now safe — flycheck is loaded
+#+end_src
+
+* .gitignore
+
+The `elpaca/` directory should NOT be committed:
+
+#+begin_src
+elpaca/
+#+end_src
+
+Packages are cloned from git on first run. The lock file ensures
+reproducible versions.
+
+* Package List
+
+All external packages managed by Elpaca:
+
+| Package | Source | Purpose |
+|---------+--------+---------|
+| vertico | minad/vertico | Vertical completion UI |
+| consult | minad/consult | Consult/preview commands |
+| corfu | minad/corfu | Completion in buffer |
+| marginalia | minad/marginalia | Minibuffer annotations |
+| orderless | oantolin/orderless | Completion style |
+| embark | oantolin/embark | Context actions |
+| embark-consult | oantolin/embark-consult | Embark + consult integration |
+| dirvish | alexluigit/dirvish | File manager |
+| nerd-icons | rainstormstudio/nerd-icons | Icon library |
+| ef-themes | progfolio/ef-themes | Color themes |
+| mood-line | fluxn/mood-line | Mode line |
+| treesit-auto | zgp/treeist-auto | Auto treesit modes |
+| yaml-mode | zonuexe/yaml-mode | YAML mode |
+| vterm | akermu/emacs-libvterm | Terminal emulator |
+| eshell-prompt-extras | zsh-users/eshell-prompt-extras | Eshell prompt themes |
+| org-fragtog | io12/org-fragtog | LaTeX preview toggle |
+| ob-mermaid | ob-mermaid | Mermaid in Org babel |
+| markdown-mermaid | markdown-mermaid | Mermaid in Markdown |
+| jupyter | jupyter/emacs-jupyter | Jupyter integration |
+| pdf-tools | vedang/pdf-tools | PDF viewer |
+| org-noter | org-noter | PDF annotation |
+| org-modern | minad/org-modern | Org visual styling |
+| markdown-mode | jrblevin/markdown-mode | Markdown mode |
+| edit-indirect | nicferrier/edit-indirect | Indirect buffer editing |
+| olivetti | rnkn/olivetti | Distraction-free writing |
+| gptel | karthink/gptel | AI assistant |
+| gptel-agent | karthink/gptel-agent | AI agent mode |
+| magit | magit/magit | Git interface |
+| just-mode | just-mode | Justfile mode |
+| justl | justl | Justfile interaction |
+| denote | denote | Zettelkasten notes |
+| flycheck | flycheck/flycheck | Syntax checking |
+
+* Troubleshooting
+
+** Package not found
+
+Elpaca clones from git, not MELPA. If a package fails to install:
+1. Check the repo URL is correct
+2. Run =M-x elpaca-rebuild= to force rebuild
+3. Check network connectivity
+
+** Hard require fails
+
+If a file has =(require 'package)= before Elpaca installs it:
+1. Add =:demand t= to the use-package declaration
+2. Add =(elpaca-wait)= after the use-package block
+3. See custom-42.el/flycheck for an example
+
+** Native compilation warnings
+
+Warnings are silenced in early-init.el:
+#+begin_src elisp
+(setq native-comp-async-report-warnings-errors 'silent)
+#+end_src
+
+To see warnings, set it to =visible= or =silent= (default).
+
+* Migration from package.el
+
+Steps taken to migrate:
+1. Removed package-archives (GNU/NonGNU/MELPA)
+2. Removed package-initialize, package-refresh-contents
+3. Added Elpaca bootstrap
+4. Enabled elpaca-use-package-mode
+5. Added :ensure t/nil to all use-package declarations
+6. Cleaned Nix config (removed elisp, kept system deps)
+7. Added elpaca-wait where needed for hard requires
+8. Added elpaca/ to .gitignore
