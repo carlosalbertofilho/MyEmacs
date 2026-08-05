@@ -24,6 +24,7 @@
   :init
   (dirvish-override-dired-mode 1)
   :custom
+  ;; Quick-access entries (2-keystroke jumps)
   (dirvish-quick-access-entries
    '(("h" "~/"                    "Home")
      ("d" "~/Downloads/"          "Downloads")
@@ -31,47 +32,40 @@
      ("c" "~/.config/"            "Config")
      ("n" "~/org/notes"           "Notes")
      ("e" "~/.config/emacs-vanilla/" "Emacs")))
+  ;; Visual attributes (order matters for rendering)
+  (dirvish-attributes
+   '(vc-state subtree-state nerd-icons collapse git-msg file-time file-size))
+  ;; Icon settings
+  (dirvish-nerd-icons-height 16)
+  (dirvish-nerd-icons-offset -2)
+  ;; Window / layout
+  (dirvish-side-width 30)
+  (dirvish-large-directory-threshold 20000)
+  (dirvish-hide-cursor t)
+  (dirvish-use-mode-line nil)
+  ;; Subtree
+  (dirvish-subtree-always-show-state nil)
+  (dirvish-subtree-state-style "arrow")
+  (dirvish-subtree-icon-scale-factor 1.0)
+  (dirvish-side-auto-expand t)
+  (dirvish-side-open-file-action 'select)
+  ;; Preview dispatchers (correct values: file types, NOT vc commands)
+  (dirvish-preview-dispatchers
+   '(image gif video audio epub pdf archive))
+  :bind
+  (:map dirvish-mode-map
+   (";"   . dired-up-directory)
+   ("?"   . dirvish-dispatch)
+   ("TAB" . dirvish-subtree-toggle)
+   ("o"   . dirvish-quick-access)
+   ("r"   . dirvish-history-jump)
+   ("s"   . dirvish-quicksort)
+   ("v"   . dirvish-vc-menu)
+   ("N"   . dirvish-narrow))
   :config
-  ;; Core settings
-  (setq dirvish-attributes
-        '(nerd-icons vc-state git-msg collapse)
-        dirvish-side-width 30
-        dirvish-large-directory-threshold 1000
-        dirvish-hide-cursor t
-        dirvish-use-mode-line nil
-        dirvish-nerd-icons-height 16     ; was 12 (too small, causes giant icons)
-        dirvish-nerd-icons-offset -2
-        dirvish-side-auto-expand t
-        dirvish-side-open-file-action 'select
-        dirvish-subtree-always-show-state nil
-        dirvish-subtree-state-style "arrow"
-        dirvish-subtree-icon-scale-factor 1.0)
-
-  ;; Preview in minibuffer
-  (dirvish-peek-mode 1)
-  (setq dirvish-peek-key 'any)
-
-  ;; VC preview dispatchers (must be at beginning for priority)
-  (setq dirvish-preview-dispatchers '(vc-log vc-diff vc-blame))
-
   ;; Hooks
   (add-hook 'dirvish-mode-hook (lambda () (setq truncate-lines t)))
   (add-hook 'dirvish-mode-hook (lambda () (dired-hide-details-mode 1))))
-
-;; ── dirvish extensions (all consolidated in dirvish :config above) ──
-;; dirvish-yank:    Multi-stage copy/paste (async)
-;; dirvish-rsync:   Integration with rsync
-;; dirvish-emerge:  Group files by filter criteria
-;; dirvish-peek:    Preview in minibuffer (enabled in :config)
-;; dirvish-vc:      Version control integration (enabled in :config)
-;; dirvish-icons:   File icons via nerd-icons (enabled in :config)
-;; dirvish-side:    Toggle sidebar
-;; dirvish-ls:      LS switches menu
-;; dirvish-subtree: Tree browser (enabled in :config)
-;; dirvish-history: History navigation
-;; dirvish-quick-access: Quick keys for places (enabled in :config)
-;; dirvish-collapse: Collapse unique nested paths
-;; dirvish-narrow:  Live filtering
 
 ;; ── ibuffer (built-in) ──────────────────────────────────────────────
 (use-package ibuffer
@@ -86,7 +80,7 @@
 (setq tramp-default-method "ssh"
       tramp-ssh-controlmaster-options
       "-o ControlMaster=auto -o ControlPath='~/.ssh/controlmasters/%r@%h:%p' -o ControlPersist=600"
-      tramp-use-ssh-controlmaster-options t)
+      tramp-use-connection-share t)
 
 ;; Ensure controlmasters directory exists
 (let ((cm-dir (expand-file-name "~/.ssh/controlmasters")))
