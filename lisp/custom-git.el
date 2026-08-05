@@ -6,8 +6,14 @@
 ;;; Code:
 
 ;; ── magit ───────────────────────────────────────────────────────────
+;; transient must be updated first (magit depends on transient >= 0.13)
+(use-package transient
+  :ensure t
+  :demand t)
+
 (use-package magit
   :ensure t
+  :after transient
   :bind
   (("C-c g" . magit-status))
   :config
