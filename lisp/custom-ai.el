@@ -139,6 +139,54 @@ Sem advice: chama `+carlos/gptel-agent-add-project-dirs' diretamente."
         (gptel-send)
         (message "Agente iniciado — %s" task)))))
 
+;; ── mcp.el (Model Context Protocol client) ──────────────────────────
+;; Instalar via Nix ou manualmente:
+;;   git clone https://github.com/lizqwerscott/mcp.el.git ~/.emacs.d/site-lisp/mcp
+(use-package mcp
+  :ensure nil
+  :demand t
+  :if (locate-library "mcp")
+  :config
+  ;; Servidores MCP padrão
+  (setq mcp-hub-servers
+        `(("filesystem" . (:command "npx"
+                          :args ("-y" "@modelcontextprotocol/server-filesystem"
+                                 ,(expand-file-name "~/Projects"))))
+          ("github" . (:command "npx"
+                       :args ("-y" "@modelcontextprotocol/server-github")))))
+  ;; Iniciar MCP automaticamente com gptel/superchat
+  (with-eval-after-load 'gptel
+    (require 'gptel-integrations)))
+
+;; ── SuperChat (Claude Code-style UI para gptel) ────────────────────
+;; Não está no MELPA — instalar manualmente:
+;;   git clone https://github.com/yibie/superchat.git ~/.emacs.d/straight/repos/superchat
+;; Ou adicionar ao load-path:
+;;   (add-to-list 'load-path "~/.emacs.d/site-lisp/superchat")
+(use-package superchat
+  :ensure nil
+  :demand t
+  :if (locate-library "superchat")
+  :after gptel
+  :config
+  ;; Backend padrão (herda do gptel ou usa llm.el)
+  (setq superchat-llm-backend
+        (make-llm-openai-compatible
+         :api-key (or (getenv "OPENCODE_API_KEY") "")
+         :endpoint "https://zen.opencode.ai/v1"
+         :chat-model "north-mini-code-free"))
+  ;; Idioma para variáveis de sistema
+  (setq superchat-lang "English")
+  ;; Timeout de resposta
+  (setq superchat-response-timeout 180)
+  ;; Histórico de conversa
+  (setq superchat-context-message-count 15
+        superchat-conversation-history-limit 80)
+  ;; Diretório de dados (memória SQLite, config)
+  (setq superchat-data-directory (expand-file-name "~/.emacs.d/superchat/"))
+  ;; Ferramentas permitidas
+  (setq superchat-llm-tool-names 'all))
+
 ;; ── Display buffer rules (popup replacement) ───────────────────────
 (add-to-list 'display-buffer-alist
              '("\\*gptel-agent:.*"
@@ -151,6 +199,12 @@ Sem advice: chama `+carlos/gptel-agent-add-project-dirs' diretamente."
                (display-buffer-in-direction)
                (direction . bottom)
                (window-height . 0.4)))
+
+(add-to-list 'display-buffer-alist
+             '("\\*superchat.*"
+               (display-buffer-in-direction)
+               (direction . right)
+               (window-width . 0.45)))
 
 (provide 'custom-ai)
 ;;; custom-ai.el ends here

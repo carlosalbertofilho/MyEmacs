@@ -10,7 +10,7 @@ mode, com IA unificada via =gptel=, integrada ao NixOS via Home Manager.
 
 - Framework: Emacs Bedrock (use-package nativo, Emacs 29+)
 - Sem Evil: keybindings 100% nativos com prefixo =C-c=
-- IA: gptel + gptel-agent (OpenCode Zen, Claude, Gemini, Ollama, MLX Local)
+- IA: gptel + gptel-agent + SuperChat + MCP (OpenCode Zen, Claude, Gemini, Ollama, MLX Local)
 - 42 School: header42.el + flycheck-norminette.el preservados
 
 * Estrutura
@@ -29,7 +29,7 @@ mode, com IA unificada via =gptel=, integrada ao NixOS via Home Manager.
 │   ├── custom-lang.el      ← eglot, treesit, linguagens
 │   ├── custom-org.el       ← org-babel, jupyter, mermaid, pdf-tools
 │   ├── custom-42.el        ← header42, norminette, estilo C 42
-│   ├── custom-ai.el        ← gptel backends, gptel-agent
+│   ├── custom-ai.el        ← gptel backends, gptel-agent, SuperChat, MCP
 │   ├── custom-knowledge.el ← denote (Zettelkasten)
 │   ├── custom-git.el       ← magit, just, commit com IA
 │   └── custom-keybindings.el← atalhos C-c
