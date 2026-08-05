@@ -4,10 +4,9 @@
 ;; Visual improvements for Org-mode and Markdown:
 ;; - org-modern for both modes (modern styling)
 ;; - variable-pitch for body text, fixed-pitch for code/tables/tags
+;; - ef-themes mixed fonts with hierarchical heading sizes
+;; - Full-width buffers (no olivetti centering)
 ;; - Hide emphasis markers (asterisks, link markup)
-;; - Olivetti centering (85 columns)
-;; - Custom fold ellipsis (" ▾" instead of "...")
-;; Full compatibility with ef-themes.
 
 ;;; Code:
 
@@ -66,15 +65,16 @@
 (defun +carlos/writing-setup-variable-pitch ()
   "Ativar variable-pitch no buffer atual, mantendo fixed-pitch em código e tabelas."
   (variable-pitch-mode 1)
-  ;; Hierarchical heading sizes with variable-pitch
-  (dolist (face-spec '((org-level-1 :height 1.3 :weight bold)
-                       (org-level-2 :height 1.15 :weight bold)
-                       (org-level-3 :height 1.05 :weight bold)
-                       (org-level-4 :height 1.0 :weight bold)
+  ;; Hierarchical heading sizes with variable-pitch (larger for better visibility)
+  (dolist (face-spec '((org-level-1 :height 1.5 :weight bold)
+                       (org-level-2 :height 1.3 :weight bold)
+                       (org-level-3 :height 1.15 :weight bold)
+                       (org-level-4 :height 1.05 :weight bold)
                        (org-level-5 :height 1.0 :weight bold)
                        (org-level-6 :height 1.0 :weight bold)
                        (org-level-7 :height 1.0 :weight bold)
-                       (org-level-8 :height 1.0 :weight bold)))
+                       (org-level-8 :height 1.0 :weight bold)
+                       (org-document-title :height 1.6 :weight bold)))
     (when (facep (car face-spec))
       (apply #'set-face-attribute (car face-spec) nil (cdr face-spec))))
   ;; Garantir que faces de código usem fonte monoespaçada
@@ -92,19 +92,7 @@
 (add-hook 'org-mode-hook #'+carlos/writing-setup-variable-pitch)
 (add-hook 'markdown-mode-hook #'+carlos/writing-setup-variable-pitch)
 
-;; ── Olivetti (centralização de texto, 85 colunas) ──────────────────
-(use-package olivetti
-  :ensure t
-  :hook ((org-mode . olivetti-mode)
-         (markdown-mode . olivetti-mode))
-  :init
-  (setq olivetti-body-width 85                    ; 85 colunas de largura
-        olivetti-minimum-body-width 85)           ; mínimo também 85
-  :config
-  ;; Aplicar variable-pitch quando olivetti ativa
-  (add-hook 'olivetti-mode-hook #'+carlos/writing-setup-variable-pitch))
-
-;; ── Org-mode: ocultar marcadores de ênfase ─────────────────────────
+;; ── Org-mode: ocultar marcadores de ênfase + full width ────────────
 (use-package org
   :ensure nil
   :custom
@@ -114,8 +102,8 @@
   (org-startup-indented t)
   ;; Imagens inline ao abrir
   (org-startup-with-inline-images t)
-  ;; Esconder marcadores de ênfase
-  (org-hide-emphasis-markers t))
+  ;; Full width (no olivetti centering)
+  (org-startup-truncated nil))
 
 ;; ── Markdown-mode: ocultar markup visualmente ──────────────────────
 (with-eval-after-load 'markdown-mode
