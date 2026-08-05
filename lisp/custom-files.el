@@ -23,17 +23,20 @@
   :config
   (dirvish-override-dired-mode 1)
   (setq dirvish-attributes
-        '(vc-state git-msg nerd-icons collapse file-size file-time)
+        '(nerd-icons vc-state git-msg collapse)
         dirvish-side-width 30
         dirvish-window-size 0.5
-        dirvish-large-directory-threshold 1000)
+        dirvish-large-directory-threshold 1000
+        dirvish-default-layout 10
+        dirvish-hide-cursor t
+        dirvish-use-mode-line nil
+        dirvish-fullscreen nil)
 
-  ;; Layout padrão
-  (setq dirvish-default-layout 10)
+  ;; Truncar linhas longas
+  (add-hook 'dirvish-mode-hook (lambda () (setq truncate-lines t)))
 
-  ;; Hooks
-  ;; extensões são carregadas on-demand pelo dirvish
-  )
+  ;; Esconder detalhes por padrão (colunas extras)
+  (add-hook 'dirvish-mode-hook (lambda () (dired-hide-details-mode 1))))
 
 ;; ── dirvish-yank: copy/paste em 2 estágios (assíncrono) ────────────
 ;; Fornece: dirvish-yank, dirvish-move, dirvish-symlink, dirvish-hardlink
