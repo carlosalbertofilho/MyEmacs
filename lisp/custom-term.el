@@ -157,12 +157,14 @@ Uses explicit paths since Eshell's PATH may differ from system shell."
   "Automatically enter eat char-mode when running AI CLI tools."
   (when (and (boundp 'eat-eshell-mode) eat-eshell-mode)
     (let ((cmd (save-excursion
-                 (goto-char eshell-last-output-end)
+                 (goto-char (point-max))
+                 (beginning-of-line)
                  (buffer-substring-no-properties
                   (line-beginning-position)
                   (line-end-position)))))
-      (when (string-match-p "\\b\\(agy\\|gemini\\|opencode\\|oc\\|ai\\|devenv\\)\\b" cmd)
-        (eat-toggle-char-mode)))))
+      (when (string-match-p "\\b\\(agy\\|gemini\\|opencode\\|oc\\b\\|ai\\b\\|aif\\|aireview\\|devenv\\)\\b" cmd)
+        ;; Small delay to let command start, then toggle char-mode
+        (run-with-timer 0.1 nil #'eat-toggle-char-mode)))))
 
 (add-hook 'eshell-pre-command-hook #'+carlos/eshell-auto-char-mode-for-ai)
 
