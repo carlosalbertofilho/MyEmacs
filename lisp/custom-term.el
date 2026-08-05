@@ -88,23 +88,34 @@
         eshell-scroll-to-bottom-on-input 'all
         eshell-error-if-no-glob t
         eshell-hist-file-size 10000
-        eshell-cmpl-cycle-completions nil))
+        eshell-cmpl-cycle-completions nil)
+  ;; Sync PATH with system shell so Eshell can find npx, bunx, agy, etc.
+  (setq eshell-path-extra
+        (append '("/etc/profiles/per-user/carlosfilho/bin"
+                  "/var/folders/p6/jvskwtqn1tl1d75kgr4p32g00000gn/T/bunx-501-opencode-ai@latest/node_modules/.bin"
+                  "/run/current-system/sw/bin"
+                  "/nix/var/nix/profiles/default/bin")
+                eshell-path-extra)))
 
 ;; AI tool aliases for Eshell
 (defun +carlos/eshell-ai-aliases ()
-  "Add aliases for opencode and agy (Gemini CLI) in Eshell."
+  "Add aliases for opencode and agy (Gemini CLI) in Eshell.
+Uses explicit paths since Eshell's PATH may differ from system shell."
   (when (fboundp 'eshell/alias)
-    ;; opencode: AI coding assistant CLI
-    (when (executable-find "opencode")
-      (eshell/alias "oc" "opencode $*"))
-    ;; agy: Gemini CLI agent
-    (when (executable-find "agy")
-      (eshell/alias "agy" "agy $*")
-      (eshell/alias "gemini" "agy $*"))
-    ;; Quick AI commands
-    (eshell/alias "ai" "opencode $*")
-    (eshell/alias "aif" "opencode fix $*")
-    (eshell/alias "aireview" "opencode review $*")))
+    ;; opencode: AI coding assistant CLI (bunx temp path or npx)
+    (let ((oc-path (or (executable-find "opencode")
+                       "/var/folders/p6/jvskwtqn1tl1d75kgr4p32g00000gn/T/bunx-501-opencode-ai@latest/node_modules/.bin/opencode")))
+      (when (file-executable-p oc-path)
+        (eshell/alias "oc" (concat oc-path " $*"))
+        (eshell/alias "ai" (concat oc-path " $*"))
+        (eshell/alias "aif" (concat oc-path " fix $*"))
+        (eshell/alias "aireview" (concat oc-path " review $*"))))
+    ;; agy: Gemini CLI agent (Nix profile path)
+    (let ((agy-path (or (executable-find "agy")
+                        "/etc/profiles/per-user/carlosfilho/bin/agy")))
+      (when (file-executable-p agy-path)
+        (eshell/alias "agy" (concat agy-path " $*"))
+        (eshell/alias "gemini" (concat agy-path " $*"))))))
 
 (add-hook 'eshell-mode-hook #'+carlos/eshell-ai-aliases)
 
