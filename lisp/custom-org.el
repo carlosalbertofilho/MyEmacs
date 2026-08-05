@@ -6,13 +6,15 @@
 
 ;;; Code:
 
-;; ── ob-mermaid (must be installed before org-babel loads it) ────────
+;; ── ob-mermaid ──────────────────────────────────────────────────────
 (use-package ob-mermaid
   :ensure t
-  :demand t
+  :after org
   :config
-  (setq ob-mermaid-cli-path "mmdc"))
-(elpaca-wait)  ;; Ensure ob-mermaid is installed before org-babel uses it
+  (setq ob-mermaid-cli-path "mmdc")
+  ;; Registrar a linguagem mermaid dinamicamente após o carregamento
+  (add-to-list 'org-babel-load-languages '(mermaid . t))
+  (org-babel-do-load-languages 'org-babel-load-languages org-babel-load-languages))
 
 ;; ── org-mode ────────────────────────────────────────────────────────
 (use-package org
@@ -32,8 +34,7 @@
    'org-babel-load-languages
    '((python . t)
      (shell . t)
-     (emacs-lisp . t)
-     (mermaid . t)))
+     (emacs-lisp . t)))
   :bind
   (("C-c a" . org-agenda)))
 

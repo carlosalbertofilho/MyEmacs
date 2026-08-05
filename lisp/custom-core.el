@@ -8,13 +8,15 @@
 
 ;; ── Fonts ───────────────────────────────────────────────────────────
 (set-face-attribute 'default nil
-                    :family "JetBrainsMono Nerd Font"
+                    :family "Victor Mono"
+                    :weight 'semi-bold
                     :height 130)
 (set-face-attribute 'fixed-pitch nil
-                    :family "JetBrainsMono Nerd Font"
+                    :family "Victor Mono"
+                    :weight 'semi-bold
                     :height 130)
 (set-face-attribute 'variable-pitch nil
-                    :family "JetBrainsMono Nerd Font"
+                    :family "Inter"
                     :height 140)
 
 ;; Fallback para símbolos unicode
@@ -62,6 +64,34 @@
 (require 'server)
 (unless (server-running-p)
   (server-start))
+
+;; ── exec-path-from-shell (macOS environment inherit) ────────────────
+(use-package exec-path-from-shell
+  :ensure t
+  :if (memq window-system '(mac ns))
+  :config
+  (exec-path-from-shell-initialize))
+
+;; ── ligature (ligaduras de código para Victor Mono) ─────────────────
+(use-package ligature
+  :ensure t
+  :config
+  ;; Habilitar as ligaduras comuns de programação para todos os prog-modes
+  (ligature-set-ligatures 'prog-mode
+    '("|||>" "<|||" "<==>" "<!--" "####" "~~>" "***" "||=" "||>"
+      ":::" "::=" "=:=" "===" "==>" "=!=" "=>>" "=<<" "=/=" "!=="
+      "!!." ">=>" ">>=" ">>>" ">>-" ">->" "->>" "-->" "---" "-<<"
+      "<~~" "<~>" "<*>" "<||" "<|>" "<$>" "<==" "<=>" "<=<" "<->"
+      "<--" "<-<" "<<=" "<<-" "<<<" "<+>" "</>" "###" "#_(" "..<"
+      "..." "+++" "/==" "///" "_|_" "www" "&&" "^=" "~~" "~@" "~="
+      "~>" "~-" "**" "*>" "*/" "||" "|}" "|]" "|=" "|>" "|-" "{|"
+      "[|" "]#" "::" ":=" ":>" ":<" "$>" "==" "=>" "!=" "!!" ">:"
+      ">=" ">>" ">-" "-~" "-|" "->" "--" "-<" "<~" "<*" "<|" "<:"
+      "<$" "<=" "<>" "<-" "<<" "<+" "</" "#{" "#[" "#:" "#=" "#!"
+      "##" "#(" "#?" "#_" "%%" ".=" ".-" ".." ".?" "+>" "++" "?:"
+      "?=" "?." "??" ";;" "/*" "/=" "/>" "//" "__" "~~" "(*" "*)"
+      "\\\\" "://"))
+  (global-ligature-mode t))
 
 (provide 'custom-core)
 ;;; custom-core.el ends here
