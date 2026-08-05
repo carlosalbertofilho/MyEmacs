@@ -6,6 +6,7 @@
 
 ;;; Commentary:
 ;; Modular Emacs configuration built on Emacs Bedrock principles:
+;;   - Elpaca package manager (git-based, async, native-comp)
 ;;   - use-package (built-in Emacs 29+)
 ;;   - Native-first (eglot, treesit, project.el)
 ;;   - No Evil mode — pure Emacs keybindings
@@ -19,28 +20,56 @@
 (when (< emacs-major-version 29)
   (error "This config requires Emacs 29+; you have version %s" emacs-major-version))
 
-;; ── Package repositories ────────────────────────────────────────────
-(require 'package)
-;; Emacs packages via Nix (Home Manager) — ex.: emacs-jupyter, que não está
-;; disponível nos archives ELPA/MELPA. O emacs.nix expõe o elisp em
-;; site-lisp/nix-elpa (buildEnv + home.file) como pacotes "instalados".
-(add-to-list 'package-directory-list
-             (expand-file-name "site-lisp/nix-elpa" user-emacs-directory))
-(setq package-archives
-      '(("gnu"    . "https://elpa.gnu.org/packages/")
-        ("nongnu" . "https://elpa.nongnu.org/nongnu/")
-        ("melpa"  . "https://melpa.org/packages/")))
-(package-initialize)
+;; ── Elpaca: Git-based package manager (replaces package.el + MELPA) ─
+;; Installs packages directly from upstream git repositories.
+;; Async, parallel, native-compilation on install, lock file for reproducibility.
+(defvar elpaca-installer-version 0.12)
+(defvar elpaca-directory (expand-file-name "elpaca/" user-emacs-directory))
+(defvar elpaca-builds-directory (expand-file-name "builds/" elpaca-directory))
+(defvar elpaca-sources-directory (expand-file-name "sources/" elpaca-directory))
+(defvar elpaca-order '(elpaca :repo "https://github.com/progfolio/elpaca.git"
+                              :ref nil :depth 1 :inherit ignore
+                              :files (:defaults "elpaca-test.el" (:exclude "extensions"))
+                              :build (:not elpaca-activate)))
 
-;; Refresh package contents on first run
-(unless package-archive-contents
-  (package-refresh-contents))
+(let* ((repo  (expand-file-name "elpaca/" elpaca-sources-directory))
+       (build (expand-file-name "elpaca/" elpaca-builds-directory))
+       (order (cdr elpaca-order))
+       (default-directory repo))
+  (add-to-list 'load-path (if (file-exists-p build) build repo))
+  (unless (file-exists-p repo)
+    (make-directory repo t)
+    (call-process "git" nil nil nil "clone"
+                  "--depth" "1" "--single-branch"
+                  "https://github.com/progfolio/elpaca.git" repo))
+  (unless (file-exists-p build)
+    (call-process "git" nil nil nil "-C" repo "fetch" "--depth" "1" "origin" "master")
+    (call-process "git" nil nil nil "-C" repo "checkout" "FETCH_HEAD")
+    (call-process "git" nil nil nil "-C" repo "submodule" "update" "--init" "--recursive" "--depth" "1"))
+  (unless (file-exists-p build)
+    (with-current-buffer (get-buffer-create "*elpaca-bootstrap*")
+      (let ((standard-output (current-buffer)))
+        (call-process "emacs" nil t nil "--batch" "-L" "." "-l" "elpaca.el"
+                      "--eval" "(elpaca-generate-autoloads \"elpaca\" default-directory)"))
+      (goto-char (point-min))
+      (while (re-search-forward "^[[:space:]]*$" nil t) (delete-region (line-beginning-position) (1+ (line-end-position))))
+      (write-region (point-min) (point-max) (expand-file-name "elpaca-autoloads.el" build)))))
 
-;; Ensure use-package is available (built-in on 29+, but ensure :ensure works)
-(unless (package-installed-p 'use-package)
-  (package-install 'use-package))
-(require 'use-package)
-(setq use-package-always-ensure t)
+(unless (require 'elpaca-autoloads nil t)
+  (require 'elpaca)
+  (elpaca-generate-autoloads "elpaca" repo)
+  (let ((load-source-file-function nil)) (load "./elpaca-autoloads" nil t)))
+
+(add-hook 'after-init-hook #'elpaca-process-queues)
+(elpaca `(,@elpaca-order))
+
+;; Elpaca + use-package integration
+(elpaca elpaca-use-package
+  (elpaca-use-package-mode))
+
+;; use-package defaults (Elpaca handles :ensure automatically)
+(setq use-package-always-defer t
+      use-package-expand-minimally t)
 
 ;; ── Load paths ──────────────────────────────────────────────────────
 (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
