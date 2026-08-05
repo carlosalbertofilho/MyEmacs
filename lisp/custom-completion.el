@@ -36,8 +36,9 @@
    ("M-g M-g" . consult-goto-line)))
 
 ;; Preview on consult commands
-(use-package consult
-  :hook (minibuffer-setup . consult-preview-at-point-mode))
+(with-eval-after-load 'consult
+  (when (fboundp 'consult-preview-at-point-mode)
+    (add-hook 'minibuffer-setup-hook #'consult-preview-at-point-mode)))
 
 ;; ── embark ──────────────────────────────────────────────────────────
 (use-package embark
