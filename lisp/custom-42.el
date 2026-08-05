@@ -9,7 +9,20 @@
 ;; ── flycheck (dependency for flycheck-norminette) ──────────────────
 (use-package flycheck
   :config
-  (global-flycheck-mode 1))
+  (global-flycheck-mode 1)
+  ;; Habilitar checker emacs-lisp em modos Elisp
+  (setq flycheck-emacs-lisp-load-path
+        (append '("~/.config/emacs-vanilla/lisp"
+                  "~/.config/emacs-vanilla/site-lisp")
+                load-path))
+  ;; Permitir checagem em buffers sem arquivo (ex: *scratch*)
+  (add-hook 'emacs-lisp-mode-hook #'flycheck-mode)
+  (add-hook 'lisp-interaction-mode-hook #'flycheck-mode))
+
+;; Nota: O checker `emacs-lisp` do flycheck exige buffer-file-name (arquivo salvo).
+;; No buffer *scratch* (lisp-interaction-mode), ele aparece como "automatically disabled".
+;; Para habilitar manualmente: C-u C-c ! x
+;; Em buffers com arquivo, a checagem funciona automaticamente.
 
 ;; ── site-lisp ───────────────────────────────────────────────────────
 (require 'header42)
