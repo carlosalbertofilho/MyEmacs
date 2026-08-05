@@ -36,8 +36,9 @@
 (use-package which-key
   :ensure nil
   :config
-  (setq which-key-idle-delay 0.8)
-  (setq which-key-show-early-on-C-h t))
+  (setq which-key-idle-delay 0.8
+        which-key-show-early-on-C-h t)
+  (which-key-mode 1))
 
 ;; ── Visual tweaks ───────────────────────────────────────────────────
 ;; Highlight matching parens

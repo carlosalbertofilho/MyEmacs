@@ -62,8 +62,9 @@
         '("just" "opencode" "agy" "gemini" "devenv" "htop" "btop" "ranger" "lazygit" "vim" "nano")))
 
 ;; Toggle between Emacs mode and Char mode (send keys directly to program)
-(with-eval-after-load 'eshell
-  (define-key eshell-mode-map (kbd "C-c C-q") #'eat-toggle-char-mode))
+(with-eval-after-load 'eat
+  (with-eval-after-load 'eshell
+    (define-key eshell-mode-map (kbd "C-c C-q") #'eat-toggle-char-mode)))
 
 ;; ── Just + Eat integration (Opção 2: Project.el) ──────────────────
 ;; Run just recipes from project root in an eat buffer.
@@ -123,14 +124,15 @@
         eshell-hist-file-size 10000
         eshell-cmpl-cycle-completions nil)
   ;; Sync PATH with system shell so Eshell can find npx, bunx, agy, etc.
-  (with-eval-after-load 'esh-ext
-    (when (boundp 'eshell-path-extra)
-      (setq eshell-path-extra
-            (append '("/etc/profiles/per-user/carlosfilho/bin"
-                      "/var/folders/p6/jvskwtqn1tl1d75kgr4p32g00000gn/T/bunx-501-opencode-ai@latest/node_modules/.bin"
-                      "/run/current-system/sw/bin"
-                      "/nix/var/nix/profiles/default/bin")
-                    eshell-path-extra)))))
+  (add-hook 'eshell-mode-hook
+            (lambda ()
+              (when (boundp 'eshell-path-extra)
+                (setq-local eshell-path-extra
+                            (append '("/etc/profiles/per-user/carlosfilho/bin"
+                                      "/var/folders/p6/jvskwtqn1tl1d75kgr4p32g00000gn/T/bunx-501-opencode-ai@latest/node_modules/.bin"
+                                      "/run/current-system/sw/bin"
+                                      "/nix/var/nix/profiles/default/bin")
+                                    eshell-path-extra))))))
 
 ;; AI tool aliases for Eshell
 (defun +carlos/eshell-ai-aliases ()
@@ -182,8 +184,9 @@ Uses explicit paths since Eshell's PATH may differ from system shell."
 
 ;; Bindings for AI tools in Eshell
 (with-eval-after-load 'eshell
-  (define-key eshell-mode-map (kbd "C-c A a") #'+carlos/eshell-run-agy)
-  (define-key eshell-mode-map (kbd "C-c A o") #'+carlos/eshell-run-opencode))
+  (when (boundp 'eshell-mode-map)
+    (define-key eshell-mode-map (kbd "C-c A a") #'+carlos/eshell-run-agy)
+    (define-key eshell-mode-map (kbd "C-c A o") #'+carlos/eshell-run-opencode)))
 
 ;; ── popper (Intelligent popup window management) ───────────────────
 ;; Classifies terminal buffers as popups — toggle/hide without messing layout.
