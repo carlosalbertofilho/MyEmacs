@@ -104,6 +104,17 @@ faces and packages.
 
 #+begin_src elisp
 (use-package ef-themes
+  :ensure t
+  :init
+  ;; Mixed fonts: variable-pitch headings + fixed-pitch code
+  (setq ef-themes-mixed-fonts t
+        ef-themes-variable-pitch-ui t
+        ;; Hierarchical heading sizes with variable-pitch
+        ef-themes-headings
+        '((1 . (variable-pitch bold 1.3))
+          (2 . (variable-pitch bold 1.15))
+          (3 . (variable-pitch bold 1.05))
+          (t . (variable-pitch bold 1.0))))
   :config
   (setq ef-themes-to-toggle '(ef-spring ef-winter))
   (load-theme 'ef-winter t))
@@ -111,12 +122,35 @@ faces and packages.
 
 ** Key Variables
 
-| Variable                  | Default        | Purpose                              |
-|---------------------------+----------------+--------------------------------------|
-| =ef-themes-to-toggle=     | =nil=          | Pair of themes for =ef-themes-toggle= |
-| =ef-themes-mixed-fonts=   | =nil=          | Allow mixed font styles              |
-| =ef-themes-disable-faces= | =nil=          | Faces to disable from theming        |
-| =ef-themes-headings=      | ='(1 . t)=     | Heading style (bold/weight)          |
+| Variable                      | Default | Recommended | Purpose                           |
+|-------------------------------+---------+-------------+-----------------------------------|
+| =ef-themes-mixed-fonts=       | =nil=   | =t=         | Allow mixing variable/fixed pitch |
+| =ef-themes-variable-pitch-ui= | =nil=   | =t=         | Use variable-pitch in UI elements |
+| =ef-themes-headings=          | =nil=   | =alist=     | Heading styles (level → props)    |
+| =ef-themes-to-toggle=         | =nil=   | =list=      | Themes for =ef-themes-toggle=     |
+| =ef-themes-disable-faces=     | =nil=   | =nil=       | Faces to disable from theming     |
+
+** Heading Hierarchy
+
+| Level | Size  | Weight     | Use Case                  |
+|-------+-------+------------+---------------------------|
+| H1    | 1.3   | bold       | Document title            |
+| H2    | 1.15  | bold       | Major sections            |
+| H3    | 1.05  | bold       | Subsections               |
+| H4-H8 | 1.0   | bold       | Deep nesting              |
+
+** Visual Result with Mixed Fonts**
+
+With =ef-themes-mixed-fonts= enabled:
+- Headings use variable-pitch font (e.g., Inter) at progressive sizes
+- Code blocks, tables, and inline code remain fixed-pitch (e.g., JetBrains Mono)
+- UI elements (modeline, tab-bar) use variable-pitch for modern look
+- Org-mode and Markdown benefit most from this configuration
+
+#+begin_warning
+Mixed fonts require a variable-pitch font to be installed and configured.
+On macOS, Inter is recommended. On NixOS, add =inter= to =home.packages=.
+#+end_warning
 
 ** Theme Toggle
 
