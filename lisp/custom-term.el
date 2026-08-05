@@ -180,8 +180,8 @@ Uses explicit paths since Eshell's PATH may differ from system shell."
 
 ;; Bindings for AI tools in Eshell
 (with-eval-after-load 'eshell
-  (define-key eshell-mode-map (kbd "C-c a a") #'+carlos/eshell-run-agy)
-  (define-key eshell-mode-map (kbd "C-c a o") #'+carlos/eshell-run-opencode))
+  (define-key eshell-mode-map (kbd "C-c A a") #'+carlos/eshell-run-agy)
+  (define-key eshell-mode-map (kbd "C-c A o") #'+carlos/eshell-run-opencode))
 
 ;; ── popper (Intelligent popup window management) ───────────────────
 ;; Classifies terminal buffers as popups — toggle/hide without messing layout.
