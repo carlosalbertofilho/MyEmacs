@@ -23,7 +23,7 @@
 
 ;; ── vertico ─────────────────────────────────────────────────────────
 (use-package vertico
-  :ensure t
+  :ensure nil
   :demand t  ;; Must load immediately for minibuffer completion
   :config
   (vertico-mode 1)
@@ -31,14 +31,14 @@
 
 ;; ── marginalia ──────────────────────────────────────────────────────
 (use-package marginalia
-  :ensure t
+  :ensure nil
   :demand t  ;; Must load immediately for minibuffer annotations
   :config
   (marginalia-mode 1))
 
 ;; ── orderless ───────────────────────────────────────────────────────
 (use-package orderless
-  :ensure t
+  :ensure nil
   :demand t  ;; Must load immediately for completion styles
   :config
   (setq completion-styles '(orderless basic)
@@ -78,7 +78,7 @@
 
 ;; ── corfu ───────────────────────────────────────────────────────────
 (use-package corfu
-  :ensure t
+  :ensure nil
   :demand t  ;; Must load immediately for global-corfu-mode
   :config
   (global-corfu-mode 1)
