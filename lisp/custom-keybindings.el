@@ -13,6 +13,10 @@
 (declare-function justl-compile "justl")
 (declare-function denote "denote")
 (declare-function denote-date "denote")
+(declare-function +carlos/dashboard-open "custom-dashboard")
+(declare-function +carlos/dashboard-refresh "custom-dashboard")
+(declare-function +carlos/gptel-agent-run "custom-ai")
+(declare-function +carlos/gptel-generate-commit-message "custom-git")
 (declare-function denote-rename-file "denote")
 (declare-function denote-backlinks "denote")
 (declare-function denote-link "denote")
@@ -38,6 +42,9 @@
 ;; ── AI (gptel) ──────────────────────────────────────────────────────
 (global-set-key (kbd "C-c i")   #'gptel)
 (global-set-key (kbd "C-c I")   #'+carlos/gptel-agent-run)
+;; Commit IA: global gera a mensagem (copias p/ kill-ring);
+;; dentro do buffer de commit, C-c C-g insere direto (custom-git.el).
+(global-set-key (kbd "C-c C-g") #'+carlos/gptel-generate-commit-message)
 
 ;; ── 42 School ───────────────────────────────────────────────────────
 (global-set-key (kbd "C-c h")   #'stdheader)

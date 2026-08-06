@@ -21,6 +21,11 @@
   - **Novo keybinding:** `C-c C-g` (e hook `git-commit-mode`) → `+carlos/gptel-insert-commit-message`.
   - **Validado ponta-a-ponta (batch vanilla):** 5/5 backends respondem PONG (Zen OpenAI, Zen Claude, Gemini, Ollama, MLX); helper e agentes OK; `just compile` zero warnings + checkdoc OK.
   - **Docs:** `docs/gptel-reference.org` e `docs/magit-reference.org` atualizados (API real, hosts Zen, remoção de `gptel-org-mode`/`:backend`/`:model`).
+- [x] **Fix: `void-variable gptel-agent-dirs` (gotcha `defvar` do Emacs 30):**
+  - Emacs 30: `(defvar X)` sem INITVALUE NÃO liga a variável → forward declarations peladas eram void no runtime. `gptel-agent-dirs`/`gptel-directives` corrigidas com forma pelada + guarda `boundp` (não clobberar defaults não-nil dos defcustoms); demais (`gptel-backend`/`model`, maps do vterm/eshell, `dirvish-emerge--group-overlays`, faces org) com `nil`.
+  - `use-package :after` é ignorado com `use-package-expand-minimally t` → gptel-agent agora carrega via `with-eval-after-load 'gptel` (agents + presets registrados).
+  - `C-c C-g` agora é global (gera commit IA); dentro do buffer de commit insere direto.
+  - Validado: 16/16 arquivos compilados zero warnings, checkdoc OK, regressão batch completa verde. Commit `90e3921`.
 
 ## 1. Planejamento Corrente (Ações Atuais)
 

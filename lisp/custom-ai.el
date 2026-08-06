@@ -12,15 +12,22 @@
 
 ;;; Code:
 
-;; Forward declarations for byte-compiler
+;; Forward declarations para o byte-compiler.
+;; Emacs 30: `defvar' sem INITVALUE NÃO liga a variável (só marca special,
+;; suprimindo warnings). Usamos a forma PELADA para gptel-directives e
+;; gptel-agent-dirs pois elas têm defaults de defcustom NÃO-NIL (diretivas
+;; padrão do gptel e o diretório de agentes embutido do gptel-agent) — um
+;; `nil' aqui clobberaria esses defaults. gptel-backend/model têm default
+;; nil, então a forma com valor é segura.
 (defvar gptel-directives)
 (defvar gptel-agent-dirs)
-(defvar gptel-backend)
-(defvar gptel-model)
+(defvar gptel-backend nil)
+(defvar gptel-model nil)
 (declare-function gptel-agent "gptel-agent")
 (declare-function gptel-get-backend "gptel")
 (declare-function gptel-request "gptel")
 (declare-function gptel-send "gptel")
+(declare-function project-root "project")
 
 ;; ── gptel core ──────────────────────────────────────────────────────
 (use-package gptel
@@ -78,26 +85,24 @@
               "mlx-community/Qwen3-14B-4bit")))
 
 ;; ── gptel-agent ─────────────────────────────────────────────────────
+;; NOTA: com `use-package-expand-minimally t', o keyword `:after' do
+;; use-package é ignorado — `use-package gptel-agent :after gptel' NÃO
+;; carregava o pacote junto com o gptel. Padrão correto: `:ensure t'
+;; (Elpaca instala, sem carregar) + `with-eval-after-load' (dispara junto
+;; com o gptel — mesmo mecanismo das personas abaixo, que funciona).
 (use-package gptel-agent
-  :ensure t
-  :after gptel
-  :config
+  :ensure t)
+
+(with-eval-after-load 'gptel
+  ;; Carrega o pacote (defuns/defcustoms) — o update precisa do gptel
+  (require 'gptel-agent)
+
   ;; Cria o diretório se não existir
-  (unless (file-directory-p "~/.agents/gptel/")
+  (unless (file-directory-p (expand-file-name "~/.agents/gptel/"))
     (make-directory (expand-file-name "~/.agents/gptel/") t))
 
   ;; Personas globais em ~/.agents/gptel/
   (add-to-list 'gptel-agent-dirs (expand-file-name "~/.agents/gptel/"))
-
-  ;; Personas por projeto (.agents/gptel/ na raiz do repositório)
-  (defun +carlos/gptel-agent-project-dirs ()
-    "Adiciona `.agents/gptel/' do projeto atual como fonte de agentes.
-Sem advice: chamada direta antes de iniciar o agente."
-    (when-let* ((proj (project-current))
-                (root (project-root proj))
-                (dir (expand-file-name ".agents/gptel/" root))
-                (file-directory-p dir))
-      (add-to-list 'gptel-agent-dirs dir)))
 
   ;; Registra os presets gptel-agent/gptel-plan e lê os sub-agentes
   (gptel-agent-update))
@@ -151,11 +156,14 @@ Garante que o gptel esteja carregado antes de buscar o backend."
   "Modelo padrão para sessões de agente.")
 
 (defun +carlos/gptel-agent-add-project-dirs ()
-  "Adiciona `.agents/gptel/' do projeto atual a `gptel-agent-dirs'."
+  "Adiciona `.agents/gptel/' do projeto atual a `gptel-agent-dirs'.
+Guarda contra `gptel-agent-dirs' void antes do gptel-agent carregar."
   (when-let* ((proj (project-current))
               (root (project-root proj))
               (dir (expand-file-name ".agents/gptel/" root))
               (file-directory-p dir))
+    (unless (boundp 'gptel-agent-dirs)
+      (setq gptel-agent-dirs nil))
     (add-to-list 'gptel-agent-dirs dir)))
 
 (defun +carlos/gptel-agent-run (&optional task)

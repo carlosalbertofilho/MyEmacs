@@ -15,8 +15,8 @@
 (declare-function eat-exec-cmd "eat")
 (declare-function eat-make-buffer "eat")
 (declare-function vterm-send-string "vterm")
-(defvar vterm-mode-map)
-(defvar eshell-mode-map)
+(defvar vterm-mode-map nil)
+(defvar eshell-mode-map nil)
 
 ;; ── vterm ───────────────────────────────────────────────────────────
 ;; Prevent vterm from prompting for module compilation in batch mode

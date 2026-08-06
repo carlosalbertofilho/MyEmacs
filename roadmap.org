@@ -26,6 +26,21 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 *** Status: ✅ DONE
 
+** 2026-08-06 — Fix: void-variable no runtime (gotcha `defvar` do Emacs 30)
+
+*** Feito
+- **Sintoma (teste interativo):** `if: Symbol's value as variable is void: gptel-agent-dirs` ao chamar `C-c I` (+carlos/gptel-agent-run); `C-c C-g` undefined fora do buffer de commit.
+- **Causa raiz:** Emacs 30 mudou o `defvar`: `(defvar X)` sem INITVALUE NÃO liga mais a variável — deixa-a **void** (só marca special). As forward declarations peladas não criavam binding → qualquer leitura antes do pacote dono carregar era `void-variable`.
+- **Correções:**
+  - =custom-ai.el=: forward declarations com valor `nil` onde o default não importa (=gptel-backend=, =gptel-model=); forma PELADA + guarda `unless (boundp 'X) (setq X nil)` para =gptel-agent-dirs= (default do defcustom aponta para o diretório de agentes embutido do gptel-agent) e =gptel-directives= (4 diretivas padrão do gptel) — `nil` clobberaria esses defaults.
+  - =custom-term.el=, =custom-files.el=, =custom-writing.el=: `(defvar X)` peladas → `(defvar X nil)` onde seguras (sem default não-nil em jogo).
+  - **=use-package :after= ignorado:** com `use-package-expand-minimally t` (init.el), `:after gptel` não gera trigger — gptel-agent nunca carregava com o gptel. Troca por `:ensure t` + `with-eval-after-load 'gptel` (mesmo mecanismo das personas, que funcionava) com `require 'gptel-agent` + `gptel-agent-update`.
+  - **=custom-keybindings.el=:** `C-c C-g` global → `+carlos/gptel-generate-commit-message` (antes só existia no buffer de commit); `declare-function` p/ dashboard e project-root.
+- **Validação:** backends 5/5 PONG; agentes (researcher/introspector/gptel-plan/gptel-agent/executor) e presets (gptel-default/gptel-agent/gptel-plan) registrados; diretivas = 4 padrão + 3 42; dirs = embutido + global + projeto; `just compile` 16/16 zero warnings; checkdoc OK.
+- Lição registrada em =AGENTS.md= (regras p/ `defvar` no Emacs 30).
+
+*** Status: ✅ DONE
+
 ** 2026-08-04 — Fundação (Fase 0)
 
 *** Feito

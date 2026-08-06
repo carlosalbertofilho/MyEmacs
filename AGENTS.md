@@ -143,6 +143,25 @@ Every `custom-*.el` file MUST follow this template:
   (add-to-list 'gptel-agent-dirs dir))
 ```
 
+**Emacs 30 gotcha — `defvar` sem INITVALUE NÃO liga a variável:**
+Desde o Emacs 30, `(defvar X)` sem valor inicial deixa X **void** (só marca a
+variável como special para o byte-compiler). Consequências:
+- `(defvar gptel-agent-dirs)` como forward declaration → `void-variable` em
+  runtime quando lida antes do pacote carregar.
+- `(defvar gptel-agent-dirs nil)` **clobbera o default de `defcustom`s** com
+  valor não-nil (ex.: `gptel-agent-dirs` do gptel-agent aponta para o diretório
+  de agentes embutido; `gptel-directives` do gptel tem 4 diretivas padrão).
+
+Regras:
+- Forward declarations que **só** suprimem warning do byte-compiler → forma
+  pelada `(defvar X)` e use guards (`unless (boundp 'X) (setq X nil)`) antes de
+  ler/escrever antes do pacote dono carregar.
+- Variáveis cujo default não-nil importa (defcustom de pacote) → NUNCA
+  pré-declare com `nil`; guarde o runtime.
+- `use-package :after X` é **ignorado** com `use-package-expand-minimally t`
+  (init.el). Use `with-eval-after-load 'X` explícito para carregar/configurar
+  pacotes dependentes.
+
 ### 5. Anti-Patterns (NEVER DO)
 
 | Anti-Pattern | Why | Correct Approach |

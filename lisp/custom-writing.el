@@ -14,16 +14,17 @@
 (require 'cl-lib)
 
 ;; Forward declarations for byte-compiler
-(defvar markdown-hide-markup)
-(defvar markdown-hide-urls)
-(defvar markdown-url-compose-char)
-(defvar org-tag-faces)
-(defvar org-todo-keyword-faces)
-(defvar org-priority-faces)
-(defvar org-modern-tag-faces)
-(defvar org-modern-todo-faces)
-(defvar org-modern-priority-faces)
-(defvar org-format-latex-options)
+;; Emacs 30: `defvar' sem INITVALUE NÃO liga a variável — sempre forneça nil.
+(defvar markdown-hide-markup nil)
+(defvar markdown-hide-urls nil)
+(defvar markdown-url-compose-char nil)
+(defvar org-tag-faces nil)
+(defvar org-todo-keyword-faces nil)
+(defvar org-priority-faces nil)
+(defvar org-modern-tag-faces nil)
+(defvar org-modern-todo-faces nil)
+(defvar org-modern-priority-faces nil)
+(defvar org-format-latex-options nil)
 
 ;; ── Org Modern (estilização moderna para Org e Markdown) ───────────
 (use-package org-modern
