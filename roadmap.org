@@ -232,6 +232,16 @@ Criar cache de referência para que agentes possam:
 
 *** Status: ✅ DONE
 
+** 2026-08-05 — Ativação das Extensões Dirvish (emerge, peek, git-msg)
+
+*** Feito
+- Adicionar =git-msg= a =dirvish-attributes= (só no painel principal; sidebar mantém attrs limpos ='(nerd-icons collapse subtree-state)=, decisão do usuário).
+- =dirvish-emerge-groups= com 6 grupos padrão (=recent-files-2h= + =extensions= para documentos/vídeo/imagens/áudio/arquivos) e toggle =E= → =dirvish-emerge-mode= em =dirvish-mode-map= (=dirvish-emerge-mode= é o comando correto; o menu de edição de grupos é =dirvish-emerge-menu=).
+- =dirvish-peek-mode 1= global com =dirvish-peek-key '(list :debounce 0.5 'any)= (preview no minibuffer/vertico com debounce; modo buffer-local, sem auto-ativação em diretórios grandes — =dirvish-emerge-max-file-count= limita a 20000).
+- Validado: =just check= + =just compile= (zero warnings) + batch runtime (atributos/grupos/key/mode corretos, =lookup-key= para =E=). Commit =dbc8a0b=.
+
+*** Status: ✅ DONE
+
 * Decisões Arquiteturais
 
 ** Sem Evil Mode

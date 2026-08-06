@@ -22,6 +22,11 @@
   - Configurar atributos minimalistas (`vc-state`, `nerd-icons`, `collapse`, `subtree-state`) na sidebar para evitar quebra de colunas em 30 de largura.
   - Ocultar a modeline e simplificar o cabeçalho no buffer da sidebar.
   - Sincronizar e validar visualmente no Emacs Vanilla.
+- [x] **Ativação das extensões Dirvish (emerge, peek, git-msg):**
+  - `git-msg` adicionado a `dirvish-attributes` (só no painel principal; sidebar mantém attrs limpos `(nerd-icons collapse subtree-state)`).
+  - `dirvish-emerge-groups` com 6 grupos padrão (`recent-files-2h`, `extensions` de documentos/vídeo/imagens/áudio/arquivos) + toggle `E` → `dirvish-emerge-mode` em `dirvish-mode-map` (verificado: `lookup-key` = `dirvish-emerge-mode`).
+  - `dirvish-peek-mode 1` global com `dirvish-peek-key '(list :debounce 0.5 'any)` (preview no minibuffer/vertico com debounce).
+  - Validado: `just check` + `just compile` (zero warnings) + batch runtime (atributos/grupos/key/mode corretos). Commit `dbc8a0b`.
 - [x] **Bug do `ob-mermaid` resolvido:**
   - Desacoplado da inicialização do Org core e ativado dinamicamente via `:after org` no `:config`.
   - Adicionado `exec-path-from-shell` para garantir herança de caminhos Nix/npm em modo GUI no macOS.
