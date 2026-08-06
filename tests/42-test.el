@@ -102,7 +102,24 @@
                  "{\"files\":[{\"status\":\"OK\",\"errors\":[]}]}" "foo.c")))
     (should-not errors)))
 
+(ert-deftest myemacs-42-norminette-parse-locale-prefix ()
+  "Norminette may print 'Setting locale...' before the JSON output."
+  (let* ((output (concat "Setting locale to en_US\n"
+                         myemacs-42-sample-json))
+         (errors (custom-norminette--parse-json output "foo.c"))
+         (err (car errors)))
+    (should (listp errors))
+    (should (= 1 (length errors)))
+    (should (string= "INVALID_HEADER" (plist-get err :name)))))
+
 ;; ── Norminette: flycheck integration ────────────────────────────────
+
+(ert-deftest myemacs-42-norminette-parser-3args ()
+  "The flycheck 39 error-parser interface requires 3 args."
+  (let ((errors (custom-norminette--flycheck-parser
+                 myemacs-42-sample-json 'c-norminette nil)))
+    (should (listp errors))
+    (should (= 1 (length errors)))))
 
 (ert-deftest myemacs-42-norminette-checker-registered ()
   (should (memq 'c-norminette flycheck-checkers))
