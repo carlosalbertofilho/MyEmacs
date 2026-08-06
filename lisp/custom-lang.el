@@ -66,6 +66,12 @@
 ;; Formatting is ignored (see eglot-ignored-server-capabilities above).
 ;; NOTE: No eglot-ensure hook — 42 School uses flycheck-norminette instead.
 
+;; ── reformatter.el (wrapper for external CLI reformatters) ──────────
+;; Used by custom-42.el to define c_formatter_42 integration.
+(use-package reformatter
+  :ensure t
+  :defer t)
+
 ;; ── Elisp ───────────────────────────────────────────────────────────
 (use-package emacs-lisp-mode
   :ensure nil

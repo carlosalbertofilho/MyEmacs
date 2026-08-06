@@ -179,6 +179,30 @@ Uses --cfile to pass buffer content directly to norminette."
               (message "❌ Norminette: %d error(s) found" (length errors)))
           (message "✅ Norminette: No errors found!"))))))
 
+;; ── Format then check pipeline ──────────────────────────────────────
+
+(defun +carlos/norminette-format-and-check ()
+  "Format buffer with c_formatter_42 then run norminette check.
+Useful for pre-submission validation: fix formatting first,
+then verify remaining norminette violations."
+  (interactive)
+  (unless (executable-find "c_formatter_42")
+    (user-error "c_formatter_42 not found.  Install with: pip install c-formatter-42"))
+  (unless (executable-find custom-norminette-executable)
+    (user-error "Norminette not found.  Install with: pip install norminette"))
+  (unless buffer-file-name
+    (user-error "Buffer must be associated with a file"))
+  (unless (string-match-p "\\.\\(c\\|h\\)\\'" buffer-file-name)
+    (user-error "Not a C/C++ file"))
+
+  ;; Step 1: Format
+  (if (commandp '+carlos/c-formatter-42-buffer)
+      (call-interactively #'+carlos/c-formatter-42-buffer)
+    (user-error "c_formatter_42 buffer command not available"))
+
+  ;; Step 2: Run norminette on the formatted buffer
+  (custom-norminette-check-buffer))
+
 ;; ── Setup function ──────────────────────────────────────────────────
 
 ;;;###autoload

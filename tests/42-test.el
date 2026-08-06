@@ -147,5 +147,60 @@
                         (flycheck-checker-get chainer 'next-checkers))))
               chainers))))
 
+;; ── c_formatter_42: executable guard ────────────────────────────────
+
+(ert-deftest myemacs-42-formatter-executable-custom ()
+  "The custom variable for c_formatter_42 executable is defined."
+  (should (boundp '+carlos/c-formatter-42-executable))
+  (should (stringp +carlos/c-formatter-42-executable))
+  (should (string= +carlos/c-formatter-42-executable "c_formatter_42")))
+
+(ert-deftest myemacs-42-formatter-format-on-save-custom ()
+  "Format-on-save defaults to nil (off for 42 School)."
+  (should (boundp '+carlos/c-formatter-42-format-on-save))
+  (should (booleanp +carlos/c-formatter-42-format-on-save))
+  (should-not +carlos/c-formatter-42-format-on-save))
+
+(ert-deftest myemacs-42-formatter-commands-exist-when-executable ()
+  "Commands are defined when c_formatter_42 is available."
+  (skip-unless (executable-find +carlos/c-formatter-42-executable))
+  (should (commandp '+carlos/c-formatter-42-buffer))
+  (should (commandp '+carlos/c-formatter-42-region)))
+
+(ert-deftest myemacs-42-formatter-keybinding-in-c-mode ()
+  "C-c C-f is bound to c_formatter_42 in c-mode buffers."
+  (skip-unless (executable-find +carlos/c-formatter-42-executable))
+  (with-temp-buffer
+    (c-mode)
+    (my-c-42-style)
+    (should (eq (key-binding (kbd "C-c C-f"))
+                '+carlos/c-formatter-42-buffer))))
+
+(ert-deftest myemacs-42-formatter-keybinding-not-global ()
+  "C-c C-f is NOT globally bound (avoids dirvish-side conflict on C-c f)."
+  (should (eq (key-binding (kbd "C-c f")) 'dirvish-side)))
+
+(ert-deftest myemacs-42-formatter-group-defined ()
+  "The defgroup for c_formatter_42 is registered."
+  (let ((group (get '+carlos/c-formatter-42-executable 'custom-group)))
+    (should (eq group '+carlos/c-formatter-42))))
+
+;; ── Norminette: format-and-check pipeline ───────────────────────────
+
+(ert-deftest myemacs-42-norminette-format-and-check-exists ()
+  "The format-and-check command is defined when executables exist."
+  (skip-unless (and (executable-find "c_formatter_42")
+                    (executable-find custom-norminette-executable)))
+  (should (commandp '+carlos/norminette-format-and-check)))
+
+(ert-deftest myemacs-42-norminette-format-and-check-errors ()
+  "format-and-check errors when c_formatter_42 is not installed."
+  (let ((orig-fn (symbol-function 'executable-find)))
+    (cl-letf (((symbol-function 'executable-find)
+               (lambda (cmd)
+                 (if (string= cmd "c_formatter_42") nil (funcall orig-fn cmd)))))
+      (should-error (+carlos/norminette-format-and-check)
+                    :type 'user-error))))
+
 (provide '42-test)
 ;;; 42-test.el ends here
