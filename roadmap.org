@@ -252,6 +252,16 @@ Criar cache de referência para que agentes possam:
 
 *** Status: ✅ DONE
 
+** 2026-08-05 — Fix: "transient loaded before Elpaca activation"
+
+*** Feito
+- Diagnóstico: corrida entre a ativação assíncrona da Elpaca e o =:demand t= de =transient= (custom-git.el); agravado porque =gptel= declara =transient= como Package-Requires (=custom-ai= carrega antes de =custom-git=).
+- Fix: garantir =transient= cedo no =init.el= (=(use-package transient :ensure t)= + =(elpaca-wait)= após =use-package-always-defer=), mesmo padrão do =compat=.
+- Por que funciona: com ativação precoce o status do pacote vira =finished= e =elpaca-continue= (elpaca.el:793) ignora re-queues → o warn de =elpaca-activate= (featurep já =t=) nunca dispara.
+- Validado: batch (transient carregado sem warn) + 4 cold starts GUI com dump de =*Warnings*= limpos.
+
+*** Status: ✅ DONE
+
 * Decisões Arquiteturais
 
 ** Sem Evil Mode

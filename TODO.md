@@ -52,6 +52,7 @@
 
 ## 2. Bugs Conhecidos e Pendências (Investigação)
 
+- [x] **Warning "transient loaded before Elpaca activation":** corrida entre a ativação assíncrona da Elpaca e o `:demand t` de `transient` (custom-git.el) — agravado porque `gptel` declara `transient` como Package-Requires (custom-ai carrega antes de custom-git). **Fix:** garantir `transient` cedo no `init.el` com `(use-package transient :ensure t)` + `(elpaca-wait)` (após `use-package-always-defer`), mesmo padrão do `compat`. Com a ativação precoce, o status vira `finished` e `elpaca-continue` (elpaca.el:793) não re-ativa → warn nunca dispara. Validado em batch + cold starts GUI.
 - [ ] **Testar config completa em GUI** (não batch) para verificar compilação do `vterm-module`.
 - [ ] **Org mode monocromático / sem fontes personalizadas (vs Markdown OK):** arquivos `.org` abrem em texto monocor e sem as fontes/variáveis pitch customizadas, enquanto `.md` renderiza harmônico com fontes coloridas. Suspeitas: faces do org, `variable-pitch-mode`, `org-modern`, `org-appear` ou `+carlos/zen-line-spacing` em `custom-writing.el`. Investigar quando a ação atual do dirvish-emerge estiver validada.
 - [ ] Investigar por que `consult` e `nerd-icons` não foram encontrados no MELPA durante `just check` (Se persistente nas primeiras instalações do usuário).

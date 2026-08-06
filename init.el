@@ -71,6 +71,13 @@
 (setq use-package-always-defer t
       use-package-expand-minimally t)
 
+;; Ensure transient is installed and activated early.
+;; magit, gptel e dirvish dependem de transient; sem isso, o `:demand t'
+;; do custom-git pode carregá-lo antes da ativação da Elpaca
+;; (warning "transient loaded before Elpaca activation").
+(use-package transient :ensure t)
+(elpaca-wait)
+
 ;; ── Load paths ──────────────────────────────────────────────────────
 (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
 (add-to-list 'load-path (expand-file-name "site-lisp" user-emacs-directory))
