@@ -21,7 +21,8 @@
     (let ((expanded (expand-file-name dir)))
       (when (file-directory-p expanded)
         (add-to-list 'treesit-extra-load-path expanded))))
-  (global-treesit-auto-mode 1))
+  (unless noninteractive
+    (global-treesit-auto-mode 1)))
 
 ;; ── eglot (built-in Emacs 29+) ──────────────────────────────────────
 ;; NOTE: Avoid `prog-mode' hook — eglot-ensure on ALL prog modes causes slowdown.
