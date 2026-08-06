@@ -53,19 +53,24 @@
   (should (fboundp 'consult-flycheck)))
 
 (ert-deftest myemacs-dev-corfu-nerd-icons-formatter ()
+  (require 'corfu nil t)
+  (require 'nerd-icons-corfu nil t)
   (skip-unless (boundp 'corfu-margin-formatters))
   (should (memq #'nerd-icons-corfu-formatter corfu-margin-formatters)))
 
 (ert-deftest myemacs-dev-eldoc-box-commands ()
+  (require 'eldoc-box nil t)
   (skip-unless (fboundp 'eldoc-box-hover-at-point-mode))
   (should (fboundp 'eldoc-box-hover-at-point-mode))
   (should (fboundp 'eldoc-box-help-at-point)))
 
 (ert-deftest myemacs-dev-apheleia-global-mode ()
+  (require 'apheleia nil t)
   (skip-unless (boundp 'apheleia-global-mode))
   (should apheleia-global-mode))
 
 (ert-deftest myemacs-dev-apheleia-inhibit-c-mode ()
+  (require 'apheleia nil t)
   (skip-unless (boundp 'apheleia-inhibit-functions))
   (with-temp-buffer
     (c-mode)
