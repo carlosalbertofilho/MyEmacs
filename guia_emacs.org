@@ -251,12 +251,14 @@ No SuperChat: =/models= ou =@model nome=.
 | =l l= | log |
 | =q= | fechar magit |
 
-* Just (Task Runner)
+* Just & Makefile (Task Runners)
 
 | Atalho | Ação |
 |--------+------|
-| =C-c j= | rodar recipe just interativo |
+| =C-c j= | rodar recipe just interativo (justl) |
 | =C-c J= | compilar (just check) |
+| =C-c m= | selecionar e rodar alvo do Makefile do projeto (makefile-executor) |
+| =C-c M= | re-executar o último alvo do Makefile |
 
 * Temas e UI
 

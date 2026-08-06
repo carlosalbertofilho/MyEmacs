@@ -160,6 +160,8 @@ Depois configurar em =custom-org.el=:
 | gptel agente | =C-c I= |
 | Header 42 | =C-c h= |
 | Just recipes | =C-c j= |
+| Makefile (alvo do projeto) | =C-c m= |
+| Makefile (re-executar último) | =C-c M= |
 | Denote nota | =C-c n n= |
 | Terminal | =C-c t= (vterm) |
 | Eshell | =C-c e= |

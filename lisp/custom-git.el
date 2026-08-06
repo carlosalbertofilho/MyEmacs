@@ -8,6 +8,9 @@
 ;; Forward declarations for byte-compiler
 (declare-function vc-git-root "vc-git")
 (declare-function +carlos/gptel-request "custom-ai")
+(declare-function makefile-executor-execute-project-target "makefile-executor")
+(declare-function makefile-executor-execute-last "makefile-executor")
+(declare-function makefile-executor-mode "makefile-executor")
 
 ;; ── magit ───────────────────────────────────────────────────────────
 ;; transient é instalado/ativado cedo no init.el (use-package + elpaca-wait);
@@ -32,6 +35,14 @@
   :config
   (global-set-key (kbd "C-c j") #'justl)
   (global-set-key (kbd "C-c J") #'justl-compile))
+
+;; ── makefile-executor (interação com Makefiles) ────────────────────
+(use-package makefile-executor
+  :ensure t
+  :hook (makefile-mode . makefile-executor-mode)
+  :bind
+  (("C-c m" . makefile-executor-execute-project-target)
+   ("C-c M" . makefile-executor-execute-last)))
 
 ;; ── +carlos/gptel-generate-commit-message ──────────────────────────
 ;; Reescrito sem dependência de magit (usa vc-git / processo git) e com
