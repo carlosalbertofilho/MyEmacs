@@ -59,7 +59,9 @@
 
 (defun custom-norminette--parse-json (output &optional _filename)
   "Parse norminette JSON OUTPUT into flycheck errors."
-  (when-let* ((data (ignore-errors (json-read-from-string output)))
+  (when-let* ((data (ignore-errors
+                     (let ((json-array-type 'list))
+                       (json-read-from-string output))))
               (files (alist-get 'files data))
               (file-data (car files))
               (errors (alist-get 'errors file-data '())))
@@ -173,10 +175,15 @@ Uses --cfile to pass buffer content directly to norminette."
   (add-to-list 'flycheck-checkers 'c-norminette)
 
   ;; Chain after eglot (run norminette after LSP diagnostics)
-  ;; Only if eglot checker is registered (not in batch mode)
-  (when (and (fboundp 'flycheck-add-next-checker)
-             (flycheck-checker-get 'eglot 'start))
-    (flycheck-add-next-checker 'eglot 'c-norminette t))
+  ;; Modern flycheck registers the `eglot-check' bridge (the old `eglot'
+  ;; checker was removed).  Fall back to `eglot' for older flycheck.
+  (let ((eglot-checker (if (and (fboundp 'flycheck-valid-checker-p)
+                                (flycheck-valid-checker-p 'eglot-check))
+                           'eglot-check
+                         'eglot)))
+    (when (and (fboundp 'flycheck-add-next-checker)
+               (flycheck-checker-get eglot-checker 'start))
+      (flycheck-add-next-checker eglot-checker 'c-norminette t)))
 
   ;; Configure flycheck behavior
   (setq-default flycheck-check-syntax-automatically

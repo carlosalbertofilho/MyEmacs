@@ -32,6 +32,305 @@
   - **Arquivos:** boot, keybindings, ai, ai-network (skip-unless rede), files, term, git, org, dashboard — 54 testes, 0 falhas, 6 skipped (rede/vterm).
   - **Bugs reais descobertos pela suíte (corrigidos):** `C-c i` (gptel) sombreado por consult-imenu → imenu movido para `M-s i`; `+carlos/dashboard-open`/`-refresh` declarados mas nunca definidos (void-function `C-c d d`/`C-c d r`) → wrappers de `dashboard-open`/`dashboard-refresh-buffer`; `git-commit` `C-c C-g` via hook (não aplicava em batch) → `define-key` direto no `git-commit-mode-map`.
   - **Outros:** removidos `.elc` stale do repo (usavam código antigo do `defvar nil`); rebuild do `gptel-autoloads.el` no repo (faltava → "Config Error gptel"); documentada a regra "`--eval` avalia só a primeira forma" no AGENTS.md.
+- [x] **Header 42 School: login customizado + integração norminette/eglot (14 testes novos):**
+  - **Login 42 (`site-lisp/header42.el`):** `defgroup header42` + `defcustom header-42-login "csilva-d"`; `header-42-get-user` prioriza `header-42-login` → `FT_LOGIN` → `USER` → `"marvin"`.
+  - **Bug corrigido:** `header-42-get-filename` chamava `file-name-nondirectory` com `buffer-file-name` nil (erro antes do fallback `"< new >"`) → virou `if`.
+  - **Bug corrigido (chain eglot→norminette, `lisp/custom-norminette.el`):** flycheck moderno não tem checker `eglot` (só `eglot-check` bridge) → `custom-norminette-setup` usa `eglot-check` com fallback `eglot`.
+  - **Bug corrigido (parser JSON):** `json-read-from-string` no Emacs 30.2 retorna arrays como vectors → `(car vector)` falhava; bind `json-array-type 'list`.
+  - **`tests/42-test.el`:** 14 testes (login, estrutura do header, idempotência, parser JSON, checker flycheck, hints, predicate, chain eglot). Suíte completa: 62 passed, 0 unexpected, 6 skipped (vterm/network); checkdoc limpo.
+  - **Roadmap:** entrada `** 2026-08-06 — Header 42 School...` adicionada.
+
+## 0.5. Plano de Ação — Migração para Magent (Agente Planejador)
+
+> **Autor:** Agente Planejador/Arquiteto (alta performance). Plano EXECUTÁVEL para o Agente Executor (aplicar) e para o Agente Auditor (validar). **NÃO foi aplicado nada ainda.**
+> **SAVE POINT:** `1d7ca9e` — `test: add ERT regression suite (tests/) + fix conflicts it found`
+> **Fonte de referência:** Magent commit `50ef707` (MELPA-reviewed, `fix: address MELPA review feedback`) — repo clonado em `/var/folders/p6/jvskwtqn1tl1d75kgr4p32g00000gn/T/opencode/magent`; docs convertidas via markitdown em `.../magent-md/` (README, ARCHITECTURE, AGENT_WORKFLOW, agent/agent-loop/skill-manager); catálogo de tools/permisssões no `AGENTS.md` do Magent.
+> **Dependências verificadas no MELPA (archive-contents 2026-08-06):** `magent` **NÃO está no MELPA** → instalar via git. `acp` (20260803), `agent-shell` (20260805), `yaml` (20260605), `shell-maker` (20260805), `cond-let` (20260701) — todos **presentes no MELPA**. `compat` vem do GNU ELPA (já instalado cedo no init.el).
+
+### Contexto e decisão arquitetural
+
+- **O que Magent substitui:** o helper `+carlos/gptel-agent-run` (`C-c I`, gptel-agent) como *agente de codificação* e os CLIs externos `opencode`/`agy` rodando via eshell (`C-c A a` / `C-c A o`, aliases `oc`/`ai`/`aif`/`aireview`/`agy`/`gemini`). Magent é um agente Emacs-Lisp nativo com 15 tools, permissões por agente, sessões por projeto (ledger thread→turn→item), skills, capabilities e child agents — tudo dentro do Emacs, com frontend **agent-shell** (via adaptador ACP in-process; único frontend suportado).
+- **O que permanece INTOCADO (transporte e integrações já maduras):**
+  - **gptel como transporte único** — Magent usa `gptel-request` por baixo (`magent-llm-gptel.el`). Os 5 backends de `custom-ai.el` (OpenCode Zen, Zen Claude, Gemini, Ollama Local, MLX Local) e o helper `+carlos/gptel-request` continuam.
+  - **Chat gptel `C-c i`** e as **personas/diretivas** `c-42`/`cpp-42`/`python` de `gptel-directives` (ficam como estão; as versões Magent são *skills* — ver Fase 3).
+  - **Commit IA** `C-c C-g` / `+carlos/gptel-insert-commit-message` (gptel helper em `custom-git.el`).
+  - Aliases eshell e binds `C-c A a`/`C-c A o` (mantidos como fallback para fluxos de terminal).
+- **Decisão recomendada:** Magent passa a ser o agente de codificação principal (`C-c M m`); `gptel-agent-run` (`C-c I`) e os CLIs eshell ficam como fallback nesta primeira fase (removíveis numa fase futura após período de avaliação).
+
+### Riscos
+
+| Risco | Impacto | Mitigação |
+|-------|---------|-----------|
+| `magent` fora do MELPA | Instalação não é `:ensure t` simples | Receita git Elpaca com `:ref "50ef707"` pin (mesma receita do melpazoid) |
+| `acp`/`agent-shell`/`shell-maker` recém-publicados no MELPA (ago/2026) | API pode mudar / versão mínima não atendida | Versões atuais (20260803/05) satisfazem os mínimos (acp 0.13.1+, agent-shell 0.66.1+); elpaca-lock pina; se quebrar, `:ref` do magent + versões do lock fazem rollback |
+| Frontend único (agent-shell + ACP in-process) | Sem fallback de UI se o frontend quebrar | Sempre manter gptel chat (`C-c i`) e `C-c I` como canais alternativos |
+| 43 módulos elisp novos do magent | `just compile` pode gerar warnings | Zero warnings obrigatório; forward declarations peladas + guards (padrão do projeto) |
+| Conflito de keybinding `C-c M m` | Sobrescrever bind existente | Verificado: nenhum bind `C-c M*` no repo; coberto por `tests/magent-test.el` |
+| `use-package-expand-minimally t` ignora `:after` | `:after agent-shell gptel` não funciona | Usar `with-eval-after-load 'magent` (padrão já usado para gptel-agent) |
+| Emacs 30 `defvar` gotcha | Forward declaration com `nil` clobberaria defaults não-nil (ex.: `magent-skill-directories` = `~/.emacs.d/magent/skills`) | Forma pelada `(defvar X)` + guardas `boundp`; preferir `:custom` (símbolo quotado, sem free-var warning) |
+| `just check`/`just test-all` no repo (builds parciais) | Falha se magent não instalado | `:ensure` enfileira instalação; `(elpaca-wait)` no fim do init.el garante build antes do final do batch (padrão atual) |
+
+### Fase 0 — Decisão e avaliação de riscos (checklist)
+
+- [x] Confirmar com o usuário a decisão: **Magent = agente principal; `C-c I` e eshell CLIs ficam como fallback** (decisão do usuário em 2026-08-06: manter `C-c I` e os aliases `agy`/`opencode`; **backend/modelo decididos pelo picker do agent-shell**, sem agente custom fixo).
+- [ ] Registrar a decisão no `roadmap.org` (entrada `** 2026-08-06 — Migração para Magent (Plano)` — já incluída abaixo).
+- [ ] Anotar os riscos da tabela acima no AGENTS.md (seção "Known Bugs & Fixes"/regras) quando a migração for aplicada.
+
+### Fase 1 — Instalação (depende da Fase 0)
+
+**Arquivo: `lisp/custom-magent.el` (novo) + `init.el` (1 linha).**
+
+1. **Declaração Elpaca exata** (receita git, pin `50ef707`, `:files` idêntico à receita melpazoid do repo):
+
+```elisp
+(use-package magent
+  :ensure (magent :repo "Jamie-Cui/magent"
+                  :ref "50ef707"
+                  :files ("lisp/magent*.el" "prompts" "skills" "capabilities"))
+  :custom
+  (magent-default-agent "build")
+  (magent-enable-audit-log t)
+  (magent-project-instruction-file-names '("AGENTS.md"))
+  :config
+  (with-eval-after-load 'magent
+    (magent-agent-shell-ensure-config)))
+```
+
+   - `:files` cobre os 43 módulos (`lisp/magent*.el`) + os dados de runtime `prompts/`, `skills/`, `capabilities/` — a receita do melpazoid é `(magent :fetcher github :repo "Jamie-Cui/magent" :files ("lisp/magent*.el" "prompts" "skills" "capabilities"))`. A Elpaca achata `lisp/*.el` para a raiz do build (mesmo layout do MELPA), e o `magent-skills.el:451` já tenta o caminho irmão primeiro — funciona.
+   - **Dependências resolvidas automaticamente pela Elpaca** a partir do header `Package-Requires` do `magent.el` (`(emacs "29.1") (gptel "0.9.8") (yaml "1.0.0") (compat "30.1.0.0") (acp "0.13.1") (agent-shell "0.66.1")`): `gptel` e `compat` já instalados; `yaml`, `acp`, `agent-shell` vêm do MELPA (`agent-shell` puxa `shell-maker` + `acp`; `shell-maker` puxa `cond-let`). **NÃO** declarar um segundo `:ensure t` para `acp`/`agent-shell`/`yaml` em outro arquivo — repete o bug "Duplicate item ID queued" do transient.
+2. **Load order no `init.el`:** adicionar `(require 'custom-magent)` **imediatamente após** `(require 'custom-ai)` (linha 159) — Magent depende do gptel carregado/backends registrados. A ordem fica: `custom-ai → custom-magent → custom-knowledge → custom-git → custom-dashboard`.
+3. **Nova dependência de sistema (Nix):** nenhuma — `rg` já está no ambiente (Magent usa `magent-grep-program "rg"`). Se quiser o tool `web_search`, o Emacs precisa de `--with-xml2` (verificar `(featurep 'xml)`).
+4. **Config mínima para `magent-start` funcionar:** basta o bloco acima + `(magent-agent-shell-ensure-config)` (registra o config no agent-shell). O primeiro `M-x magent-start` dispara o autoload → `(require 'magent)` → `magent--ensure-initialized` (runtime lazy). **Não** usar `:demand t` (contraria a filosofia `use-package-always-defer t` do projeto e carrega agent-shell+acp no boot).
+5. **Verificação:** `just check` + `just compile` (zero warnings) + `M-x magent-start` no vanilla.
+
+### Fase 2 — Configuração mínima (`lisp/custom-magent.el`, depende da Fase 1)
+
+Criar `lisp/custom-magent.el` seguindo o template do AGENTS.md:
+
+```elisp
+;;; custom-magent.el --- Magent (AI coding agent nativo) -*- lexical-binding: t; -*-
+
+;;; Commentary:
+;; Magent: agente de codificação Emacs-Lisp com 15 tools, permissões por
+;; agente, sessões por projeto (ledger), skills e capabilities. Frontend
+;; agent-shell (ACP in-process). Transporte continua sendo gptel-request.
+;; Instalado via receita git Elpaca pinada em 50ef707 (não está no MELPA).
+
+;;; Code:
+
+;; Forward declarations (defvar PELADA + guarda boundp — gotcha Emacs 30):
+;; defaults de defcustom NÃO-nil não podem ser clobberados com nil.
+(defvar magent-system-prompt)
+(defvar magent-skill-directories)
+(defvar magent-project-instruction-file-names)
+(declare-function magent-agent-shell-ensure-config "magent-agent-shell")
+(declare-function magent-agent-shell-interrupt "magent-agent-shell")
+(declare-function magent-agent-shell-prompt-region "magent-agent-shell")
+
+;; ── magent ──────────────────────────────────────────────────────────
+(use-package magent
+  :ensure (magent :repo "Jamie-Cui/magent"
+                  :ref "50ef707"
+                  :files ("lisp/magent*.el" "prompts" "skills" "capabilities"))
+  :custom
+  (magent-default-agent "build")
+  (magent-enable-audit-log t)
+  (magent-project-instruction-file-names '("AGENTS.md"))
+  (magent-include-reasoning t))
+
+(with-eval-after-load 'magent
+  (magent-agent-shell-ensure-config))
+
+;; ── Display rules ──────────────────────────────────────────────────
+(add-to-list 'display-buffer-alist
+             '("\\*Magent"
+               (display-buffer-in-direction)
+               (direction . bottom)
+               (window-height . 0.5)))
+
+(provide 'custom-magent)
+;;; custom-magent.el ends here
+```
+
+- **`magent-system-prompt`/defaults via `:custom`** (não `setq` — regra do projeto). O default do system prompt embutido é bom; só sobrescrever se o usuário quiser.
+- **ef-themes / dashboard / mood-line não são afetados** — Magent só adiciona o buffer `*Magent*`; a display rule usa o padrão `display-buffer-in-direction` já usado para gptel/term.
+- **Keybindings novos (sem conflito — verificado: não existe `C-c M*` no repo):**
+  - `C-c M m` → `magent-start` (abrir/reusar sessão do projeto)
+  - `C-c M i` → `magent-agent-shell-interrupt` (interromper request ativo)
+  - `C-c M r` → `magent-agent-shell-prompt-region` (enviar região)
+- **Arquivo: `lisp/custom-keybindings.el`** — adicionar sob a seção "AI (gptel)" (ou nova seção "Magent"):
+```elisp
+(declare-function magent-start "magent-agent-shell")
+(declare-function magent-agent-shell-interrupt "magent-agent-shell")
+(declare-function magent-agent-shell-prompt-region "magent-agent-shell")
+(global-set-key (kbd "C-c M m") #'magent-start)
+(global-set-key (kbd "C-c M i") #'magent-agent-shell-interrupt)
+(global-set-key (kbd "C-c M r") #'magent-agent-shell-prompt-region)
+```
+- **Nota:** o nome real do buffer deve ser confirmado em runtime (`buffer-name`) — `:buffer-name "Magent"` no `agent-shell-make-agent-config` sugere `*Magent*`; ajustar a regex da display rule se necessário.
+
+### Fase 3 — Personas/diretivas 42 + backends (depende da Fase 2)
+
+**Recomendação: converter as 3 diretivas gptel em SKILLS Magent** (instruções só-texto; são o tipo de conteúdo que o Magent espera — nunca viram código executável):
+
+1. Criar `.magent/skills/c-42/SKILL.md`, `.magent/skills/cpp-42/SKILL.md`, `.magent/skills/python/SKILL.md` no repo (projeto-local; auto-descobertas e versionadas):
+
+```markdown
+---
+name: c-42
+description: C tutor at 42 School — Norm v4.1 (tabs, 25 linhas, 80 cols, 5 vars)
+type: instruction
+---
+
+You are an expert C tutor at 42 School conforming strictly to Norm v4.1.
+CRITICAL RULES (Violating these fails the project):
+1. FORBIDDEN SYNTAX: No `for`, `do...while`, `switch`, `case`, `goto`, ternary operators, or VLAs.
+2. FORMATTING: REAL TABS (width 4). Max 25 lines per function, max 80 columns, max 5 variables.
+3. STRUCTURE: Declarations at the top, separated from code by one empty line. No inline initializations (e.g. `int i = 0;` is ILLEGAL).
+4. Code must compile with `-Wall -Wextra -Werror`.
+```
+   (idem `cpp-42` com C++98/Orthodox Canonical Form e `python` com PEP8/type hints/3.10+.)
+2. **Backends continuam no gptel** — Magent lê `gptel-backend`/`gptel-model` da sessão (`magent-agent.el:378-382`). **Decisão do usuário (2026-08-06): deixar o picker do agent-shell decidir** backend/modelo por sessão (session options do agent-shell). Opcional futuro: um agente custom `.magent/agent/zen-build.md` fixando `model: claude-sonnet-5` — NÃO necessário agora:
+```markdown
+---
+description: Build agent with Zen Claude sonnet-5
+mode: primary
+model: claude-sonnet-5
+permissions:
+  read: allow
+  write: ask
+  bash: ask
+  grep: allow
+  glob: allow
+---
+
+You are a senior software engineer working on the MyEmacs project.
+```
+   - Frontmatter suporta: `description`, `mode` (primary/subagent/all), `hidden`, `temperature`, `effort` (auto..xhigh), `model`, `permissions` (allow/deny/ask ou regras por padrão de arquivo com glob; primeira correspondência vence, wildcard `*` no fim).
+   - `.magent/agent/*.md` é auto-carregado (`magent-load-custom-agents t` default).
+3. **Skills/agentes de 42 fora deste repo:** usar `M-x magent-install-skill` (aceita diretório local) ou `magent-skill-directories` apontando para o repo. **Não** usar o `~/.agents/gptel/` (continua exclusivo do gptel-agent).
+
+### Fase 3.5 — Compatibilidade de skills com o opencode (verificado 2026-08-06)
+
+> **Resposta à pergunta do usuário:** *"magent suporta as skills do opencode? e quando a LSP tem suporte?"* — **NÃO suporta diretamente** (formato incompatível); **LSP é indireto** via skill + `emacs_eval`.
+
+- **Formato incompatível (opencode vs magent):**
+
+| | opencode (`~/.agents/skills/`, `~/.config/opencode/skills`) | magent |
+|---|---|---|
+| Frontmatter | `name`, `description`, `allowed-tools` | `name`, `description`, **`type: instruction`**, `tools` |
+| Executáveis | **Sim** — scripts/companion (ex.: stitch-loop tem `resources/`, scripts) | **Não** — `type: instruction` é o único; código junto ao `SKILL.md` nunca é carregado |
+| Instalação | mecanismo do opencode | `magent-install-skill` **rejeita** skill com scripts/código (`contains-code`) |
+
+- **Portáveis (100% instrução):** copiar o `SKILL.md`, adicionar `type: instruction` + `tools`, colocar em `.magent/skills/<nome>/`. Ex.: `find-skills` do `~/.agents/skills/`.
+- **NÃO portáveis (com código):** `react-components`, `remotion`, `shadcn-ui`, `stitch-*`, `enhance-prompt`(com design-md), `taste-design` — o equivalente magent seria um `magent-action` (Elisp) ou tool no catálogo; decidir caso a caso, fora do escopo desta migração.
+- **LSP (quando tem suporte):** sem tool nativo `lsp_*` no catálogo de 15 tools. Suporte **indireto** via:
+  - Skill built-in `lsp-workspace-workflow` (`capability: true`, `features: lsp-mode, eglot`, `modes: prog-mode`) — auto-ativa pelo resolver de capabilities em contexto de programação/LSP; instrui o modelo a usar o workspace LSP/Eglot ativo via `emacs_eval`/`read_buffer`/`grep` (diagnostics, definitions, references, rename, code actions).
+  - `/doctor` coleta diagnostics do flymake/flycheck/eglot (`magent-doctor.el:365`).
+  - **Para nós funciona:** usamos eglot (a skill declara suporte). Nenhuma integração LSP nova é necessária na migração — registrar como skill/nota, não como integração dedicada.
+
+### Fase 4 — Permissões e segurança (paralela à Fase 2)
+
+- **Política inicial:** manter o default do agente `build` — **`ask`** para `bash`, `emacs_eval` e escritas gerais; leitura/glob/grep permitidos. `magent-bypass-permission` permanece **`nil`** (o `:custom` já deixa explícito). Só ligar via `M-x magent-toggle-bypass-permission` se o usuário quiser agilidade pontual.
+- **Auditoria:** `magent-enable-audit-log t` (default) → JSONL diário em `magent-session-directory/audit/`. Sessões ficam em `~/.config/emacs-vanilla/magent/sessions/` (base `user-emacs-directory`) e `projects/<sha1(project-root)>/` por projeto — fora do repo (não commitar).
+- **Documentar no AGENTS.md:** "Magent permissions = controle de fluxo de trabalho + audit, NÃO sandbox de segurança (Codex seatbelt/bubblewrap está fora de escopo)".
+- **Hardening opcional:** agentes custom com `permissions:` restritas (ex.: agente `42-write` com `write: allow` só em padrões do projeto 42 e `bash: ask`).
+
+### Fase 5 — Integração com o fluxo existente (depende da Fase 3)
+
+- **eshell aliases:** manter `oc`/`ai`/`aif`/`aireview`/`agy`/`gemini` e `C-c A a`/`C-c A o` como fallback para workflows de terminal — **não mexer** (coberto por `tests/term-test.el`). Adicionar ao `docs/term-stack.org` nota "Magent substitui agy/opencode como agente de codificação; CLIs permanecem no terminal".
+- **Commit IA:** manter `C-c C-g`/`+carlos/gptel-insert-commit-message` (gptel helper). Magent tem `/summarize` (PR-style) e `/review` — documentar como alternativa, mas não substituir.
+- **`C-c I` (gptel-agent-run):** manter nesta fase (fallback). Decisão de descontinuar fica para avaliação pós-uso de Magent.
+- **Docs RAG — novo `docs/magent-reference.org`:** instalação (receita Elpaca git), frontend agent-shell, entry points (`magent-start`, `magent-agent-shell-*`), 15 tools + permission keys, built-in agents (build/plan/explore/general/compaction/title/summary), slash commands (`/explain /fix /init /review /summarize /test /compact /skills /doctor /memory-*`), skills (`SKILL.md` frontmatter), agents custom (`.magent/agent/*.md`), sessions/audit dirs, display rule `*Magent*`, pitfalls (frontend único, `:after` ignorado, defvar gotcha).
+- **AGENTS.md (projeto):** adicionar `lisp/custom-magent.el` à árvore de módulos, atualizar "Module Loading Order" (custom-magent após custom-ai), registrar os novos keybindings e a decisão da Fase 0, e apontar para `docs/magent-reference.org` na tabela de Package Reference Docs.
+
+### Fase 6 — Testes de regressão ERT (depende da Fase 2)
+
+Criar `tests/magent-test.el` (prefixo `myemacs-magent-*`; roda no `test-batch` completo; rede é opt-in — nada de rede aqui; módulos não disponíveis → `skip-unless`, padrão do vterm):
+
+```elisp
+;;; magent-test.el --- Magent regression tests -*- lexical-binding: t; -*-
+
+;;; Commentary:
+;; Verifica: pacote carrega, comandos existem, bind C-c M m sem conflito,
+;; configs (skills dir, project instructions) e registro no agent-shell.
+;; Magent pode não estar instalado no repo (builds parciais) — guard.
+
+;;; Code:
+(require 'ert)
+
+(defvar myemacs-magent-available
+  (condition-case nil (require 'magent) (error nil))
+  "Non-nil quando o pacote magent carrega neste ambiente.")
+
+(ert-deftest myemacs-magent-package-loads ()
+  (skip-unless myemacs-magent-available)
+  (should (featurep 'magent)))
+
+(ert-deftest myemacs-magent-commands-exist ()
+  (skip-unless myemacs-magent-available)
+  (should (commandp 'magent-start))
+  (should (commandp 'magent-agent-shell-interrupt))
+  (should (commandp 'magent-agent-shell-prompt-region)))
+
+(ert-deftest myemacs-magent-kbd-bind ()
+  (skip-unless myemacs-magent-available)
+  (should (eq (key-binding (kbd "C-c M m")) 'magent-start)))
+
+(ert-deftest myemacs-magent-skill-dirs ()
+  (skip-unless myemacs-magent-available)
+  (should magent-skill-directories)
+  (should (cl-some (lambda (d) (string-suffix-p "magent/skills" d))
+                   magent-skill-directories)))
+
+(ert-deftest myemacs-magent-project-instructions ()
+  (skip-unless myemacs-magent-available)
+  (should (member "AGENTS.md" magent-project-instruction-file-names)))
+
+(ert-deftest myemacs-magent-agent-shell-config ()
+  (skip-unless myemacs-magent-available)
+  (magent-agent-shell-ensure-config)
+  (should (memq #'magent-agent-shell-make-config agent-shell-agent-configs)))
+
+(ert-deftest myemacs-magent-ai-fallback-kept ()
+  (should (eq (key-binding (kbd "C-c I")) '+carlos/gptel-agent-run))
+  (should (eq (key-binding (kbd "C-c C-g")) '+carlos/gptel-generate-commit-message)))
+
+(provide 'magent-test)
+;;; magent-test.el ends here
+```
+
+- **Regras:** `key-binding` resolve minor-mode maps e use-package `:bind` de pacotes deferidos (padrão já documentado). Novos bugs → novo teste (política do AGENTS.md).
+- **Confirmações adicionais no `tests/keybindings-test.el`:** manter os testes atuais intactos (nenhum bind existente muda).
+
+### Fase 7 — Validação e rollback (final; depende de todas)
+
+1. **Portão de compilação:** `just compile` — zero warnings (inclui `custom-magent.el`; usar `declare-function` para todos os símbolos do magent).
+2. **Portão de docs:** `just checkdoc` OK; `docs/magent-reference.org` criado.
+3. **Portão de regressão:** `just test-all` — 54 testes existentes + novos magent, 0 falhas (6 skipped de sempre).
+4. **Teste autoritativo:** `just sync` → `emacs --init-directory ~/.config/emacs-vanilla` (primeiro boot instala magent+deps via `:ensure`+`elpaca-wait`); smoke test GUI: `C-c M m` abre `*Magent*`, digitar prompt, ver resposta streaming e permission prompt (ask) para `bash`.
+5. **Smoke test de não-regressão GUI:** `C-c i` (gptel), `C-c C-g` (commit IA), `C-c I` (gptel-agent), `C-c A a`/`C-c A o` (eshell CLIs), dirvish/org/dashboard — nada quebrado.
+6. **Rollback:** `git revert <commit da migração>` (preserva histórico) ou `git reset --hard 1d7ca9e` (destrói commits seguintes) no repo; remover `(use-package magent ...)`/`(require 'custom-magent)` e `.magent/` se desejado; depois `just sync` no vanilla. As sessões/auditoria do Magent ficam fora do git — não atrapalham o rollback.
+
+### Critérios de aceite (checklist final)
+
+- [ ] `just compile` zero warnings + `just checkdoc` OK + `just test-all` verde (54 + novos).
+- [ ] `M-x magent-start` / `C-c M m` abre `*Magent*` e responde no vanilla (rede: Zen Claude ou MLX local).
+- [ ] `C-c M m`/`C-c M i`/`C-c M r` sem conflito (coberto por teste).
+- [ ] Backends gptel 5/5 intactos (`myemacs-ai-backends-registered`), diretivas 42 intactas, commit IA intacto (`myemacs-kbd-ai-commit-global`).
+- [ ] Skills `.magent/skills/{c-42,cpp-42,python}` e agentes custom `.magent/agent/*.md` carregando (aparecem em `/skills` e na seleção de agente).
+- [ ] AGENTS.md do repo injetado automaticamente nos prompts (default `magent-project-instruction-file-names = ("AGENTS.md")`) — verificar via `*magent-log*`.
+- [ ] `docs/magent-reference.org`, TODO.md e roadmap.org atualizados.
+- [ ] Sessões/auditoria fora do git; rollback documentado e testado (`git revert`).
+
+### Ordem de execução e dependências
+
+```
+Fase 0 (decisão) → Fase 1 (instalação) → Fase 2 (custom-magent + binds)
+  ├─ Fase 4 (permissões; pode ser junto da Fase 2)
+  └─ Fase 6 (testes; após a Fase 2)
+Fase 3 (skills/agentes) → Fase 5 (integração/docs) → Fase 7 (validação/rollback)
+```
 
 ## 1. Planejamento Corrente (Ações Atuais)
 

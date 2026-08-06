@@ -360,6 +360,32 @@ Criar cache de referência para que agentes possam:
 
 *** Status: ✅ DONE
 
+** 2026-08-06 — Migração para Magent (Plano)
+
+*** Feito
+- **Decisão estratégica:** Magent (agente de codificação Emacs-Lisp nativo com 15 tools, permissões por agente, sessões/ledger, skills, capabilities e child agents) passa a ser o agente de codificação principal; gptel permanece como transporte único (=gptel-request= / 5 backends) e o chat =C-c i=, o helper =+carlos/gptel-agent-run= (=C-c I=) e os CLIs eshell (=C-c A a= / =C-c A o=) ficam como fallback.
+- **Pesquisa de referência (fonte primária):** repo Magent no commit =50ef707= ("fix: address MELPA review feedback #35") — AGENTS.md (tools/permissões), docs (ARCHITECTURE, AGENT_WORKFLOW), =magent.el=, =magent-agent.el=, =magent-agent-loop.el=, =magent-skill-manager.el=, =magent-agent-shell.el= (buffer =Magent=, =:shell-prompt "Magent> "=), =magent-config.el= (defcustoms) + conversões via markitdown em =/var/folders/.../opencode/magent-md/=.
+- **Verificação de disponibilidade no MELPA (archive-contents 2026-08-06):** =magent= **fora do MELPA** → instalação por receita git Elpaca com =:ref "50ef707"= pinada e =:files ("lisp/magent*.el" "prompts" "skills" "capabilities")= (mesma da receita melpazoid). Dependências do header =Package-Requires= (=emacs 29.1=, =gptel 0.9.8=, =yaml 1.0.0=, =compat 30.1.0.0=, =acp 0.13.1=, =agent-shell 0.66.1=) resolvidas automaticamente: gptel/compat já instalados; yaml, acp (20260803), agent-shell (20260805) e shell-maker (20260805) presentes no MELPA.
+- **Plano de execução detalhado (Agente Planejador):** seção =## 0.5. Plano de Ação — Migração para Magent= no =TODO.md= com 8 fases (Fase 0 decisão → Fase 1 instalação → Fase 2 =custom-magent.el= + binds =C-c M m/i/r= → Fase 3 skills 42 + agentes custom =C-c M= → Fase 4 permissões/segurança → Fase 5 integração/docs (novo =docs/magent-reference.org=) → Fase 6 =tests/magent-test.el= → Fase 7 validação/rollback), riscos, critérios de aceite, snippets exatos de configuração e regras do AGENTS.md aplicadas (receita Elpaca, =with-eval-after-load= no lugar de =:after=, =defvar= pelada + guarda =boundp= para o gotcha do Emacs 30, =:custom= sem =setq=, zero warnings no =just compile=).
+- **Decisões do usuário (2026-08-06):** Magent = agente principal; **mantidos como fallback**: =C-c I= (gptel-agent-run) e os CLIs eshell =agy=/=opencode= (=C-c A a= / =C-c A o=); **backend/modelo decididos pelo picker do agent-shell** (sem agente custom fixo por enquanto).
+- **Nada aplicado ainda** — o plano está pronto para o Agente Executor.
+
+*** Status: 📝 PLANO APROVADO PARA EXECUÇÃO (Agente Executor + Auditor)
+
+** 2026-08-06 — Header 42 School: login custom + integração norminette/eglot (14 testes)
+
+*** Feito
+- **Login 42 customizado (=site-lisp/header42.el=):** novo =defgroup header42= + =defcustom header-42-login "csilva-d"= (definido pelo usuário). =header-42-get-user= agora prioriza =header-42-login= → depois =FT_LOGIN= → =USER= → fallback ="marvin"=.
+- **Bug corrigido — =header-42-get-filename=:** usava =(or (file-name-nondirectory (buffer-file-name)) "< new >")=; com =buffer-file-name= nil a chamada a =file-name-nondirectory= lançava erro antes do fallback. Virou =if= com string vazia no ramo nil.
+- **Bug corrigido — docstring =header-42-update=:** ='Updated:'= / ='filename'= não escapados causavam erro de byte-compile. Corrigido (checkdoc limpo; também =header-42-enable=/=disable= "updates"→"update").
+- **Bug real — chain eglot→norminette (=lisp/custom-norminette.el=):** flycheck atual não tem mais checker =eglot= (só =eglot-check=, a bridge moderna; =flycheck-valid-checker-p 'eglot= → nil). =custom-norminette-setup= agora usa =eglot-check= com fallback =eglot=. Teste da chain usa =memq= porque =flycheck-add-next-checker= com =append= guarda o símbolo =c-norminette= (não cons).
+- **Bug real — parser JSON norminette:** =json-read-from-string= no Emacs 30.2 retorna arrays como **vectors**; =(car vector)= lançava =wrong-type-argument listp= (chaves são símbolos). Fix: =json-array-type 'list= em =custom-norminette--parse-json=.
+- **=tests/42-test.el= (novo, 14 testes):** login do header (=header-42-login= / =FT_LOGIN= / =USER=), estrutura/linhas do header (=header-42-generate-line= 1..9, prefixo ="/*   "=, 12 linhas na inserção), idempotência do =header-42-insert=, parse JSON OK/erro, checker flycheck registrado para =c-mode=/=c++-mode= (=skip-unless= do executável), hints, predicate e chain =eglot-check=→=c-norminette=.
+- **=Roadmap.org= anterior:** a integração 42 (JSON-based + eglot chain) constava como decisão arquitetural; este trabalho a corrigiu e cobriu com testes.
+- **Validação:** suíte =myemacs-42= → 14/14; suíte completa → **62 expected, 0 unexpected, 6 skipped** (vterm/network); byte-compile repo OK (só warnings treesit); checkdoc limpo nos 3 arquivos tocados.
+
+*** Status: ✅ DONE
+
 ** 2026-08-05 — Backlog: Revisão da Stack de IA (gptel + gptel-agent)
 
 *** Pendente

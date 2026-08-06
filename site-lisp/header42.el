@@ -19,9 +19,24 @@
 ;;   - O header é atualizado automaticamente ao salvar o arquivo
 ;;
 ;; Configuração:
-;;   - Define FT_LOGIN ou USER no ambiente para o nome do usuário
+;;   - Define header-42-login para o login da 42 (default: csilva-d)
+;;   - Fallback: FT_LOGIN ou USER no ambiente
 
 ;;; Code:
+
+;; =============================================================================
+;; CONFIGURAÇÃO
+;; =============================================================================
+
+(defgroup header42 nil
+  "Header padrão da 42 School."
+  :group 'convenience)
+
+(defcustom header-42-login "csilva-d"
+  "Login da 42 School usado no header.
+Tem precedência sobre as variáveis de ambiente FT_LOGIN e USER."
+  :type 'string
+  :group 'header42)
 
 ;; =============================================================================
 ;; CONSTANTES
@@ -48,8 +63,9 @@
 ;; =============================================================================
 
 (defun header-42-get-user ()
-  "Retorna o nome do usuário (FT_LOGIN, USER ou fallback)."
-  (or (getenv "FT_LOGIN")
+  "Retorna o login do usuário (header-42-login, FT_LOGIN, USER ou fallback)."
+  (or header-42-login
+      (getenv "FT_LOGIN")
       (getenv "USER")
       "marvin"))
 
@@ -60,8 +76,9 @@
 
 (defun header-42-get-filename ()
   "Retorna o nome do arquivo ou '< new >' se não existir."
-  (or (file-name-nondirectory (buffer-file-name))
-      "< new >"))
+  (if (buffer-file-name)
+      (file-name-nondirectory (buffer-file-name))
+    "< new >"))
 
 (defun header-42-get-date ()
   "Retorna a data/hora atual no formato do header 42."
@@ -171,7 +188,7 @@
         (setq line (1- line))))))
 
 (defun header-42-update ()
-  "Atualiza as linhas 'Updated:' e filename do header 42 se existir."
+  "Atualiza as linhas Updated: e filename do header 42 se existir."
   (interactive)
   (save-excursion
     (goto-char (point-min))
@@ -213,7 +230,7 @@
 
 ;;;###autoload
 (defun header-42-enable ()
-  "Enable 42 header with automatic updates on save."
+  "Enable 42 header with automatic update on save."
   (interactive)
   ;; Add hook to automatically update header on save for C/C++ buffers
   (add-hook 'c-mode-hook #'header-42-update t)
@@ -230,7 +247,7 @@
 
 ;;;###autoload
 (defun header-42-disable ()
-  "Disable 42 header automatic updates."
+  "Disable 42 header automatic update."
   (interactive)
   ;; Remove the hooks from C/C++ mode hooks
   (remove-hook 'c-mode-hook 'header-42-update t)
