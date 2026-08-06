@@ -15,8 +15,15 @@ install:
 
 # ── Quality Checks (Lint + Compile) ─────────────────────────────────
 
-# Byte-compile lisp directory (catches: undefined functions, obsolete vars, syntax errors)
-compile:
+# Build native C/C++ modules (vterm-module, tree-sitter grammars)
+compile-modules:
+	emacs --init-directory "$(pwd)" --batch -l init.el \
+	  --eval '(setq vterm-always-compile-module t)' \
+	  --eval '(require '\''vterm nil t)' \
+	  --eval '(when (require '\''treesit-auto nil t) (let ((treesit-auto-install t)) (ignore-errors (treesit-auto-install-all))))'
+
+# Byte-compile lisp directory and native modules
+compile: compile-modules
     emacs --init-directory "$(pwd)" --batch -l init.el \
       --eval '(setq byte-compile-error-on-warn t)' \
       --eval '(byte-recompile-directory (expand-file-name "lisp" user-emacs-directory) 0)'
