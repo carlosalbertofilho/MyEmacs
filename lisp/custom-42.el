@@ -7,10 +7,9 @@
 ;;; Code:
 
 ;; ── flycheck (dependency for norminette) ───────────────────────────
-;; :demand t ensures flycheck is installed and loaded before custom-norminette
-;; tries to (require 'flycheck)
+;; Installed by custom-lang.el (:ensure t). Use :ensure nil here to prevent duplicate Elpaca queue error.
 (use-package flycheck
-  :ensure t
+  :ensure nil
   :demand t
   :config
   (global-flycheck-mode 1)

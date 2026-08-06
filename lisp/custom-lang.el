@@ -123,9 +123,11 @@
 
 (use-package flycheck
   :ensure t
+  :demand t
   :config
   (define-key flycheck-mode-map (kbd "M-g n") #'flycheck-next-error)
   (define-key flycheck-mode-map (kbd "M-g p") #'flycheck-previous-error))
+(elpaca-wait)
 
 (use-package consult-flycheck
   :ensure t
