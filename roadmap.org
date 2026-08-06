@@ -262,6 +262,16 @@ Criar cache de referência para que agentes possam:
 
 *** Status: ✅ DONE
 
+** 2026-08-05 — Backlog: Revisão da Stack de IA (gptel + gptel-agent)
+
+*** Pendente
+- Listar o que está implementado (backends, agentes, gptel-org, personas, display rules) e documentar no roadmap
+- Diagnosticar integrações frágeis: =superchat=/=llm.el=, =mcp=, =gptel-integrations= require sem guarda, código morto =+carlos/gptel-agent-project-dirs=, =~/.agents/gptel/= vazio
+- Decidir estado-alvo e alinhar com a política de multiagentes do AGENTS.md
+- **Etapa de teste da stack de IA** (em =~/.config/emacs-vanilla=): validar =C-c i= (chat gptel), =C-c I= (agente), commit IA (=custom-git.el=), =C-c A a= / =C-c A o= (eshell agy/opencode), gptel-org em =.org=, e troca de backend/modelo — checando erro de API, modelo válido e streaming
+
+*** Status: 🔲 BACKLOG
+
 * Decisões Arquiteturais
 
 ** Sem Evil Mode

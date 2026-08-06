@@ -60,11 +60,19 @@
 
 ## 3. Planejamento Futuro / Backlog (Ordenado por Dificuldade)
 
-1. [ ] **Testar SuperChat com fontes instaladas** (Dificuldade: Muito Baixa - Validação visual)
-2. [x] **Substituir o dashboard customizado atual por `dashboard.el`** (Dificuldade: Baixa - Concluído!)
+1. [ ] **Revisar stack de IA (gptel + gptel-agent)** (Dificuldade: Média — listar o que está implementado, diagnosticar integrações frágeis `superchat`/`mcp`/`gptel-integrations`, alinhar agentes com a política de multiagentes e decidir o estado-alvo)
+    - Etapas:
+      1. [ ] Listar o que está implementado (backends, agentes, gptel-org, personas, display rules) — feito parcialmente, ver resumo da conversa
+      2. [ ] Diagnosticar gaps e integrações frágeis (`superchat`/`llm.el`, `mcp`, código morto `+carlos/gptel-agent-project-dirs`, `~/.agents/gptel/` vazio)
+      3. [ ] Decidir estado-alvo e aplicar ajustes (remover código morto, ativar/remover superchat+mcp, definir agentes por projeto)
+      4. [ ] **Etapa de teste da stack de IA:** validar em `~/.config/emacs-vanilla` cada entrada — `C-c i` (gptel chat), `C-c I` (+carlos/gptel-agent-run), `C-c C` / commit IA, `C-c A a`/`C-c A o` (eshell agy/opencode), gptel-org num `.org`, e troca de backend/modelo no buffer — conferindo erro de API, modelo válido e resposta streaming
+2. [ ] **Testar SuperChat com fontes instaladas** (Dificuldade: Muito Baixa - Validação visual)
+3. [x] **Substituir o dashboard customizado atual por `dashboard.el`** (Dificuldade: Baixa - Concluído!)
 3. [x] **Configurar Victor Mono com ligatures** (Dificuldade: Média/Alta - Concluído!)
-4. [x] **Refinar o dashboard com a tipografia nova instalada** (Dificuldade: Média/Alta - Concluído!)
-5. [ ] **Fase 4 — Cutoff (Doom → Vanilla final)** (Dificuldade: Alta - Script `bin/cutoff-migration.sh` pronto, pendente execução pelo usuário)
+4. [x] **Substituir o dashboard customizado atual por `dashboard.el`** (Dificuldade: Baixa - Concluído!)
+5. [x] **Configurar Victor Mono com ligatures** (Dificuldade: Média/Alta - Concluído!)
+6. [x] **Refinar o dashboard com a tipografia nova instalada** (Dificuldade: Média/Alta - Concluído!)
+7. [ ] **Fase 4 — Cutoff (Doom → Vanilla final)** (Dificuldade: Alta - Script `bin/cutoff-migration.sh` pronto, pendente execução pelo usuário)
 
 ---
 > Para o histórico cronológico detalhado de conquistas e decisões arquiteturais do projeto, consulte o [roadmap.org](file:///Users/carlosfilho/Projects/Github/MyEmacs/roadmap.org).

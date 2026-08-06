@@ -41,6 +41,37 @@ Necessário porque o ls do Nix Home Manager é GNU mesmo no macOS
   (unless (file-directory-p (expand-file-name "nerd-icons/fonts" user-emacs-directory))
     (nerd-icons-install-fonts t)))
 
+;; ── dirvish-emerge: navegação entre grupos (guard) ─────────────────
+;; `dirvish-emerge-next-group' upstream crasheia (+ nil 1) quando o
+;; ponto está fora de um overlay de grupo (ex.: cabeçalho do buffer).
+(declare-function dirvish-emerge--get-group-overlay "dirvish-emerge")
+(declare-function dirvish-emerge-next-group "dirvish-emerge")
+(declare-function dirvish-emerge-previous-group "dirvish-emerge")
+(defvar dirvish-emerge--group-overlays)
+
+(defun +carlos/dirvish-emerge-goto-group (arg)
+  "Ir a um grupo emerge ARG passos a partir do atual.
+Sem overlay sob o ponto (ex.: header), vai para o primeiro grupo."
+  (interactive "^p")
+  (if (or (not (bound-and-true-p dirvish-emerge-mode))
+          (not dirvish-emerge--group-overlays))
+      (message "Emerge inactive — press E to toggle")
+    (if (ignore-errors (dirvish-emerge--get-group-overlay))
+        (if (> arg 0)
+            (dirvish-emerge-next-group arg)
+          (dirvish-emerge-previous-group (- arg)))
+      (goto-char (point-min)))))
+
+(defun +carlos/dirvish-emerge-next-group ()
+  "Ir ao próximo grupo emerge."
+  (interactive)
+  (+carlos/dirvish-emerge-goto-group 1))
+
+(defun +carlos/dirvish-emerge-previous-group ()
+  "Ir ao grupo emerge anterior."
+  (interactive)
+  (+carlos/dirvish-emerge-goto-group -1))
+
 ;; ── dirvish core ────────────────────────────────────────────────────
 (use-package dirvish
   :ensure t
@@ -88,8 +119,11 @@ Necessário porque o ls do Nix Home Manager é GNU mesmo no macOS
   (dirvish-preview-dispatchers
    '(image gif video audio epub pdf archive))
   ;; Emerge: grupos padrão para o toggle `E' (filter stack)
+  ;; Predicados antes de extensões: diretórios primeiro (navegação),
+  ;; depois arquivos recentes (order = primeira correspondência vence).
   (dirvish-emerge-groups
-   '(("Recent files" (predicate . recent-files-2h))
+   '(("Directories"  (predicate . directories))
+     ("Recent files" (predicate . recent-files-2h))
      ("Documents"    (extensions "pdf" "tex" "bib" "epub"))
      ("Video"        (extensions "mp4" "mkv" "webm"))
      ("Pictures"     (extensions "jpg" "png" "svg" "gif"))
@@ -108,7 +142,9 @@ Necessário porque o ls do Nix Home Manager é GNU mesmo no macOS
    ("v"   . dirvish-vc-menu)
    ("E"   . dirvish-emerge-mode)
    ("S"   . dirvish-ls-switches-menu)
-   ("N"   . dirvish-narrow))
+   ("N"   . dirvish-narrow)
+   ("["   . +carlos/dirvish-emerge-previous-group)
+   ("]"   . +carlos/dirvish-emerge-next-group))
   :config
   ;; Preview no minibuffer (vertico) com dirvish
   (dirvish-peek-mode 1)
