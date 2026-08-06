@@ -42,5 +42,10 @@
   (should (fboundp '+carlos/dirvish-emerge-previous-group))
   (should (fboundp '+carlos/dirvish-emerge-next-group)))
 
+(ert-deftest myemacs-files-tramp-optimizations ()
+  (should (equal "ssh" tramp-default-method))
+  (should-not remote-file-name-inhibit-cache)
+  (should (equal 1 tramp-verbose)))
+
 (provide 'files-test)
 ;;; files-test.el ends here

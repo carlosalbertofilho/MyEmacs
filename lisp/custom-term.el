@@ -133,7 +133,10 @@ ORIG-FUN and ARGS are passed to the original function."
         eshell-scroll-to-bottom-on-input 'all
         eshell-error-if-no-glob t
         eshell-hist-file-size 10000
-        eshell-cmpl-cycle-completions nil))
+        eshell-cmpl-cycle-completions nil)
+  (with-eval-after-load 'em-term
+    (dolist (cmd '("ssh" "top" "htop" "devenv" "nix" "tmux" "mosh"))
+      (add-to-list 'eshell-visual-commands cmd))))
 
 ;; Eshell keybindings (after esh-mode loads; eshell-mode-map lives in
 ;; esh-mode, which loads lazily after eshell in Emacs 30)

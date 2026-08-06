@@ -185,12 +185,31 @@ Ignora popups, sidebars e minibuffer."
 (setq tramp-default-method "ssh"
       tramp-ssh-controlmaster-options
       "-o ControlMaster=auto -o ControlPath='~/.ssh/controlmasters/%r@%h:%p' -o ControlPersist=600"
-      tramp-use-connection-share t)
+      tramp-use-connection-share t
+      remote-file-name-inhibit-cache nil
+      tramp-verbose 1
+      tramp-completion-reread-directory-timeout 60
+      tramp-chunksize 8192)
+
+;; Ignorar verificação de VC em caminhos TRAMP para evitar travamentos remotos
+(setq vc-ignore-dir-regexp
+      (format "\\(%s\\)\\|\\(%s\\)"
+              vc-ignore-dir-regexp
+              tramp-file-name-regexp))
 
 ;; Ensure controlmasters directory exists
 (let ((cm-dir (expand-file-name "~/.ssh/controlmasters")))
   (unless (file-directory-p cm-dir)
     (make-directory cm-dir t)))
+
+(with-eval-after-load 'tramp
+  (when (fboundp 'connection-local-set-profile-variables)
+    (connection-local-set-profile-variables
+     'remote-direct-async-process
+     '((tramp-direct-async-process . t)))
+    (connection-local-set-profiles
+     '(:application tramp :protocol "ssh")
+     'remote-direct-async-process)))
 
 ;; ── Project (built-in) ──────────────────────────────────────────────
 (use-package project
