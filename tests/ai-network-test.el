@@ -54,7 +54,7 @@ Retorna não-nil se a resposta contiver \"PONG\". Timeout de 90s."
 (ert-deftest myemacs-ai-network-ollama ()
   :tags '(ai network)
   (skip-unless (getenv "EMACS_TEST_NETWORK"))
-  (should (myemacs-ai--request-pong "Ollama Local" "qwen3:0.6b")))
+  (should (myemacs-ai--request-pong "Ollama Local" "qwen2.5-coder:1.5b")))
 
 (ert-deftest myemacs-ai-network-mlx ()
   :tags '(ai network)

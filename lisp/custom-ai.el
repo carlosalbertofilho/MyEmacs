@@ -69,7 +69,9 @@
   (gptel-make-ollama "Ollama Local"
     :host "localhost:11434"
     :stream t
-    :models '("qwen3:0.6b"))
+    :models '("qwen2.5-coder:3b"
+              "qwen2.5-coder:1.5b"
+              "deepseek-r1:1.5b"))
 
   ;; ── Backend: MLX Local (5 modelos validados, M2/24GB) ────────────
   ;; Servidor roda em 127.0.0.1:8081 via launchd (mlx_lm.server)

@@ -14,7 +14,7 @@
 
 - [x] **Correção completa da stack de IA (gptel 0.9.9.5):**
   - **Backends Zen corrigidos:** `zen.opencode.ai` era **NXDOMAIN** — hosts reais: `opencode.ai` + `:endpoint "/zen/v1/chat/completions"` (OpenAI) e `"/zen/v1/messages"` (Anthropic). Keys via `(getenv "OPENCODE_ZEN_API_KEY")` / `(or (getenv "GEMINI_API_KEY") (getenv "GOOGLE_API_KEY"))` (exportadas por `/etc/api-keys.sh` do agenix).
-  - **Ollama corrigido:** modelo `qwen3.5:latest` não existe → `qwen3:0.6b` (modelo real instalado).
+  - **Ollama corrigido (CPU/Linux):** modelos `qwen2.5-coder:3b` (padrão de alto desempenho), `qwen2.5-coder:1.5b` (ultrarrápido) e `deepseek-r1:1.5b` (raciocínio/reasoning) instalados e validados no `aa102-006l`. Modelo antigo `qwen3.5:latest` desinstalado por ser muito pesado em CPU.
   - **API do gptel-request corrigida:** 0.9.9.5 NÃO aceita `:backend`/`:model` (keywords reais: `:callback :buffer :position :context :system :stream :schema :transforms :fsm`). Criado helper `+carlos/gptel-request` (buffer `*gptel-request*` + `gptel-backend`/`gptel-model` buffer-local) e o commit IA em `custom-git.el` reescrito para usá-lo (antes: erro de keyword).
   - **gptel-org eliminado:** não existe `gptel-org-mode` em 0.9.9.5 — integração Org é automática (`derived-mode-p`). Removido bloco no-op.
   - **Código morto removido:** `mcp` e `superchat` (não instalados, `:if` silencioso) + display rule do superchat. `gptel-agent` mantido (registra researcher/introspector/gptel-plan/gptel-agent/executor).

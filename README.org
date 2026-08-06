@@ -149,8 +149,8 @@ Depois configurar em =custom-org.el=:
 | OpenCode Zen | deepseek-v4-flash-free, north-mini-code-free |
 | Zen Claude | claude-sonnet-5, claude-opus-5 |
 | Gemini | gemini-2.5-flash, gemini-2.5-pro |
-| Ollama Local | qwen3.5:latest |
-| MLX Local | gemma-4-e2b, Qwen2.5-7B, Qwen3.5-9B, DeepSeek-R1-14B, Qwen3-14B |
+| Ollama Local (CPU/Linux) | qwen2.5-coder:3b (padrão), qwen2.5-coder:1.5b, deepseek-r1:1.5b |
+| MLX Local (macOS M-series) | gemma-4-e2b, Qwen2.5-7B, Qwen3.5-9B, DeepSeek-R1-14B, Qwen3-14B |
 
 * Keybindings Principais
 
