@@ -19,7 +19,7 @@ mode, com IA unificada via =Magent= (agente nativo Emacs-Lisp de codificação c
 * Estrutura
 
 #+begin_src text
-~/.config/emacs-vanilla/
+~/.config/emacs/
 ├── early-init.el           ← startup rápido, GC, frame
 ├── init.el                 ← bootstrap, carrega módulos
 ├── custom-file.el          ← gerado por M-x customize
@@ -27,12 +27,12 @@ mode, com IA unificada via =Magent= (agente nativo Emacs-Lisp de codificação c
 │   ├── custom-core.el      ← fontes, GPG, editor basics, line numbers
 │   ├── custom-ui.el        ← ef-themes, mood-line, olivetti, which-key, display-buffer-alist
 │   ├── custom-completion.el← vertico, consult, corfu, marginalia, orderless, embark, nerd-icons-corfu
-│   ├── custom-files.el     ← dirvish (consolidado), ibuffer, TRAMP, project
-│   ├── custom-term.el      ← vterm, eshell, eshell-prompt-extras
+│   ├── custom-files.el     ← dirvish (consolidado), ibuffer, TRAMP otimizado, project
+│   ├── custom-term.el      ← vterm, eshell, eshell-prompt-extras, eat, popper
 │   ├── custom-lang.el      ← eglot, treesit, apheleia, flycheck-inline, eldoc-box, local AI
 │   ├── custom-org.el       ← org-babel, jupyter, mermaid, pdf-tools, org-modern
 │   ├── custom-42.el        ← header42, custom-norminette, estilo C 42, reformatter
-│   ├── custom-ai.el        ← gptel backends, gptel-agent
+│   ├── custom-ai.el        ← gptel backends, gptel-agent, gptel-context flexível
 │   ├── custom-magent.el    ← Magent (agente de codificação nativo, 15 ferramentas, agent-shell)
 │   ├── custom-knowledge.el ← denote (Zettelkasten + silos)
 │   ├── custom-git.el       ← magit, justl, makefile-executor, commit IA local
@@ -45,8 +45,9 @@ mode, com IA unificada via =Magent= (agente nativo Emacs-Lisp de codificação c
 ├── docs/                   ← RAG reference docs (16 arquivos de pacotes)
 ├── bin/
 │   ├── rag-convert         ← conversor de PDFs/HTML/MD para Org RAG via Ollama
-│   └── log-triage          ← resumidor/triador local de logs de compilação e teste
-├── Justfile                ← run, install, compile, check, sync, test, triage, deploy
+│   ├── log-triage          ← resumidor/triador local de logs de compilação e teste
+│   └── promote-migration.py← script de migração definitiva Doom → Vanilla MyEmacs
+├── Justfile                ← run, install, compile, check, sync, test, triage, promote, deploy
 ├── README.org
 ├── guia_emacs.org
 ├── guia_detalhado.org
@@ -82,23 +83,23 @@ Todos os pacotes principais possuem documentação de referência em =docs/=:
 dsw  # darwin-rebuild switch --flake .#agnes
 #+end_src
 
-O wrapper =emacs-vanilla= é criado automaticamente.
+O wrapper =emacs= nativo carrega o MyEmacs automaticamente.
 
 ** Manual
 
 #+begin_src shell
-git clone git@github.com:carlosalbertofilho/MyEmacs.git ~/.config/emacs-vanilla
-emacs --init-directory ~/.config/emacs-vanilla
+git clone git@github.com:carlosalbertofilho/MyEmacs.git ~/.config/emacs
+emacs
 #+end_src
 
-** Sync para teste
+** Sync para produção/teste
 
 #+begin_src shell
 # No repo de trabalho
 git add -A && git commit -m "msg" && git push
 
-# No dir de teste
-cd ~/.config/emacs-vanilla && git stash && git pull && git stash pop
+# Sincronizar para ~/.config/emacs
+just sync
 #+end_src
 
 ** Compilar vterm (primeira vez, GUI)
@@ -110,7 +111,7 @@ M-x vterm-install
 ** Compilar pdf-tools (macOS, primeira vez)
 
 #+begin_src shell
-cd ~/.config/emacs-vanilla/elpa/pdf-tools-*/
+cd ~/.config/emacs/elpa/pdf-tools-*/
 ./autogen.sh
 ./configure --bindir=$(pwd)/build/server
 make
@@ -126,15 +127,16 @@ Depois configurar em =custom-org.el=:
 
 | Comando | Descrição |
 |---------+-----------|
-| =just run= | Abre o Emacs Vanilla |
+| =just run= | Abre o MyEmacs Vanilla |
 | =just install= | Instala/atualiza pacotes |
 | =just compile= | Compila módulos nativos (vterm, tree-sitter) + arquivos .el → .elc |
 | =just check= | Verifica carregamento rápido de configuração |
 | =just check-all= | Executa check + compile + checkdoc + suíte ERT |
 | =just triage= | Executa os testes e aciona o Ollama local para triar e resumir erros em RAG |
-| =just sync= | Sincroniza para ~/.config/emacs-vanilla |
-| =just test= | Testa no dir de sync |
-| =just test-all= | Executa compilação, checkdoc e suíte completa de 107 testes ERT |
+| =just sync= | Sincroniza alterações para ~/.config/emacs |
+| =just test= | Testa a inicialização em ~/.config/emacs |
+| =just test-all= | Executa compilação, checkdoc e suíte completa de 111 testes ERT |
+| =just promote= | Executa o script de migração definitiva Doom Emacs → Vanilla MyEmacs |
 | =just deploy "msg"= | Check-all, commit, push, sync e test |
 
 * Recursos Recentes de Dev, IA & UX
@@ -196,7 +198,7 @@ Depois configurar em =custom-org.el=:
 | Fase 1 — Core + UX | ✅ DONE (14 bugs corrigidos) |
 | Fase 2 — Linguagens + 42 + Org | ✅ DONE (norminette JSON reimplementado) |
 | Fase 3 — IA + Conhecimento + Git | ✅ DONE |
-| Fase 4 — Cutoff | ⏳ PENDENTE |
+| Fase 4 — Cutoff & Migração | ✅ DONE (Doom Emacs removido e MyEmacs promovido a ~/.config/emacs) |
 
 * Bugs Corrigidos (14)
 
