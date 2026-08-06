@@ -2,7 +2,12 @@
 
 ## 0. Checkpoint de Rollback (baseline)
 
-> **Commit de referência (SAVE POINT):** `29d7dab` — `docs: record dirvish emerge/peek/git-msg activation in TODO and roadmap`
+> **Commit de referência (SAVE POINT):** `4679a26` — `fix(elpaca): remove duplicate transient declaration causing 'Duplicate item ID queued'`
+> **Estado (aprovado pelo usuário: "deu certo, ficou lindo!"):** boot limpo sem erros; org-mode com fontes personalizadas (variable-pitch Inter + headings hierárquicos via ef-themes) e sem o bug monocromático; dirvish-emerge iterado (navegação `[`/`]` com guard, grupo Directories, per-dir via `.dir-locals.el`); transient carregado cedo sem "Duplicate item ID queued"; vanilla sincronizado com `origin/main`.
+> **Reverter:** `git revert 4679a26` (preserva histórico) ou `git reset --hard 4679a26` (destrói commits seguintes) em `~/Projects/Github/MyEmacs`, depois `cd ~/.config/emacs-vanilla && git stash && git pull && git stash pop`.
+> **Anterior:** `29d7dab` — ponto do dirvish refatorado (extensões ativas, olivetti 0.85, Zen reading).
+
+> **SAVE POINT ANTERIOR:** `29d7dab` — `docs: record dirvish emerge/peek/git-msg activation in TODO and roadmap`
 > **Estado (aprovado pelo usuário: "ficou perfeito"):** dirvish refatorado (ícones/sidebar/hooks corretos), olivetti responsivo `0.85`, Zen reading, RAG de extensões atualizado e extensões dirvish ativas — `git-msg` no painel principal, `E` → `dirvish-emerge-mode` com 6 grupos padrão, `dirvish-peek-mode` global com debounce 0.5. Emacs de teste (`~/.config/emacs-vanilla`) abre sem erros, sincronizado com `origin/main`.
 > **Reverter:** `git revert 29d7dab` (preserva histórico) ou `git reset --hard 29d7dab` (destrói commits seguintes) em `~/Projects/Github/MyEmacs`, depois `cd ~/.config/emacs-vanilla && git stash && git pull && git stash pop`.
 > **Anterior:** `aad799c` (RAG extensions) — útil como ponto anterior ao experimento das extensões.
