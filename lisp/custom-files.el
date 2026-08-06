@@ -184,13 +184,14 @@ Ignora popups, sidebars e minibuffer."
         ibuffer-expert t))
 
 ;; ── TRAMP optimization ──────────────────────────────────────────────
+;; Nota: no tramp-ssh-controlmaster-options, os símbolos de porcentagem (%)
+;; devem ser escapados como `%%' porque a string é processada pelo `format-spec'
 (setq tramp-default-method "ssh"
       tramp-ssh-controlmaster-options
-      "-o ControlMaster=auto -o ControlPath='~/.ssh/controlmasters/%r@%h:%p' -o ControlPersist=600"
+      "-o ControlMaster=auto -o ControlPath='~/.ssh/controlmasters/%%r@%%h:%%p' -o ControlPersist=600"
       tramp-use-connection-share t
       remote-file-name-inhibit-cache nil
       tramp-verbose 1
-      tramp-completion-reread-directory-timeout 60
       tramp-chunksize 8192)
 
 ;; Ignorar verificação de VC em caminhos TRAMP para evitar travamentos remotos
