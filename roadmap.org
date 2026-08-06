@@ -214,6 +214,20 @@ Criar cache de referência para que agentes possam:
 
 *** Status: ✅ DONE
 
+** 2026-08-05 — Refatoração Dirvish: Ícones, Sidebar e Hooks (API 2.3.0 real)
+
+*** Feito
+- Layout oficial de 3 painéis (=dirvish-default-layout '(1 0.11 0.55)=) e atributos ='(vc-state subtree-state nerd-icons collapse file-time file-size)=.
+- Corrigir valores inválidos da API 2.3.0: =dirvish-nerd-icons-offset= (=:v-adjust= float; =-2= quebrava o alinhamento → =0.00=), =dirvish-subtree-state-style= (string → símbolo, fallback automático p/ =arrow= sem all-the-icons), =dirvish-subtree-icon-scale-factor= (=1.0= → cons ='(0.85 . 0.10)=).
+- Corrigir =dirvish-side-open-file-action= (aceita só nil ou função; ='select= era inválido) e remover =dirvish-side-display-mode-line= (custom inexistente).
+- Hooks reais: buffers dirvish derivam de =dirvish-directory-view-mode= (special-mode), então =dired-mode-hook= não dispara; hooks inexistentes (=dirvish-mode-hook=, =dirvish-side-mode-hook=) substituídos por =dirvish-directory-view-mode-hook= + =dirvish-setup-hook=; =dired-omit-mode= agora oculta dotfiles/backups em dirvish.
+- Remover =diredfl=; corrigir detecção macOS no dired base (=featurep= nunca casava → =memq system-type=), garantindo fallback seguro =="-ahl"= sem =gls=.
+- Remover =global-display-line-numbers-mode=; números de linha apenas em =prog-mode= (hook no init.el).
+- Zen reading: =+carlos/zen-line-spacing 0.15= e sem line numbers em org/markdown (=custom-writing.el=).
+- Validado: =just check=, =just compile= (zero warnings), valores em runtime e omit funcional; sincronizado e testado em =~/.config/emacs-vanilla=.
+
+*** Status: ✅ DONE
+
 * Decisões Arquiteturais
 
 ** Sem Evil Mode

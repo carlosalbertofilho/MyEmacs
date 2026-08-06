@@ -2,6 +2,15 @@
 
 ## 1. Planejamento Corrente (Ações Atuais)
 
+- [x] **Refatoração final do Dirvish (ícones, sidebar e hooks):**
+  - Layout oficial de 3 painéis `(1 0.11 0.55)` e atributos `(vc-state subtree-state nerd-icons collapse file-time file-size)`.
+  - Corrigir valores inválidos da API 2.3.0: `dirvish-nerd-icons-offset` (`-2` → `0.00`, é `:v-adjust` float), `dirvish-subtree-state-style` (string `"arrow"` → símbolo `'chevron`), `dirvish-subtree-icon-scale-factor` (`1.0` → cons `(0.85 . 0.10)`).
+  - Corrigir `dirvish-side-open-file-action` (`'select` inválido → `nil`) e remover `dirvish-side-display-mode-line` (custom inexistente).
+  - Substituir hooks inexistentes (`dirvish-mode-hook`, `dirvish-side-mode-hook`) por `dirvish-directory-view-mode-hook` + `dirvish-setup-hook`; `dired-omit-mode` agora aplica de fato em buffers dirvish.
+  - Remover `diredfl`; corrigir detecção macOS no dired base (`(featurep :system 'bsd)` nunca era verdadeiro → `(memq system-type '(darwin berkeley-unix))`).
+  - Remover `global-display-line-numbers-mode` (números de linha apenas em `prog-mode` via init.el).
+  - Zen reading: `line-spacing 0.15` + sem line numbers em org/markdown.
+  - Validado com `just check` + `just compile` (zero warnings) + teste no `~/.config/emacs-vanilla`.
 - [x] **Ajuste de Truncamento do `dirvish-side`:**
   - Configurar atributos minimalistas (`vc-state`, `nerd-icons`, `collapse`, `subtree-state`) na sidebar para evitar quebra de colunas em 30 de largura.
   - Ocultar a modeline e simplificar o cabeçalho no buffer da sidebar.
