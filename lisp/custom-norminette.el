@@ -59,8 +59,12 @@
 
 (defun custom-norminette--parse-json (output &optional _filename)
   "Parse norminette JSON OUTPUT into flycheck errors."
-  (when-let* ((data (ignore-errors
-                      (json-parse-string output
+  ;; Norminette may print non-JSON lines before the JSON (e.g., "Setting locale...").
+  ;; Strip everything before the first JSON token.
+  (when-let* ((json-start (string-match-p "[{\\[]" output))
+              (json-output (substring output json-start))
+              (data (ignore-errors
+                      (json-parse-string json-output
                                          :object-type 'alist
                                          :array-type 'list
                                          :null-object nil
