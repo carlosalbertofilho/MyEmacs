@@ -23,6 +23,7 @@
 (defvar gptel-agent-dirs)
 (defvar gptel-backend nil)
 (defvar gptel-model nil)
+(defvar gptel-context-restrict-to-project-files)
 (declare-function gptel-agent "gptel-agent")
 (declare-function gptel-get-backend "gptel")
 (declare-function gptel-request "gptel")

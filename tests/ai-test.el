@@ -9,6 +9,7 @@
 
 (require 'ert)
 (require 'gptel)
+(require 'gptel-context nil t)
 (require 'gptel-agent)
 (require 'cl-lib)
 
