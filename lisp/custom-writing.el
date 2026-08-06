@@ -98,11 +98,13 @@
   :hook (org-mode . org-appear-mode))
 
 ;; ── Olivetti (centralização e foco de escrita) ─────────────────────
+;; Largura float: prosa = fração da janela, ajusta automaticamente no
+;; resize (via window-configuration-change-hook / window-size-change-functions).
 (use-package olivetti
   :ensure t
   :hook ((org-mode markdown-mode) . olivetti-mode)
-  :config
-  (setq olivetti-body-width 100))
+  :custom
+  (olivetti-body-width 0.85))
 
 ;; ── Fontes Proporcionais (variable-pitch-mode) ─────────────────────
 (add-hook 'org-mode-hook #'variable-pitch-mode)
