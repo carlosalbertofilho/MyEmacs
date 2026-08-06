@@ -5,6 +5,8 @@
 
 ;;; Code:
 
+(defvar tramp-completion-reread-directory-timeout)
+
 ;; ── dired base ──────────────────────────────────────────────────────
 (defun +carlos/gnu-ls-p ()
   "Return non-nil when the ls in PATH is GNU coreutils.

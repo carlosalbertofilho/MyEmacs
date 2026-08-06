@@ -22,6 +22,7 @@
 ;; Os define-key abaixo rodam após o pacote dono carregar (map já bound).
 (defvar vterm-mode-map)
 (defvar eshell-mode-map)
+(defvar eshell-visual-commands)
 
 ;; ── vterm ───────────────────────────────────────────────────────────
 ;; Prevent vterm from prompting for module compilation in batch mode
