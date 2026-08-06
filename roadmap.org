@@ -11,6 +11,18 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-06 — Migração para Magent (Agente de Codificação Nativo)
+
+*** Feito
+- **Módulo `custom-magent.el`:** criado novo módulo `lisp/custom-magent.el` utilizando receita git Elpaca com ref `50ef707` (`:files ("lisp/magent*.el" "prompts" "skills" "capabilities")`).
+- **Configuração:** `magent-default-agent "build"`, `magent-enable-audit-log t`, `magent-project-instruction-file-names '("AGENTS.md")`, `magent-include-reasoning t`, e `display-buffer-alist` para buffer `*Magent*`.
+- **Keybindings:** adicionados atalhos `C-c M m` (`magent-start`), `C-c M i` (`magent-agent-shell-interrupt`), e `C-c M r` (`magent-agent-shell-prompt-region`) em `custom-keybindings.el`.
+- **Skills Locais:** criadas skills em `.magent/skills/c-42/SKILL.md`, `.magent/skills/cpp-42/SKILL.md`, e `.magent/skills/python/SKILL.md` com `type: instruction`.
+- **Suíte ERT:** criado `tests/magent-test.el` (com 7 testes) e integrado em `tests/load-tests.el`.
+- **Documentação RAG:** criado `docs/magent-reference.org` com 15 ferramentas, modelo de permissões, comandos slash, agent-shell e guias de uso.
+
+*** Status: ✅ DONE
+
 ** 2026-08-06 — Ambiente de Desenvolvimento Vanilla & Fix Dirvish Side
 
 *** Feito

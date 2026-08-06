@@ -83,8 +83,8 @@
 ### Fase 0 — Decisão e avaliação de riscos (checklist)
 
 - [x] Confirmar com o usuário a decisão: **Magent = agente principal; `C-c I` e eshell CLIs ficam como fallback** (decisão do usuário em 2026-08-06: manter `C-c I` e os aliases `agy`/`opencode`; **backend/modelo decididos pelo picker do agent-shell**, sem agente custom fixo).
-- [ ] Registrar a decisão no `roadmap.org` (entrada `** 2026-08-06 — Migração para Magent (Plano)` — já incluída abaixo).
-- [ ] Anotar os riscos da tabela acima no AGENTS.md (seção "Known Bugs & Fixes"/regras) quando a migração for aplicada.
+- [x] Registrar a decisão no `roadmap.org` (entrada `** 2026-08-06 — Migração para Magent (Agente de Codificação Nativo)`).
+- [x] Anotar os riscos da tabela acima no AGENTS.md e no `docs/magent-reference.org`.
 
 ### Fase 1 — Instalação (depende da Fase 0)
 
@@ -324,14 +324,14 @@ Criar `tests/magent-test.el` (prefixo `myemacs-magent-*`; roda no `test-batch` c
 
 ### Critérios de aceite (checklist final)
 
-- [ ] `just compile` zero warnings + `just checkdoc` OK + `just test-all` verde (54 + novos).
-- [ ] `M-x magent-start` / `C-c M m` abre `*Magent*` e responde no vanilla (rede: Zen Claude ou MLX local).
-- [ ] `C-c M m`/`C-c M i`/`C-c M r` sem conflito (coberto por teste).
-- [ ] Backends gptel 5/5 intactos (`myemacs-ai-backends-registered`), diretivas 42 intactas, commit IA intacto (`myemacs-kbd-ai-commit-global`).
-- [ ] Skills `.magent/skills/{c-42,cpp-42,python}` e agentes custom `.magent/agent/*.md` carregando (aparecem em `/skills` e na seleção de agente).
-- [ ] AGENTS.md do repo injetado automaticamente nos prompts (default `magent-project-instruction-file-names = ("AGENTS.md")`) — verificar via `*magent-log*`.
-- [ ] `docs/magent-reference.org`, TODO.md e roadmap.org atualizados.
-- [ ] Sessões/auditoria fora do git; rollback documentado e testado (`git revert`).
+- [x] `just compile` zero warnings + `just checkdoc` OK + `just test-all` verde (54 + novos).
+- [x] `M-x magent-start` / `C-c M m` abre `*Magent*` e responde no vanilla (rede: Zen Claude ou MLX local).
+- [x] `C-c M m`/`C-c M i`/`C-c M r` sem conflito (coberto por teste).
+- [x] Backends gptel 5/5 intactos (`myemacs-ai-backends-registered`), diretivas 42 intactas, commit IA intacto (`myemacs-kbd-ai-commit-global`).
+- [x] Skills `.magent/skills/{c-42,cpp-42,python}` e agentes custom `.magent/agent/*.md` carregando (aparecem em `/skills` e na seleção de agente).
+- [x] AGENTS.md do repo injetado automaticamente nos prompts (default `magent-project-instruction-file-names = ("AGENTS.md")`) — verificar via `*magent-log*`.
+- [x] `docs/magent-reference.org`, TODO.md e roadmap.org atualizados.
+- [x] Sessões/auditoria fora do git; rollback documentado e testado (`git revert`).
 
 ### Ordem de execução e dependências
 

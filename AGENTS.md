@@ -39,7 +39,8 @@ emacs --init-directory ~/.config/emacs-vanilla
 │   ├── custom-org.el             ← org-mode, babel, jupyter, pdf-tools, org-modern
 │   ├── custom-42.el              ← 42 School: header42, flycheck-norminette, C style
 │   ├── custom-ai.el              ← gptel backends, gptel-agent, superchat, mcp
-│   ├── custom-knowledge.el       ← denote (Zettelkasten)
+│   ├── custom-magent.el          ← Magent native coding agent (15 tools, agent-shell)
+│   ├── custom-knowledge.el       ← Denote (Zettelkasten)
 │   ├── custom-git.el             ← magit, justl, commit message with IA
 │   ├── custom-keybindings.el     ← C-c prefix keybindings
 │   └── custom-dashboard.el       ← Nano-style dashboard
@@ -258,6 +259,7 @@ All package APIs are documented in `docs/`. Reference these files before making 
 |---------|----------|------------|
 | Dirvish | `docs/dirvish-reference.org` | Attributes, extensions, quick-access, peek, vc, subtree |
 | GPTel | `docs/gptel-reference.org` | Backends, gptel-request, gptel-agent, gptel-org, tools |
+| Magent | `docs/magent-reference.org` | Native agent, 15 tools, agent-shell, permissions, skills |
 | Completion | `docs/completion-stack.org` | Vertico, consult, corfu, marginalia, orderless, embark |
 | Magit | `docs/magit-reference.org` | Status, staging, commit, push/pull, log |
 | Denote | `docs/denote-reference.org` | Notes, silos, links, backlinks, keywords |
@@ -342,6 +344,7 @@ custom-lang      ← Languages (eglot, treesit)
 custom-org       ← Org mode (babel, jupyter, pdf)
 custom-42        ← 42 School (depends on flycheck, header42)
 custom-ai        ← AI (gptel, depends on core being loaded)
+custom-magent    ← Magent (native coding agent, depends on custom-ai)
 custom-knowledge ← Denote (knowledge management)
 custom-git       ← Git (magit, justl)
 custom-dashboard ← Dashboard (depends on many modules)

@@ -1,0 +1,189 @@
+#+TITLE: Magent Reference Guide
+#+AUTHOR: MyEmacs Documentation Generator
+#+DATE: 2026-08-06
+#+DESCRIPTION: Comprehensive reference for Magent native Emacs-Lisp AI coding agent
+
+* Table of Contents
+:PROPERTIES:
+:TOC: :include all :ignore this
+:END:
+:CONTENTS:
+- [[#overview][Overview]]
+- [[#installation][Installation]]
+- [[#architecture][Architecture & Transport]]
+- [[#entry-points--keybindings][Entry Points & Keybindings]]
+- [[#catalog-of-15-tools][Catalog of 15 Tools]]
+- [[#permissions--audit-logging][Permissions & Audit Logging]]
+- [[#builtin-agents][Built-in Agents]]
+- [[#slash-commands][Slash Commands]]
+- [[#skills--instructions][Skills & Instructions]]
+- [[#custom-agents][Custom Agents]]
+- [[#project-ledger--agentsmd-integration][Project Ledger & AGENTS.md Integration]]
+- [[#pitfalls--best-practices][Pitfalls & Best Practices]]
+:END:
+
+* Overview
+
+Magent is a native Emacs-Lisp AI coding agent framework. It provides a complete
+agentic development environment inside Emacs with:
+
+- 15 native tools for filesystem, execution, search, and Emacs state manipulation
+- Granular per-agent permissions (allow / ask / deny)
+- Project-based ledger sessions (thread → turn → item)
+- Skills and capabilities system
+- Frontend powered by =agent-shell= via ACP (Agent Control Protocol) in-process adapter
+- Transport provided by =gptel-request=
+
+* Installation
+
+Magent is installed via a pin git recipe using Elpaca:
+
+#+BEGIN_SRC elisp
+(use-package magent
+  :ensure (magent :repo "Jamie-Cui/magent"
+                  :ref "50ef707"
+                  :files ("lisp/magent*.el" "prompts" "skills" "capabilities"))
+  :custom
+  (magent-default-agent "build")
+  (magent-enable-audit-log t)
+  (magent-project-instruction-file-names '("AGENTS.md"))
+  (magent-include-reasoning t))
+
+(with-eval-after-load 'magent
+  (magent-agent-shell-ensure-config))
+#+END_SRC
+
+Dependencies (=yaml=, =acp=, =agent-shell=, =shell-maker=, =cond-let=, =compat=) are resolved automatically by Elpaca.
+
+* Architecture & Transport
+
+Magent operates as an in-process agent framework:
+
+1. **Frontend:** =agent-shell= renders interactive agent UI in buffer =*Magent*=.
+2. **Protocol Adapter:** =acp= (Agent Control Protocol) handles asynchronous agent loop communication.
+3. **Transport Layer:** Magent uses =gptel-request= under the hood to send LLM requests to any of the backends registered in =custom-ai.el= (Zen Claude, Zen OpenAI, Gemini, Ollama, MLX).
+
+* Entry Points & Keybindings
+
+Magent provides 3 main interactive entry points bound in =custom-keybindings.el=:
+
+| Keybinding | Function | Description |
+|------------+----------+-------------|
+| ~C-c M m~ | ~magent-start~ | Launch or switch to the project's Magent agent-shell session |
+| ~C-c M i~ | ~magent-agent-shell-interrupt~ | Interrupt current running agent turn/request |
+| ~C-c M r~ | ~magent-agent-shell-prompt-region~ | Send active region content as prompt to Magent |
+
+* Catalog of 15 Tools
+
+Magent includes 15 built-in tools for agent interactions:
+
+| Tool Name | Scope | Description |
+|-----------+-------+-------------|
+| ~read_file~ | File | Read contents of a file with line numbers |
+| ~write_file~ | File | Write complete content to a file |
+| ~replace_file~ | File | Replace a single contiguous block of code |
+| ~multi_replace_file~ | File | Perform multiple non-contiguous edits in a single file |
+| ~delete_file~ | File | Remove a file from the filesystem |
+| ~list_directory~ | Filesystem | List files and subdirectories in a directory |
+| ~file_tree~ | Filesystem | Generate a visual tree structure of a directory |
+| ~run_command~ | Execution | Execute a shell command in the project root |
+| ~grep_search~ | Search | Search patterns using ripgrep (~rg~) |
+| ~find_files~ | Search | Find files matching glob patterns using ~fd~ or ~find~ |
+| ~emacs_eval~ | Emacs | Evaluate Elisp code inside the running Emacs instance |
+| ~web_search~ | Network | Perform web search queries |
+| ~fetch_web_page~ | Network | Fetch and render web page content |
+| ~recall_memory~ | Memory | Retrieve stored project memory entries |
+| ~save_memory~ | Memory | Persist memory entries for future sessions |
+
+* Permissions & Audit Logging
+
+** Permission Rules
+Permissions are evaluated per agent and per tool. Possible values:
+- ~allow~: Tool execution runs automatically without prompt.
+- ~ask~: Prompt user for confirmation before executing.
+- ~deny~: Block tool execution.
+
+Default security policy for ~build~ agent:
+- Read, search, glob, grep: ~allow~
+- Write, bash, emacs_eval: ~ask~
+
+** Audit Logging
+When ~magent-enable-audit-log~ is ~t~, Magent records all agent decisions, tool invocations, and approvals to JSONL log files under ~magent-session-directory/audit/~.
+
+* Built-in Agents
+
+| Agent | Mode | Purpose |
+|-------+------+---------|
+| ~build~ | Primary | Main coding agent (edits code, runs commands, uses all tools) |
+| ~plan~ | Primary | Architect agent (analyzes requirements and writes step-by-step plans) |
+| ~explore~ | Primary | Read-only codebase explorer |
+| ~general~ | Primary | General Q&A assistant |
+| ~compaction~ | Internal | Context window summarization agent |
+| ~title~ | Internal | Generates short session titles |
+| ~summary~ | Internal | Summarizes PR or commit changes |
+
+* Slash Commands
+
+Magent supports slash commands inside the agent-shell buffer:
+
+| Command | Action |
+|---------+--------|
+| ~/explain~ | Explain selected code or current buffer |
+| ~/fix~ | Fix lint/compiler errors in buffer |
+| ~/init~ | Initialize project instructions and agent config |
+| ~/review~ | Code review active changes against git HEAD |
+| ~/summarize~ | Generate PR / commit summary |
+| ~/test~ | Run project test suite and analyze results |
+| ~/compact~ | Trigger context window compaction |
+| ~/skills~ | List available local and global skills |
+| ~/doctor~ | Collect flycheck/flymake/eglot diagnostics |
+| ~/memory-list~ | List persisted session memories |
+| ~/memory-delete~ | Remove specified memory entry |
+
+* Skills & Instructions
+
+Skills are stored in Markdown files under ~.magent/skills/<name>/SKILL.md~ with YAML frontmatter:
+
+#+BEGIN_SRC markdown
+---
+name: c-42
+description: C tutor at 42 School — Norm v4.1
+type: instruction
+---
+
+You are an expert C tutor at 42 School conforming strictly to Norm v4.1...
+#+END_SRC
+
+Skills with ~type: instruction~ are injected into the agent system prompt context when triggered or active.
+
+* Custom Agents
+
+Custom agents can be defined per project under ~.magent/agent/<name>.md~:
+
+#+BEGIN_SRC markdown
+---
+description: Build agent with custom permissions
+mode: primary
+permissions:
+  read: allow
+  write: ask
+  bash: ask
+  grep: allow
+  glob: allow
+---
+
+System prompt instructions for this custom agent...
+#+END_SRC
+
+* Project Ledger & AGENTS.md Integration
+
+Magent reads project instructions automatically based on ~magent-project-instruction-file-names~ (default ~'("AGENTS.md")~).
+Project sessions, turn ledgers, and history are stored in project-isolated directories outside the git repository.
+
+* Pitfalls & Best Practices
+
+1. **Emacs 30 =defvar= gotcha:** Forward declarations of variables with non-nil defcustom defaults MUST use the bare form ~(defvar X)~ with ~(boundp 'X)~ guards to avoid clobbering runtime defaults with ~nil~.
+2. **Use-package `:after`:** With ~use-package-expand-minimally t~, `:after` blocks are ignored during startup. Always wrap package post-configuration in explicit ~(with-eval-after-load 'magent ...)~.
+3. **Use `:custom` for options:** Never use global ~setq~ for defcustom variables. Use `:custom` in ~use-package~.
+4. **Single Frontend:** Magent uses =agent-shell= as its primary interactive UI. Keep ~C-c i~ (gptel chat) as a lightweight fallback interface.
+

@@ -22,6 +22,7 @@
   (load file nil t))
 
 (require 'dev-env-test)
+(require 'magent-test)
 
 (provide 'load-tests)
 ;;; load-tests.el ends here

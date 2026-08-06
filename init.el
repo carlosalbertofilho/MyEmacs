@@ -157,6 +157,7 @@
 (require 'custom-org)
 (require 'custom-42)
 (require 'custom-ai)
+(require 'custom-magent)
 (require 'custom-knowledge)
 (require 'custom-git)
 (require 'custom-dashboard)

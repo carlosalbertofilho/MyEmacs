@@ -25,6 +25,9 @@
 (declare-function denote-link-dired "denote")
 (declare-function olivetti-mode "olivetti")
 (declare-function dirvish-side "dirvish")
+(declare-function magent-start "magent-agent-shell")
+(declare-function magent-agent-shell-interrupt "magent-agent-shell")
+(declare-function magent-agent-shell-prompt-region "magent-agent-shell")
 
 ;; ── Window navigation (windmove with Super) ─────────────────────────
 (windmove-default-keybindings 'super)
@@ -47,6 +50,11 @@
 ;; Commit IA: global gera a mensagem (copias p/ kill-ring);
 ;; dentro do buffer de commit, C-c C-g insere direto (custom-git.el).
 (global-set-key (kbd "C-c C-g") #'+carlos/gptel-generate-commit-message)
+
+;; ── Magent (AI coding agent nativo) ─────────────────────────────────
+(global-set-key (kbd "C-c M m") #'magent-start)
+(global-set-key (kbd "C-c M i") #'magent-agent-shell-interrupt)
+(global-set-key (kbd "C-c M r") #'magent-agent-shell-prompt-region)
 
 ;; ── 42 School ───────────────────────────────────────────────────────
 (global-set-key (kbd "C-c h")   #'stdheader)
