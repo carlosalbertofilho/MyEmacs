@@ -121,11 +121,22 @@ Depois configurar em =custom-org.el=:
 |---------+-----------|
 | =just run= | Abre o Emacs Vanilla |
 | =just install= | Instala/atualiza pacotes |
-| =just compile= | Compila .el → .elc |
-| =just check= | Verifica erros de configuração |
-| =just sync= | Sync para ~/.config/emacs-vanilla |
+| =just compile= | Compila módulos nativos (vterm, tree-sitter) + arquivos .el → .elc |
+| =just check= | Verifica carregamento rápido de configuração |
+| =just check-all= | Executa check + compile + checkdoc + suíte ERT |
+| =just sync= | Sincroniza para ~/.config/emacs-vanilla |
 | =just test= | Testa no dir de sync |
-| =just deploy "msg"= | Commit, push, sync, test |
+| =just test-all= | Executa compilação, checkdoc e suíte de 89 testes ERT |
+| =just deploy "msg"= | Check-all, commit, push, sync e test |
+
+* Recursos Recentes de Dev & UX
+
+- **Diagnósticos Inline VS Code:** Sublinhados ondulados nas faces `flycheck-error/warning/info`, mensagens no final da linha via `flycheck-inline` e indicadores na `left-fringe`.
+- **Autocomplete & Hover Docs:** Ícones visuais de tipo no popup do Corfu via `nerd-icons-corfu` e cartões flutuantes de documentação ao lado do cursor via `eldoc-box`.
+- **Navegação Dirvish-Side:** Abertura de arquivos via `dirvish-side-open-file-action 'reuse` (reaproveita com precisão a janela principal de código de onde a sidebar foi aberta).
+- **Tree-Sitter & Nix:** Integração automatizada dos diretórios do Nix Store (`/nix/store/*-emacs-treesit-grammars`, `~/.nix-profile`) com fallback gracioso e compilação nativa no `just compile`.
+- **Format-on-Save Assíncrono:** `apheleia` ativado globalmente (inibido em C/C++ para preservar o `c_formatter_42` da Norma 42).
+- **Gavetas Inferiores Nativas:** Regras centralizadas em `display-buffer-alist` para compilação, eglot events, magit, vterm, eshell e gptel.
 
 * Backends de IA Configurados
 

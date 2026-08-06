@@ -53,9 +53,9 @@ UI (vertico, orderless, marginalia, consult).
 | nerd-icons         | Hongyu Ding         | Icon font integration          | MELPA  |
 | which-key          | Justin Burkett      | Keybinding discovery           | MELPA  |
 | dashboard          | Jeronimo Caranza    | Custom startup screen          | MELPA  |
-| ligature           | Mickey Petersen     | Typographical ligatures        | MELPA  |
-| exec-path-from-shell| Steve Purcell      | Inherit shell PATH in macOS    | MELPA  |
-| Visual tweaks      | Built-in            | Cursor, scroll, fringe config  | Emacs  |
+| flycheck-inline    | Flycheck contributors| VS Code style inline overlays  | MELPA  |
+| eldoc-box          | Casouri             | Floating hover documentation   | MELPA  |
+| Visual tweaks      | Built-in            | Wave faces, scroll, fringe     | Emacs  |
 
 * Installation & Configuration
 

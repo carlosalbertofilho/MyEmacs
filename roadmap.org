@@ -14,7 +14,7 @@ entenderem o estado atual do projeto e decisões tomadas.
 ** 2026-08-06 — Ambiente de Desenvolvimento Vanilla & Fix Dirvish Side
 
 *** Feito
-- **Fix do `dirvish-side`:** criada a função `+carlos/dirvish-side-open-action` em `custom-files.el` usando `(get-mru-window nil nil t)` para abrir arquivos na última janela de código ativa, sem sobrescrever sidebars ou gavetas.
+- **Fix do `dirvish-side`:** configurado `dirvish-side-open-file-action 'reuse` em `custom-files.el` para abrir arquivos com precisão na janela principal de código onde a sidebar foi criada, mantendo o layout fixo sem abrir janelas/popups aleatórios.
 - **Diagnósticos Inline VS Code:** adicionadas faces onduladas (`wave`) coloridas (`#ff5555` erro, `#f1fa8c` warning, `#8be9fd` info) em `custom-ui.el`; ativado `flycheck-inline` (dicas ao final da linha), `left-fringe` e atalhos de salto em `custom-lang.el`.
 - **Autocomplete & Hover Docs:** integrado `nerd-icons-corfu` em `custom-completion.el` para ícones visuais no menu Corfu; integrado `eldoc-box` em `custom-lang.el` para cartões flutuantes de documentação no cursor.
 - **Stacks & Popups Nativos:** habilitado `apheleia` (format-on-save assíncrono genérico inibido para C/C++); centralizada regra nativa `display-buffer-alist` para gavetas de compilação, vterm, eshell, magit e gptel.
