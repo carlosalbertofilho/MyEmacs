@@ -388,6 +388,20 @@ Criar cache de referência para que agentes possam:
 
 *** Status: ✅ DONE
 
+** 2026-08-06 — c_formatter_42: formatação automática via reformatter.el
+
+*** Feito
+- **Package =reformatter.el= (MELPA):** adicionado em =custom-lang.el= como infra-estrutura genérica para CLI reformatters stdin→stdout.
+- **Formatter definition:** =defgroup +carlos/c-formatter-42= + =defcustom= (executable, format-on-save off por default); =reformatter-define +carlos/c-formatter-42= com =executable-find= guard (zero erro se CLI não instalado).
+- **Keybinding =C-c C-f=:** local-set-key via =my-c-42-style= em buffers C — evita conflito com =dirvish-side= no global =C-c f=.
+- **Format-on-save:** desligado por default (42 submete código auto-avaliado); toggle via =+carlos/c-formatter-42-format-on-save= ou =.dir-locals.el=.
+- **Pipeline format-then-check:** =+carlos/norminette-format-and-check= (formata com c_formatter_42 → verifica norminette no buffer formatado).
+- **Correções durante implementação:** =reformatter-define= não suporta =:on-save-variable=/:on-save-lighter= → on-save implementado manualmente via =before-save-hook=; =defgroup= seta =group-documentation= (não =group=) → teste corrigido.
+- **=tests/42-test.el=:** +8 testes. Suíte completa: **78 tests, 73 expected, 0 unexpected, 5 skipped**.
+- **Commits:** 4 (feat + 2 fixes + fix test).
+
+*** Status: ✅ DONE
+
 ** 2026-08-05 — Backlog: Revisão da Stack de IA (gptel + gptel-agent)
 
 *** Pendente

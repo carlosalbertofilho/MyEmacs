@@ -41,6 +41,14 @@
   - **Bug corrigido (parser JSON 3/3):** norminette imprime `"Setting locale to en_US"` antes do JSON → strip prefix com `string-match-p "[{\\[]"`.
   - **`tests/42-test.el`:** 16 testes (login, estrutura do header, idempotência, parser JSON OK/erro/locale-prefix, checker flycheck, parser 3-args, hints, predicate, chain eglot). Suíte completa: 70 tests, 65 expected, 0 unexpected, 5 skipped (vterm/network); checkdoc limpo.
   - **Roadmap:** entrada `** 2026-08-06 — Header 42 School...` atualizada com 3 bugs norminette.
+- [x] **c_formatter_42 integration (reformatter.el):**
+  - **Package:** `reformatter.el` (MELPA) em `custom-lang.el` — wrapper genérico para CLI reformatters stdin→stdout.
+  - **Formatter:** `defgroup +carlos/c-formatter-42` + `defcustom` (executable, format-on-save); `reformatter-define +carlos/c-formatter-42` com `executable-find` guard (zero erro se não instalado).
+  - **Keybinding:** `C-c C-f` em buffers C (local-set-key via `my-c-42-style`) — evita conflito com `dirvish-side` em `C-c f`.
+  - **Format-on-save:** off por default (42 submete código auto-avaliado); toggle via `+carlos/c-formatter-42-format-on-save` ou `.dir-locals.el`.
+  - **Pipeline format-then-check:** `+carlos/norminette-format-and-check` (formata → verifica norminette).
+  - **`tests/42-test.el`:** +8 testes (executable custom, format-on-save default, commands exist, keybinding C-c C-f, keybinding não global, group, format-and-check exists, format-and-check error). Suíte completa: **78 tests, 73 expected, 0 unexpected, 5 skipped**.
+  - **Commits:** 4 commits no total (feat + 2 fixes de reformatter keywords + fix test group property).
 
 ## 0.5. Plano de Ação — Migração para Magent (Agente Planejador)
 
