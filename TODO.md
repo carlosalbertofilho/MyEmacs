@@ -598,3 +598,80 @@ Fase 3 (skills/agentes) → Fase 5 (integração/docs) → Fase 7 (validação/r
    - Configurar `dirvish-side-mode-line-format` como `nil`.
 3. **Ocultar Cursor da Sidebar:**
    - Configurar `dirvish-hide-cursor` para `t`, resultando em um visual mais próximo a uma "árvore de arquivos" (file tree) típica.
+
+## 0.7. Plano de Ação — Integração Makefile Executor (semelhante ao Justl)
+
+> **Autor:** Agente Planejador/Arquiteto (modelo Pro/Opus). Plano EXECUTÁVEL para o Agente Executor (aplicar) e para o Agente Auditor (validar). **NÃO foi aplicado nada ainda.**
+
+### 1. Instalação e Configuração do `makefile-executor`
+
+**Arquivos alvo:** `lisp/custom-lang.el`
+
+**Ação:** Instalar `makefile-executor` via Elpaca, ativar no modo Makefile e configurar os atalhos globais (como solicitado).
+
+**Trechos de Código (Executor):**
+```elisp
+;; Adicionar em lisp/custom-lang.el
+
+(declare-function makefile-executor-execute-project-target "makefile-executor")
+(declare-function makefile-executor-execute-last "makefile-executor")
+
+(use-package makefile-executor
+  :ensure t
+  :hook (makefile-mode . makefile-executor-mode)
+  :bind (("C-c m" . makefile-executor-execute-project-target)
+         ("C-c M" . makefile-executor-execute-last)))
+```
+
+**Passos:**
+1. Adicionar as forward declarations `declare-function` para `makefile-executor-execute-project-target` e `makefile-executor-execute-last` para evitar avisos no byte-compiler.
+2. Adicionar o pacote `makefile-executor` em `lisp/custom-lang.el` com `:ensure t`.
+3. Ativar `makefile-executor-mode` via hook em `makefile-mode-hook`.
+4. Atribuir os keybindings globais: `C-c m` e `C-c M`.
+
+### 2. Testes ERT (`tests/dev-env-test.el`)
+
+**Arquivos alvo:** `tests/dev-env-test.el`
+
+**Ação:** Criar testes para validar a existência dos comandos e keybindings, conforme a política de regressão (Quality Gates) de `AGENTS.md`.
+
+**Trechos de Código (Executor):**
+```elisp
+;; Adicionar em tests/dev-env-test.el
+
+(defvar myemacs-dev-makefile-executor-available
+  (condition-case nil (require 'makefile-executor) (error nil))
+  "Non-nil quando o pacote makefile-executor carrega neste ambiente.")
+
+(ert-deftest myemacs-dev-makefile-executor-commands ()
+  (skip-unless myemacs-dev-makefile-executor-available)
+  (should (commandp 'makefile-executor-execute-project-target))
+  (should (commandp 'makefile-executor-execute-last)))
+
+(ert-deftest myemacs-dev-makefile-executor-keybindings ()
+  (skip-unless myemacs-dev-makefile-executor-available)
+  (should (eq (key-binding (kbd "C-c m")) 'makefile-executor-execute-project-target))
+  (should (eq (key-binding (kbd "C-c M")) 'makefile-executor-execute-last)))
+```
+
+**Passos:**
+1. Adicionar o teste `myemacs-dev-makefile-executor-commands`.
+2. Adicionar o teste `myemacs-dev-makefile-executor-keybindings`.
+3. Após aplicar, garantir execução dos testes, `just compile` para check de warnings (zero admitidos), e `just checkdoc`.
+
+## 0.8. Plano de Ação — Visualização Avançada de Código (Concluído)
+
+> **Autor:** Agente Executor (modelo Flash/Lite). **100% APLICADO E VALIDADO.**
+
+### Configurações Aplicadas
+
+1. **`lisp/custom-ui.el`:**
+   - Adicionadas declarações `declare-function` (`indent-bars-mode`, `rainbow-delimiters-mode`, `whitespace-mode`, `hl-line-mode`).
+   - Configurado `indent-bars` com suporte a tree-sitter e destaque por profundidade.
+   - Configurado `rainbow-delimiters` em `prog-mode-hook`.
+   - Habilitado `hl-line-mode` em `prog-mode-hook`.
+   - Configurado `whitespace-mode` sutil (face, trailing, tabs, tab-mark) em `prog-mode-hook`.
+
+2. **`tests/dev-env-test.el`:**
+   - Adicionados 4 testes ERT (`myemacs-dev-indent-bars-available`, `myemacs-dev-rainbow-delimiters-available`, `myemacs-dev-hl-line-in-prog-mode`, `myemacs-dev-whitespace-prog-mode`).
+

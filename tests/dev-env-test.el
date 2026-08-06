@@ -17,6 +17,10 @@
 (declare-function flycheck-inline-mode "flycheck-inline")
 (declare-function eldoc-box-hover-at-point-mode "eldoc-box")
 (declare-function eldoc-box-help-at-point "eldoc-box")
+(declare-function makefile-executor-execute-project-target "makefile-executor")
+(declare-function makefile-executor-execute-last "makefile-executor")
+(declare-function indent-bars-mode "indent-bars")
+(declare-function rainbow-delimiters-mode "rainbow-delimiters")
 
 (defvar dirvish-side-open-file-action)
 (defvar flycheck-indication-mode)
@@ -85,6 +89,34 @@
                           (string-match-p "magit" (car entry))
                           (string-match-p "gptel" (car entry))))
                    display-buffer-alist)))
+
+(ert-deftest myemacs-dev-makefile-executor-commands ()
+  (require 'makefile-executor nil t)
+  (skip-unless (featurep 'makefile-executor))
+  (should (fboundp 'makefile-executor-execute-project-target))
+  (should (fboundp 'makefile-executor-execute-last)))
+
+(ert-deftest myemacs-dev-makefile-executor-keybindings ()
+  (require 'makefile-executor nil t)
+  (skip-unless (featurep 'makefile-executor))
+  (should (eq (key-binding (kbd "C-c m")) 'makefile-executor-execute-project-target))
+  (should (eq (key-binding (kbd "C-c M")) 'makefile-executor-execute-last)))
+
+(ert-deftest myemacs-dev-indent-bars-available ()
+  (require 'indent-bars nil t)
+  (skip-unless (featurep 'indent-bars))
+  (should (fboundp 'indent-bars-mode)))
+
+(ert-deftest myemacs-dev-rainbow-delimiters-available ()
+  (require 'rainbow-delimiters nil t)
+  (skip-unless (featurep 'rainbow-delimiters))
+  (should (fboundp 'rainbow-delimiters-mode)))
+
+(ert-deftest myemacs-dev-hl-line-in-prog-mode ()
+  (should (memq #'hl-line-mode prog-mode-hook)))
+
+(ert-deftest myemacs-dev-whitespace-prog-mode ()
+  (should (memq #'whitespace-mode prog-mode-hook)))
 
 (provide 'dev-env-test)
 ;;; dev-env-test.el ends here

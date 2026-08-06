@@ -1,9 +1,15 @@
 ;;; custom-ui.el --- UI theme and appearance -*- lexical-binding: t; -*-
 
 ;;; Commentary:
-;; ef-themes (with mixed fonts, variable-pitch), mood-line, which-key.
+;; ef-themes (with mixed fonts, variable-pitch), mood-line, which-key,
+;; indent-bars, rainbow-delimiters, hl-line, whitespace.
 
 ;;; Code:
+
+(declare-function indent-bars-mode "indent-bars")
+(declare-function rainbow-delimiters-mode "rainbow-delimiters")
+(declare-function whitespace-mode "whitespace")
+(declare-function hl-line-mode "hl-line")
 
 ;; ── ef-themes ───────────────────────────────────────────────────────
 (use-package ef-themes
@@ -71,5 +77,29 @@
                (direction . bottom)
                (window-height . 0.3)))
 
+;; ── Code visualization (indent-bars, rainbow-delimiters, hl-line, whitespace) ──
+(use-package indent-bars
+  :ensure t
+  :hook (prog-mode . indent-bars-mode)
+  :custom
+  (indent-bars-width 0.2)
+  (indent-bars-pad 0.1)
+  (indent-bars-color-by-depth t)
+  (indent-bars-highlight-current-depth '(:style solid))
+  (indent-bars-treesitter-support t))
+
+(use-package rainbow-delimiters
+  :ensure t
+  :hook (prog-mode . rainbow-delimiters-mode))
+
+(add-hook 'prog-mode-hook #'hl-line-mode)
+
+(use-package whitespace
+  :ensure nil
+  :custom
+  (whitespace-style '(face trailing tabs tab-mark))
+  :hook (prog-mode . whitespace-mode))
+
 (provide 'custom-ui)
 ;;; custom-ui.el ends here
+

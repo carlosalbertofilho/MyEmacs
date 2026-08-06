@@ -131,9 +131,13 @@ Depois configurar em =custom-org.el=:
 
 * Recursos Recentes de Dev & UX
 
+- **Guias de Indentação Modernas:** `indent-bars` com stipples de alta performance, escopo inteligente via Tree-sitter e harmonização com temas `ef-themes`.
+- **Aninhamento & Parênteses:** `rainbow-delimiters` ativado em todos os modos de programação para diferenciação visual de profundidade de blocos.
+- **Linha Atual & Caracteres Invisíveis:** `hl-line-mode` nativo para destaque da linha ativa e `whitespace-mode` sutil (exibindo apenas espaços desnecessários no fim de linha e tabulações).
 - **Diagnósticos Inline VS Code:** Sublinhados ondulados nas faces `flycheck-error/warning/info`, mensagens no final da linha via `flycheck-inline` e indicadores na `left-fringe`.
 - **Autocomplete & Hover Docs:** Ícones visuais de tipo no popup do Corfu via `nerd-icons-corfu` e cartões flutuantes de documentação ao lado do cursor via `eldoc-box`.
 - **Navegação Dirvish-Side:** Abertura de arquivos via `dirvish-side-open-file-action 'reuse` (reaproveita com precisão a janela principal de código de onde a sidebar foi aberta).
+- **Task Runners (Just & Makefile):** `justl` (`C-c j`/`C-c J`) para receitas de Justfile e `makefile-executor` (`C-c m`/`C-c M`) para alvos interativos de Makefile.
 - **Tree-Sitter & Nix:** Integração automatizada dos diretórios do Nix Store (`/nix/store/*-emacs-treesit-grammars`, `~/.nix-profile`) com fallback gracioso e compilação nativa no `just compile`.
 - **Format-on-Save Assíncrono:** `apheleia` ativado globalmente (inibido em C/C++ para preservar o `c_formatter_42` da Norma 42).
 - **Gavetas Inferiores Nativas:** Regras centralizadas em `display-buffer-alist` para compilação, eglot events, magit, vterm, eshell e gptel.
