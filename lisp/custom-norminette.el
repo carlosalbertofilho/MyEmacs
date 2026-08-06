@@ -90,6 +90,13 @@
 
 ;; ── Flycheck Checker (JSON-based) ───────────────────────────────────
 
+;; Flycheck 39 calls error parsers with 3 args: (output checker buffer).
+;; flycheck-parse-json only takes 1 arg, so we need a wrapper.
+(defun custom-norminette--flycheck-parser (output _checker _buffer)
+  "Parse norminette JSON OUTPUT for flycheck.
+Compatible with flycheck 39 error parser interface (3 args)."
+  (custom-norminette--parse-json output))
+
 (flycheck-define-checker c-norminette
   "A C syntax checker using 42 School's Norminette (JSON output).
 
@@ -97,7 +104,7 @@ Checks C source files for compliance with 42 coding standards.
 Uses JSON output for reliable parsing.
 See URL `https://github.com/42School/norminette' for more information."
   :command ("norminette" "-f" "json" "--no-colors" source)
-  :error-parser flycheck-parse-json
+  :error-parser custom-norminette--flycheck-parser
   :error-patterns
   ((error line-start
           (zero-or-more not-newline)
