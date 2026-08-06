@@ -252,6 +252,15 @@ Criar cache de referência para que agentes possam:
 
 *** Status: ✅ DONE
 
+** 2026-08-05 — Fix: "Duplicate item ID queued: transient" no boot
+
+*** Feito
+- O fix anterior (transient cedo no init.el) duplicou a declaração: =init.el:78= + =custom-git.el:15=. Com dois =:ensure t= antes do =after-init-time=, o segundo =elpaca--enqueue= (elpaca.el:842) encontra o item já enfileirado e dispara o warn/erro "Duplicate item ID queued: transient", que no boot virava =Wrong type argument: elpaca, ((emacs Duplicate item ID queued: transient nil nil))=.
+- Fix: remover o bloco =(use-package transient :ensure t :demand t)= de =custom-git.el= (o init.el já instala/ativa o transient cedo via elpaca-wait); =magit= mantém =:after transient= e o transient carrega no require.
+- Validado: 3/3 cold starts batch limpos (=transient-loaded=t=, =magit-loaded=nil=, sem duplicado) + =just check= + =just compile= (zero warnings).
+
+*** Status: ✅ DONE
+
 ** 2026-08-05 — Fix: Org mode monocromático / sem fontes personalizadas
 
 *** Feito

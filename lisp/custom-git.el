@@ -11,11 +11,8 @@
 (declare-function gptel-get-backend "gptel")
 
 ;; ── magit ───────────────────────────────────────────────────────────
-;; transient must be updated first (magit depends on transient >= 0.13)
-(use-package transient
-  :ensure t
-  :demand t)
-
+;; transient é instalado/ativado cedo no init.el (use-package + elpaca-wait);
+;; um segundo `:ensure t' aqui causaria "Duplicate item ID queued: transient".
 (use-package magit
   :ensure t
   :after transient
