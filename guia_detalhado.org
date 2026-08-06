@@ -1,6 +1,6 @@
 #+TITLE: Guia Detalhado — MyEmacs (Fluência Progressiva)
 #+AUTHOR: Carlos Filho
-#+DATE: 2026-08-05
+#+DATE: 2026-08-06
 #+OPTIONS: toc:3 num:t
 
 * Introdução
@@ -131,6 +131,30 @@ No dashboard:
 | Buscar | =/= |
 | Sair | =q= |
 
+** Dirvish-Emerge (agrupar arquivos por tipo)
+
+Agrupa os arquivos por categoria: Recent files, Documents, Video, Pictures,
+Audio, Archives e Directories. Ative com =E= em qualquer buffer dirvish.
+
+| Ação | Atalho |
+|------+--------|
+| Ligar/desligar agrupamento | =E= |
+| Próximo grupo | =]= |
+| Grupo anterior | =[= |
+| Alternar visibilidade do grupo | =TAB= (sobre o título) |
+| Menu de grupos | =M-x dirvish-emerge-menu= |
+
+No menu (=M-x dirvish-emerge-menu=):
+- =a= / =x= → adicionar / remover grupo
+- =t= / =b= → mover grupo para cima / baixo
+- =n= / =p= → pular para o próximo / grupo anterior
+- =r= / =w= → ler / escrever grupos de =.dir-locals.el= (per-directório)
+- =u= → desmarcar todos | =v= → ocultar selecionados | =RET= → aplicar
+
+Dica: =w= grava os grupos do diretório atual em =.dir-locals.el= — depois
+salve o buffer com =C-x C-s=. Grupos definidos assim valem só para aquele
+diretório (os grupos globais continuam como padrão).
+
 ** Denote (Zettelkasten)
 
 | Ação | Atalho |
@@ -231,6 +255,20 @@ print("Hello, Emacs!")
 | Executar bloco | =C-c C-c= (dentro do bloco) |
 | Criar bloco | =C-c C-,= |
 | Exportar | =C-c C-e= |
+
+** Visual: fontes proporcionais
+
+Arquivos =.org= abrem com fonte proporcional (=Inter=) e headings em
+tamanhos hierárquicos (via ef-themes), como um editor de prosa:
+
+- Texto corrido em fonte proporcional (interlines com =line-spacing= confortável)
+- Headings em tamanhos crescentes (H1 > H2 > H3)
+- Blocos de código, tabelas, tags e datas em fonte monoespaçada (=Victor Mono=)
+- Bullets de lista renderizados como =•=; estrelas de heading como símbolos (=◉=)
+- Sem números de linha e sem truncamento (modo leitura)
+
+Se quiser voltar à fonte monoespaçada do buffer, use =M-x variable-pitch-mode=.
+Em =M-x customize-face= → =org-level-1= você ajusta tamanho/cor dos headings.
 
 ** Exercício Nível 5
 
