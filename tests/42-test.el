@@ -182,8 +182,10 @@
 
 (ert-deftest myemacs-42-formatter-group-defined ()
   "The defgroup for c_formatter_42 is registered."
-  (let ((group (get '+carlos/c-formatter-42-executable 'custom-group)))
-    (should (eq group '+carlos/c-formatter-42))))
+  ;; defgroup registers the group symbol with a `group` property.
+  (should (get '+carlos/c-formatter-42 'group))
+  (should (boundp '+carlos/c-formatter-42-executable))
+  (should (boundp '+carlos/c-formatter-42-format-on-save)))
 
 ;; ── Norminette: format-and-check pipeline ───────────────────────────
 
