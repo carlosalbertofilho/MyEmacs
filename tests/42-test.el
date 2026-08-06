@@ -182,8 +182,8 @@
 
 (ert-deftest myemacs-42-formatter-group-defined ()
   "The defgroup for c_formatter_42 is registered."
-  ;; defgroup registers the group symbol with a `group` property.
-  (should (get '+carlos/c-formatter-42 'group))
+  ;; defgroup sets group-documentation, not 'group property.
+  (should (get '+carlos/c-formatter-42 'group-documentation))
   (should (boundp '+carlos/c-formatter-42-executable))
   (should (boundp '+carlos/c-formatter-42-format-on-save)))
 
