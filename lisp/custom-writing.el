@@ -34,9 +34,14 @@
   ;; Substituir elipse de folding padrão ("...") por seta elegante
   (setq org-modern-fold-stars " ▾")
   :config
-  ;; Estrelas de heading como bullets estilizados
-  (setq org-modern-star '("◉" "○" "✸" "✿" "✤" "✜" "◆" "▶")
-        org-modern-replace-stars t
+  ;; Estrelas de heading como bullets estilizados.
+  ;; Nesta versão do org-modern, `org-modern-star' é um símbolo
+  ;; ('fold/'replace/nil) e `org-modern-replace-stars' é string/lista de
+  ;; strings. Configurar `org-modern-replace-stars' como `t' quebra o
+  ;; org-modern-mode com "wrong-type-argument sequencep t", aborta o
+  ;; org-mode-hook e impede o variable-pitch-mode de rodar.
+  (setq org-modern-star 'replace
+        org-modern-replace-stars '("◉" "○" "✸" "✿" "✤" "✜" "◆" "▶")
         ;; Tags como labels com borda
         org-modern-tag-face t
         org-modern-label-border 0.5
@@ -107,8 +112,10 @@
   (olivetti-body-width 0.85))
 
 ;; ── Fontes Proporcionais (variable-pitch-mode) ─────────────────────
-(add-hook 'org-mode-hook #'variable-pitch-mode)
-(add-hook 'markdown-mode-hook #'variable-pitch-mode)
+;; Em Emacs 30, `variable-pitch-mode' é um defalias para buffer-face-mode:
+;; chamado sem argumento (como hook cru) é um no-op. Envolver em lambda.
+(add-hook 'org-mode-hook (lambda () (variable-pitch-mode 1)))
+(add-hook 'markdown-mode-hook (lambda () (variable-pitch-mode 1)))
 
 ;; Proteger faces para que tabelas, tags e código fiquem monoespaçados
 (with-eval-after-load 'org

@@ -252,6 +252,16 @@ Criar cache de referência para que agentes possam:
 
 *** Status: ✅ DONE
 
+** 2026-08-05 — Fix: Org mode monocromático / sem fontes personalizadas
+
+*** Feito
+- Duas causas-raiz empilhadas em =custom-writing.el=:
+  1. **=org-modern-replace-stars t= inválido:** nesta versão do org-modern, =org-modern-star= é símbolo (=fold=/=replace=/nil) e =org-modern-replace-stars= é string/lista de strings. Com =t=, =org-modern-mode= explodia com =(wrong-type-argument sequencep t)= → =mapcar(org-modern--symbol t)= (org-modern.el:858) → =run-hooks= abortava o =org-mode-hook= → **=variable-pitch-mode= e o zen lambda (line-spacing) nunca rodavam** em buffers org. Fix: =org-modern-star 'replace= + =org-modern-replace-stars= como lista.
+  2. **=(add-hook 'org-mode-hook #'variable-pitch-mode)= era no-op no Emacs 30:** =variable-pitch-mode= é um =defalias= para =buffer-face-mode-invoke= (face-remap.el); chamado sem argumento (como hook cru) o bytecode retorna sem fazer nada. Fix: envolver em =lambda= com =(variable-pitch-mode 1)=. Markdown "funcionava" porque não usa org-modern (não abortava o hook) e tem =markdown-header-scaling= próprio.
+- Validado em batch: org sem "File mode specification error", =org-modern-mode=t=, remap =(default variable-pitch default)= aplicado, =line-spacing=0.15=, headings fontificados (=org-level-1= etc.). =just check= + =just compile= (zero warnings).
+
+*** Status: ✅ DONE
+
 ** 2026-08-05 — Fix: "transient loaded before Elpaca activation"
 
 *** Feito
