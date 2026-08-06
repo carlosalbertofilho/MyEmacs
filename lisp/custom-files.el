@@ -73,7 +73,8 @@ Sem overlay sob o ponto (ex.: header), vai para o primeiro grupo."
   (+carlos/dirvish-emerge-goto-group -1))
 
 (defun +carlos/dirvish-side-open-action (file)
-  "Abre o FILE na última janela ativa (MRU), ignorando popups, sidebars e minibuffer."
+  "Abre FILE na última janela de código ativa (MRU).
+Ignora popups, sidebars e minibuffer."
   (if-let* ((win (get-mru-window nil nil t)))
       (with-selected-window win
         (find-file file))

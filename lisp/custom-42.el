@@ -55,21 +55,20 @@ may introduce changes that need review before submission."
   :type 'boolean
   :group '+carlos/c-formatter-42)
 
-;; Guard: only define reformatter if executable is available.
-(when (executable-find +carlos/c-formatter-42-executable)
-  (with-eval-after-load 'reformatter
-    (reformatter-define +carlos/c-formatter-42
-      :program +carlos/c-formatter-42-executable
-      :args nil
-      :lighter " 42fmt"))
+(with-eval-after-load 'reformatter
+  (reformatter-define +carlos/c-formatter-42
+    :program +carlos/c-formatter-42-executable
+    :args nil
+    :lighter " 42fmt"))
 
-  ;; Manual format-on-save integration (reformatter :on-save-* not available).
-  (defun +carlos/c-formatter-42--on-save ()
-    "Run c_formatter_42 on buffer before save when enabled."
-    (when +carlos/c-formatter-42-format-on-save
-      (ignore-errors (+carlos/c-formatter-42-buffer))))
+;; Manual format-on-save integration (reformatter :on-save-* not available).
+(defun +carlos/c-formatter-42--on-save ()
+  "Run c_formatter_42 on buffer before save when enabled."
+  (when (and +carlos/c-formatter-42-format-on-save
+             (executable-find +carlos/c-formatter-42-executable))
+    (ignore-errors (+carlos/c-formatter-42-buffer))))
 
-  (add-hook 'before-save-hook #'+carlos/c-formatter-42--on-save))
+(add-hook 'before-save-hook #'+carlos/c-formatter-42--on-save)
 
 ;; ── header42 ────────────────────────────────────────────────────────
 (header-42-enable)                    ; hooks + C-c h (fallback nativo)
