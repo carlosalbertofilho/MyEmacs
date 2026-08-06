@@ -47,8 +47,7 @@
 (when (not (display-graphic-p))
   (xterm-mouse-mode 1))
 
-;; ── Display line numbers ────────────────────────────────────────────
-(global-display-line-numbers-mode 1)
+;; ── Display line numbers (ativados via prog-mode-hook no init.el) ──
 (setq display-line-numbers-type 'relative)
 (setq display-line-numbers-width 3)
 

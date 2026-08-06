@@ -135,5 +135,15 @@
   ;; Escala de LaTeX de 1.5x
   (plist-put org-format-latex-options :scale 1.5))
 
+;; ── Zen Reading (Org + Markdown) ───────────────────────────────────
+;; Modo de leitura: sem números de linha e com espaçamento confortável.
+(defvar +carlos/zen-line-spacing 0.15
+  "Line spacing for reading modes (Org/Markdown).")
+(dolist (hook '(org-mode-hook markdown-mode-hook))
+  (add-hook hook
+            (lambda ()
+              (display-line-numbers-mode -1)
+              (setq-local line-spacing +carlos/zen-line-spacing))))
+
 (provide 'custom-writing)
 ;;; custom-writing.el ends here

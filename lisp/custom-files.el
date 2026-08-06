@@ -7,10 +7,10 @@
 
 ;; ── dired base ──────────────────────────────────────────────────────
 (let ((args (list "-ahl" "-v" "--group-directories-first")))
-  (when (featurep :system 'bsd)
+  (when (memq system-type '(darwin berkeley-unix))
     (if-let* ((gls (executable-find "gls")))
         (setq insert-directory-program gls)
-      (setq args (list (car args)))))
+      (setq args (list "-ahl"))))
   (setq dired-listing-switches (string-join args " ")
         dired-dwim-target t))
 
@@ -42,30 +42,34 @@
      ("c" "~/.config/"            "Config")
      ("n" "~/org/notes"           "Notes")
      ("e" "~/.config/emacs-vanilla/" "Emacs")))
+  ;; Layout oficial de 3 painéis (main . side . preview)
+  (dirvish-default-layout '(1 0.11 0.55))
   ;; Visual attributes (order matters for rendering)
   (dirvish-attributes
-   '(nerd-icons file-time file-size collapse))
-  ;; Icon settings
+   '(vc-state subtree-state nerd-icons collapse file-time file-size))
+  ;; Icon settings — offset é `:v-adjust` (float); `-2` quebrava o alinhamento
   (dirvish-nerd-icons-height 0.85)
-  (dirvish-nerd-icons-offset -2)
+  (dirvish-nerd-icons-offset 0.00)
+  ;; Details e cursor ocultos por padrão
+  (dirvish-hide-details t)
+  (dirvish-hide-cursor t)
+  (dirvish-reuse-session 'open)
   ;; Window / layout
   (dirvish-side-width 35)
   (dirvish-large-directory-threshold 20000)
-  (dirvish-hide-cursor t)
-  (dirvish-use-mode-line nil)
-  ;; Subtree
+  (dirvish-use-mode-line t)
+  (dirvish-mode-line-format '(:left (sort omit symlink) :right (index)))
+  (dirvish-header-line-format '(:left (path) :right (free-space)))
+  ;; Subtree — minimalista: setas apenas onde há subpastas
   (dirvish-subtree-always-show-state nil)
-  (dirvish-subtree-state-style "arrow")
-  (dirvish-subtree-icon-scale-factor 1.0)
-  (dirvish-side-auto-expand t)
-  (dirvish-side-open-file-action 'select)
-  (dirvish-reuse-session 'open)
-  ;; Sidebar specific visual settings (evita desalinhamento e poluição visual)
+  (dirvish-subtree-state-style 'chevron)
+  (dirvish-subtree-icon-scale-factor '(0.85 . 0.10))
+  ;; Sidebar (visual limpo, sem poluição)
   (dirvish-side-attributes '(nerd-icons collapse subtree-state))
-  (dirvish-side-display-mode-line t)
-  (dirvish-header-line-format '(:left (path project) :right (free-space)))
+  (dirvish-side-mode-line-format '(:left (sort) :right (index)))
   (dirvish-side-header-line-format '(:left (project)))
-  (dirvish-side-mode-line-format '(:left (sort symlink) :right (omit listing)))
+  (dirvish-side-open-file-action nil)
+  (dirvish-side-auto-expand t)
   ;; Preview dispatchers (correct values: file types, NOT vc commands)
   (dirvish-preview-dispatchers
    '(image gif video audio epub pdf archive))
@@ -80,29 +84,19 @@
    ("v"   . dirvish-vc-menu)
    ("N"   . dirvish-narrow))
   :config
-  ;; Hooks
-  (add-hook 'dirvish-mode-hook (lambda () (setq truncate-lines t)))
-  (add-hook 'dirvish-mode-hook (lambda () (dired-hide-details-mode 1)))
-  (add-hook 'dired-mode-hook (lambda () (display-line-numbers-mode -1)))
-  
-  ;; Hooks específicos para a barra lateral do Dirvish
-  (add-hook 'dirvish-side-mode-hook
-            (lambda ()
-              (display-line-numbers-mode -1)
-              (setq-local mode-line-format nil)
-              (setq-local line-spacing 0.1)))
-  
-  ;; Dired-x / Omit mode (oculta dotfiles, . e .. por padrão)
+  ;; Sidebar segue o buffer selecionado (modo global)
+  (dirvish-side-follow-mode 1)
+  ;; `dirvish-directory-view-mode' deriva de special-mode, não de dired-mode,
+  ;; então `dired-mode-hook' não dispara em buffers dirvish.
+  (add-hook 'dirvish-directory-view-mode-hook
+            (lambda () (display-line-numbers-mode -1)))
+  ;; Dired-x / Omit mode (oculta dotfiles, autosaves e backups)
   (with-eval-after-load 'dired
     (require 'dired-x)
     (setq dired-omit-files "^\\.?#\\|^\\.\\.?$\\|^\\..*$\\|~+$"
-          dired-omit-verbose nil)
-    (add-hook 'dired-mode-hook #'dired-omit-mode)))
-
-;; ── diredfl (syntax highlighting para dired/dirvish) ─────────────────
-(use-package diredfl
-  :ensure t
-  :hook ((dired-mode dirvish-directory-view-mode) . diredfl-mode))
+          dired-omit-verbose nil))
+  (add-hook 'dirvish-setup-hook
+            (lambda () (dired-omit-mode 1))))
 
 ;; ── ibuffer (built-in) ──────────────────────────────────────────────
 (use-package ibuffer
