@@ -23,6 +23,7 @@
   (should (member (expand-file-name "lisp" user-emacs-directory) load-path)))
 
 (ert-deftest myemacs-boot-git-root ()
+  (require 'vc-git nil t)
   (should (vc-git-root default-directory)))
 
 (provide 'boot-test)

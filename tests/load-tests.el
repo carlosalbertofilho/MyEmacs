@@ -21,5 +21,7 @@
                                t "-test\\.el$"))
   (load file nil t))
 
+(require 'dev-env-test)
+
 (provide 'load-tests)
 ;;; load-tests.el ends here

@@ -11,6 +11,8 @@
 (require 'flycheck)
 (require 'json)
 
+(declare-function +carlos/c-formatter-42-buffer "custom-lang")
+
 ;; ── Configuration ───────────────────────────────────────────────────
 
 (defgroup custom-norminette nil

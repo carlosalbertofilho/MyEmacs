@@ -58,5 +58,18 @@
       window-divider-default-right-width 1)
 (window-divider-mode 1)
 
+;; ── Flycheck wave faces ─────────────────────────────────────────────
+(custom-set-faces
+ '(flycheck-error ((t (:underline (:style wave :color "#ff5555")))))
+ '(flycheck-warning ((t (:underline (:style wave :color "#f1fa8c")))))
+ '(flycheck-info ((t (:underline (:style wave :color "#8be9fd"))))))
+
+;; ── Display buffer rules (drawer inferior centralizado) ────────────
+(add-to-list 'display-buffer-alist
+             '("\\*\\(compilation\\|eglot events\\|magit.*\\|vterm.*\\|eshell\\|gptel.*\\)\\*"
+               (display-buffer-in-direction)
+               (direction . bottom)
+               (window-height . 0.3)))
+
 (provide 'custom-ui)
 ;;; custom-ui.el ends here

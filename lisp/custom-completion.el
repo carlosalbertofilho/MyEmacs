@@ -13,6 +13,7 @@
 (declare-function embark-consult-help "embark-consult")
 (declare-function elpaca "elpaca")
 (declare-function elpaca-wait "elpaca")
+(declare-function nerd-icons-corfu-formatter "nerd-icons-corfu")
 
 ;; Queue completion packages and wait to prevent race conditions during cold boot
 (elpaca vertico)
@@ -97,6 +98,13 @@
 
 (with-eval-after-load 'corfu
   (add-hook 'minibuffer-setup-hook #'+carlos/corfu-enable-in-minibuffer 1))
+
+;; ── nerd-icons-corfu ────────────────────────────────────────────────
+(use-package nerd-icons-corfu
+  :ensure t
+  :config
+  (with-eval-after-load 'corfu
+    (add-to-list 'corfu-margin-formatters #'nerd-icons-corfu-formatter)))
 
 (provide 'custom-completion)
 ;;; custom-completion.el ends here

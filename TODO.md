@@ -342,6 +342,137 @@ Fase 0 (decisão) → Fase 1 (instalação) → Fase 2 (custom-magent + binds)
 Fase 3 (skills/agentes) → Fase 5 (integração/docs) → Fase 7 (validação/rollback)
 ```
 
+## 0.6. Plano de Ação — Ambiente de Desenvolvimento Vanilla & Fix Dirvish Side (Concluído)
+
+> **Autor:** Agente Arquiteto (planejamento) + Agente Executor (aplicação) + Agente Auditor (validação). **100% APLICADO E VALIDADO.**
+> **Suíte ERT:** 89 testes (80 expected, 0 unexpected, 9 skipped). `just compile` zero warnings + checkdoc OK.
+
+### 1. Fix do `dirvish-side` (Navegação e Janela Destino)
+
+**Arquivos alvo:** `lisp/custom-files.el`
+
+**Ação:** O `dirvish-side-open-file-action` precisa garantir que o arquivo não abra em cima da própria sidebar ou de gavetas (ex: vterm, eshell). 
+
+**Trechos de Código (Executor):**
+```elisp
+;; Em lisp/custom-files.el, definir a função customizada
+(defun +carlos/dirvish-side-open-action (file)
+  "Abre o FILE na última janela ativa (MRU), ignorando popups, sidebars e minibufer."
+  (if-let* ((win (get-mru-window nil nil t)))
+      (with-selected-window win
+        (find-file file))
+    (find-file-other-window file)))
+
+;; Na declaração do dirvish (bloco :custom)
+(use-package dirvish
+  :ensure t
+  :custom
+  ;; Configurar action customizada ou `'reuse`
+  (dirvish-side-open-file-action #'+carlos/dirvish-side-open-action)
+  ;; ...resto do config do dirvish...
+  )
+```
+
+**Passos:**
+1. Definir a função `+carlos/dirvish-side-open-action` em `lisp/custom-files.el`.
+2. No bloco `:custom` do `dirvish`, configurar `dirvish-side-open-file-action` para utilizar essa função.
+3. **Testes ERT (`tests/dev-env-test.el`)**: `myemacs-dev-dirvish-side-open-action-exists` (verifica se `+carlos/dirvish-side-open-action` é função), `myemacs-dev-dirvish-side-open-action-configured` (verifica se `dirvish-side-open-file-action` está configurado para a função).
+
+### 2. Diagnósticos Inline no Estilo VS Code (Flycheck + Eglot)
+
+**Arquivos alvo:** `lisp/custom-ui.el` (faces) e `lisp/custom-lang.el` (flycheck)
+
+**Ação:** Customizar as faces de erro para usar sublinhado ondulado e exibir erros no fim da linha atual, além de marcadores discretos nas margens.
+
+**Trechos de Código (Executor):**
+```elisp
+;; Em lisp/custom-ui.el, nas customizações globais de faces:
+(custom-set-faces
+ '(flycheck-error ((t (:underline (:style wave :color "#ff5555")))))
+ '(flycheck-warning ((t (:underline (:style wave :color "#f1fa8c")))))
+ '(flycheck-info ((t (:underline (:style wave :color "#8be9fd"))))))
+
+;; Em lisp/custom-lang.el (no bloco do flycheck já existente)
+(use-package flycheck
+  :ensure t
+  :custom
+  (flycheck-indication-mode 'left-fringe) ;; Habilitar left-fringe
+  :bind (("M-g n" . flycheck-next-error)
+         ("M-g p" . flycheck-previous-error)
+         ("C-c ! l" . consult-flycheck)))
+
+;; Em lisp/custom-lang.el (novo pacote flycheck-inline)
+(use-package flycheck-inline
+  :ensure t
+  :after flycheck
+  :hook (flycheck-mode . flycheck-inline-mode))
+```
+
+**Passos:**
+1. Inserir `custom-set-faces` em `lisp/custom-ui.el`.
+2. Ajustar a declaração `flycheck` em `lisp/custom-lang.el` com as `:custom` e `:bind`.
+3. Adicionar pacote `flycheck-inline`.
+4. **Testes ERT (`tests/dev-env-test.el`)**: `myemacs-dev-flycheck-wave-faces` (verifica estilo `:underline` nas faces `flycheck-error`/`warning`/`info`), `myemacs-dev-flycheck-inline-mode` (verifica se `flycheck-inline` está disponível e pode ser ativado), `myemacs-dev-flycheck-fringe-mode` (verifica `flycheck-indication-mode`), `myemacs-dev-flycheck-keybindings` (verifica `M-g n`, `M-g p`, `C-c ! l`).
+
+### 3. Popups de Sugestões (Autocomplete) & Documentação (Hover)
+
+**Arquivos alvo:** `lisp/custom-completion.el` e `lisp/custom-lang.el`
+
+**Ação:** Incrementar o Corfu com ícones (`nerd-icons-corfu`) e adicionar o `eldoc-box` para hover de documentação.
+
+**Trechos de Código (Executor):**
+```elisp
+;; Em lisp/custom-completion.el (logo após a declaração do corfu)
+(use-package nerd-icons-corfu
+  :ensure t
+  :after corfu
+  :config
+  (add-to-list 'corfu-margin-formatters #'nerd-icons-corfu-formatter))
+;; NOTA: Garantir que `corfu-popupinfo-mode` esteja ativo no bloco do corfu.
+
+;; Em lisp/custom-lang.el (novo pacote)
+(use-package eldoc-box
+  :ensure t
+  :hook (eglot-managed-mode . eldoc-box-hover-at-point-mode)
+  :bind ("C-c c d" . eldoc-box-help-at-point))
+```
+
+**Passos:**
+1. Adicionar `nerd-icons-corfu` garantindo o require do `corfu`.
+2. Adicionar `eldoc-box` para documentação via hover integrado ao Eglot.
+3. **Testes ERT (`tests/dev-env-test.el`)**: `myemacs-dev-corfu-nerd-icons-formatter` (verifica se `nerd-icons-corfu-formatter` está presente em `corfu-margin-formatters`), `myemacs-dev-eldoc-box-commands` (verifica se `eldoc-box-hover-at-point-mode` e `eldoc-box-help-at-point` existem).
+
+### 4. Stacks de Linguagens & Popups Nativos (`display-buffer-alist`)
+
+**Arquivos alvo:** `lisp/custom-lang.el`, `lisp/custom-ui.el` e `tests/dev-env-test.el`
+
+**Ação:** Padronizar as gavetas inferiores de popups no Emacs e usar o Apheleia.
+
+**Trechos de Código (Executor):**
+```elisp
+;; Em lisp/custom-ui.el (regras centralizadas de display-buffer-alist)
+(add-to-list 'display-buffer-alist
+             '("\\*\\(compilation\\|eglot events\\|magit.*\\|vterm.*\\|eshell\\|gptel.*\\)\\*"
+               (display-buffer-in-direction)
+               (direction . bottom)
+               (window-height . 0.3)))
+
+;; Em lisp/custom-lang.el (Formatador Apheleia)
+(use-package apheleia
+  :ensure t
+  :config
+  (apheleia-global-mode +1)
+  ;; Ignorar o C para não conflitar com c_formatter_42
+  (add-to-list 'apheleia-inhibit-functions
+               (lambda () (derived-mode-p 'c-mode 'c-ts-mode))))
+```
+
+**Passos:**
+1. Em `lisp/custom-ui.el`, centralizar as regras do `display-buffer-alist`.
+2. Em `lisp/custom-lang.el`, inicializar `apheleia-global-mode` evitando o conflito com C.
+3. Criar `tests/dev-env-test.el` e registrar em `tests/load-tests.el` com `(require 'dev-env-test)`. Implementar a suíte ERT utilizando `skip-unless` caso os pacotes externos não estejam carregados/disponíveis no ambiente de teste parcial.
+4. **Testes ERT (`tests/dev-env-test.el`)**: `myemacs-dev-apheleia-global-mode` (verifica se `apheleia-global-mode` está habilitado), `myemacs-dev-apheleia-inhibit-c-mode` (verifica se a função de inibição para C/C++ retorna `t` em `c-mode`), `myemacs-dev-display-buffer-alist-drawer-rules` (verifica a regra de gavetas inferiores para `compilation`, `vterm`, `eshell`, `magit`, `gptel`).
+
 ## 1. Planejamento Corrente (Ações Atuais)
 
 - [x] **Refatoração final do Dirvish (ícones, sidebar e hooks):**

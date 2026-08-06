@@ -9,7 +9,7 @@
 (defun +carlos/gnu-ls-p ()
   "Return non-nil when the ls in PATH is GNU coreutils.
 Necessário porque o ls do Nix Home Manager é GNU mesmo no macOS
-(mas não se chama `gls'), viabilizando os switches do dirvish-ls."
+\(mas não se chama `gls'), viabilizando os switches do dirvish-ls."
   (let ((ls (or (executable-find "ls") insert-directory-program)))
     (and ls
          (with-temp-buffer
@@ -37,8 +37,8 @@ Necessário porque o ls do Nix Home Manager é GNU mesmo no macOS
   :ensure t
   :demand t
   :config
-  ;; Instala ícones na primeira execução se necessário
-  (unless (file-directory-p (expand-file-name "nerd-icons/fonts" user-emacs-directory))
+  ;; Instala ícones na primeira execução interativa se necessário
+  (unless (or noninteractive (file-directory-p (expand-file-name "nerd-icons/fonts" user-emacs-directory)))
     (nerd-icons-install-fonts t)))
 
 ;; ── dirvish-emerge: navegação entre grupos (guard) ─────────────────
@@ -71,6 +71,13 @@ Sem overlay sob o ponto (ex.: header), vai para o primeiro grupo."
   "Ir ao grupo emerge anterior."
   (interactive)
   (+carlos/dirvish-emerge-goto-group -1))
+
+(defun +carlos/dirvish-side-open-action (file)
+  "Abre o FILE na última janela ativa (MRU), ignorando popups, sidebars e minibuffer."
+  (if-let* ((win (get-mru-window nil nil t)))
+      (with-selected-window win
+        (find-file file))
+    (find-file-other-window file)))
 
 ;; ── dirvish core ────────────────────────────────────────────────────
 (use-package dirvish
@@ -113,7 +120,7 @@ Sem overlay sob o ponto (ex.: header), vai para o primeiro grupo."
   (dirvish-side-attributes '(nerd-icons collapse subtree-state))
   (dirvish-side-mode-line-format '(:left (sort) :right (index)))
   (dirvish-side-header-line-format '(:left (project)))
-  (dirvish-side-open-file-action nil)
+  (dirvish-side-open-file-action #'+carlos/dirvish-side-open-action)
   (dirvish-side-auto-expand t)
   ;; Preview dispatchers (correct values: file types, NOT vc commands)
   (dirvish-preview-dispatchers
