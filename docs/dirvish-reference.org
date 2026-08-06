@@ -472,8 +472,37 @@ Options:
 
 ** Setup ls switches on the fly (=dirvish-ls.el=)
 
-- =dirvish-quicksort= — change sort criteria quickly.
-- =dirvish-ls-switches-menu= — transient menu to edit listing switches.
+Requer GNU ls (o =ls= do Nix Home Manager é GNU coreutils mesmo no macOS;
+não precisa de =gls=). Em nosso setup: =s= → =dirvish-quicksort=, =S= →
+=dirvish-ls-switches-menu= (adicionado 2026-08-05).
+
+- =dirvish-quicksort= — transient para trocar o critério de ordenação (já
+  bindado em =s=). Teclas: =n/N= nome (a-z/z-a), =e/E= extensão, =s/S= tamanho
+  (maior/menor), =v/V= versão, =w/W= largura, =m/M= mtime (novo/velho),
+  =a/A= access time, =b/B= birth time, =c/C= ctime. Customizável via
+  =dirvish-ls-quicksort-keys=.
+- =dirvish-ls-switches-menu= — transient completo para editar os switches
+  do listing (inicia a partir de =dired-actual-switches=):
+  - **options:** =a= show all (=--all= /=--almost-all=), =s= sort (=--sort=
+    time/none/extension/size/version/width), =i= indicator style
+  (=--indicator-style= slash/file-type/classify), =t= time (=--time=
+    use/birth/ctime), =T= time-style (=--time-style= full-iso/long-iso/iso/
+    locale/+), =B= block-size (=--block-size=).
+  - **toggles:** =r= reverse (=--reverse=), =d= dirs on top
+  (=--group-directories-first=), =~= hide backups (=--ignore-backups=),
+  =A= author (=--author=), =C= security context (=--context=), =H= human
+  readable (=--human-readable=), =G= hide group names (=--no-group=),
+  =O= hide owners (=-g=), =L= dereference (=--dereference=), =N= numeric IDs
+  (=--numeric-uid-gid=), =P= SI (=--si=), =I= inode (=--inode=),
+  =S= allocated size (=--size=).
+  - **actions:** =RET= aplicar ao buffer, =M-RET= aplicar a todos os buffers
+    dired, =C-r= reset do buffer, =M-r= reset de todos, =C-l= limpar escolhas.
+    =C-u RET= /=C-u M-RET= alteram também =dired-listing-switches=
+    (persistente na sessão).
+- Detecção GNU: =+carlos/gnu-ls-p= (custom-files.el) checa =ls --version=
+  contendo "GNU coreutils" (cobre o =ls= Nix no macOS, que não se chama
+  =gls=); com GNU o default é =="-ahl -v --group-directories-first"=, senão
+  =-ahl=.
 
 ** Tree browser (=dirvish-subtree.el=)
 

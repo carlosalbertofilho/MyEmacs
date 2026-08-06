@@ -242,6 +242,16 @@ Criar cache de referência para que agentes possam:
 
 *** Status: ✅ DONE
 
+** 2026-08-05 — Ativação do dirvish-ls (ls switches on the fly)
+
+*** Feito
+- Bindar =S= → =dirvish-ls-switches-menu= em =dirvish-mode-map= (=s= → =dirvish-quicksort= já existia).
+- Melhorar detecção de GNU ls: =+carlos/gnu-ls-p= verifica =ls --version= (GNU coreutils) — o =ls= do Nix Home Manager no macOS é GNU mas não se chama =gls=; o default passou de =-ahl= (fallback BSD) para =-ahl -v --group-directories-first=.
+- Validar funcionalmente: quicksort produz =-ahl -v --group-directories-first --sort=size= com o =ls= GNU real (sem erro de opção); bindings e transient carregam.
+- Atualizar =docs/dirvish-reference.org= (seção dirvish-ls) com teclas do menu/quicksort.
+
+*** Status: ✅ DONE
+
 * Decisões Arquiteturais
 
 ** Sem Evil Mode

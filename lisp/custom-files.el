@@ -6,11 +6,24 @@
 ;;; Code:
 
 ;; ── dired base ──────────────────────────────────────────────────────
+(defun +carlos/gnu-ls-p ()
+  "Return non-nil when the ls in PATH is GNU coreutils.
+Necessário porque o ls do Nix Home Manager é GNU mesmo no macOS
+(mas não se chama `gls'), viabilizando os switches do dirvish-ls."
+  (let ((ls (or (executable-find "ls") insert-directory-program)))
+    (and ls
+         (with-temp-buffer
+           (ignore-errors
+             (call-process ls nil t nil "--version")
+             (goto-char (point-min))
+             (search-forward "GNU coreutils" nil t))))))
+
 (let ((args (list "-ahl" "-v" "--group-directories-first")))
   (when (memq system-type '(darwin berkeley-unix))
     (if-let* ((gls (executable-find "gls")))
         (setq insert-directory-program gls)
-      (setq args (list "-ahl"))))
+      (unless (+carlos/gnu-ls-p)
+        (setq args (list "-ahl")))))
   (setq dired-listing-switches (string-join args " ")
         dired-dwim-target t))
 
@@ -94,6 +107,7 @@
    ("s"   . dirvish-quicksort)
    ("v"   . dirvish-vc-menu)
    ("E"   . dirvish-emerge-mode)
+   ("S"   . dirvish-ls-switches-menu)
    ("N"   . dirvish-narrow))
   :config
   ;; Preview no minibuffer (vertico) com dirvish

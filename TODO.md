@@ -27,6 +27,10 @@
   - `dirvish-emerge-groups` com 6 grupos padrão (`recent-files-2h`, `extensions` de documentos/vídeo/imagens/áudio/arquivos) + toggle `E` → `dirvish-emerge-mode` em `dirvish-mode-map` (verificado: `lookup-key` = `dirvish-emerge-mode`).
   - `dirvish-peek-mode 1` global com `dirvish-peek-key '(list :debounce 0.5 'any)` (preview no minibuffer/vertico com debounce).
   - Validado: `just check` + `just compile` (zero warnings) + batch runtime (atributos/grupos/key/mode corretos). Commit `dbc8a0b`.
+- [x] **Habilitar `dirvish-ls` (ls switches on the fly):**
+  - `S` → `dirvish-ls-switches-menu` (transient completo: options/toggles/actions) e `s` → `dirvish-quicksort` já existente.
+  - Detecção GNU melhorada: `+carlos/gnu-ls-p` checa `ls --version` (GNU coreutils) — o `ls` do Nix no macOS é GNU mas não se chama `gls`; agora o default é `-ahl -v --group-directories-first` em vez do fallback BSD `-ahl`.
+  - Testado funcional: quicksort gera `-ahl -v --group-directories-first --sort=size` sem erro de switch. RAG (`docs/dirvish-reference.org`) atualizado com todas as teclas do menu/quicksort.
 - [x] **Bug do `ob-mermaid` resolvido:**
   - Desacoplado da inicialização do Org core e ativado dinamicamente via `:after org` no `:config`.
   - Adicionado `exec-path-from-shell` para garantir herança de caminhos Nix/npm em modo GUI no macOS.
@@ -49,6 +53,7 @@
 ## 2. Bugs Conhecidos e Pendências (Investigação)
 
 - [ ] **Testar config completa em GUI** (não batch) para verificar compilação do `vterm-module`.
+- [ ] **Org mode monocromático / sem fontes personalizadas (vs Markdown OK):** arquivos `.org` abrem em texto monocor e sem as fontes/variáveis pitch customizadas, enquanto `.md` renderiza harmônico com fontes coloridas. Suspeitas: faces do org, `variable-pitch-mode`, `org-modern`, `org-appear` ou `+carlos/zen-line-spacing` em `custom-writing.el`. Investigar quando a ação atual do dirvish-emerge estiver validada.
 - [ ] Investigar por que `consult` e `nerd-icons` não foram encontrados no MELPA durante `just check` (Se persistente nas primeiras instalações do usuário).
 - [ ] Verificar se pacotes estão em rebuild no MELPA ou se foram removidos/renomeados.
 
