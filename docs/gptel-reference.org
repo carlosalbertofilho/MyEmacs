@@ -51,15 +51,15 @@ M-x package-install RET gptel RET
 (use-package gptel
   :ensure t
   :config
-  ;; Enable org mode integration if available (gptel 2026+)
-  (when (require 'gptel-org nil t)
-    (when (fboundp 'gptel-org-mode)
-      (gptel-org-mode 1))))
+  ;; Integração Org é AUTOMÁTICA em gptel 0.9.9.5+ — não há gptel-org-mode.
+  ;; gptel detecta `derived-mode-p' 'org-mode' no envio.
+  ))
 #+end_src
 
 #+begin_warning
-GPTel requires Transient >= 0.7.8. Older versions will cause errors when
-invoking =gptel-menu=.
+Não existe `gptel-org-mode' em gptel 0.9.9.5. A integração com Org é
+automática (gptel cria o prompt buffer via `gptel-org--create-prompt-buffer').
+Também não existem `ob-gptel' nem `gptel-quick' nesta versão.
 #+end_warning
 
 * Core Concepts
@@ -233,54 +233,55 @@ Reset the current gptel buffer, clearing conversation history.
 =gptel-request= is the core programmatic API for sending requests outside of
 interactive buffer usage.
 
-** Signature
+** Signature (gptel 0.9.9.5)
 #+begin_src elisp
-(gptel-request PROMPT &key BACKEND MODEL SYSTEM CALLBACK TOOLS STREAM TEMP)
+(gptel-request PROMPT &key CALLBACK BUFFER POSITION CONTEXT DRY-RUN STREAM IN-PLACE SYSTEM SCHEMA TRANSFORMS FSM)
 #+end_src
 
-** Parameters
-| Parameter    | Type     | Description                                         |
-|--------------+----------+-----------------------------------------------------|
-| =:backend=   | object   | Backend object (use =gptel-get-backend=)              |
-| =:model=     | symbol   | Model symbol                                        |
-| =:system=    | string   | System prompt override                              |
-| =:callback=  | function | Called with (response info) when complete             |
-| =:tools=     | list     | List of tool definitions                            |
-| =:stream=    | boolean  | Enable streaming                                    |
-| =:temp=      | number   | Temperature for generation                          |
-| =PROMPT=     | string   | The user prompt to send                             |
+IMPORTANTE: =gptel-request= NÃO aceita =:backend= nem =:model=. O backend e o
+modelo são lidos do buffer (buffer-local =gptel-backend= / =gptel-model=).
 
-** Example: Basic Request
-#+begin_src elisp
-(gptel-request "Explain quantum computing in one sentence."
-  :backend (gptel-get-backend "OpenAI")
-  :model 'gpt-4o
-  :callback (lambda (response info)
-              (when response
-                (message "Response: %s" response))))
-#+end_src
+** Parameters (gptel 0.9.9.5)
+| Parameter    | Type     | Description                                             |
+|--------------+----------+---------------------------------------------------------|
+| =:callback=  | function | Called with (response info) when complete               |
+| =:buffer=    | buffer   | Buffer onde o backend/modelo são lidos e a resposta vai |
+| =:system=    | string   | System prompt override                                  |
+| =:stream=    | boolean  | Enable streaming                                        |
+| =:context=   | t/nil    | Incluir contexto do buffer como input                   |
+| =:position=  | marker   | Posição de inserção da resposta                         |
+| =PROMPT=     | string   | The user prompt to send                                 |
 
-** Example: With Custom System Prompt
+** Exemplo correto: request programático (sem :backend/:model)
 #+begin_src elisp
-(gptel-request "What is 2+2?"
-  :backend (gptel-get-backend "Anthropic")
-  :model 'claude-sonnet-4-20250514
-  :system "You are a helpful assistant that always gives short answers."
-  :callback (lambda (response info)
-              (message "Answer: %s" response)))
-#+end_src
-
-** Example: Multiple Requests (Batch)
-#+begin_src elisp
-(dolist (prompt '("Explain recursion" "Explain OOP" "Explain FP"))
-  (gptel-request prompt
-    :backend (gptel-get-backend "OpenAI")
-    :model 'gpt-4o-mini
+;; O backend e o modelo são variáveis buffer-local — use um buffer dedicado
+(let ((buf (get-buffer-create "*gptel-request*")))
+  (with-current-buffer buf
+    (setq gptel-backend (gptel-get-backend "OpenCode Zen"))
+    (setq gptel-model 'deepseek-v4-flash-free))
+  (gptel-request "Explain quantum computing in one sentence."
+    :buffer buf
     :callback (lambda (response info)
                 (when response
-                  (with-current-buffer (get-buffer-create "*results*")
-                    (goto-char (point-max))
-                    (insert response "\n"))))))
+                  (message "Response: %s" response)))))
+#+end_src
+
+** Helper do projeto: =+carlos/gptel-request=
+Este projeto encapsula o padrão acima em um helper reutilizável:
+
+#+begin_src elisp
+(+carlos/gptel-request "prompt" "OpenCode Zen" 'deepseek-v4-flash-free
+  :system "..."
+  :callback (lambda (response info) ...))
+#+end_src
+
+** Exemplo ERRADO (quebra em 0.9.9.5)
+#+begin_src elisp
+;; WRONG — :backend/:model não são keywords de gptel-request nesta versão
+(gptel-request "2+2?"
+  :backend (gptel-get-backend "Anthropic")
+  :model 'claude-sonnet-4-20250514
+  :callback (lambda (response info) (message "%s" response)))
 #+end_src
 
 ** Callback Signature
@@ -338,31 +339,14 @@ modify agent directory behavior.
 
 * GPTel Org Integration
 
-In gptel 2026+, =gptel-org= replaces =ob-gptel= and =gptel-quick=. It provides
-Org mode integration for LLM-powered code blocks and org-specific features.
+Em gptel 0.9.9.5 a integração com Org é AUTOMÁTICA e não requer minor-mode:
+- =gptel-request= cria o prompt buffer via =gptel-org--create-prompt-buffer=
+- O gptel detecta `derived-mode-p' 'org-mode' no envio e formata a resposta
+  com syntax highlighting apropriado
+- Não existem =gptel-org-mode=, =ob-gptel= nem =gptel-quick= nesta versão
 
-** Enable gptel-org
-#+begin_src elisp
-(with-eval-after-load 'gptel
-  (when (require 'gptel-org nil t)
-    (when (fboundp 'gptel-org-mode)
-      (gptel-org-mode 1))))
-#+end_src
-
-** Safety Guards
-Always guard =gptel-org-mode= with =fboundp= because:
-1. The function may not exist in older gptel versions
-2. =gptel-org= may not be loadable on all Emacs installations
-
-#+begin_src elisp
-;; WRONG - will error if gptel-org is not available
-(gptel-org-mode 1)
-
-;; CORRECT - safe for all gptel versions
-(when (require 'gptel-org nil t)
-  (when (fboundp 'gptel-org-mode)
-    (gptel-org-mode 1)))
-#+end_src
+NÃO há nada a ativar no =use-package=. Blocos com =fboundp= em =gptel-org-mode=
+são no-ops seguros (a função não existe) e devem ser removidos.
 
 * System Prompts & Directives
 

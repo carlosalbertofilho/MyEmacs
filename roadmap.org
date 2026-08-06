@@ -11,6 +11,21 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-06 — Correção completa da stack de IA (gptel 0.9.9.5)
+
+*** Feito
+- **Backends Zen corrigidos:** =zen.opencode.ai= era NXDOMAIN (curl exit 6). Host real: =opencode.ai= com =:endpoint "/zen/v1/chat/completions"= (OpenAI) e ="/zen/v1/messages"= (Anthropic). Validado com =curl=: =GET /zen/v1/models= com =OPENCODE_ZEN_API_KEY= → 200 com 61 modelos (claude-sonnet-5, claude-opus-5, deepseek-v4-flash(-free), north-mini-code-free etc. — todos os nomes do config existem).
+- **API keys:** backends agora usam =(getenv ...)= — =OPENCODE_ZEN_API_KEY= e =(or (getenv "GEMINI_API_KEY") (getenv "GOOGLE_API_KEY")=, exportadas por =/etc/api-keys.sh= (gerado pelo agenix do host agnes — NixOS repo =~/Projects/Nixos/MyMachine=). Removida a dependência de =gptel-api-key=/=auth-source=.
+- **Ollama corrigido:** modelo =qwen3.5:latest= não existe no servidor → =qwen3:0.6b= (modelo real instalado). MLX local (127.0.0.1:8081) validado (PONG).
+- **API =gptel-request= corrigida:** 0.9.9.5 NÃO aceita =:backend=/:model= (keywords reais: =:callback :buffer :position :context :dry-run :stream :in-place :system :schema :transforms :fsm=). Criado helper =+carlos/gptel-request= (buffer dedicado =*gptel-request*= + =gptel-backend=//=gptel-model= buffer-local + =apply #'gptel-request= com =:buffer=).
+- **Commit IA reescrito (=custom-git.el=):** =+carlos/gptel-generate-commit-message= e =+carlos/gptel-insert-commit-message= agora usam o helper (antes: erro de keyword). Novo keybinding =C-c C-g= no buffer de commit (=git-commit-mode-hook= + =magit-commit-mode-map=).
+- **=gptel-org-mode= eliminado:** não existe em 0.9.9.5 — integração Org é automática (=derived-mode-p= + =gptel-org--create-prompt-buffer=). Bloco no-op removido.
+- **Código morto removido:** =mcp= e =superchat= (nunca instalados; guards =:if= silenciavam) + display rule do superchat. =gptel-agent= mantido e validado (registra presets researcher/introspector/gptel-plan/gptel-agent/executor).
+- **Validação ponta-a-ponta (batch =~/.config/emacs-vanilla=):** 5/5 backends respondem PONG (Zen OpenAI, Zen Claude, Gemini, Ollama, MLX); helper e agentes OK. =just compile= zero warnings (=-warn=t=) + checkdoc OK.
+- **Docs:** =docs/gptel-reference.org= (API real, hosts Zen, remoção de =gptel-org-mode=/=ob-gptel=/=gptel-quick=/=:backend=/:model=) e =docs/magit-reference.org= (exemplos com o helper) atualizados.
+
+*** Status: ✅ DONE
+
 ** 2026-08-04 — Fundação (Fase 0)
 
 *** Feito
@@ -364,8 +379,8 @@ Criar cache de referência para que agentes possam:
 
 ** Melhorias (prioridade média)
 6. Guardar emojis org-modern-priority
-7. Guardar superchat llm.el dependency
-8. Guardar gptel-integrations require
+7. ~~Guardar superchat llm.el dependency~~ ✅ removido — superchat não é mais carregado (código morto eliminado em 2026-08-06)
+8. ~~Guardar gptel-integrations require~~ ✅ removido — bloco mcp/superchat eliminado em 2026-08-06
 9. Habilitar bindings comentados
 10. Remover eshell duplicado
 

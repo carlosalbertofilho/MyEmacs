@@ -12,6 +12,16 @@
 > **Reverter:** `git revert 29d7dab` (preserva histórico) ou `git reset --hard 29d7dab` (destrói commits seguintes) em `~/Projects/Github/MyEmacs`, depois `cd ~/.config/emacs-vanilla && git stash && git pull && git stash pop`.
 > **Anterior:** `aad799c` (RAG extensions) — útil como ponto anterior ao experimento das extensões.
 
+- [x] **Correção completa da stack de IA (gptel 0.9.9.5):**
+  - **Backends Zen corrigidos:** `zen.opencode.ai` era **NXDOMAIN** — hosts reais: `opencode.ai` + `:endpoint "/zen/v1/chat/completions"` (OpenAI) e `"/zen/v1/messages"` (Anthropic). Keys via `(getenv "OPENCODE_ZEN_API_KEY")` / `(or (getenv "GEMINI_API_KEY") (getenv "GOOGLE_API_KEY"))` (exportadas por `/etc/api-keys.sh` do agenix).
+  - **Ollama corrigido:** modelo `qwen3.5:latest` não existe → `qwen3:0.6b` (modelo real instalado).
+  - **API do gptel-request corrigida:** 0.9.9.5 NÃO aceita `:backend`/`:model` (keywords reais: `:callback :buffer :position :context :system :stream :schema :transforms :fsm`). Criado helper `+carlos/gptel-request` (buffer `*gptel-request*` + `gptel-backend`/`gptel-model` buffer-local) e o commit IA em `custom-git.el` reescrito para usá-lo (antes: erro de keyword).
+  - **gptel-org eliminado:** não existe `gptel-org-mode` em 0.9.9.5 — integração Org é automática (`derived-mode-p`). Removido bloco no-op.
+  - **Código morto removido:** `mcp` e `superchat` (não instalados, `:if` silencioso) + display rule do superchat. `gptel-agent` mantido (registra researcher/introspector/gptel-plan/gptel-agent/executor).
+  - **Novo keybinding:** `C-c C-g` (e hook `git-commit-mode`) → `+carlos/gptel-insert-commit-message`.
+  - **Validado ponta-a-ponta (batch vanilla):** 5/5 backends respondem PONG (Zen OpenAI, Zen Claude, Gemini, Ollama, MLX); helper e agentes OK; `just compile` zero warnings + checkdoc OK.
+  - **Docs:** `docs/gptel-reference.org` e `docs/magit-reference.org` atualizados (API real, hosts Zen, remoção de `gptel-org-mode`/`:backend`/`:model`).
+
 ## 1. Planejamento Corrente (Ações Atuais)
 
 - [x] **Refatoração final do Dirvish (ícones, sidebar e hooks):**
@@ -82,12 +92,12 @@
 
 ## 3. Planejamento Futuro / Backlog (Ordenado por Dificuldade)
 
-1. [ ] **Revisar stack de IA (gptel + gptel-agent)** (Dificuldade: Média — listar o que está implementado, diagnosticar integrações frágeis `superchat`/`mcp`/`gptel-integrations`, alinhar agentes com a política de multiagentes e decidir o estado-alvo)
+1. [x] **Revisar stack de IA (gptel + gptel-agent)** (Dificuldade: Média — listar o que está implementado, diagnosticar integrações frágeis `superchat`/`mcp`/`gptel-integrations`, alinhar agentes com a política de multiagentes e decidir o estado-alvo)
     - Etapas:
-      1. [ ] Listar o que está implementado (backends, agentes, gptel-org, personas, display rules) — feito parcialmente, ver resumo da conversa
-      2. [ ] Diagnosticar gaps e integrações frágeis (`superchat`/`llm.el`, `mcp`, código morto `+carlos/gptel-agent-project-dirs`, `~/.agents/gptel/` vazio)
-      3. [ ] Decidir estado-alvo e aplicar ajustes (remover código morto, ativar/remover superchat+mcp, definir agentes por projeto)
-      4. [ ] **Etapa de teste da stack de IA:** validar em `~/.config/emacs-vanilla` cada entrada — `C-c i` (gptel chat), `C-c I` (+carlos/gptel-agent-run), `C-c C` / commit IA, `C-c A a`/`C-c A o` (eshell agy/opencode), gptel-org num `.org`, e troca de backend/modelo no buffer — conferindo erro de API, modelo válido e resposta streaming
+      1. [x] Listar o que está implementado (backends, agentes, gptel-org, personas, display rules) — feito parcialmente, ver resumo da conversa
+      2. [x] Diagnosticar gaps e integrações frágeis (`superchat`/`llm.el`, `mcp`, código morto `+carlos/gptel-agent-project-dirs`, `~/.agents/gptel/` vazio)
+      3. [x] Decidir estado-alvo e aplicar ajustes (remover código morto, ativar/remover superchat+mcp, definir agentes por projeto)
+      4. [ ] **Etapa de teste da stack de IA:** validar em `~/.config/emacs-vanilla` cada entrada — `C-c i` (gptel chat), `C-c I` (+carlos/gptel-agent-run), `C-c C-g` / commit IA, `C-c A a`/`C-c A o` (eshell agy/opencode), gptel-org num `.org`, e troca de backend/modelo no buffer — conferindo erro de API, modelo válido e resposta streaming
 2. [ ] **Testar SuperChat com fontes instaladas** (Dificuldade: Muito Baixa - Validação visual)
 3. [x] **Substituir o dashboard customizado atual por `dashboard.el`** (Dificuldade: Baixa - Concluído!)
 3. [x] **Configurar Victor Mono com ligatures** (Dificuldade: Média/Alta - Concluído!)

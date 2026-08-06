@@ -7,8 +7,7 @@
 
 ;; Forward declarations for byte-compiler
 (declare-function vc-git-root "vc-git")
-(declare-function gptel-request "gptel")
-(declare-function gptel-get-backend "gptel")
+(declare-function +carlos/gptel-request "custom-ai")
 
 ;; ── magit ───────────────────────────────────────────────────────────
 ;; transient é instalado/ativado cedo no init.el (use-package + elpaca-wait);
@@ -35,32 +34,68 @@
   (global-set-key (kbd "C-c J") #'justl-compile))
 
 ;; ── +carlos/gptel-generate-commit-message ──────────────────────────
-;; Reescrito sem dependência de magit (usa vc-git / processo git)
+;; Reescrito sem dependência de magit (usa vc-git / processo git) e com
+;; a API do gptel 0.9.9.5 (sem :backend/:model — usa +carlos/gptel-request).
 (defun +carlos/gptel-generate-commit-message ()
   "Gera uma mensagem de commit usando IA a partir do diff staged.
-Sem dependência de magit: usa \\='git diff --cached\\=' diretamente."
+Sem dependência de magit: usa \\='git diff --cached\\=' diretamente.
+Copia a mensagem gerada para o `kill-ring'."
   (interactive)
   (unless (vc-git-root default-directory)
     (user-error "Not in a Git repository"))
   (let ((diff (shell-command-to-string "git diff --cached")))
     (if (string-empty-p diff)
         (user-error "Nothing staged for commit")
-      (let ((rules-dir (expand-file-name "~/.agents/rules"))
-            (rules ""))
-        (when (file-directory-p rules-dir)
-          (dolist (f (directory-files rules-dir t "\\.md$"))
-            (setq rules (concat rules (with-temp-buffer (insert-file-contents f) (buffer-string)) "\n\n"))))
-        (gptel-request
+      (let* ((rules-dir (expand-file-name "~/.agents/rules"))
+             (rules (when (file-directory-p rules-dir)
+                      (mapconcat (lambda (f)
+                                   (with-temp-buffer
+                                     (insert-file-contents f)
+                                     (buffer-string)))
+                                 (directory-files rules-dir t "\\.md$")
+                                 "\n\n"))))
+        (+carlos/gptel-request
          (format "Generate a concise, conventional commit message (type: scope: subject) for this diff:\n\n```\n%s\n```\n\nRules:\n%s"
                  diff rules)
-         :backend (gptel-get-backend "OpenCode Zen")
-         :model 'deepseek-v4-flash-free
+         "OpenCode Zen" 'deepseek-v4-flash-free
+         :system "You are an expert at writing conventional commits."
          :callback
          (lambda (response _info)
            (when response
              (let ((msg (string-trim response)))
                (kill-new msg)
                (message "Commit message copied to kill-ring: %s" msg)))))))))
+
+;; ── +carlos/gptel-insert-commit-message ────────────────────────────
+(defun +carlos/gptel-insert-commit-message ()
+  "Gera uma mensagem de commit e a insere no buffer de commit atual.
+Funciona em buffers `git-commit-mode' ou `magit-commit-mode'."
+  (interactive)
+  (unless (derived-mode-p 'git-commit-mode 'magit-commit-mode)
+    (user-error "Not in a git commit buffer"))
+  (let ((diff (shell-command-to-string "git diff --cached")))
+    (if (string-empty-p diff)
+        (user-error "Nothing staged for commit")
+      (let ((commit-buf (current-buffer)))
+        (+carlos/gptel-request
+         (format "Generate a concise, conventional commit message (type: scope: subject) for this diff:\n\n```\n%s\n```" diff)
+         "OpenCode Zen" 'deepseek-v4-flash-free
+         :system "You are an expert at writing conventional commits."
+         :callback
+         (lambda (response _info)
+           (when response
+             (with-current-buffer commit-buf
+               (goto-char (point-min))
+               (insert (string-trim response))))))))))
+
+;; Atalho dentro do buffer de commit (magit e git-commit)
+(add-hook 'git-commit-mode-hook
+          (lambda ()
+            (local-set-key (kbd "C-c C-g") #'+carlos/gptel-insert-commit-message)))
+(with-eval-after-load 'magit
+  (when (boundp 'magit-commit-mode-map)
+    (define-key magit-commit-mode-map (kbd "C-c C-g")
+      #'+carlos/gptel-insert-commit-message)))
 
 (provide 'custom-git)
 ;;; custom-git.el ends here

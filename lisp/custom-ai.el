@@ -2,28 +2,25 @@
 
 ;;; Commentary:
 ;; gptel backends (OpenCode Zen, Zen Claude, Gemini, Ollama, MLX Local),
-;; gptel-agent, gptel-org (integração Org), personas/diretivas,
-;; +carlos/gptel-agent-run (reescrito sem advice bug).
-;; Nota: gptel 2026 NÃO distribui ob-gptel nem gptel-quick;
-;; integração Org é via gptel-org.
+;; gptel-agent, integração Org automática, personas/diretivas,
+;; +carlos/gptel-agent-run e +carlos/gptel-request (helper).
+;; Nota: gptel 0.9.9.5 NÃO distribui ob-gptel nem gptel-quick;
+;; a integração Org é automática (gptel detecta org-mode via
+;; `derived-mode-p' — nenhum minor-mode é necessário).
+;; API keys de nuvem vêm do agenix (host agnes): /etc/api-keys.sh exporta
+;; OPENCODE_ZEN_API_KEY e GEMINI_API_KEY/GOOGLE_API_KEY.
 
 ;;; Code:
 
 ;; Forward declarations for byte-compiler
 (defvar gptel-directives)
 (defvar gptel-agent-dirs)
-(defvar mcp-hub-servers)
-(defvar superchat-llm-backend)
-(defvar superchat-lang)
-(defvar superchat-response-timeout)
-(defvar superchat-context-message-count)
-(defvar superchat-conversation-history-limit)
-(defvar superchat-data-directory)
-(defvar superchat-llm-tool-names)
+(defvar gptel-backend)
+(defvar gptel-model)
 (declare-function gptel-agent "gptel-agent")
 (declare-function gptel-get-backend "gptel")
+(declare-function gptel-request "gptel")
 (declare-function gptel-send "gptel")
-(declare-function make-llm-openai-compatible "llm")
 
 ;; ── gptel core ──────────────────────────────────────────────────────
 (use-package gptel
@@ -33,24 +30,31 @@
   (setq gptel-include-tool-results t)
 
   ;; ── Backend: OpenCode Zen (OpenAI-compatible) ─────────────────────
+  ;; Host real: opencode.ai (zen.opencode.ai NÃO resolve — NXDOMAIN).
   (gptel-make-openai "OpenCode Zen"
-    :host "zen.opencode.ai"
+    :host "opencode.ai"
     :protocol "https"
+    :endpoint "/zen/v1/chat/completions"
     :stream t
+    :key (lambda () (getenv "OPENCODE_ZEN_API_KEY"))
     :models '("deepseek-v4-flash-free"
               "north-mini-code-free"))
 
   ;; ── Backend: Zen Claude (Anthropic-compatible) ────────────────────
   (gptel-make-anthropic "Zen Claude"
-    :host "zen.opencode.ai"
+    :host "opencode.ai"
     :protocol "https"
+    :endpoint "/zen/v1/messages"
     :stream t
+    :key (lambda () (getenv "OPENCODE_ZEN_API_KEY"))
     :models '("claude-sonnet-5"
               "claude-opus-5"))
 
   ;; ── Backend: Gemini ───────────────────────────────────────────────
   (gptel-make-gemini "Gemini"
     :stream t
+    :key (lambda () (or (getenv "GEMINI_API_KEY")
+                        (getenv "GOOGLE_API_KEY")))
     :models '("gemini-2.5-flash"
               "gemini-2.5-pro"))
 
@@ -58,7 +62,7 @@
   (gptel-make-ollama "Ollama Local"
     :host "localhost:11434"
     :stream t
-    :models '("qwen3.5:latest"))
+    :models '("qwen3:0.6b"))
 
   ;; ── Backend: MLX Local (5 modelos validados, M2/24GB) ────────────
   ;; Servidor roda em 127.0.0.1:8081 via launchd (mlx_lm.server)
@@ -98,12 +102,11 @@ Sem advice: chamada direta antes de iniciar o agente."
   ;; Registra os presets gptel-agent/gptel-plan e lê os sub-agentes
   (gptel-agent-update))
 
-;; ── gptel-org (integração Org — substitui ob-gptel/gptel-quick) ─────
-;; gptel 2026 usa gptel-org. ob-gptel e gptel-quick não são distribuídos.
-(with-eval-after-load 'gptel
-  (when (require 'gptel-org nil t)
-    (when (fboundp 'gptel-org-mode)
-      (gptel-org-mode 1))))
+;; ── gptel-org (integração Org) ──────────────────────────────────────
+;; Automática em gptel 0.9.9.5: `gptel-request' chama
+;; `gptel-org--create-prompt-buffer' e o gptel detecta `derived-mode-p'
+;; 'org-mode' no envio. Não existe `gptel-org-mode' nesta versão — não
+;; há nada a ativar.
 
 ;; ── Personas / Diretivas ────────────────────────────────────────────
 (with-eval-after-load 'gptel
@@ -119,6 +122,26 @@ CRITICAL RULES (Violating these fails the project):
 2. ALWAYS implement the 'Orthodox Canonical Form' (Constructor, Destructor, Copy Constructor, Assignment).")
              (python . "You are a senior Python Developer. Follow PEP8, use Type Hinting, write pythonic code, and prefer modern Python 3.10+ syntax.")))
     (setf (alist-get (car directive) gptel-directives) (cdr directive))))
+
+;; ── +carlos/gptel-request (helper para chamadas programáticas) ──────
+;; gptel 0.9.9.5: `gptel-request' NÃO aceita :backend/:model — o backend
+;; e o modelo são lidos do buffer (buffer-local). Este helper encapsula
+;; o padrão correto para chamadas assíncronas.
+(defun +carlos/gptel-request (prompt backend model &rest args)
+  "Envia PROMPT para o gptel usando BACKEND e MODEL.
+
+BACKEND é o nome do backend registrado (string); MODEL um símbolo.
+ARGS são repassados a `gptel-request' (:system, :callback, ...).
+
+Garante que o gptel esteja carregado antes de buscar o backend."
+  (require 'gptel)
+  (let ((buffer (get-buffer-create "*gptel-request*")))
+    (with-current-buffer buffer
+      (setq gptel-backend (gptel-get-backend backend))
+      (setq gptel-model model)
+      (setq buffer-read-only nil)
+      (erase-buffer))
+    (apply #'gptel-request prompt :buffer buffer args)))
 
 ;; ── +carlos/gptel-agent-run (reescrito sem advice bug) ─────────────
 (defvar +carlos/gptel-agent-backend "Zen Claude"
@@ -142,7 +165,9 @@ Sem advice: chama `+carlos/gptel-agent-add-project-dirs' diretamente."
   (when (string-empty-p task)
     (user-error "Nenhuma tarefa especificada"))
   (+carlos/gptel-agent-add-project-dirs)
-  (let ((project-dir (or (project-root (project-current)) default-directory)))
+  (let ((project-dir (if-let* ((proj (project-current)))
+                         (project-root proj)
+                       default-directory)))
     (gptel-agent project-dir 'gptel-agent)
     (when-let* ((buf (seq-find (lambda (b)
                                  (string-prefix-p "*gptel-agent:" (buffer-name b)))
@@ -154,55 +179,6 @@ Sem advice: chama `+carlos/gptel-agent-add-project-dirs' diretamente."
         (insert task)
         (gptel-send)
         (message "Agente iniciado — %s" task)))))
-
-;; ── mcp.el (Model Context Protocol client) ──────────────────────────
-;; Instalar via Nix ou manualmente:
-;;   git clone https://github.com/lizqwerscott/mcp.el.git ~/.emacs.d/site-lisp/mcp
-(use-package mcp
-  :ensure nil
-  :demand t
-  :if (locate-library "mcp")
-  :config
-  ;; Servidores MCP padrão
-  (setq mcp-hub-servers
-        `(("filesystem" . (:command "npx"
-                          :args ("-y" "@modelcontextprotocol/server-filesystem"
-                                 ,(expand-file-name "~/Projects"))))
-          ("github" . (:command "npx"
-                       :args ("-y" "@modelcontextprotocol/server-github")))))
-  ;; gptel-integrations is loaded automatically by gptel when needed
-  )
-
-;; ── SuperChat (Claude Code-style UI para gptel) ────────────────────
-;; Não está no MELPA — instalar manualmente:
-;;   git clone https://github.com/yibie/superchat.git ~/.emacs.d/straight/repos/superchat
-;; Ou adicionar ao load-path:
-;;   (add-to-list 'load-path "~/.emacs.d/site-lisp/superchat")
-(use-package superchat
-  :ensure nil
-  :demand t
-  :if (locate-library "superchat")
-  :after gptel
-  :config
-  ;; Backend padrão (herda do gptel ou usa llm.el)
-  ;; Guard against missing llm.el
-  (when (locate-library "llm")
-    (setq superchat-llm-backend
-          (make-llm-openai-compatible
-           :api-key (or (getenv "OPENCODE_API_KEY") "")
-           :endpoint "https://zen.opencode.ai/v1"
-           :chat-model "north-mini-code-free")))
-  ;; Idioma para variáveis de sistema
-  (setq superchat-lang "English")
-  ;; Timeout de resposta
-  (setq superchat-response-timeout 180)
-  ;; Histórico de conversa
-  (setq superchat-context-message-count 15
-        superchat-conversation-history-limit 80)
-  ;; Diretório de dados (memória SQLite, config)
-  (setq superchat-data-directory (expand-file-name "~/.emacs.d/superchat/"))
-  ;; Ferramentas permitidas
-  (setq superchat-llm-tool-names 'all))
 
 ;; ── Display buffer rules (popup replacement) ───────────────────────
 (add-to-list 'display-buffer-alist
@@ -216,12 +192,6 @@ Sem advice: chama `+carlos/gptel-agent-add-project-dirs' diretamente."
                (display-buffer-in-direction)
                (direction . bottom)
                (window-height . 0.4)))
-
-(add-to-list 'display-buffer-alist
-             '("\\*superchat.*"
-               (display-buffer-in-direction)
-               (direction . right)
-               (window-width . 0.45)))
 
 (provide 'custom-ai)
 ;;; custom-ai.el ends here

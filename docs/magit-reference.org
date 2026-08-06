@@ -432,7 +432,12 @@ and pressing =RET=.
 
 Use GPTel to generate commit messages from staged diffs.
 
-** Setup
+** Setup (API do gptel 0.9.9.5)
+
+O helper `+carlos/gptel-request` (definido em `custom-ai.el`) encapsula o padrão
+correto: `gptel-request` NÃO aceita `:backend`/`:model` — o backend/modelo são
+buffer-local. O commit real está em `lisp/custom-git.el`; o exemplo abaixo mostra
+o padrão:
 
 #+begin_src elisp
 (defun +carlos/gptel-generate-commit-message ()
@@ -443,10 +448,11 @@ Use GPTel to generate commit messages from staged diffs.
   (let ((diff (shell-command-to-string "git diff --cached")))
     (if (string-empty-p diff)
         (user-error "Nothing staged for commit")
-      (gptel-request
+      (+carlos/gptel-request
        (format "Generate a concise commit message for this diff:\n\n%s" diff)
-       :backend (gptel-get-backend "OpenCode Zen")
-       :model 'deepseek-v4-flash-free
+       "OpenCode Zen"
+       'deepseek-v4-flash-free
+       :system "You are an expert at writing conventional commits."
        :callback
        (lambda (response _info)
          (when response
@@ -468,27 +474,32 @@ Use GPTel to generate commit messages from staged diffs.
 (defun +carlos/gptel-insert-commit-message ()
   "Generate and insert commit message into current commit buffer."
   (interactive)
-  (unless (eq major-mode 'git-commit-mode)
+  (unless (derived-mode-p 'git-commit-mode 'magit-commit-mode)
     (user-error "Not in a git commit buffer"))
   (let ((diff (shell-command-to-string "git diff --cached")))
     (if (string-empty-p diff)
         (user-error "Nothing staged for commit")
-      (gptel-request
-       (format "Generate a concise commit message for this diff:\n\n%s" diff)
-       :backend (gptel-get-backend "OpenCode Zen")
-       :model 'deepseek-v4-flash-free
-       :callback
-       (lambda (response _info)
-         (when response
-           (let ((msg (string-trim response)))
-             (with-current-buffer (current-buffer)
+      (let ((commit-buf (current-buffer)))
+        (+carlos/gptel-request
+         (format "Generate a concise commit message for this diff:\n\n%s" diff)
+         "OpenCode Zen"
+         'deepseek-v4-flash-free
+         :system "You are an expert at writing conventional commits."
+         :callback
+         (lambda (response _info)
+           (when response
+             (with-current-buffer commit-buf
                (goto-char (point-min))
-               (insert msg)))))))))
+               (insert (string-trim response))))))))))
 
-;; Add to git-commit-mode-hook for easy access
+;; Atalho dentro do buffer de commit
 (add-hook 'git-commit-mode-hook
           (lambda ()
             (local-set-key (kbd "C-c C-g") #'+carlos/gptel-insert-commit-message)))
+(with-eval-after-load 'magit
+  (when (boundp 'magit-commit-mode-map)
+    (define-key magit-commit-mode-map (kbd "C-c C-g")
+      #'+carlos/gptel-insert-commit-message)))
 #+end_src
 
 #+begin_warning
@@ -697,25 +708,28 @@ full Magit package to be initialized.
           "--no-pager")))
 
 ;; Optional: Magit with GPTel commit message generation
+;; (API gptel 0.9.9.5: use o helper +carlos/gptel-request — sem :backend/:model)
 (defun +carlos/gptel-insert-commit-message ()
   "Generate and insert commit message into current commit buffer."
   (interactive)
-  (unless (eq major-mode 'git-commit-mode)
+  (unless (derived-mode-p 'git-commit-mode 'magit-commit-mode)
     (user-error "Not in a git commit buffer"))
   (let ((diff (shell-command-to-string "git diff --cached")))
     (if (string-empty-p diff)
         (user-error "Nothing staged for commit")
-      (gptel-request
-       (format "Generate a concise commit message for this diff:\n\n%s" diff)
-       :backend (gptel-get-backend "OpenCode Zen")
-       :model 'deepseek-v4-flash-free
-       :callback
-       (lambda (response _info)
-         (when response
-           (let ((msg (string-trim response)))
-             (with-current-buffer (current-buffer)
-               (goto-char (point-min))
-               (insert msg)))))))))
+      (let ((commit-buf (current-buffer)))
+        (+carlos/gptel-request
+         (format "Generate a concise commit message for this diff:\n\n%s" diff)
+         "OpenCode Zen"
+         'deepseek-v4-flash-free
+         :system "You are an expert at writing conventional commits."
+         :callback
+         (lambda (response _info)
+           (when response
+             (let ((msg (string-trim response)))
+               (with-current-buffer commit-buf
+                 (goto-char (point-min))
+                 (insert msg)))))))))
 
 (add-hook 'git-commit-mode-hook
           (lambda ()
