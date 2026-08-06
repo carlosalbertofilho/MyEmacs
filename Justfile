@@ -50,7 +50,7 @@ check-all: check test-all
 # ── Tests (ERT suite) ────────────────────────────────────────────────
 
 # Authoritative test environment (full elpaca builds; repo may have stale gptel)
-EMACS_TEST_DIR := `echo "$HOME/.config/emacs"`
+EMACS_TEST_DIR := `echo "${EMACS_TEST_DIR:-$HOME/.config/emacs}"`
 
 # Run full ERT suite in batch (exit non-zero on failure)
 test-batch:
