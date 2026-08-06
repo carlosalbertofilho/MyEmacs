@@ -1,5 +1,12 @@
 # TODO — Planejamento Ativo e Backlog (MyEmacs)
 
+## 0. Checkpoint de Rollback (baseline)
+
+> **Commit de referência:** `aad799c` — `docs(dirvish): update Extensions RAG section from upstream EXTENSIONS.org via markitdown`
+> **Estado:** dirvish refatorado (ícones/sidebar/hooks corretos), olivetti responsivo `0.85`, RAG de extensões atualizado, Zen reading. Emacs de teste (`~/.config/emacs-vanilla`) abre sem erros.
+> **Reverter:** `git revert aad799c` (preserva histórico) ou `git reset --hard aad799c` (destrói commits seguintes) em `~/Projects/Github/MyEmacs`, depois `cd ~/.config/emacs-vanilla && git stash && git pull && git stash pop`.
+> **Uso:** reverter para este ponto antes de experimentos arriscados (ex.: ativar `dirvish-emerge`/`dirvish-peek`/`git-msg`).
+
 ## 1. Planejamento Corrente (Ações Atuais)
 
 - [x] **Refatoração final do Dirvish (ícones, sidebar e hooks):**
