@@ -1,0 +1,62 @@
+#+TITLE: Formatting Stack Reference — Apheleia & Reformatter
+#+AUTHOR: Carlos Filho
+#+DATE: 2026-08-06
+#+OPTIONS: toc:2 num:t
+
+* Overview
+
+This document describes the code formatting architecture in MyEmacs.
+It covers:
+1. **=apheleia=**: Asynchronous format-on-save engine for Python, Web, JSON, and general languages.
+2. **=reformatter=**: Elisp library for building custom CLI-based formatters (used by =c_formatter_42=).
+
+* Apheleia (Asynchronous Format-on-Save)
+
+=apheleia= runs external code formatters (ruff, black, prettier, etc.) asynchronously in the background without locking the UI or disrupting cursor/scroll position.
+
+** Configuration
+
+#+begin_src elisp
+(use-package apheleia
+  :ensure t
+  :config
+  (apheleia-global-mode +1)
+  ;; Inhibit Apheleia for C/C++ to avoid conflicting with c_formatter_42
+  (add-to-list 'apheleia-inhibit-functions
+               (lambda () (derived-mode-p 'c-mode 'c-ts-mode))))
+#+end_src
+
+** Key Commands
+
+| Command | Keybinding | Description |
+|---------+------------+-------------|
+| =apheleia-mode= | Buffer-local | Toggle format-on-save for current buffer |
+| =apheleia-global-mode= | Global | Toggle global format-on-save |
+| =apheleia-format-buffer= | Interactive | Manually trigger format on current buffer |
+
+* Reformatter (Custom CLI Formatters)
+
+=reformatter.el= provides macros to define custom buffer formatters based on external commands stdin -> stdout.
+
+** 42 School C Formatter Integration
+
+#+begin_src elisp
+(use-package reformatter
+  :ensure t
+  :config
+  (reformatter-define +carlos/c-formatter-42
+    :program "c_formatter_42"
+    :args (list (buffer-file-name))))
+#+end_src
+
+** Key Commands
+
+| Command | Keybinding | Description |
+|---------+------------+-------------|
+| =+carlos/c-formatter-42-buffer= | =C-c C-f= (in C mode) | Format current C buffer according to Norm 4.1 |
+| =+carlos/norminette-format-and-check= | Interactive | Format buffer then run norminette check |
+
+* Rules & Best Practices
+
+- Apheleia is enabled globally for modern languages (Python, TS/JS, HTML, CSS, JSON).
+- C/C++ uses dedicated 42 Norminette/c_formatter_42 tools to maintain strict school compliance.

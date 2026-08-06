@@ -1,0 +1,57 @@
+#+TITLE: Task Runners Reference — Just & Makefile
+#+AUTHOR: Carlos Filho
+#+DATE: 2026-08-06
+#+OPTIONS: toc:2 num:t
+
+* Overview
+
+This document provides reference documentation for the task runner integration in MyEmacs.
+It covers:
+1. **=justl=**: Interactive runner for Justfiles (bound to =C-c j=).
+2. **=makefile-executor=**: Interactive runner for Makefiles (bound to =C-c m= and =C-c M=).
+
+* Justl (Justfile Runner)
+
+=justl= provides a transient interface and minibuffer completion for running targets defined in a =Justfile=.
+
+** Key Commands
+
+| Command | Keybinding | Description |
+|---------+------------+-------------|
+| =justl= | =C-c j= | Open interactive Justfile target runner |
+| =justl-exec-target= | Via Transient | Execute a specific target |
+| =justl-help= | Via Transient | View help for targets |
+
+** Configuration
+
+#+begin_src elisp
+(use-package justl
+  :ensure t
+  :bind ("C-c j" . justl))
+#+end_src
+
+* Makefile Executor
+
+=makefile-executor= allows finding and running Makefile targets anywhere in a project.
+
+** Key Commands
+
+| Command | Keybinding | Description |
+|---------+------------+-------------|
+| =makefile-executor-execute-project-target= | =C-c m= | Select and execute a Makefile target from project root |
+| =makefile-executor-execute-last= | =C-c M= | Re-run the last executed Makefile target |
+
+** Configuration
+
+#+begin_src elisp
+(use-package makefile-executor
+  :ensure t
+  :hook (makefile-mode . makefile-executor-mode)
+  :bind (("C-c m" . makefile-executor-execute-project-target)
+         ("C-c M" . makefile-executor-execute-last)))
+#+end_src
+
+* Integration Rules
+
+- Both task runners output to dedicated compilation/execution buffers.
+- Execution buffers automatically snap to the bottom drawer specified in =display-buffer-alist=.
