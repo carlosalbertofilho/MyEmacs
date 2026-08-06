@@ -8,21 +8,23 @@
 
 (defvar treesit-extra-load-path)
 
+;; Registrar diretórios de gramáticas Tree-Sitter do Nix no top-level
+(dolist (dir (append (file-expand-wildcards "/nix/store/*-emacs-treesit-grammars")
+                     (file-expand-wildcards "/nix/store/*-home-manager-path")
+                     '("~/.nix-profile"
+                       "~/.nix-profile/lib"
+                       "/run/current-system/sw/lib")))
+  (let ((expanded (expand-file-name dir)))
+    (when (file-directory-p expanded)
+      (add-to-list 'treesit-extra-load-path expanded))))
+
 ;; ── treesit-auto ────────────────────────────────────────────────────
 (use-package treesit-auto
   :ensure t
+  :demand t
   :custom
   (treesit-auto-install (unless noninteractive 'prompt))
   :config
-  ;; Registrar diretórios de gramáticas Tree-Sitter do Nix (NixOS / Home Manager / Nix Store)
-  (dolist (dir (append (file-expand-wildcards "/nix/store/*-emacs-treesit-grammars")
-                       (file-expand-wildcards "/nix/store/*-home-manager-path")
-                       '("~/.nix-profile"
-                         "~/.nix-profile/lib"
-                         "/run/current-system/sw/lib")))
-    (let ((expanded (expand-file-name dir)))
-      (when (file-directory-p expanded)
-        (add-to-list 'treesit-extra-load-path expanded))))
   (unless noninteractive
     (global-treesit-auto-mode 1)))
 
