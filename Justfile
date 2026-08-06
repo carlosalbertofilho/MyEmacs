@@ -77,7 +77,7 @@ test-all: compile checkdoc test-batch
 # Sync to test directory (~/.config/emacs-vanilla)
 sync:
     @echo "📦 Syncing to ~/.config/emacs-vanilla..."
-    @cd ~/.config/emacs-vanilla && git stash && git pull && git stash pop && find . -name "*.elc" -type f -delete && echo "✅ Sync complete" || echo "❌ Sync failed"
+    @cd ~/.config/emacs-vanilla && (git diff --quiet || git stash) && git pull && (git stash pop 2>/dev/null || true) && find . -name "*.elc" -type f -delete && echo "✅ Sync complete"
 
 # Test in sync directory
 test:
