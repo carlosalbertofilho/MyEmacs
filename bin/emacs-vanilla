@@ -4,5 +4,5 @@
 
 set -euo pipefail
 
-INIT_DIR="${EMACS_VANILLA_DIR:-$HOME/.config/emacs-vanilla}"
+INIT_DIR="${EMACS_VANILLA_DIR:-$HOME/.config/emacs}"
 exec emacs --init-directory "$INIT_DIR" "$@"

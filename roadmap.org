@@ -11,6 +11,17 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-06 — Migração Definitiva Doom Emacs → Vanilla MyEmacs (~/.config/emacs)
+
+*** Feito
+- **Fase 1 (Backup):** Backup integral do Doom Emacs legado (`~/.config/doom` e `~/.config/emacs` antigos) salvo em `~/.config/doom-emacs-backup-20260806`.
+- **Fase 2 (Promoção):** Promovido `MyEmacs` para a localização oficial de produção `~/.config/emacs`. `Justfile`, `AGENTS.md` e scripts de automação atualizados para `~/.config/emacs`.
+- **Fase 3 (Limpeza):** Caches e diretórios legados do Doom (`~/.config/doom`, `~/.local/share/doom`, `~/.emacs.d`) limpos.
+- **Fase 4 (Validação):** `just check-all` validou 100% de passagem nos **110 testes ERT** (102 aprovados, 0 falhas, 8 skipped) diretamente contra `~/.config/emacs`.
+- **Fase 5 (Documentação):** `AGENTS.md`, `TODO.md` e `roadmap.org` atualizados selando a migração definitiva do Doom Emacs para Vanilla MyEmacs.
+
+*** Status: 🏆 MIGRAÇÃO DEFINITIVA CONCLUÍDA
+
 ** 2026-08-06 — Savepoint Registrado: Magent + Dev Env + IA Pipeline + 109 ERT Tests Verdes (Commit 2281840)
 
 *** Feito

@@ -50,7 +50,7 @@ check-all: check test-all
 # ── Tests (ERT suite) ────────────────────────────────────────────────
 
 # Authoritative test environment (full elpaca builds; repo may have stale gptel)
-EMACS_TEST_DIR := `echo "$HOME/.config/emacs-vanilla"`
+EMACS_TEST_DIR := `echo "$HOME/.config/emacs"`
 
 # Run full ERT suite in batch (exit non-zero on failure)
 test-batch:
@@ -78,14 +78,14 @@ triage:
 
 # ── Sync & Deploy ────────────────────────────────────────────────────
 
-# Sync to test directory (~/.config/emacs-vanilla)
+# Sync to test directory (~/.config/emacs)
 sync:
-    @echo "📦 Syncing to ~/.config/emacs-vanilla..."
-    @cd ~/.config/emacs-vanilla && (git diff --quiet || git stash) && git pull && (git stash pop 2>/dev/null || true) && find . -name "*.elc" -type f -delete && echo "✅ Sync complete"
+    @echo "📦 Syncing to ~/.config/emacs..."
+    @cd ~/.config/emacs && (git diff --quiet || git stash) && git pull && (git stash pop 2>/dev/null || true) && find . -name "*.elc" -type f -delete && echo "✅ Sync complete"
 
 # Test in sync directory
 test:
-    emacs --init-directory ~/.config/emacs-vanilla
+    emacs --init-directory ~/.config/emacs
 
 # Full workflow: lint -> commit -> push -> sync -> test
 deploy MSG:
@@ -95,3 +95,8 @@ deploy MSG:
 # CI target: runs everything needed for CI pipeline
 ci: check-all
     @echo "✅ CI pipeline passed"
+
+# Execute full Doom -> Vanilla migration (backup, copy repo to ~/.config/emacs, clean caches)
+promote:
+    python3 bin/promote-migration.py
+

@@ -97,7 +97,7 @@ Ignora popups, sidebars e minibuffer."
      ("p" "~/Projects/"           "Projects")
      ("c" "~/.config/"            "Config")
      ("n" "~/org/notes"           "Notes")
-     ("e" "~/.config/emacs-vanilla/" "Emacs")))
+     ("e" "~/.config/emacs/"         "Emacs")))
   ;; Layout oficial de 3 painéis (main . side . preview)
   (dirvish-default-layout '(1 0.11 0.55))
   ;; Visual attributes (order matters for rendering)

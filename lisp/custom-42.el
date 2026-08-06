@@ -17,8 +17,8 @@
   (global-flycheck-mode 1)
   ;; Habilitar checker emacs-lisp em modos Elisp
   (setq flycheck-emacs-lisp-load-path
-        (append '("~/.config/emacs-vanilla/lisp"
-                  "~/.config/emacs-vanilla/site-lisp")
+        (append (list (expand-file-name "lisp" user-emacs-directory)
+                      (expand-file-name "site-lisp" user-emacs-directory))
                 load-path))
   ;; Permitir checagem em buffers sem arquivo (ex: *scratch*)
   (add-hook 'emacs-lisp-mode-hook #'flycheck-mode)
