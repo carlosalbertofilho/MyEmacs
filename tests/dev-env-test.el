@@ -29,7 +29,7 @@
 
 (ert-deftest myemacs-dev-dirvish-side-open-action-configured ()
   (skip-unless (boundp 'dirvish-side-open-file-action))
-  (should (eq dirvish-side-open-file-action #'+carlos/dirvish-side-open-action)))
+  (should (eq dirvish-side-open-file-action 'reuse)))
 
 (ert-deftest myemacs-dev-flycheck-wave-faces ()
   (require 'flycheck nil t)

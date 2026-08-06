@@ -121,7 +121,7 @@ Ignora popups, sidebars e minibuffer."
   (dirvish-side-attributes '(nerd-icons collapse subtree-state))
   (dirvish-side-mode-line-format '(:left (sort) :right (index)))
   (dirvish-side-header-line-format '(:left (project)))
-  (dirvish-side-open-file-action #'+carlos/dirvish-side-open-action)
+  (dirvish-side-open-file-action 'reuse)
   (dirvish-side-auto-expand t)
   ;; Preview dispatchers (correct values: file types, NOT vc commands)
   (dirvish-preview-dispatchers
