@@ -11,6 +11,19 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-06 — Savepoint Registrado: Magent + Dev Env + IA Pipeline + 109 ERT Tests Verdes (Commit 2281840)
+
+*** Feito
+- **Savepoint do Projeto (`2281840`):** registrado com aprovação total do usuário.
+- **Magent Native Coding Agent (`50ef707`):** 15 ferramentas nativas, frontend `agent-shell`, suporte a diretivas/skills (`.magent/skills/`), ledger por projeto e integração com `AGENTS.md`.
+- **Atalhos Magent & Org:** Prefixo `C-c A` (`C-c A m` / `C-c A i` / `C-c A r`). `C-c a` mantido intocado para `org-agenda`.
+- **Magit IA Commit Transient (`c g`):** Menu de commit do Magit estendido com `g` disparando IA Commit local via Ollama (`qwen2.5-coder:1.5b`).
+- **Automação IA Local:** `bin/rag-convert`, `bin/log-triage` (`just triage`), `+carlos/generate-docstring-at-point` (`C-c c d`) e `+carlos/generate-test-at-point` (`C-c c t`).
+- **Dev Environment Vanilla:** `dirvish-side` MRU open action, Flycheck wave faces, `nerd-icons-corfu`, `eldoc-box`, `apheleia`, `makefile-executor` (`C-c m m`), `indent-bars`, `rainbow-delimiters`.
+- **Suíte ERT:** **109 testes ERT 100% verdes**, zero warnings no byte-compiler, checkdoc limpo, sincronizado com `~/.config/emacs-vanilla`.
+
+*** Status: 🏆 SAVEPOINT ATIVO (`2281840`)
+
 ** 2026-08-06 — Integração Magit Transient Commit IA & Fix Void Magent / Warnings
 
 *** Feito

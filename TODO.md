@@ -49,10 +49,16 @@
 
 ## 0. Checkpoint de Rollback (baseline)
 
-> **Commit de referência (SAVE POINT):** `4679a26` — `fix(elpaca): remove duplicate transient declaration causing 'Duplicate item ID queued'`
-> **Estado (aprovado pelo usuário: "deu certo, ficou lindo!"):** boot limpo sem erros; org-mode com fontes personalizadas (variable-pitch Inter + headings hierárquicos via ef-themes) e sem o bug monocromático; dirvish-emerge iterado (navegação `[`/`]` com guard, grupo Directories, per-dir via `.dir-locals.el`); transient carregado cedo sem "Duplicate item ID queued"; vanilla sincronizado com `origin/main`.
-> **Reverter:** `git revert 4679a26` (preserva histórico) ou `git reset --hard 4679a26` (destrói commits seguintes) em `~/Projects/Github/MyEmacs`, depois `cd ~/.config/emacs-vanilla && git stash && git pull && git stash pop`.
-> **Anterior:** `29d7dab` — ponto do dirvish refatorado (extensões ativas, olivetti 0.85, Zen reading).
+> **Commit de referência (SAVE POINT ATUAL):** `2281840` — `fix(ai,magent): set :demand t and global defaults for gptel backends to ensure valid LLM transport in Magent`
+> **Estado (aprovado pelo usuário: "estou bem satisfeito, registre o commit atual como savepoint"):**
+> - **Magent Native Coding Agent (`50ef707`):** 15 ferramentas nativas, `agent-shell` ACP frontend, suporte a skills (`.magent/skills/`), ledger por projeto e integração automática com `AGENTS.md`.
+> - **Atalhos Magent & Org:** Prefixo `C-c A` (`C-c A m` / `C-c A i` / `C-c A r`). `C-c a` preservado para `org-agenda` nativo.
+> - **Magit IA Commit Transient (`c g`):** Menu de commit do Magit estendido com `g` disparando IA Commit local via Ollama (`qwen2.5-coder:1.5b`).
+> - **Automação IA Local:** `bin/rag-convert`, `bin/log-triage` (`just triage`), `+carlos/generate-docstring-at-point` (`C-c c d`) e `+carlos/generate-test-at-point` (`C-c c t`).
+> - **Dev Environment Vanilla:** `dirvish-side` MRU open action, Flycheck wave faces, `nerd-icons-corfu`, `eldoc-box`, `apheleia`, `makefile-executor` (`C-c m m`), `indent-bars`, `rainbow-delimiters`.
+> - **Suíte de Testes & Qualidade:** **109 testes ERT 100% verdes**, 0 warnings no byte-compiler, checkdoc limpo, sincronizado com `~/.config/emacs-vanilla`.
+> **Reverter:** `git revert 2281840` (preserva histórico) ou `git reset --hard 2281840` em `~/Projects/Github/MyEmacs`, depois `just sync`.
+> **SAVE POINT ANTERIOR:** `4679a26` — `fix(elpaca): remove duplicate transient declaration causing 'Duplicate item ID queued'`
 
 > **SAVE POINT ANTERIOR:** `29d7dab` — `docs: record dirvish emerge/peek/git-msg activation in TODO and roadmap`
 > **Estado (aprovado pelo usuário: "ficou perfeito"):** dirvish refatorado (ícones/sidebar/hooks corretos), olivetti responsivo `0.85`, Zen reading, RAG de extensões atualizado e extensões dirvish ativas — `git-msg` no painel principal, `E` → `dirvish-emerge-mode` com 6 grupos padrão, `dirvish-peek-mode` global com debounce 0.5. Emacs de teste (`~/.config/emacs-vanilla`) abre sem erros, sincronizado com `origin/main`.
