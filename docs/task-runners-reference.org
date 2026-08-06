@@ -47,8 +47,8 @@ It covers:
 (use-package makefile-executor
   :ensure t
   :hook (makefile-mode . makefile-executor-mode)
-  :bind (("C-c m" . makefile-executor-execute-project-target)
-         ("C-c M" . makefile-executor-execute-last)))
+  :bind (("C-c m m" . makefile-executor-execute-project-target)
+         ("C-c m l" . makefile-executor-execute-last)))
 #+end_src
 
 * Integration Rules

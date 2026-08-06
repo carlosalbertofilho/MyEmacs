@@ -43,8 +43,8 @@
   :ensure t
   :hook (makefile-mode . makefile-executor-mode)
   :bind
-  (("C-c m" . makefile-executor-execute-project-target)
-   ("C-c M" . makefile-executor-execute-last)))
+  (("C-c m m" . makefile-executor-execute-project-target)
+   ("C-c m l" . makefile-executor-execute-last)))
 
 ;; ── +carlos/gptel-generate-commit-message ──────────────────────────
 ;; Reescrito sem dependência de magit (usa vc-git / processo git) e com

@@ -167,23 +167,19 @@ Depois configurar em =custom-org.el=:
 
 | Ação | Atalho |
 |------+--------|
-| Magent Iniciar / Alternar | =C-c M m= |
-| Magent Interromper | =C-c M i= |
-| Magent Enviar Região | =C-c M r= |
+| Magit status | =C-c g= |
+| Magent Agent-Shell | =C-c a m= |
+| Magent Interromper | =C-c a i= |
+| Magent Enviar Região | =C-c a r= |
 | Commit IA Local | =C-c C-g= |
 | Gerar Docstring Local | =C-c c d= |
 | Gerar Teste Unitário Local | =C-c c t= |
-| Hover Documentation (eldoc-box) | =C-c c h= |
-| Buscar no projeto | =C-c s= (consult-ripgrep) |
-| Buscar no buffer | =C-c S= (consult-line) |
-| Trocar buffer | =C-x b= (consult-buffer) |
-| Magit status | =C-c g= |
 | gptel chat | =C-c i= |
 | gptel agente | =C-c I= |
 | Header 42 | =C-c h= |
 | Just recipes | =C-c j= |
-| Makefile (alvo do projeto) | =C-c m= |
-| Makefile (re-executar último) | =C-c M= |
+| Makefile (alvo do projeto) | =C-c m m= |
+| Makefile (re-executar último) | =C-c m l= |
 | Denote nota | =C-c n n= |
 | Terminal | =C-c t= (vterm) |
 | Eshell | =C-c e= |

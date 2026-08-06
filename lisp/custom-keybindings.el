@@ -52,9 +52,9 @@
 (global-set-key (kbd "C-c C-g") #'+carlos/gptel-generate-commit-message)
 
 ;; ── Magent (AI coding agent nativo) ─────────────────────────────────
-(global-set-key (kbd "C-c M m") #'magent-start)
-(global-set-key (kbd "C-c M i") #'magent-agent-shell-interrupt)
-(global-set-key (kbd "C-c M r") #'magent-agent-shell-prompt-region)
+(global-set-key (kbd "C-c a m") #'magent-start)
+(global-set-key (kbd "C-c a i") #'magent-agent-shell-interrupt)
+(global-set-key (kbd "C-c a r") #'magent-agent-shell-prompt-region)
 
 ;; ── 42 School ───────────────────────────────────────────────────────
 (global-set-key (kbd "C-c h")   #'stdheader)
