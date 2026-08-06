@@ -174,7 +174,8 @@
 
 ;; ── Local AI docstring & test generation ───────────────────────────
 (defun +carlos/generate-docstring-at-point ()
-  "Gera uma docstring padronizada para a função sob o cursor usando Ollama local."
+  "Gera docstring padronizada para a função sob o cursor.
+Usa o backend Ollama local."
   (interactive)
   (let ((bounds (bounds-of-thing-at-point 'defun)))
     (if (not bounds)
@@ -190,7 +191,8 @@
                        (message "Erro ao gerar docstring: %s" (plist-get info :error)))))))))
 
 (defun +carlos/generate-test-at-point ()
-  "Gera um esqueleto de teste unitário para a função sob o cursor usando Ollama local."
+  "Gera esqueleto de teste unitário para a função sob o cursor.
+Usa o backend Ollama local."
   (interactive)
   (let ((bounds (bounds-of-thing-at-point 'defun)))
     (if (not bounds)
