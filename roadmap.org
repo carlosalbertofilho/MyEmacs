@@ -224,6 +224,7 @@ Criar cache de referência para que agentes possam:
 - Remover =diredfl=; corrigir detecção macOS no dired base (=featurep= nunca casava → =memq system-type=), garantindo fallback seguro =="-ahl"= sem =gls=.
 - Remover =global-display-line-numbers-mode=; números de linha apenas em =prog-mode= (hook no init.el).
 - Zen reading: =+carlos/zen-line-spacing 0.15= e sem line numbers em org/markdown (=custom-writing.el=).
+- Tornar =olivetti-body-width= responsivo (float =0.85=, prosa = 85% da janela, ajusta no resize).
 - Validado: =just check=, =just compile= (zero warnings), valores em runtime e omit funcional; sincronizado e testado em =~/.config/emacs-vanilla=.
 
 *** Status: ✅ DONE
