@@ -63,6 +63,9 @@ entenderem o estado atual do projeto e decisões tomadas.
 - Atualizar =TODO.md= com plano de correção estruturado
 - Criar este =roadmap.org=
 
+*** Atualizações RAG
+- Reescrever a seção =* Extensions= de =docs/dirvish-reference.org= (linhas 366-527) usando =markitdown= sobre o =EXTENSIONS.org= upstream (13 extensões: comandos, opções de usuário e ativação, incluindo =dirvish-yank/rsync/emerge/peek/vc/icons/side/ls/subtree/history/quick-access/collapse/narrow=).
+
 *** Objetivo
 Criar cache de referência para que agentes possam:
 1. Consultar APIs reais dos pacotes (não suposições)

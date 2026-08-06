@@ -368,24 +368,153 @@ freezing when opening directories with tens of thousands of files.
 :RAG_EXTENSIONS: t
 :END:
 
-Dirvish extensions are loaded on demand. They are part of the main package
-but must be explicitly required or activated.
+Dirvish ships optional extension packages under =/extensions/=, installed together
+with the main package (MELPA). They are inactive by default and loaded on demand;
+usually you do not need to =require= them explicitly. Extensions can add
+commands/attributes/preview methods, improve the UI via =transient.el=, or
+integrate external tools.
 
-| Extension           | Feature                                      | Activation                        |
-|---------------------+----------------------------------------------+-----------------------------------|
-| =dirvish-yank=        | Multi-stage async copy/paste                   | Loaded when yanking               |
-| =dirvish-rsync=       | Rsync integration for file transfer            | Manual load                       |
-| =dirvish-emerge=      | Group files by filter (like ibuffer)           | =dirvish-emerge= command            |
-| =dirvish-peek=        | File preview in minibuffer                     | Manual load                       |
-| =dirvish-vc=          | Version control (git state, log, diff, blame)  | Automatic when =vc-state= in attrs |
-| =dirvish-icons=       | File icon rendering                            | Automatic when icon in attrs      |
-| =dirvish-side=        | Sidebar window                                 | =dirvish-side= command              |
-| =dirvish-ls=          | LS switches menu (Transient)                   | =dirvish-ls= command                |
-| =dirvish-subtree=     | Tree browser (expand/collapse directories)     | =dirvish-subtree-toggle=            |
-| =dirvish-history=     | History navigation                             | =dirvish-history-jump=              |
-| =dirvish-quick-access=| Quick keys for favorite places                 | =dirvish-quick-access=              |
-| =dirvish-collapse=    | Collapse unique nested paths                   | Automatic when =collapse= in attrs |
-| =dirvish-narrow=      | Live filtering of directory contents           | =dirvish-narrow= command            |
+| Extension            | Feature                                             | Activation                        |
+|----------------------+-----------------------------------------------------+-----------------------------------|
+| =dirvish-yank=         | Multi-stage async copy/paste/move/symlink/hardlink   | Yank/move commands                |
+| =dirvish-rsync=        | =rsync= file transfer + transient switches menu      | =dirvish-rsync= command             |
+| =dirvish-emerge=       | Group files with a filter stack (ibuffer-like)       | =dirvish-emerge-mode= in setup     |
+| =dirvish-peek=         | Minibuffer file preview (=vertico=, =ivy=, =icomplete=) | =dirvish-peek-mode= minor mode |
+| =dirvish-vc=           | VC attributes + preview dispatchers                  | Automatic when =vc-state=/=git-msg= in attrs |
+| =dirvish-icons=        | File icons (=nerd-icons=, =all-the-icons=, =vscode-icon=) | Automatic when icon in attrs |
+| =dirvish-side=         | Sidebar window (file tree)                           | =dirvish-side= command              |
+| =dirvish-ls=           | Change ls switches on the fly                        | =dirvish-quicksort= / =dirvish-ls-switches-menu= |
+| =dirvish-subtree=      | Tree browser (expand/collapse subtrees)              | =dirvish-subtree-toggle=            |
+| =dirvish-history=      | History navigation                                   | =dirvish-history-jump=              |
+| =dirvish-quick-access= | Quick keys (2-keystroke jumps)                       | =dirvish-quick-access=              |
+| =dirvish-collapse=     | Collapse unique nested paths                         | Automatic when =collapse= in attrs |
+| =dirvish-narrow=       | Live filtering of directory contents                 | =dirvish-narrow= command            |
+
+** Multi-stage copy/paste (=dirvish-yank.el=)
+
+Implements the "two-stage" clipboard workflow: mark files in one or more Dired
+buffers, go to the destination, then run one of:
+
+- =dirvish-yank= / =dirvish-move= / =dirvish-symlink= / =dirvish-relative-symlink= / =dirvish-hardlink=
+
+All operations run *asynchronously* without extra setup.
+
+** =rsync= integration (=dirvish-rsync.el=)
+
+=dirvish-rsync= mirrors =dired-rsync= but: handles same-remote-host operations,
+uses the multi-stage action mechanism of =dirvish-yank= (mark files first, then
+invoke from the target directory), and gathers marked files from multiple Dired
+buffers.
+
+User options:
+
+- =dirvish-rsync-program= / =dirvish-rsync-args= — executable and CLI args.
+- =dirvish-rsync-r2r-ssh-port=, =dirvish-rsync-r2r-ssh-user=, =dirvish-rsync-r2r-use-direct-connection= — remote-to-remote connections.
+- =dirvish-rsync-shortcut-key-for-yank-menu=, =dirvish-rsync-use-yank-menu= — shortcut in =dirvish-yank-menu=.
+- =dirvish-rsync-switches-menu= — transient menu for temporary arg tweaks.
+
+** Group files with a filter stack (=dirvish-emerge.el=)
+
+Organizes the file list into groups (presented like =ibuffer=); collapse/expand
+groups with =TAB= on the group header.
+
+- =dirvish-emerge-groups= — filter criteria (predicates and extensions).
+- =dirvish-emerge-menu= — transient menu to build/compose/save groups (prefer it over editing the variable; save to =.dir-locals.el= for per-directory grouping).
+- =dirvish-emerge-mode= — add to =dirvish-setup-hook= to group on entering a directory.
+
+#+begin_src emacs-lisp
+(add-hook 'dirvish-setup-hook 'dirvish-emerge-mode)
+#+end_src
+
+** Minibuffer file preview (=dirvish-peek.el=)
+
+=dirvish-peek-mode= is a minor mode for minibuffer previews as you narrow
+candidates. Supports =vertico=, =ivy= and =icomplete=.
+
+- =dirvish-peek-key= — controls when previews trigger (like =consult-preview-key=):
+  - ='any= — immediate on any key press (default)
+  - =(list :debounce 0.5 'any)= — automatic with debounce
+  - ="M-."= — manual, immediate
+  - =(list :debounce 0.5 "M-."= — manual with debounce
+  - =nil= — disabled
+
+** Version-control (=git=) integration (=dirvish-vc.el=)
+
+- =vc-state= — attribute showing VC state as a bitmap in the left fringe.
+- =git-msg= — attribute showing the latest git commit message after the file name.
+- =vc-log= / =vc-diff= / =vc-blame= — preview dispatchers. Put them at the *beginning*
+  of =dirvish-preview-dispatchers= to use by default. They are mutually exclusive
+  (e.g. =(vc-log vc-diff ...)= silently ignores =vc-diff=).
+- =dirvish-vc-menu= (default binding =? v=) — calls VC commands and cycles the =vc-*= preview methods.
+
+** File icons (=dirvish-icons.el=)
+
+Backends: =nerd-icons=, =all-the-icons=, =vscode-icon=.
+
+Options (appearance tweaks):
+
+- =dirvish-all-the-icons-height=, =dirvish-all-the-icons-offset=, =dirvish-all-the-icons-palette=
+- =dirvish-vscode-icon-size=
+- =dirvish-nerd-icons-height=, =dirvish-nerd-icons-offset= — nerd-icons sizing / vertical offset (=:v-adjust= float).
+
+** Sidebar (file tree) (=dirvish-side.el=)
+
+=dirvish-side= toggles a Dirvish sidebar in the current frame. Resize with
+=dirvish-side-increase-width= / =dirvish-side-decrease-width=. With
+=dirvish-side-follow-mode= the side session selects the current buffer's file and
+visits =project-root= after switching projects.
+
+Options:
+
+- =dirvish-side-attributes=, =dirvish-side-mode-line-format=, =dirvish-side-header-line-format=
+- =dirvish-side-display-alist=, =dirvish-side-window-parameters=
+- =dirvish-side-width=, =dirvish-side-open-file-action=, =dirvish-side-auto-expand=
+
+** Setup ls switches on the fly (=dirvish-ls.el=)
+
+- =dirvish-quicksort= — change sort criteria quickly.
+- =dirvish-ls-switches-menu= — transient menu to edit listing switches.
+
+** Tree browser (=dirvish-subtree.el=)
+
+=dirvish-subtree-toggle= expands/collapses the directory under the cursor
+(alternative to =dired-subtree=).
+
+- Add =subtree-state= to =dirvish-attributes= to show expansion state.
+- =dirvish-subtree-state-style= (=plus=, =arrow=, =chevron=, =nerd=) and
+  =dirvish-subtree-icon-scale-factor= (cons ='(HEIGHT . V-ADJUST)=) adjust the indicator.
+- =dirvish-subtree-always-show-state= =nil= hides indicators when nothing is expanded.
+
+** History navigation (=dirvish-history.el=)
+
+Commands:
+
+- =dirvish-history-jump= — go to recently visited directories.
+- =dirvish-history-go-forward= / =dirvish-history-go-backward= — session-local forward/back.
+- =dirvish-history-last= — most recently used Dirvish buffer.
+
+Options:
+
+- =dirvish-history-sort-function= — sorting for =dirvish-history-jump=.
+
+** Quick keys for frequently visited places (=dirvish-quick-access.el=)
+
+Jump anywhere with minimal keystrokes (usually 2). Define entries in
+=dirvish-quick-access-entries= and call =dirvish-quick-access=.
+
+** Collapse unique nested paths (=dirvish-collapse.el=)
+
+Provides the =collapse= attribute: a chain of directories containing a single
+unique file/directory is presented as one entry, avoiding needless drilling (as
+in =dired-collapse=).
+
+** Live-narrowing of Dirvish buffer (=dirvish-narrow.el=)
+
+=dirvish-narrow= live-filters the buffer as you type. =RET= finalizes; =C-g=
+cancels; =revert-buffer= (=g=) restores the full view.
+
+- With =orderless= installed, it is used to build =completion-regexp-list=; otherwise =split-string= is used.
+- In =dirvish-fd= buffers, a leading =#= enables two-stage filtering: the part after =#= is passed to =fd= as a pattern and the remainder is applied as a secondary Dirvish filter (e.g. =#foo,bar baz= → =fd --and=foo --and=bar=, then filter =baz=).
 
 To explicitly load an extension (rarely needed):
 
