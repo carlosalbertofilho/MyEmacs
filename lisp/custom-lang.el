@@ -6,12 +6,21 @@
 
 ;;; Code:
 
+(defvar treesit-extra-load-path)
+
 ;; ── treesit-auto ────────────────────────────────────────────────────
 (use-package treesit-auto
   :ensure t
   :custom
   (treesit-auto-install 'prompt)
   :config
+  ;; Registrar diretórios de gramáticas Tree-Sitter do Nix (NixOS / Home Manager)
+  (dolist (dir '("~/.nix-profile/lib"
+                 "/run/current-system/sw/lib"
+                 "~/.nix-profile/share/treesit-grammars"))
+    (let ((expanded (expand-file-name dir)))
+      (when (file-directory-p expanded)
+        (add-to-list 'treesit-extra-load-path expanded))))
   (global-treesit-auto-mode 1))
 
 ;; ── eglot (built-in Emacs 29+) ──────────────────────────────────────
