@@ -25,5 +25,8 @@
 (ert-deftest myemacs-org-hide-emphasis ()
   (should (bound-and-true-p org-hide-emphasis-markers)))
 
+(ert-deftest myemacs-org-agenda-keybinding ()
+  (should (eq (key-binding (kbd "C-c a")) 'org-agenda)))
+
 (provide 'org-test)
 ;;; org-test.el ends here

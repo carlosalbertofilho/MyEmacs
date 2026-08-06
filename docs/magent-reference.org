@@ -69,9 +69,9 @@ Magent provides 3 main interactive entry points bound in =custom-keybindings.el=
 
 | Keybinding | Function | Description |
 |------------+----------+-------------|
-| ~C-c a m~ | ~magent-start~ | Launch or switch to the project's Magent agent-shell session |
-| ~C-c a i~ | ~magent-agent-shell-interrupt~ | Interrupt current running agent turn/request |
-| ~C-c a r~ | ~magent-agent-shell-prompt-region~ | Send active region content as prompt to Magent |
+| ~C-c A m~ | ~magent-start~ | Launch or switch to the project's Magent agent-shell session |
+| ~C-c A i~ | ~magent-agent-shell-interrupt~ | Interrupt current running agent turn/request |
+| ~C-c A r~ | ~magent-agent-shell-prompt-region~ | Send active region content as prompt to Magent |
 
 * Catalog of 15 Tools
 

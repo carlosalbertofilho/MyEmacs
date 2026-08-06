@@ -168,9 +168,10 @@ Depois configurar em =custom-org.el=:
 | Ação | Atalho |
 |------+--------|
 | Magit status | =C-c g= |
-| Magent Agent-Shell | =C-c a m= |
-| Magent Interromper | =C-c a i= |
-| Magent Enviar Região | =C-c a r= |
+| Org Agenda | =C-c a= |
+| Magent Agent-Shell | =C-c A m= |
+| Magent Interromper | =C-c A i= |
+| Magent Enviar Região | =C-c A r= |
 | Commit IA Local | =C-c C-g= |
 | Gerar Docstring Local | =C-c c d= |
 | Gerar Teste Unitário Local | =C-c c t= |
