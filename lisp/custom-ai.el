@@ -103,12 +103,16 @@
   ;; Carrega o pacote (defuns/defcustoms) — o update precisa do gptel
   (require 'gptel-agent)
 
-  ;; Cria o diretório se não existir
+  ;; Cria o diretório global se não existir
   (unless (file-directory-p (expand-file-name "~/.agents/gptel/"))
     (make-directory (expand-file-name "~/.agents/gptel/") t))
 
-  ;; Personas globais em ~/.agents/gptel/
-  (add-to-list 'gptel-agent-dirs (expand-file-name "~/.agents/gptel/"))
+  ;; Garante apenas diretórios existentes no gptel-agent-dirs
+  (let ((global-dir (expand-file-name "~/.agents/gptel/")))
+    (unless (boundp 'gptel-agent-dirs)
+      (setq gptel-agent-dirs nil))
+    (add-to-list 'gptel-agent-dirs global-dir)
+    (setq gptel-agent-dirs (cl-delete-if-not #'file-directory-p gptel-agent-dirs)))
 
   ;; Registra os presets gptel-agent/gptel-plan e lê os sub-agentes
   (gptel-agent-update))

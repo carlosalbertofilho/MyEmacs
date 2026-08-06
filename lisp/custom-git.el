@@ -38,13 +38,35 @@
   (global-set-key (kbd "C-c j") #'justl)
   (global-set-key (kbd "C-c J") #'justl-compile))
 
+(declare-function makefile-executor-execute-project-target "makefile-executor")
+(declare-function makefile-executor-execute-last "makefile-executor")
+(declare-function makefile-executor-mode "makefile-executor")
+
+(defun +carlos/makefile-executor-project-target ()
+  "Executa o alvo do Makefile do projeto com fallback seguro para `default-directory'."
+  (interactive)
+  (let ((dir (or (when-let* ((proj (project-current)))
+                   (project-root proj))
+                 default-directory)))
+    (if (file-exists-p (expand-file-name "Makefile" dir))
+        (let ((default-directory dir))
+          (makefile-executor-execute-project-target))
+      (user-error "Nenhum Makefile encontrado no diretório: %s" dir))))
+
+(defun +carlos/makefile-executor-last ()
+  "Re-executa o último alvo do Makefile."
+  (interactive)
+  (if (fboundp 'makefile-executor-execute-last)
+      (makefile-executor-execute-last)
+    (user-error "Nenhum alvo do Makefile foi executado anteriormente")))
+
 ;; ── makefile-executor (interação com Makefiles) ────────────────────
 (use-package makefile-executor
   :ensure t
   :hook (makefile-mode . makefile-executor-mode)
   :bind
-  (("C-c m m" . makefile-executor-execute-project-target)
-   ("C-c m l" . makefile-executor-execute-last)))
+  (("C-c m m" . +carlos/makefile-executor-project-target)
+   ("C-c m l" . +carlos/makefile-executor-last)))
 
 ;; ── +carlos/gptel-generate-commit-message ──────────────────────────
 ;; Reescrito sem dependência de magit (usa vc-git / processo git) e com
