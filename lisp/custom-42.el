@@ -61,9 +61,15 @@ may introduce changes that need review before submission."
     (reformatter-define +carlos/c-formatter-42
       :program +carlos/c-formatter-42-executable
       :args nil
-      :lighter " 42fmt"
-      :on-save-variable '+carlos/c-formatter-42-format-on-save
-      :on-save-lighter " 42fmt-on-save")))
+      :lighter " 42fmt"))
+
+  ;; Manual format-on-save integration (reformatter :on-save-* not available).
+  (defun +carlos/c-formatter-42--on-save ()
+    "Run c_formatter_42 on buffer before save when enabled."
+    (when +carlos/c-formatter-42-format-on-save
+      (ignore-errors (+carlos/c-formatter-42-buffer))))
+
+  (add-hook 'before-save-hook #'+carlos/c-formatter-42--on-save))
 
 ;; ── header42 ────────────────────────────────────────────────────────
 (header-42-enable)                    ; hooks + C-c h (fallback nativo)
