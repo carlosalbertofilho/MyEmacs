@@ -49,7 +49,7 @@
   (dirvish-nerd-icons-height 0.85)
   (dirvish-nerd-icons-offset -2)
   ;; Window / layout
-  (dirvish-side-width 30)
+  (dirvish-side-width 35)
   (dirvish-large-directory-threshold 20000)
   (dirvish-hide-cursor t)
   (dirvish-use-mode-line nil)
@@ -60,10 +60,12 @@
   (dirvish-side-auto-expand t)
   (dirvish-side-open-file-action 'select)
   (dirvish-reuse-session 'open)
-  ;; Sidebar specific visual settings (evita truncamento de linhas e poluição visual)
-  (dirvish-side-attributes '(nerd-icons collapse))
-  (dirvish-side-header-line-format nil)
-  (dirvish-side-mode-line-format nil)
+  ;; Sidebar specific visual settings (evita desalinhamento e poluição visual)
+  (dirvish-side-attributes '(nerd-icons collapse subtree-state))
+  (dirvish-side-display-mode-line t)
+  (dirvish-header-line-format '(:left (path project) :right (free-space)))
+  (dirvish-side-header-line-format '(:left (project)))
+  (dirvish-side-mode-line-format '(:left (sort symlink) :right (omit listing)))
   ;; Preview dispatchers (correct values: file types, NOT vc commands)
   (dirvish-preview-dispatchers
    '(image gif video audio epub pdf archive))
@@ -82,6 +84,13 @@
   (add-hook 'dirvish-mode-hook (lambda () (setq truncate-lines t)))
   (add-hook 'dirvish-mode-hook (lambda () (dired-hide-details-mode 1)))
   (add-hook 'dired-mode-hook (lambda () (display-line-numbers-mode -1)))
+  
+  ;; Hooks específicos para a barra lateral do Dirvish
+  (add-hook 'dirvish-side-mode-hook
+            (lambda ()
+              (display-line-numbers-mode -1)
+              (setq-local mode-line-format nil)
+              (setq-local line-spacing 0.1)))
   
   ;; Dired-x / Omit mode (oculta dotfiles, . e .. por padrão)
   (with-eval-after-load 'dired
