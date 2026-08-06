@@ -659,19 +659,102 @@ Fase 3 (skills/agentes) → Fase 5 (integração/docs) → Fase 7 (validação/r
 2. Adicionar o teste `myemacs-dev-makefile-executor-keybindings`.
 3. Após aplicar, garantir execução dos testes, `just compile` para check de warnings (zero admitidos), e `just checkdoc`.
 
-## 0.8. Plano de Ação — Visualização Avançada de Código (Concluído)
+## 0.8. Plano de Ação — Visualização Avançada de Código (indent-bars + rainbow-delimiters + hl-line + whitespace-mode)
 
-> **Autor:** Agente Executor (modelo Flash/Lite). **100% APLICADO E VALIDADO.**
+> **Autor:** Agente Planejador/Arquiteto (modelo Pro/Opus). Plano EXECUTÁVEL para o Agente Executor (aplicar) e para o Agente Auditor (validar). **NÃO foi aplicado nada ainda.**
 
-### Configurações Aplicadas
+### 1. `indent-bars` (Guias de Indentação Modernas com Tree-Sitter)
 
-1. **`lisp/custom-ui.el`:**
-   - Adicionadas declarações `declare-function` (`indent-bars-mode`, `rainbow-delimiters-mode`, `whitespace-mode`, `hl-line-mode`).
-   - Configurado `indent-bars` com suporte a tree-sitter e destaque por profundidade.
-   - Configurado `rainbow-delimiters` em `prog-mode-hook`.
-   - Habilitado `hl-line-mode` em `prog-mode-hook`.
-   - Configurado `whitespace-mode` sutil (face, trailing, tabs, tab-mark) em `prog-mode-hook`.
+**Arquivos alvo:** `lisp/custom-ui.el`
 
-2. **`tests/dev-env-test.el`:**
-   - Adicionados 4 testes ERT (`myemacs-dev-indent-bars-available`, `myemacs-dev-rainbow-delimiters-available`, `myemacs-dev-hl-line-in-prog-mode`, `myemacs-dev-whitespace-prog-mode`).
+**Ação:** Configurar `indent-bars` para exibir guias de indentação elegantes com suporte a Tree-Sitter e destaque baseado na profundidade.
 
+**Trechos de Código (Executor):**
+```elisp
+;; Adicionar em lisp/custom-ui.el (após as declarações iniciais)
+(declare-function indent-bars-mode "indent-bars")
+
+(use-package indent-bars
+  :ensure t
+  :hook (prog-mode . indent-bars-mode)
+  :custom
+  (indent-bars-treesitter-support t)
+  (indent-bars-width 0.2)
+  (indent-bars-pad 0.1)
+  (indent-bars-color-by-depth '(:regexp "outline-\\([0-9]+\\)" :blend 1)))
+```
+
+### 2. `rainbow-delimiters` (Colorização de Parênteses e Aninhamento)
+
+**Arquivos alvo:** `lisp/custom-ui.el`
+
+**Ação:** Colorizar parênteses, chaves e colchetes aninhados.
+
+**Trechos de Código (Executor):**
+```elisp
+;; Adicionar em lisp/custom-ui.el
+(declare-function rainbow-delimiters-mode "rainbow-delimiters")
+
+(use-package rainbow-delimiters
+  :ensure t
+  :hook (prog-mode . rainbow-delimiters-mode))
+```
+
+### 3. `hl-line-mode` (Destaque da Linha Atual Nativo) e 4. `whitespace-mode` Sutil
+
+**Arquivos alvo:** `lisp/custom-ui.el`
+
+**Ação:** Destacar a linha onde o cursor está e exibir espaços/tabs de maneira não poluente no final das linhas.
+
+**Trechos de Código (Executor):**
+```elisp
+;; Adicionar em lisp/custom-ui.el
+(declare-function hl-line-mode "hl-line")
+(declare-function whitespace-mode "whitespace")
+
+(use-package hl-line
+  :ensure nil
+  :hook (prog-mode . hl-line-mode))
+
+(use-package whitespace
+  :ensure nil
+  :hook (prog-mode . whitespace-mode)
+  :custom
+  (whitespace-style '(face trailing tabs tab-mark)))
+```
+
+### 5. Suíte ERT (`tests/dev-env-test.el`)
+
+**Arquivos alvo:** `tests/dev-env-test.el`
+
+**Ação:** Adicionar os testes garantindo a disponibilidade das funcionalidades visuais no ambiente de testes batch.
+
+**Trechos de Código (Executor):**
+```elisp
+;; Adicionar em tests/dev-env-test.el
+
+(defvar myemacs-dev-indent-bars-available
+  (condition-case nil (require 'indent-bars) (error nil))
+  "Non-nil quando indent-bars está disponível.")
+
+(ert-deftest myemacs-dev-indent-bars-available ()
+  (skip-unless myemacs-dev-indent-bars-available)
+  (should (featurep 'indent-bars)))
+
+(defvar myemacs-dev-rainbow-delimiters-available
+  (condition-case nil (require 'rainbow-delimiters) (error nil))
+  "Non-nil quando rainbow-delimiters está disponível.")
+
+(ert-deftest myemacs-dev-rainbow-delimiters-available ()
+  (skip-unless myemacs-dev-rainbow-delimiters-available)
+  (should (featurep 'rainbow-delimiters)))
+
+(ert-deftest myemacs-dev-hl-line-in-prog-mode ()
+  "Verifica se hl-line-mode está no prog-mode-hook."
+  (should (memq 'hl-line-mode prog-mode-hook)))
+
+(ert-deftest myemacs-dev-whitespace-prog-mode ()
+  "Verifica se whitespace-mode está no prog-mode-hook e o style correto."
+  (should (memq 'whitespace-mode prog-mode-hook))
+  (should (equal whitespace-style '(face trailing tabs tab-mark))))
+```

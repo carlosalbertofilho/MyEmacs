@@ -102,21 +102,31 @@
   (should (eq (key-binding (kbd "C-c m")) 'makefile-executor-execute-project-target))
   (should (eq (key-binding (kbd "C-c M")) 'makefile-executor-execute-last)))
 
+(defvar myemacs-dev-indent-bars-available
+  (condition-case nil (require 'indent-bars) (error nil))
+  "Non-nil quando indent-bars está disponível.")
+
 (ert-deftest myemacs-dev-indent-bars-available ()
-  (require 'indent-bars nil t)
-  (skip-unless (featurep 'indent-bars))
-  (should (fboundp 'indent-bars-mode)))
+  (skip-unless myemacs-dev-indent-bars-available)
+  (should (featurep 'indent-bars)))
+
+(defvar myemacs-dev-rainbow-delimiters-available
+  (condition-case nil (require 'rainbow-delimiters) (error nil))
+  "Non-nil quando rainbow-delimiters está disponível.")
 
 (ert-deftest myemacs-dev-rainbow-delimiters-available ()
-  (require 'rainbow-delimiters nil t)
-  (skip-unless (featurep 'rainbow-delimiters))
-  (should (fboundp 'rainbow-delimiters-mode)))
+  (skip-unless myemacs-dev-rainbow-delimiters-available)
+  (should (featurep 'rainbow-delimiters)))
 
 (ert-deftest myemacs-dev-hl-line-in-prog-mode ()
-  (should (memq #'hl-line-mode prog-mode-hook)))
+  "Verifica se hl-line-mode está no prog-mode-hook."
+  (should (memq 'hl-line-mode prog-mode-hook)))
 
 (ert-deftest myemacs-dev-whitespace-prog-mode ()
-  (should (memq #'whitespace-mode prog-mode-hook)))
+  "Verifica se whitespace-mode está no prog-mode-hook e o style correto."
+  (should (memq 'whitespace-mode prog-mode-hook))
+  (should (equal whitespace-style '(face trailing tabs tab-mark))))
 
 (provide 'dev-env-test)
 ;;; dev-env-test.el ends here
+

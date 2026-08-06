@@ -11,6 +11,8 @@
 (declare-function gptel "gptel")
 (declare-function justl "justl")
 (declare-function justl-compile "justl")
+(declare-function makefile-executor-execute-project-target "makefile-executor")
+(declare-function makefile-executor-execute-last "makefile-executor")
 (declare-function denote "denote")
 (declare-function denote-date "denote")
 (declare-function +carlos/dashboard-open "custom-dashboard")
@@ -52,6 +54,9 @@
 ;; ── Just ────────────────────────────────────────────────────────────
 (global-set-key (kbd "C-c j")   #'justl)
 (global-set-key (kbd "C-c J")   #'justl-compile)
+
+;; ── Makefile ────────────────────────────────────────────────────────
+;; C-c m e C-c M são associados via :bind do use-package makefile-executor (custom-git.el)
 
 ;; ── Denote ──────────────────────────────────────────────────────────
 (global-set-key (kbd "C-c n n") #'denote)
