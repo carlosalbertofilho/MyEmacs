@@ -1,0 +1,401 @@
+#+TITLE: c_formatter_42 + reformatter.el Reference Guide
+#+AUTHOR: AI Agent (RAG Context)
+#+DATE: 2026-08-06
+#+DESCRIPTION: Reference for c_formatter_42 (42 norm C formatter) and reformatter.el Emacs integration --- CLI API, formatter pipeline, Emacs commands, and best practices
+#+filetags: :42:c:formatter:reformatter:emacs:integration:reference:
+
+* c_formatter_42 + reformatter.el Reference
+:PROPERTIES:
+:CREATED:  2026-08-06
+:UPDATED:  2026-08-06
+:VERSION:  0.2.8 (PyPI)
+:REPO:     [[https://github.com/dawnbeen/c_formatter_42][github.com/dawnbeen/c_formatter_42]]
+:EMACS:    reformatter.el (MELPA, purcell/emacs-reformatter)
+:RAG_TAG:  c-formatter-42, 42-school, c-formatting, reformatter, emacs
+:END:
+
+c_formatter_42 is a Python-based C code formatter that conforms to the 42
+School norm v3. It reads C source from stdin (or files) and writes formatted
+output to stdout (or overwrites files in-place). It handles tabs, return
+parenthesization, variable hoisting, alignment, and preprocessor directive
+formatting.
+
+reformatter.el is an Emacs package that wraps CLI reformatters into Emacs
+commands, handling buffer → stdin → stdout → buffer replacement, error display,
+and optional format-on-save minor modes.
+
+This document serves as the authoritative RAG context for AI agents
+implementing or maintaining the Emacs integration.
+
+* Table of Contents
+:PROPERTIES:
+:TOC:      include
+:END:
+- [[#installation][Installation]]
+- [[#cli-api][CLI API]]
+- [[#formatter-pipeline][Formatter Pipeline (Internal)]]
+- [[#exit-codes][Exit Codes]]
+- [[#formatting-rules][Formatting Rules]]
+- [[#current-emacs-integration][Current Emacs Integration]]
+- [[#recommended-emacs-integration][Recommended Emacs Integration]]
+- [[#reformatter-el-api][reformatter.el API]]
+- [[#pitfalls-and-limitations][Pitfalls and Limitations]]
+- [[#best-practices][Best Practices]]
+- [[#nix-pep-668][Nix / PEP 668 Installation]]
+- [[#useful-links][Useful Links]]
+
+* Installation
+:PROPERTIES:
+:RAG_IMPORTANT: t
+:END:
+
+Requires Python 3.8+ (3.9, 3.10, 3.11, 3.12).
+
+** With pipx (Recommended)
+
+#+begin_src shell
+pipx install c-formatter-42
+# or run without installing:
+pipx run c-formatter-42 < file.c
+#+end_src
+
+** With pip
+
+#+begin_src shell
+pip3 install c-formatter-42
+pip3 install --user c-formatter-42  # without root
+#+end_src
+
+** From Source
+
+#+begin_src shell
+git clone https://github.com/cacharle/c_formatter_42
+cd c_formatter_42
+pip3 install -e .
+#+end_src
+
+* CLI API
+:PROPERTIES:
+:RAG_IMPORTANT: t
+:END:
+
+** stdin → stdout (Emacs reformatter pattern)
+
+#+begin_src shell
+c_formatter_42 < file.c
+#+end_src
+
+This is the primary mode used by reformatter.el — reads from stdin, writes to
+stdout. No files are modified. Exit code 0 on success.
+
+** In-place file formatting
+
+#+begin_src shell
+c_formatter_42 file.c
+c_formatter_42 file.c file2.c  # multiple files
+c_formatter_42 -c file.c       # ask confirmation before overwrite
+#+end_src
+
+** Help
+
+#+begin_src shell
+c_formatter_42 --help
+usage: c_formatter_42 [-h] [-c] [FILE [FILE ...]]
+
+Format C source according to the norm
+
+positional arguments:
+  FILE           File to format inplace, if no file is provided read STDIN
+
+optional arguments:
+  -h, --help     show this help message and exit
+  -c, --confirm  Ask confirmation before overwriting any file
+#+end_src
+
+** Python module fallback
+
+#+begin_src shell
+python3 -m c_formatter_42 < file.c  # if c_formatter_42 not in PATH
+#+end_src
+
+* Formatter Pipeline (Internal)
+:PROPERTIES:
+:RAG_INFO: t
+:END:
+
+c_formatter_42 applies these formatters in sequence (from =run.py=):
+
+| Step | Formatter | What it does |
+|------+-----------+--------------|
+| 1 | =clang_format= | Base formatting via clang-format (tabs, spacing) |
+| 2 | =preprocessor_directive= | Aligns =#include=, =#define=, etc. |
+| 3 | =remove_multiline_condition_space= | Fixes spaces in multiline conditions (tabs only) |
+| 4 | =parenthesize_return= | =return x;= → =return (x);= |
+| 5 | =space_before_semi_colon= | =return;= → =return ;= (space before semicolon on control keywords) |
+| 6 | =hoist= | Splits initialized declarations (=int a = 1;= → =int a;\na = 1;=) |
+| 7 | =align= | Aligns struct/enum/union declarations |
+| 8 | =return_type_single_tab= | Function return types use single tab indent |
+| 9 | =insert_void= | =int main()= → =int main(void)= |
+| 10 | =line_breaker= | Wraps long lines to 80 columns |
+
+* Exit Codes
+
+| Code | Meaning |
+|------+----------|
+| 0 | Success (formatted output on stdout) |
+| 1 | Error (input cannot be parsed/formatted) |
+
+* Formatting Rules
+
+c_formatter_42 enforces these 42 norm v3 rules:
+
+- **Tabs for indentation** (not spaces)
+- **=return (value);=** — parentheses around return values
+- **=return ;=** — space before semicolon on bare returns
+- **Variable hoisting** — split =int a = 1;= into declaration + assignment
+- **=int main(void)=** — insert =void= in empty parameter lists
+- **Preprocessor alignment** — =#include= directives aligned
+- **80 column line width** — long lines are wrapped
+- **Struct/enum/union alignment** — type declarations properly formatted
+
+Note: c_formatter_42 does NOT check for:
+- 42 header (use =header42.el= / =stdheader=)
+- Function line count (25 max — use =norminette=)
+- Function count per file (5 max — use =norminette=)
+- Variable count per function (5 max — use =norminette=)
+- Naming conventions (use =norminette=)
+- Include ordering (use =norminette=)
+
+Use =norminette= (the official style checker) for full norm validation.
+c_formatter_42 handles formatting only.
+
+* Current Emacs Integration
+
+** custom-lang.el
+
+#+begin_src elisp
+(use-package reformatter
+  :ensure t
+  :defer t)
+#+end_src
+
+reformatter.el is loaded as a deferred package in the language configuration.
+
+** custom-42.el
+
+#+begin_src elisp
+(defgroup +carlos/c-formatter-42 nil
+  "42 School C code formatter using c_formatter_42."
+  :group 'c
+  :prefix "+carlos/c-formatter-42-")
+
+(defcustom +carlos/c-formatter-42-executable "c_formatter_42"
+  "Path to the c_formatter_42 executable."
+  :type 'string
+  :group '+carlos/c-formatter-42)
+
+(defcustom +carlos/c-formatter-42-format-on-save nil
+  "If non-nil, format C buffers on save using c_formatter_42."
+  :type 'boolean
+  :group '+carlos/c-formatter-42)
+
+(when (executable-find +carlos/c-formatter-42-executable)
+  (with-eval-after-load 'reformatter
+    (reformatter-define +carlos/c-formatter-42
+      :program +carlos/c-formatter-42-executable
+      :args nil
+      :lighter " 42fmt"))
+
+  (defun +carlos/c-formatter-42--on-save ()
+    "Run c_formatter_42 on buffer before save when enabled."
+    (when +carlos/c-formatter-42-format-on-save
+      (ignore-errors (+carlos/c-formatter-42-buffer))))
+
+  (add-hook 'before-save-hook #'+carlos/c-formatter-42--on-save))
+#+end_src
+
+Keybinding: =C-c C-f= → =+carlos/c-formatter-42-buffer= (local in C buffers via =my-c-42-style=).
+
+** custom-norminette.el
+
+#+begin_src elisp
+(defun +carlos/norminette-format-and-check ()
+  "Format buffer with c_formatter_42 then run norminette check."
+  (interactive)
+  ;; Step 1: Format
+  (call-interactively #'+carlos/c-formatter-42-buffer)
+  ;; Step 2: Check
+  (custom-norminette-check-buffer))
+#+end_src
+
+* Recommended Emacs Integration
+
+** Basic reformatter-define
+
+#+begin_src elisp
+(reformatter-define +carlos/c-formatter-42
+  :program +carlos/c-formatter-42-executable
+  :args nil
+  :lighter " 42fmt")
+#+end_src
+
+This generates three commands:
+- =+carlos/c-formatter-42-buffer= — format entire buffer
+- =+carlos/c-formatter-42-region= — format active region
+- =+carlos/c-formatter-42-on-save-mode= — minor mode (if =:mode t=, default)
+
+** Keybinding pattern
+
+#+begin_src elisp
+(with-eval-after-load 'reformatter
+  (define-key c-mode-map (kbd "C-c C-f") #'+carlos/c-formatter-42-buffer))
+#+end_src
+
+Use =C-c C-f= (not =C-c f=) to avoid conflict with =dirvish-side=.
+
+** Format-on-save via before-save-hook
+
+#+begin_src elisp
+(defun +carlos/c-formatter-42--on-save ()
+  (when +carlos/c-formatter-42-format-on-save
+    (ignore-errors (+carlos/c-formatter-42-buffer))))
+
+(add-hook 'before-save-hook #'+carlos/c-formatter-42--on-save)
+#+end_src
+
+Keep format-on-save OFF by default for 42 School — students need to understand
+norminette errors before auto-formatting masks them.
+
+** Format-then-check pipeline
+
+#+begin_src elisp
+(defun +carlos/norminette-format-and-check ()
+  "Format then run norminette check."
+  (interactive)
+  (call-interactively #'+carlos/c-formatter-42-buffer)
+  (custom-norminette-check-buffer))
+#+end_src
+
+* reformatter.el API
+:PROPERTIES:
+:RAG_IMPORTANT: t
+:END:
+
+** reformatter-define Macro
+
+#+begin_src elisp
+(reformatter-define NAME &key
+  PROGRAM          ; CLI executable (string)
+  ARGS             ; list of CLI arguments (default: nil)
+  MODE             ; create on-save minor mode? (default: t)
+  STDIN            ; send buffer to stdin? (default: t)
+  STDOUT           ; read output from stdout? (default: t)
+  INPUT-FILE       ; use temp file instead of stdin? (default: nil)
+  LIGHTER          ; mode line indicator (default: nil)
+  KEYMAP           ; keymap for on-save mode (default: nil)
+  GROUP            ; customize group (default: nil)
+  EXIT-CODE-SUCCESS-P  ; predicate for success (default: 'zerop)
+  WORKING-DIRECTORY    ; directory to run formatter in (default: default-directory)
+  INTERACTIVE-MODES)   ; list of modes for command completion
+#+end_src
+
+** Generated Commands
+
+For =(reformatter-define my-formatter :program "fmt")=:
+
+| Command | Description |
+|---------+-------------|
+| =my-formatter-buffer= | Format entire buffer interactively |
+| =my-formatter-region= | Format active region interactively |
+| =my-formatter-on-save-mode= | Toggle format-on-save minor mode |
+
+** Important Notes
+
+- =reformatter-define= does NOT support =:on-save-variable= or =:on-save-lighter=
+- On-save behavior is controlled by the generated minor mode, not by a custom variable
+- Manual =before-save-hook= integration is needed for custom variable control
+- The =:mode t= (default) creates a minor mode but does NOT hook into =before-save-hook= automatically
+
+* Pitfalls and Limitations
+
+** c_formatter_42 Limitations
+
+- Does NOT add the 42 header (use =header42.el= / =stdheader=)
+- Does NOT check norm violations (use =norminette= for that)
+- Does NOT enforce function line limits, variable counts, naming rules
+- May conflict with =whitespace-mode= cleanup (format first, then cleanup)
+- clang-format dependency — formatting may vary slightly between clang versions
+
+** reformatter.el Limitations
+
+- No =:on-save-variable= / =:on-save-lighter= keywords (common misconception)
+- The generated minor mode does not auto-add to =before-save-hook=
+- Error handling: formatter exit code 1 → error message shown, buffer unchanged
+- Does not preserve buffer markers/point position perfectly
+
+** Emacs 30 Gotchas
+
+- =use-package-expand-minimally t= ignores =:after= — use =with-eval-after-load= explicitly
+- =executable-find= guard is essential: if CLI not installed, zero commands/binds created
+
+* Best Practices
+
+** Pre-submission workflow
+
+1. Write code normally (no need to format while writing)
+2. =C-c C-f= to format the entire buffer
+3. =M-x +carlos/norminette-format-and-check= to format + verify norm
+4. Review norminette errors (flycheck displays them inline)
+5. Fix remaining issues manually (header, function length, etc.)
+6. Save and submit
+
+** Per-project configuration
+
+Use =.dir-locals.el= to enable format-on-save for specific projects:
+
+#+begin_src elisp
+;;; Directory Local Variables
+;;; For more information see (info "(emacs) Directory Variables")
+
+((c-mode
+  . ((+carlos/c-formatter-42-format-on-save . t))))
+#+end_src
+
+** Formatting + norminette on save (optional)
+
+#+begin_src elisp
+(add-hook 'c-mode-hook
+          (lambda ()
+            (when +carlos/c-formatter-42-format-on-save
+              (add-hook 'before-save-hook #'+carlos/c-formatter-42--on-save nil t)
+              (add-hook 'after-save-hook #'flycheck-buffer nil t))))
+#+end_src
+
+This formats before save and checks norminette after save.
+
+* Nix / PEP 668 Installation
+
+On NixOS or systems with PEP 668 (=externally-managed-environment=):
+
+#+begin_src shell
+# Option 1: pipx (recommended)
+pipx install c-formatter-42
+
+# Option 2: --break-system-packages (if you accept the risk)
+pip3 install --break-system-packages c-formatter-42
+
+# Option 3: User install (no root needed)
+pip3 install --user c-formatter-42
+
+# Option 4: Home Manager (NixOS)
+# home.packages = [ pkgs.python3Packages.c-formatter-42 ];
+#+end_src
+
+* Useful Links
+
+- c_formatter_42 repo: [[https://github.com/dawnbeen/c_formatter_42][github.com/dawnbeen/c_formatter_42]]
+- PyPI: [[https://pypi.org/project/c-formatter-42/][pypi.org/project/c-formatter-42]]
+- reformatter.el: [[https://github.com/purcell/emacs-reformatter][github.com/purcell/emacs-reformatter]]
+- 42 Norminette: [[https://github.com/42School/norminette][github.com/42School/norminette]]
+- VS Code extension: [[https://marketplace.visualstudio.com/items?itemName=keyhr.42-c-format][keyhr.42-c-format]]
+- Vim plugin: [[https://github.com/cacharle/c_formatter_42.vim][c_formatter_42.vim]]
