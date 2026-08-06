@@ -252,6 +252,19 @@ Criar cache de referência para que agentes possam:
 
 *** Status: ✅ DONE
 
+** 2026-08-05 — Aplicar dicas do zzamboni (Beautifying Org Mode in Emacs)
+
+*** Feito
+- Verificado contra o post https://zzamboni.org/post/beautifying-org-mode-in-emacs/ (via markitdown): já seguíamos a maioria (emphasis markers ocultos, variable/fixed-pitch configurados, visual-line-mode, hierarquia de headings via ef-themes, faces fixed-pitch para code/table/tag).
+- Gaps aplicados em =custom-writing.el=:
+  1. **=org-indent=** herdar =(org-hide fixed-pitch)= — fixa o espaçamento vertical nos blocos em variable-pitch-mode. A face é =defface= em =org-indent.el= (carregado pelo org-indent-mode via org-startup-indented), então o set vai em =with-eval-after-load 'org-indent= (senão o defface sobrescreve).
+  2. **=org-property-value=, =org-special-keyword=, =org-verbatim=, =org-document-info=** → =:inherit 'fixed-pitch=.
+  3. **Bullet de lista** =-= → =•= via =font-lock-add-keywords= + =compose-region= (Step 1 do post).
+- Não aplicado de propósito: =org-bullets= (substituído por org-modern) e cor hardcoded de =org-link/org-document-info= (deixamos o tema ef-themes decidir, pois alterna ef-spring/ef-winter).
+- Validado em batch: =org-indent inherit=(org-hide fixed-pitch)=, faces novas aplicadas, bullet composto (=char 45 → ((1 . "•"))=). =just check= + =just compile= (zero warnings).
+
+*** Status: ✅ DONE
+
 ** 2026-08-05 — Fix: "Duplicate item ID queued: transient" no boot
 
 *** Feito

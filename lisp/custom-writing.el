@@ -117,11 +117,24 @@
 (add-hook 'org-mode-hook (lambda () (variable-pitch-mode 1)))
 (add-hook 'markdown-mode-hook (lambda () (variable-pitch-mode 1)))
 
-;; Proteger faces para que tabelas, tags e código fiquem monoespaçados
+;; Proteger faces para que tabelas, tags e código fiquem monoespaçados.
+;; Faces adicionais seguindo as dicas de https://zzamboni.org/post/beautifying-org-mode-in-emacs/.
 (with-eval-after-load 'org
-  (dolist (face '(org-table org-tag org-code org-block org-block-begin-line org-block-end-line org-date org-todo org-done org-document-info-keyword org-meta-line org-checkbox))
+  (dolist (face '(org-table org-tag org-code org-block org-block-begin-line org-block-end-line org-date org-todo org-done org-document-info org-document-info-keyword org-meta-line org-checkbox org-property-value org-special-keyword org-verbatim))
     (when (facep face)
-      (set-face-attribute face nil :inherit 'fixed-pitch))))
+      (set-face-attribute face nil :inherit 'fixed-pitch)))
+  ;; org-indent: herdar fixed-pitch (junto com org-hide) evita o aumento
+  ;; de espaçamento vertical nos blocos em variable-pitch-mode. A face é
+  ;; defface em org-indent.el (carregado pelo org-indent-mode), por isso
+  ;; o set precisa acontecer após esse load, senão o defface o sobrescreve.
+  (with-eval-after-load 'org-indent
+    (when (facep 'org-indent)
+      (set-face-attribute 'org-indent nil :inherit '(org-hide fixed-pitch))))
+  ;; Substituir o bullet "-" de listas por "•" via font-lock
+  (font-lock-add-keywords
+   'org-mode
+   '(("^ *\\([-]\\) "
+      (0 (prog1 () (compose-region (match-beginning 1) (match-end 1) "•")))))))
 
 (with-eval-after-load 'markdown-mode
   (dolist (face '(markdown-code-face markdown-inline-code-face markdown-markup-face))
