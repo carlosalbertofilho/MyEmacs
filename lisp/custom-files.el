@@ -196,6 +196,9 @@ Ignora popups, sidebars e minibuffer."
 (use-package project
   :ensure nil
   :config
+  ;; Excluir diretórios de cache/ambientes virtuais da varredura do project.el e vc
+  (dolist (dir '(".devenv" ".direnv" ".venv" ".cache" "node_modules" "build" "dist"))
+    (add-to-list 'vc-directory-exclusion-list dir))
   (setq project-switch-commands
         '((?f project-find-file "Find file")
           (?g project-find-regexp "Find regexp")

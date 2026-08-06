@@ -41,6 +41,9 @@
   ;; Incluir tool calls e resultados no buffer para visibilidade
   (setq gptel-include-tool-results t)
 
+  ;; Permitir incluir qualquer pasta/arquivo no contexto (desativa restrição estrita por git ls-files)
+  (setq gptel-context-restrict-to-project-files nil)
+
   ;; ── Backend: OpenCode Zen (OpenAI-compatible) ─────────────────────
   ;; Host real: opencode.ai (zen.opencode.ai NÃO resolve — NXDOMAIN).
   (gptel-make-openai "OpenCode Zen"

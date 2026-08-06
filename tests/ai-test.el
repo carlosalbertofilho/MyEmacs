@@ -70,5 +70,9 @@
   (dolist (preset '(gptel-agent gptel-plan))
     (should (assq preset gptel--known-presets))))
 
+(ert-deftest myemacs-ai-context-allow-all-files ()
+  :tags '(ai)
+  (should-not gptel-context-restrict-to-project-files))
+
 (provide 'ai-test)
 ;;; ai-test.el ends here
