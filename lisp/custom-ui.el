@@ -82,24 +82,26 @@
   :ensure t
   :hook (prog-mode . indent-bars-mode)
   :custom
+  (indent-bars-treesitter-support t)
   (indent-bars-width 0.2)
   (indent-bars-pad 0.1)
-  (indent-bars-color-by-depth t)
-  (indent-bars-highlight-current-depth '(:style solid))
-  (indent-bars-treesitter-support t))
+  (indent-bars-color-by-depth '(:regexp "outline-\\([0-9]+\\)" :blend 1)))
 
 (use-package rainbow-delimiters
   :ensure t
   :hook (prog-mode . rainbow-delimiters-mode))
 
-(add-hook 'prog-mode-hook #'hl-line-mode)
+(use-package hl-line
+  :ensure nil
+  :hook (prog-mode . hl-line-mode))
 
 (use-package whitespace
   :ensure nil
+  :hook (prog-mode . whitespace-mode)
   :custom
-  (whitespace-style '(face trailing tabs tab-mark))
-  :hook (prog-mode . whitespace-mode))
+  (whitespace-style '(face trailing tabs tab-mark)))
 
 (provide 'custom-ui)
 ;;; custom-ui.el ends here
+
 
