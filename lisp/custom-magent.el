@@ -16,8 +16,8 @@
 (defun +carlos/magent-start ()
   "Garante o carregamento do Magent e inicia a sessão agent-shell."
   (interactive)
-  (require 'magent nil t)
-  (require 'magent-agent-shell nil t)
+  (require 'magent)
+  (require 'magent-agent-shell)
   (if (fboundp 'magent-start)
       (magent-start)
     (user-error "Magent ainda não foi construído/carregado pelo Elpaca")))
@@ -25,8 +25,8 @@
 (defun +carlos/magent-agent-shell-interrupt ()
   "Interrompe a requisição ativa do Magent."
   (interactive)
-  (require 'magent nil t)
-  (require 'magent-agent-shell nil t)
+  (require 'magent)
+  (require 'magent-agent-shell)
   (if (fboundp 'magent-agent-shell-interrupt)
       (magent-agent-shell-interrupt)
     (user-error "Magent ainda não foi construído/carregado pelo Elpaca")))
@@ -34,8 +34,8 @@
 (defun +carlos/magent-agent-shell-prompt-region ()
   "Envia a região para o Magent."
   (interactive)
-  (require 'magent nil t)
-  (require 'magent-agent-shell nil t)
+  (require 'magent)
+  (require 'magent-agent-shell)
   (if (fboundp 'magent-agent-shell-prompt-region)
       (magent-agent-shell-prompt-region)
     (user-error "Magent ainda não foi construído/carregado pelo Elpaca")))
@@ -44,14 +44,19 @@
   :ensure (magent :repo "Jamie-Cui/magent"
                   :ref "50ef707"
                   :files ("lisp/magent*.el" "prompts" "skills" "capabilities"))
+  :demand t
   :custom
   (magent-default-agent "build")
   (magent-enable-audit-log t)
   (magent-project-instruction-file-names '("AGENTS.md"))
   (magent-include-reasoning t))
 
+(elpaca-wait)
+
 (with-eval-after-load 'magent
-  (magent-agent-shell-ensure-config))
+  (require 'magent-agent-shell nil t)
+  (when (fboundp 'magent-agent-shell-ensure-config)
+    (magent-agent-shell-ensure-config)))
 
 ;; ── Display rules ──────────────────────────────────────────────────
 (add-to-list 'display-buffer-alist
