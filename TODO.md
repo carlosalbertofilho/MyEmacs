@@ -1,5 +1,29 @@
 # TODO — Planejamento Ativo e Backlog (MyEmacs)
 
+## 0.9. Plano de Ação — Automação com Modelos Locais (Ollama CPU Pipeline)
+
+> **Autor:** Agente Arquiteto (modelo Pro/Opus). Plano EXECUTÁVEL para automação local sem custo de tokens de nuvem.
+
+### Tópicos do Plano:
+
+1. **Commit IA Local Sincrônico (`qwen2.5-coder:1.5b`):**
+   - Atualizar `+carlos/gptel-generate-commit-message` em `lisp/custom-git.el` para usar por padrão `"Ollama Local"` com `'qwen2.5-coder:1.5b` (resposta instantânea em <0.5s no `aa102-006l`).
+
+2. **Pipeline RAG Document Converter (`markitdown` → `Org-Mode` Padronizado):**
+   - Criar script utilitário `bin/rag-convert` (Python/CLI) que executa `markitdown` no arquivo de origem (PDF/HTML/MD) e invoca o Ollama local (`qwen2.5-coder:3b`) para estruturar a saída em `.org` padronizado para a pasta `docs/`.
+   - Criar skill `.magent/skills/rag-converter/SKILL.md`.
+
+3. **Pipeline de Triagem de Erros de Testes (`just triage` & `test-triage`):**
+   - Adicionar o alvo `triage` no `Justfile`.
+   - Executa `just check-all`, captura logs de erros/warnings e invoca o Ollama local (`qwen2.5-coder:1.5b` ou `3b`) para resumir logs extensos em um relatório sintético de 15 linhas no formato Org/Markdown RAG.
+   - Criar a skill `.magent/skills/test-triage/SKILL.md`.
+
+4. **Gerador Local de Docstrings e Esqueletos de Testes (`C-c c d` / `C-c c t`):**
+   - Adicionar funções em `lisp/custom-lang.el` (`+carlos/generate-docstring-at-point` e `+carlos/generate-test-at-point`) usando `"Ollama Local"` / `'qwen2.5-coder:3b`.
+
+5. **Testes ERT (`tests/local-ai-automation-test.el`):**
+   - Testes de regressão para verificar os comandos e a presença das skills locais.
+
 ## 0. Checkpoint de Rollback (baseline)
 
 > **Commit de referência (SAVE POINT):** `4679a26` — `fix(elpaca): remove duplicate transient declaration causing 'Duplicate item ID queued'`

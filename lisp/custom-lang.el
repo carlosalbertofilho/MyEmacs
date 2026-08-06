@@ -124,7 +124,7 @@
   :config
   (editorconfig-mode 1))
 
-;; ── Forward declarations for Flycheck, Eldoc-box, Apheleia ──────────
+;; ── Forward declarations for Flycheck, Eldoc-box, Apheleia, AI ──────
 (declare-function flycheck-next-error "flycheck")
 (declare-function flycheck-previous-error "flycheck")
 (declare-function consult-flycheck "consult-flycheck")
@@ -132,6 +132,9 @@
 (declare-function eldoc-box-hover-at-point-mode "eldoc-box")
 (declare-function eldoc-box-help-at-point "eldoc-box")
 (declare-function apheleia-global-mode "apheleia")
+(declare-function +carlos/gptel-request "custom-ai")
+(declare-function bounds-of-thing-at-point "thingatpt")
+
 (defvar apheleia-inhibit-functions)
 
 ;; ── Flycheck & Flycheck-inline ─────────────────────────────────────
@@ -159,7 +162,7 @@
 (use-package eldoc-box
   :ensure t
   :hook (eglot-managed-mode . eldoc-box-hover-at-point-mode)
-  :bind ("C-c c d" . eldoc-box-help-at-point))
+  :bind ("C-c c h" . eldoc-box-help-at-point))
 
 ;; ── apheleia (code formatting) ─────────────────────────────────────
 (use-package apheleia
@@ -168,6 +171,42 @@
   (apheleia-global-mode +1)
   (add-to-list 'apheleia-inhibit-functions
                (lambda () (derived-mode-p 'c-mode 'c-ts-mode))))
+
+;; ── Local AI docstring & test generation ───────────────────────────
+(defun +carlos/generate-docstring-at-point ()
+  "Gera uma docstring padronizada para a função sob o cursor usando Ollama local."
+  (interactive)
+  (let ((bounds (bounds-of-thing-at-point 'defun)))
+    (if (not bounds)
+        (message "Nenhuma função encontrada sob o cursor.")
+      (let ((code (buffer-substring-no-properties (car bounds) (cdr bounds))))
+        (+carlos/gptel-request
+         (format "Escreva apenas a docstring padronizada (PEP 257 / Doxygen / Norm 4.1) para o código a seguir. Não inclua código extra:\n\n%s" code)
+         "Ollama Local"
+         'qwen2.5-coder:3b
+         :callback (lambda (response info)
+                     (if response
+                         (message "Docstring Gerada:\n%s" response)
+                       (message "Erro ao gerar docstring: %s" (plist-get info :error)))))))))
+
+(defun +carlos/generate-test-at-point ()
+  "Gera um esqueleto de teste unitário para a função sob o cursor usando Ollama local."
+  (interactive)
+  (let ((bounds (bounds-of-thing-at-point 'defun)))
+    (if (not bounds)
+        (message "Nenhuma função encontrada sob o cursor.")
+      (let ((code (buffer-substring-no-properties (car bounds) (cdr bounds))))
+        (+carlos/gptel-request
+         (format "Escreva um teste unitário conciso para a função a seguir:\n\n%s" code)
+         "Ollama Local"
+         'qwen2.5-coder:3b
+         :callback (lambda (response info)
+                     (if response
+                         (message "Esqueleto de Teste Gerado:\n%s" response)
+                       (message "Erro ao gerar teste: %s" (plist-get info :error)))))))))
+
+(global-set-key (kbd "C-c c d") #'+carlos/generate-docstring-at-point)
+(global-set-key (kbd "C-c c t") #'+carlos/generate-test-at-point)
 
 (provide 'custom-lang)
 ;;; custom-lang.el ends here

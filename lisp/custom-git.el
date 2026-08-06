@@ -68,7 +68,7 @@ Copia a mensagem gerada para o `kill-ring'."
         (+carlos/gptel-request
          (format "Generate a concise, conventional commit message (type: scope: subject) for this diff:\n\n```\n%s\n```\n\nRules:\n%s"
                  diff rules)
-         "OpenCode Zen" 'deepseek-v4-flash-free
+         "Ollama Local" 'qwen2.5-coder:1.5b
          :system "You are an expert at writing conventional commits."
          :callback
          (lambda (response _info)
@@ -90,7 +90,7 @@ Funciona em buffers `git-commit-mode' ou `magit-commit-mode'."
       (let ((commit-buf (current-buffer)))
         (+carlos/gptel-request
          (format "Generate a concise, conventional commit message (type: scope: subject) for this diff:\n\n```\n%s\n```" diff)
-         "OpenCode Zen" 'deepseek-v4-flash-free
+         "Ollama Local" 'qwen2.5-coder:1.5b
          :system "You are an expert at writing conventional commits."
          :callback
          (lambda (response _info)

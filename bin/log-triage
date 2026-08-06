@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+"""
+log-triage: Triage test and build failure logs from 'just check-all' via local Ollama AI.
+Outputs a 15-line Markdown/Org summary if errors occur, or success message if clean.
+"""
+
+import sys
+import os
+import json
+import re
+import urllib.request
+import urllib.error
+
+def query_ollama(prompt, model="qwen2.5-coder:1.5b"):
+    """Send log triage prompt to local Ollama instance."""
+    url = "http://localhost:11434/api/generate"
+    payload = {
+        "model": model,
+        "prompt": prompt,
+        "stream": False
+    }
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=60) as response:
+            res_json = json.loads(response.read().decode("utf-8"))
+            return res_json.get("response", "")
+    except Exception as e:
+        return f"Error querying local Ollama ({url}): {e}"
+
+def main():
+    if len(sys.argv) > 1 and os.path.exists(sys.argv[1]):
+        with open(sys.argv[1], "r", encoding="utf-8", errors="ignore") as f:
+            log_content = f.read()
+    else:
+        log_content = sys.stdin.read()
+
+    if not log_content.strip():
+        print("✅ Todos os testes e checks passaram limpos.")
+        return
+
+    # Check for error signals in logs
+    has_explicit_error = False
+    
+    # Check lines for failure indicators
+    lines = log_content.splitlines()
+    for line in lines:
+        if re.search(r"\b(FAILED|Error:|error:|checkdoc: \d+ files with issues|unexpected|FAILED \()\b", line):
+            # Exclude lines reporting zero errors (e.g. "0 unexpected", "0 failures")
+            if re.search(r"0\s+(unexpected|failures|errors)", line, re.IGNORECASE):
+                continue
+            has_explicit_error = True
+            break
+
+    if not has_explicit_error:
+        print("✅ Todos os testes e checks passaram limpos.")
+        return
+
+    print("⚠️ Erros detectados nos logs. Gerando resumo de triagem via Ollama local...")
+
+    prompt = f"""Você é um triador de logs de compilação/testes do Emacs Lisp / Just.
+Analise o log de erros a seguir e gere um resumo sintético de NO MÁXIMO 15 LINHAS no formato Markdown/Org RAG:
+
+1. Categorização do erro (ex: Compilação Bytecode, ERT Unit Test, Checkdoc, Pre-condition)
+2. Causa raiz / Função / Arquivo afetado
+3. Ação corretiva recomendada
+
+LOG DE ERROS:
+{log_content[-6000:]}
+"""
+
+    summary = query_ollama(prompt)
+    print("\n--- RESUMO DE TRIAGEM (Ollama AI) ---")
+    print(summary)
+
+if __name__ == "__main__":
+    main()

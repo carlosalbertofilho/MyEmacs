@@ -23,6 +23,7 @@
 
 (require 'dev-env-test)
 (require 'magent-test)
+(require 'local-ai-automation-test)
 
 (provide 'load-tests)
 ;;; load-tests.el ends here

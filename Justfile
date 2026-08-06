@@ -72,6 +72,10 @@ test-network:
 test-all: compile checkdoc test-batch
     @echo "✅✅ All tests passed"
 
+# Run tests and generate local AI triage summary if there are errors
+triage:
+    @just check-all 2>&1 | python3 bin/log-triage
+
 # ── Sync & Deploy ────────────────────────────────────────────────────
 
 # Sync to test directory (~/.config/emacs-vanilla)
