@@ -2,10 +2,10 @@
 
 ## 0. Checkpoint de Rollback (baseline)
 
-> **Commit de referência:** `aad799c` — `docs(dirvish): update Extensions RAG section from upstream EXTENSIONS.org via markitdown`
-> **Estado:** dirvish refatorado (ícones/sidebar/hooks corretos), olivetti responsivo `0.85`, RAG de extensões atualizado, Zen reading. Emacs de teste (`~/.config/emacs-vanilla`) abre sem erros.
-> **Reverter:** `git revert aad799c` (preserva histórico) ou `git reset --hard aad799c` (destrói commits seguintes) em `~/Projects/Github/MyEmacs`, depois `cd ~/.config/emacs-vanilla && git stash && git pull && git stash pop`.
-> **Uso:** reverter para este ponto antes de experimentos arriscados (ex.: ativar `dirvish-emerge`/`dirvish-peek`/`git-msg`).
+> **Commit de referência (SAVE POINT):** `29d7dab` — `docs: record dirvish emerge/peek/git-msg activation in TODO and roadmap`
+> **Estado (aprovado pelo usuário: "ficou perfeito"):** dirvish refatorado (ícones/sidebar/hooks corretos), olivetti responsivo `0.85`, Zen reading, RAG de extensões atualizado e extensões dirvish ativas — `git-msg` no painel principal, `E` → `dirvish-emerge-mode` com 6 grupos padrão, `dirvish-peek-mode` global com debounce 0.5. Emacs de teste (`~/.config/emacs-vanilla`) abre sem erros, sincronizado com `origin/main`.
+> **Reverter:** `git revert 29d7dab` (preserva histórico) ou `git reset --hard 29d7dab` (destrói commits seguintes) em `~/Projects/Github/MyEmacs`, depois `cd ~/.config/emacs-vanilla && git stash && git pull && git stash pop`.
+> **Anterior:** `aad799c` (RAG extensions) — útil como ponto anterior ao experimento das extensões.
 
 ## 1. Planejamento Corrente (Ações Atuais)
 
