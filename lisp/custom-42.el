@@ -54,11 +54,12 @@ may introduce changes that need review before submission."
   :type 'boolean
   :group '+carlos/c-formatter-42)
 
-(with-eval-after-load 'reformatter
-  (reformatter-define +carlos/c-formatter-42
-    :program +carlos/c-formatter-42-executable
-    :args nil
-    :lighter " 42fmt"))
+(require 'reformatter nil t)
+
+(reformatter-define +carlos/c-formatter-42
+  :program +carlos/c-formatter-42-executable
+  :args nil
+  :lighter " 42fmt")
 
 ;; Manual format-on-save integration (reformatter :on-save-* not available).
 (defun +carlos/c-formatter-42--on-save ()
