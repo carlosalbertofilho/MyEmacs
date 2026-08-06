@@ -40,10 +40,13 @@
       (magent-agent-shell-prompt-region)
     (user-error "Magent ainda não foi construído/carregado pelo Elpaca")))
 
+(elpaca (magent :host github
+                :repo "Jamie-Cui/magent"
+                :ref "50ef707"
+                :files ("lisp/magent*.el" "prompts" "skills" "capabilities")))
+
 (use-package magent
-  :ensure (magent :repo "Jamie-Cui/magent"
-                  :ref "50ef707"
-                  :files ("lisp/magent*.el" "prompts" "skills" "capabilities"))
+  :ensure nil
   :demand t
   :custom
   (magent-default-agent "build")
