@@ -99,8 +99,8 @@
 (ert-deftest myemacs-dev-makefile-executor-keybindings ()
   (require 'makefile-executor nil t)
   (skip-unless (featurep 'makefile-executor))
-  (should (eq (key-binding (kbd "C-c m m")) 'makefile-executor-execute-project-target))
-  (should (eq (key-binding (kbd "C-c m l")) 'makefile-executor-execute-last)))
+  (should (eq (key-binding (kbd "C-c m m")) '+carlos/makefile-executor-project-target))
+  (should (eq (key-binding (kbd "C-c m l")) '+carlos/makefile-executor-last)))
 
 (defvar myemacs-dev-indent-bars-available
   (condition-case nil (require 'indent-bars) (error nil))
