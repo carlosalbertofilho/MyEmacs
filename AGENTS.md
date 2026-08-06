@@ -177,34 +177,76 @@ Regras:
 
 ## Known Bugs & Fixes
 
-### Critical (Must Fix)
+> Todas as regressões abaixo foram **resolvidas** e estão cobertas pela suíte
+> ERT em `tests/`. Ao alterar config que mexa nesses pontos, os testes devem
+> continuar passando (`just test-all`).
 
-| # | Bug | File | Severity | Fix |
-|---|-----|------|----------|-----|
-| 1 | **Keybinding conflict**: `C-c h` defined in both `custom-completion.el` (consult-history) and `custom-keybindings.el` (stdheader placeholder) | custom-completion.el, custom-keybindings.el | HIGH | Remove `C-c h` from consult; use different binding for stdheader |
-| 2 | **Dirvish icons**: `dirvish-nerd-icons-height 12` makes icons too small (not large) | custom-files.el:75 | MEDIUM | Change to 16-18 |
-| 3 | **Dirvish layout**: `dirvish-default-layout 10` is invalid (valid: 0-5) | custom-files.el:30 | MEDIUM | Remove or set to valid index |
-| 4 | **TRAMP duplicated**: Settings in both `custom-core.el` and `custom-files.el` | custom-core.el:45, custom-files.el:131 | LOW | Keep only in custom-files.el |
-| 5 | **Eglot in prog-mode**: `eglot-ensure` on all prog-mode hooks causes slowdown | custom-lang.el:16 | MEDIUM | Use per-mode hooks instead |
+### Resolved (regression-guarded by tests)
 
-### Medium (Should Fix)
+| # | Bug (resolvido) | Onde o teste protege |
+|---|-----------------|----------------------|
+| 1 | `C-c h` conflito consult-history × stdheader → consult-history movido para `C-c /` | `tests/keybindings-test.el` |
+| 2 | `dirvish-nerd-icons-height 12` (ícones pequenos) → `0.85` | `tests/files-test.el` |
+| 3 | `dirvish-default-layout 10` inválido → `(1 0.11 0.55)` | `tests/files-test.el` |
+| 4 | TRAMP duplicado → apenas `custom-files.el` | — |
+| 5 | `eglot-ensure` em todos os prog-modes → hooks por-mode | — |
+| 6 | Múltiplos `with-eval-after-load 'dirvish'` → consolidado em `:config` | — |
+| 7 | Emojis em `org-modern-priority` → alternativas de texto | `tests/org-test.el` |
+| 8 | `superchat`/`llm.el` → removidos | — |
+| 9 | `gptel-integrations` sem guarda → `(require ... nil t)` | — |
+| 10 | Binds comentados em `custom-keybindings.el` → removidos | — |
+| 11/12 | `C-c e` duplicado → só em `custom-term.el` | `tests/term-test.el` |
+| 13/14 | Dashboard referenciava `consult-fzf`/`magit` → dashboard nano reescrito | `tests/dashboard-test.el` |
 
-| # | Issue | File | Fix |
-|---|-------|------|-----|
-| 6 | **Multiple `with-eval-after-load 'dirvish`** blocks (5+ scattered) | custom-files.el:58-109 | Consolidate into `:config` |
-| 7 | **Emojis in org-modern-priority** may not render in terminal | custom-org.el:95-98 | Use text alternatives or guard |
-| 8 | **`superchat` depends on `llm.el`** which may not exist | custom-ai.el:172 | Guard with `locate-library` or `featurep` |
-| 9 | **`gptel-integrations` require** without verification | custom-ai.el:157 | Guard with `(require 'gptel-integrations nil t)` |
-| 10 | **`custom-keybindings.el`** has commented-out bindings (placeholders) | custom-keybindings.el | Either enable or remove |
+### Encontrados pela suíte (2026-08-06)
 
-### Low (Nice to Fix)
+| Bug | Fix | Teste |
+|-----|-----|-------|
+| `C-c i` (gptel) sombreado por consult-imenu (use-package `:bind` de pacote deferido reaplica depois) | consult-imenu → `M-s i` | `myemacs-kbd-imenu-consult` |
+| `+carlos/dashboard-open`/`-refresh` declarados e bindados mas **nunca definidos** (void-function em `C-c d d`/`C-c d r`) | definidos como wrappers de `dashboard-open`/`dashboard-refresh-buffer` | `myemacs-dashboard-commands-exist` |
+| `git-commit` `C-c C-g` via hook (só aplicava em buffer real) | `define-key` direto no `git-commit-mode-map` via `with-eval-after-load 'git-commit` | `myemacs-git-commit-mode-map-bind` |
 
-| # | Issue | File | Fix |
-|---|-------|------|-----|
-| 11 | `eshell` bound twice: `C-c e` in custom-term.el and custom-keybindings.el | custom-term.el:39, custom-keybindings.el:47 | Remove duplicate |
-| 12 | `C-c E` for eshell (capital E) may conflict | custom-keybindings.el:47 | Consider different binding |
-| 13 | Dashboard references `consult-fzf` which may not be installed | custom-dashboard.el:276,422 | Guard with `fboundp` or use `consult-find` |
-| 14 | `magit-status` called in dashboard without checking if magit is loaded | custom-dashboard.el:283,425 | Guard with `fboundp` |
+---
+
+## Testing (ERT Suite)
+
+A suíte de regressão usa **ERT** (nativo do Emacs, sem dependências) em modo
+batch. Roda contra o ambiente autoritativo `~/.config/emacs-vanilla` (builds
+elpaca completos); o repo pode ter builds parciais (ex.: falta
+`gptel-autoloads.el`), então os testes de IA só rodam no vanilla.
+
+```bash
+# Suíte completa (structural + offline AI), exit != 0 em falha
+just test-all          # = compile + checkdoc + test-batch
+
+# Apenas testes de IA (offline; rede fica skipped)
+just test-ai
+
+# Testes de REDE ao vivo (requer EMACS_TEST_NETWORK=1 — opt-in)
+EMACS_TEST_NETWORK=1 just test-batch
+
+# Roda contra outro diretório (ex.: repo)
+just test-batch EMACS_TEST_DIR="$(pwd)"
+```
+
+### Como adicionar um teste
+
+1. Crie `tests/<area>-test.el` com `(require 'ert)` e `ert-deftest`.
+2. Nomeie `myemacs-<area>-<desc>` — o prefixo `myemacs-ai` é usado como
+   selector de `just test-ai`.
+3. Testes de rede: adicione `:tags '(ai network)` e `(skip-unless (getenv
+   "EMACS_TEST_NETWORK"))` (sem a envvar aparecem como skipped, não falham).
+4. Testes que dependem de módulo nativo (vterm) devem fazer `skip-unless`
+   quando o módulo não carrega, para a suíte passar em qualquer ambiente.
+5. Regra: cada bug corrigido ganha um teste que reproduziria o bug.
+
+### Regras dos testes
+
+- Testes **não** fazem rede por padrão (CI-friendly); rede é opt-in.
+- `key-binding`/`lookup-key` resolvem maps de minor modes e use-package
+  `:bind` de pacotes deferidos — use-os para pegar conflitos reais.
+- Em `--batch`, `--eval` avalia **apenas a primeira forma**; use `-l` com
+  arquivo ou múltiplos `--eval` para scripts de verificação.
 
 ---
 
@@ -238,7 +280,7 @@ All package APIs are documented in `docs/`. Reference these files before making 
 
 ### After Making Changes
 
-1. Run `just check` to verify config loads
+1. Run `just test-all` (compile + checkdoc + ERT suite) to verify config loads and no regressions
 2. Sincronizar obrigatoriamente as alterações com a pasta `~/.config/emacs-vanilla` e executar o teste com o comando `emacs --init-directory ~/.config/emacs-vanilla` (ambiente oficial de testes do usuário)
 3. Update `TODO.md` with the change
 4. Update `roadmap.org` with the action taken
@@ -273,7 +315,7 @@ Este projeto adota uma arquitetura de trabalho assistido entre agentes com difer
 * **Agente Auditor / Validador (Modelo Mediano/Audit - Modelo Medium/Flash)**
   * **Responsabilidade:** Auditar e certificar o trabalho do Executor.
   * **Ações Obrigatórias:**
-    1. Rodar os testes estritos de carga e compilação (`just check-all`, que executa compilação e checkdoc).
+    1. Rodar os testes estritos de carga, compilação e regressão (`just check-all`, que executa `check` + `test-all` = compile + checkdoc + suíte ERT).
     2. Garantir **zero warnings** na compilação (`byte-compile-error-on-warn t`).
     3. Atualizar o histórico de mudanças no [TODO.md](file:///Users/carlosfilho/Projects/Github/MyEmacs/TODO.md) e [roadmap.org](file:///Users/carlosfilho/Projects/Github/MyEmacs/roadmap.org).
 

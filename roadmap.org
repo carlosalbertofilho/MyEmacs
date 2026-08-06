@@ -11,6 +11,21 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-06 — Suíte de testes ERT (tests/) e política de regressão
+
+*** Feito
+- **Decisão ERT vs Buttercup:** ERT (nativo, zero dependência, roda o boot completo e dá exit code via `ert-run-tests-batch-and-exit`). Buttercup (BDD de terceiros) exigiria instalação via elpaca no ambiente de teste e não cobre "config carrega inteira" de forma natural.
+- **Infra:** `tests/load-tests.el` (loader dos `tests/*-test.el` após o init.el) + targets no Justfile: `test-batch`, `test-ai` (selector `myemacs-ai`), `test-network` (opt-in `EMACS_TEST_NETWORK=1`), `test-all` (= compile + checkdoc + test-batch). `check-all` agora inclui `test-all`. Ambiente autoritativo = `~/.config/emacs-vanilla` (via variável `EMACS_TEST_DIR`).
+- **Arquivos:** `tests/boot-test.el`, `keybindings-test.el`, `ai-test.el`, `ai-network-test.el` (skip-unless rede), `files-test.el`, `term-test.el` (vterm skip-unless módulo nativo), `git-test.el`, `org-test.el`, `dashboard-test.el`. **54 testes, 0 falhas, 6 skipped** no repo.
+- **Bugs reais descobertos pela suíte (corrigidos):**
+  - `C-c i` (gptel) sombreado por consult-imenu (use-package `:bind` de pacote deferido reaplica o bind depois) → consult-imenu movido para `M-s i` (mesmo padrão do `C-c h`/`C-c /`).
+  - `+carlos/dashboard-open`/`-refresh` declarados e bindados em `C-c d d`/`C-c d r` mas **nunca definidos** (void-function) → wrappers de `dashboard-open`/`dashboard-refresh-buffer`.
+  - `git-commit` `C-c C-g` via hook (só aplicava em buffer real; não verificável em batch) → `define-key` direto no `git-commit-mode-map` via `with-eval-after-load 'git-commit`.
+- **Ambiente:** removidos `.elc` stale do repo (usavam o código antigo do `defvar nil` bugado); rebuild do build do gptel no repo (faltava `gptel-autoloads.el` → "Config Error gptel: void-function gptel-make-openai").
+- **AGENTS.md:** seção "Testing (ERT Suite)" com como rodar/adicionar testes, regras (rede opt-in, `skip-unless`, `--eval` só avalia a 1ª forma) e tabela de bugs resolvidos reescrita.
+
+*** Status: ✅ DONE
+
 ** 2026-08-06 — Correção completa da stack de IA (gptel 0.9.9.5)
 
 *** Feito

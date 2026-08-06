@@ -7,6 +7,8 @@
 
 ;; Forward declarations for byte-compiler
 (declare-function dashboard-setup-startup-hook "dashboard")
+(declare-function dashboard-open "dashboard")
+(declare-function dashboard-refresh-buffer "dashboard")
 
 (use-package dashboard
   :ensure t
@@ -32,6 +34,16 @@
 (defun +carlos/dashboard-setup-startup-hook ()
   "Setup dashboard startup hook."
   (dashboard-setup-startup-hook))
+
+(defun +carlos/dashboard-open ()
+  "Open (or refresh) the *dashboard* buffer."
+  (interactive)
+  (dashboard-open))
+
+(defun +carlos/dashboard-refresh ()
+  "Regenerate the *dashboard* buffer contents."
+  (interactive)
+  (dashboard-refresh-buffer))
 
 (provide 'custom-dashboard)
 ;;; custom-dashboard.el ends here

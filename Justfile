@@ -37,8 +37,33 @@ lint: compile checkdoc
     @echo "✅ All lint checks passed"
 
 # Enhanced check: loads + full lint (CI-friendly)
-check-all: check lint
+check-all: check test-all
     @echo "✅✅ Full check passed"
+
+# ── Tests (ERT suite) ────────────────────────────────────────────────
+
+# Authoritative test environment (full elpaca builds; repo may have stale gptel)
+EMACS_TEST_DIR := `echo "$HOME/.config/emacs-vanilla"`
+
+# Run full ERT suite in batch (exit non-zero on failure)
+test-batch:
+    emacs --init-directory "{{EMACS_TEST_DIR}}" --batch -l init.el \
+      -l tests/load-tests.el \
+      --eval '(ert-run-tests-batch-and-exit t)'
+
+# AI-only tests (offline asserts; network skipped without EMACS_TEST_NETWORK)
+test-ai:
+    emacs --init-directory "{{EMACS_TEST_DIR}}" --batch -l init.el \
+      -l tests/load-tests.el \
+      --eval '(ert-run-tests-batch-and-exit "myemacs-ai")'
+
+# Live network tests: real requests to every gptel backend (opt-in)
+test-network:
+    EMACS_TEST_NETWORK=1 just test-batch
+
+# Tests + lint (CI-friendly)
+test-all: compile checkdoc test-batch
+    @echo "✅✅ All tests passed"
 
 # ── Sync & Deploy ────────────────────────────────────────────────────
 

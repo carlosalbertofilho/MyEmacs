@@ -88,10 +88,13 @@ Funciona em buffers `git-commit-mode' ou `magit-commit-mode'."
                (goto-char (point-min))
                (insert (string-trim response))))))))))
 
-;; Atalho dentro do buffer de commit (magit e git-commit)
-(add-hook 'git-commit-mode-hook
-          (lambda ()
-            (local-set-key (kbd "C-c C-g") #'+carlos/gptel-insert-commit-message)))
+;; Atalho dentro do buffer de commit (magit e git-commit).
+;; Bind direto no mapa (não hook) para aplicar já no carregamento e ser
+;; verificável em batch.
+(with-eval-after-load 'git-commit
+  (when (boundp 'git-commit-mode-map)
+    (define-key git-commit-mode-map (kbd "C-c C-g")
+      #'+carlos/gptel-insert-commit-message)))
 (with-eval-after-load 'magit
   (when (boundp 'magit-commit-mode-map)
     (define-key magit-commit-mode-map (kbd "C-c C-g")

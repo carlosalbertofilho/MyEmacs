@@ -26,6 +26,12 @@
   - `use-package :after` é ignorado com `use-package-expand-minimally t` → gptel-agent agora carrega via `with-eval-after-load 'gptel` (agents + presets registrados).
   - `C-c C-g` agora é global (gera commit IA); dentro do buffer de commit insere direto.
   - Validado: 16/16 arquivos compilados zero warnings, checkdoc OK, regressão batch completa verde. Commit `90e3921`.
+- [x] **Suíte de testes ERT (tests/) + política de regressão:**
+  - **Decisão:** ERT (nativo, zero dependência, exit code via `ert-run-tests-batch-and-exit`) em vez de Buttercup (BDD de terceiros exigiria instalação e não roda "boot completo" de forma natural).
+  - **Infra:** `tests/load-tests.el` (carrega `tests/*-test.el` após o `init.el`); targets no Justfile — `test-batch`, `test-ai` (selector `myemacs-ai`), `test-network` (opt-in `EMACS_TEST_NETWORK=1`), `test-all` (= compile + checkdoc + test-batch); `check-all` agora inclui a suíte.
+  - **Arquivos:** boot, keybindings, ai, ai-network (skip-unless rede), files, term, git, org, dashboard — 54 testes, 0 falhas, 6 skipped (rede/vterm).
+  - **Bugs reais descobertos pela suíte (corrigidos):** `C-c i` (gptel) sombreado por consult-imenu → imenu movido para `M-s i`; `+carlos/dashboard-open`/`-refresh` declarados mas nunca definidos (void-function `C-c d d`/`C-c d r`) → wrappers de `dashboard-open`/`dashboard-refresh-buffer`; `git-commit` `C-c C-g` via hook (não aplicava em batch) → `define-key` direto no `git-commit-mode-map`.
+  - **Outros:** removidos `.elc` stale do repo (usavam código antigo do `defvar nil`); rebuild do `gptel-autoloads.el` no repo (faltava → "Config Error gptel"); documentada a regra "`--eval` avalia só a primeira forma" no AGENTS.md.
 
 ## 1. Planejamento Corrente (Ações Atuais)
 

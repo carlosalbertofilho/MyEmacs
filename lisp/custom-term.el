@@ -15,8 +15,11 @@
 (declare-function eat-exec-cmd "eat")
 (declare-function eat-make-buffer "eat")
 (declare-function vterm-send-string "vterm")
-(defvar vterm-mode-map nil)
-(defvar eshell-mode-map nil)
+;; Forward declarations peladas: vterm/eshell definem esses maps com
+;; keymap NÃO-nil — `(defvar X nil)' clobberaria o default (gotcha Emacs 30).
+;; Os define-key abaixo rodam após o pacote dono carregar (map já bound).
+(defvar vterm-mode-map)
+(defvar eshell-mode-map)
 
 ;; ── vterm ───────────────────────────────────────────────────────────
 ;; Prevent vterm from prompting for module compilation in batch mode

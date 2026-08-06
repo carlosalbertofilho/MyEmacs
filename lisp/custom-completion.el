@@ -53,7 +53,7 @@
     ("C-s"     . consult-line)
     ("C-c s"   . consult-ripgrep)
     ("C-c /"   . consult-history)     ; was C-c h — freed for stdheader (42 School)
-    ("C-c i"   . consult-imenu)
+    ("M-s i"   . consult-imenu)       ; was C-c i — freed for gptel (AI cluster)
     ("C-c k"   . consult-keep-lines)
     ("M-g g"   . consult-goto-line)
     ("M-g M-g" . consult-goto-line)))
