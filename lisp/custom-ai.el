@@ -36,6 +36,7 @@
 ;; ── gptel core ──────────────────────────────────────────────────────
 (use-package gptel
   :ensure t
+  :demand t
   :config
   ;; Incluir tool calls e resultados no buffer para visibilidade
   (setq gptel-include-tool-results t)
@@ -88,7 +89,11 @@
               "mlx-community/Qwen2.5-7B-Instruct-4bit"
               "mlx-community/Qwen3.5-9B-MLX-4bit"
               "mlx-community/DeepSeek-R1-Distill-Qwen-14B-4bit"
-              "mlx-community/Qwen3-14B-4bit")))
+              "mlx-community/Qwen3-14B-4bit"))
+
+  ;; ── Set default backend and model globally ─────────────────────────
+  (setq-default gptel-backend (gptel-get-backend "Zen Claude"))
+  (setq-default gptel-model 'claude-sonnet-5))
 
 ;; ── gptel-agent ─────────────────────────────────────────────────────
 ;; NOTA: com `use-package-expand-minimally t', o keyword `:after' do

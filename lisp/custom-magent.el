@@ -16,8 +16,15 @@
 (defun +carlos/magent-start ()
   "Garante o carregamento do Magent e inicia a sessão agent-shell."
   (interactive)
+  (require 'gptel)
   (require 'magent)
   (require 'magent-agent-shell)
+  (unless gptel-backend
+    (setq gptel-backend (or (gptel-get-backend "Zen Claude")
+                            (gptel-get-backend "Ollama Local")
+                            (car gptel-backend-list))))
+  (unless gptel-model
+    (setq gptel-model (or 'claude-sonnet-5 'qwen2.5-coder:3b)))
   (if (fboundp 'magent-start)
       (magent-start)
     (user-error "Magent ainda não foi construído/carregado pelo Elpaca")))
@@ -40,7 +47,7 @@
       (magent-agent-shell-prompt-region)
     (user-error "Magent ainda não foi construído/carregado pelo Elpaca")))
 
-(elpaca (magent :host github
+(elpaca (magent :fetcher github
                 :repo "Jamie-Cui/magent"
                 :ref "50ef707"
                 :files ("lisp/magent*.el" "prompts" "skills" "capabilities")))
