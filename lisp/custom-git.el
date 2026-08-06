@@ -43,7 +43,7 @@
 (declare-function makefile-executor-mode "makefile-executor")
 
 (defun +carlos/makefile-executor-project-target ()
-  "Executa o alvo do Makefile do projeto com fallback seguro para `default-directory'."
+  "Executa o alvo do Makefile do projeto com fallback seguro."
   (interactive)
   (let ((dir (or (when-let* ((proj (project-current)))
                    (project-root proj))

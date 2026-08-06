@@ -47,19 +47,16 @@
 
 (use-package magent
   :ensure nil
-  :demand t
   :custom
   (magent-default-agent "build")
   (magent-enable-audit-log t)
   (magent-project-instruction-file-names '("AGENTS.md"))
   (magent-include-reasoning t))
 
-(elpaca-wait)
-
 (with-eval-after-load 'magent
-  (require 'magent-agent-shell nil t)
-  (when (fboundp 'magent-agent-shell-ensure-config)
-    (magent-agent-shell-ensure-config)))
+  (when (require 'magent-agent-shell nil t)
+    (when (fboundp 'magent-agent-shell-ensure-config)
+      (magent-agent-shell-ensure-config))))
 
 ;; ── Display rules ──────────────────────────────────────────────────
 (add-to-list 'display-buffer-alist
