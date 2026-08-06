@@ -78,10 +78,18 @@ triage:
 
 # ── Sync & Deploy ────────────────────────────────────────────────────
 
-# Sync to test directory (~/.config/emacs)
+# Sync to test/production directory (~/.config/emacs)
 sync:
     @echo "📦 Syncing to ~/.config/emacs..."
-    @cd ~/.config/emacs && (git diff --quiet || git stash) && git pull && (git stash pop 2>/dev/null || true) && find . -name "*.elc" -type f -delete && echo "✅ Sync complete"
+    @mkdir -p ~/.config/emacs/lisp ~/.config/emacs/tests ~/.config/emacs/site-lisp ~/.config/emacs/docs ~/.config/emacs/bin
+    @cp -r lisp/* ~/.config/emacs/lisp/ 2>/dev/null || true
+    @cp -r tests/* ~/.config/emacs/tests/ 2>/dev/null || true
+    @cp -r site-lisp/* ~/.config/emacs/site-lisp/ 2>/dev/null || true
+    @cp -r docs/* ~/.config/emacs/docs/ 2>/dev/null || true
+    @cp -r bin/* ~/.config/emacs/bin/ 2>/dev/null || true
+    @cp init.el early-init.el Justfile AGENTS.md README.org TODO.md roadmap.org ~/.config/emacs/ 2>/dev/null || true
+    @find ~/.config/emacs -name "*.elc" -type f -delete
+    @echo "✅ Sync complete"
 
 # Test in sync directory
 test:
