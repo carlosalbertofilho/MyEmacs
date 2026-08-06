@@ -12,7 +12,7 @@
 (use-package treesit-auto
   :ensure t
   :custom
-  (treesit-auto-install 'prompt)
+  (treesit-auto-install (unless noninteractive 'prompt))
   :config
   ;; Registrar diretórios de gramáticas Tree-Sitter do Nix (NixOS / Home Manager)
   (dolist (dir '("~/.nix-profile/lib"
