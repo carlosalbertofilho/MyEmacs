@@ -60,8 +60,11 @@
 (defun custom-norminette--parse-json (output &optional _filename)
   "Parse norminette JSON OUTPUT into flycheck errors."
   (when-let* ((data (ignore-errors
-                     (let ((json-array-type 'list))
-                       (json-read-from-string output))))
+                      (json-parse-string output
+                                         :object-type 'alist
+                                         :array-type 'list
+                                         :null-object nil
+                                         :false-object nil)))
               (files (alist-get 'files data))
               (file-data (car files))
               (errors (alist-get 'errors file-data '())))
