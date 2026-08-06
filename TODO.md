@@ -54,3 +54,29 @@
 - [x] **2. Refatorar Aliases de IA (Remover Hardcodes)** (Feito em `custom-term.el`)
 - [x] **3. Otimizar os Atalhos de Teclado (`C-c A a` e `C-c A o`)** (Feito em `custom-term.el`)
 - [x] **4. Teste e Validação** (Feito com `just lint`)
+
+## 6. Plano de Aprimoramento da Sidebar Dirvish (Opus)
+
+### Regra 1: Ocultar entradas especiais e arquivos indesejados
+1. **Configurar atributos de exibição:**
+   - Configurar `dirvish-attributes` para as views padrão do dired contendo apenas `(nerd-icons file-time file-size collapse)`.
+   - Limpar o `dirvish-side-attributes` para ficar mais minimalista, utilizando `(nerd-icons collapse)` ou `(nerd-icons collapse subtree-state)`.
+2. **Ocultar dotfiles e temporários:**
+   - Habilitar o `dired-omit-mode` nos buffers da sidebar.
+   - Configurar a variável `dired-omit-files` com um regex abrangente para combinar com dotfiles (`^\\..*`), arquivos de backup (`~+$` ou `\\~+$`) e marcações indesejadas (`^#.*#$`).
+3. **Ocultar diretórios `.` e `..`:**
+   - Incluir os diretórios corrente e pai (`^\\.$` e `^\\.\\.$`) no regex do `dired-omit-files` ou configurar uma variável nativa do Dirvish que lide com isso se aplicável.
+
+### Regra 2: Desativar números de linha na Sidebar e Dired
+1. **Hooks de Modo:**
+   - Desabilitar a exibição de linhas (`display-line-numbers-mode -1`) de maneira explícita dentro dos buffers.
+   - Adicionar essa configuração em `dired-mode-hook` ou no mais específico `dirvish-directory-view-mode-hook`.
+
+### Regra 3: Ajustar Estilo do Buffer e Largura
+1. **Configurar a Largura da Sidebar:**
+   - Definir `dirvish-side-width` para um tamanho confortável, como `30` ou `35`.
+2. **Limpar Interface Visual (Cabeçalho e Rodapé):**
+   - Configurar `dirvish-side-header-line-format` como `nil`.
+   - Configurar `dirvish-side-mode-line-format` como `nil`.
+3. **Ocultar Cursor da Sidebar:**
+   - Configurar `dirvish-hide-cursor` para `t`, resultando em um visual mais próximo a uma "árvore de arquivos" (file tree) típica.
