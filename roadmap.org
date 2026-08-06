@@ -372,17 +372,19 @@ Criar cache de referência para que agentes possam:
 
 *** Status: 📝 PLANO APROVADO PARA EXECUÇÃO (Agente Executor + Auditor)
 
-** 2026-08-06 — Header 42 School: login custom + integração norminette/eglot (14 testes)
+** 2026-08-06 — Header 42 School: login custom + integração norminette/eglot (16 testes)
 
 *** Feito
 - **Login 42 customizado (=site-lisp/header42.el=):** novo =defgroup header42= + =defcustom header-42-login "csilva-d"= (definido pelo usuário). =header-42-get-user= agora prioriza =header-42-login= → depois =FT_LOGIN= → =USER= → fallback ="marvin"=.
 - **Bug corrigido — =header-42-get-filename=:** usava =(or (file-name-nondirectory (buffer-file-name)) "< new >")=; com =buffer-file-name= nil a chamada a =file-name-nondirectory= lançava erro antes do fallback. Virou =if= com string vazia no ramo nil.
 - **Bug corrigido — docstring =header-42-update=:** ='Updated:'= / ='filename'= não escapados causavam erro de byte-compile. Corrigido (checkdoc limpo; também =header-42-enable=/=disable= "updates"→"update").
 - **Bug real — chain eglot→norminette (=lisp/custom-norminette.el=):** flycheck atual não tem mais checker =eglot= (só =eglot-check=, a bridge moderna; =flycheck-valid-checker-p 'eglot= → nil). =custom-norminette-setup= agora usa =eglot-check= com fallback =eglot=. Teste da chain usa =memq= porque =flycheck-add-next-checker= com =append= guarda o símbolo =c-norminette= (não cons).
-- **Bug real — parser JSON norminette:** =json-read-from-string= no Emacs 30.2 retorna arrays como **vectors**; =(car vector)= lançava =wrong-type-argument listp= (chaves são símbolos). Fix: =json-array-type 'list= em =custom-norminette--parse-json=.
-- **=tests/42-test.el= (novo, 14 testes):** login do header (=header-42-login= / =FT_LOGIN= / =USER=), estrutura/linhas do header (=header-42-generate-line= 1..9, prefixo ="/*   "=, 12 linhas na inserção), idempotência do =header-42-insert=, parse JSON OK/erro, checker flycheck registrado para =c-mode=/=c++-mode= (=skip-unless= do executável), hints, predicate e chain =eglot-check=→=c-norminette=.
+- **Bug real — parser JSON 1/3 (=json-read-from-string= removido):** =json-read-from-string= não existe no Emacs 30 (função removida da biblioteca =json=). O =ignore-errors= engolia o erro e retornava nil silenciosamente. Substituído por =json-parse-string= com =:object-type 'alist :array-type 'list=.
+- **Bug real — parser JSON 2/3 (flycheck 39):** =flycheck-parse-json= aceita 1 arg (=output=), mas flycheck 39 chama error-parsers com 3 args =(output checker buffer)=. Wrapper =custom-norminette--flycheck-parser= adicionado.
+- **Bug real — parser JSON 3/3 (locale prefix):** norminette imprime ="Setting locale to en_US"\n= antes do JSON, quebrando o parser. Fix: =string-match-p "[{\\[]"= para encontrar o início do JSON e =substring= a partir dele.
+- **=tests/42-test.el= (16 testes):** login do header (=header-42-login= / =FT_LOGIN= / =USER=), estrutura/linhas do header (=header-42-generate-line= 1..9, prefixo ="/*   "=, 12 linhas na inserção), idempotência do =header-42-insert=, parse JSON OK/erro/locale-prefix, checker flycheck registrado para =c-mode=/=c++-mode= (=skip-unless= do executável), parser 3-args, hints, predicate e chain =eglot-check=→=c-norminette=.
 - **=Roadmap.org= anterior:** a integração 42 (JSON-based + eglot chain) constava como decisão arquitetural; este trabalho a corrigiu e cobriu com testes.
-- **Validação:** suíte =myemacs-42= → 14/14; suíte completa → **62 expected, 0 unexpected, 6 skipped** (vterm/network); byte-compile repo OK (só warnings treesit); checkdoc limpo nos 3 arquivos tocados.
+- **Validação:** suíte =myemacs-42= → 16/16; suíte completa → **65 expected, 0 unexpected, 5 skipped** (vterm/network); checkdoc limpo nos 2 arquivos tocados.
 
 *** Status: ✅ DONE
 

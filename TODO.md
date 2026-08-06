@@ -32,13 +32,15 @@
   - **Arquivos:** boot, keybindings, ai, ai-network (skip-unless rede), files, term, git, org, dashboard — 54 testes, 0 falhas, 6 skipped (rede/vterm).
   - **Bugs reais descobertos pela suíte (corrigidos):** `C-c i` (gptel) sombreado por consult-imenu → imenu movido para `M-s i`; `+carlos/dashboard-open`/`-refresh` declarados mas nunca definidos (void-function `C-c d d`/`C-c d r`) → wrappers de `dashboard-open`/`dashboard-refresh-buffer`; `git-commit` `C-c C-g` via hook (não aplicava em batch) → `define-key` direto no `git-commit-mode-map`.
   - **Outros:** removidos `.elc` stale do repo (usavam código antigo do `defvar nil`); rebuild do `gptel-autoloads.el` no repo (faltava → "Config Error gptel"); documentada a regra "`--eval` avalia só a primeira forma" no AGENTS.md.
-- [x] **Header 42 School: login customizado + integração norminette/eglot (14 testes novos):**
+- [x] **Header 42 School: login customizado + integração norminette/eglot (16 testes):**
   - **Login 42 (`site-lisp/header42.el`):** `defgroup header42` + `defcustom header-42-login "csilva-d"`; `header-42-get-user` prioriza `header-42-login` → `FT_LOGIN` → `USER` → `"marvin"`.
   - **Bug corrigido:** `header-42-get-filename` chamava `file-name-nondirectory` com `buffer-file-name` nil (erro antes do fallback `"< new >"`) → virou `if`.
   - **Bug corrigido (chain eglot→norminette, `lisp/custom-norminette.el`):** flycheck moderno não tem checker `eglot` (só `eglot-check` bridge) → `custom-norminette-setup` usa `eglot-check` com fallback `eglot`.
-  - **Bug corrigido (parser JSON):** `json-read-from-string` no Emacs 30.2 retorna arrays como vectors → `(car vector)` falhava; bind `json-array-type 'list`.
-  - **`tests/42-test.el`:** 14 testes (login, estrutura do header, idempotência, parser JSON, checker flycheck, hints, predicate, chain eglot). Suíte completa: 62 passed, 0 unexpected, 6 skipped (vterm/network); checkdoc limpo.
-  - **Roadmap:** entrada `** 2026-08-06 — Header 42 School...` adicionada.
+  - **Bug corrigido (parser JSON 1/3):** `json-read-from-string` removido no Emacs 30 → substituído por `json-parse-string` com `:array-type 'list`.
+  - **Bug corrigido (parser JSON 2/3):** flycheck 39 exige error-parser com 3 args `(output checker buffer)` → wrapper `custom-norminette--flycheck-parser`.
+  - **Bug corrigido (parser JSON 3/3):** norminette imprime `"Setting locale to en_US"` antes do JSON → strip prefix com `string-match-p "[{\\[]"`.
+  - **`tests/42-test.el`:** 16 testes (login, estrutura do header, idempotência, parser JSON OK/erro/locale-prefix, checker flycheck, parser 3-args, hints, predicate, chain eglot). Suíte completa: 70 tests, 65 expected, 0 unexpected, 5 skipped (vterm/network); checkdoc limpo.
+  - **Roadmap:** entrada `** 2026-08-06 — Header 42 School...` atualizada com 3 bugs norminette.
 
 ## 0.5. Plano de Ação — Migração para Magent (Agente Planejador)
 
