@@ -305,6 +305,16 @@ Criar cache de referência para que agentes possam:
 
 *** Status: ✅ DONE
 
+** 2026-08-06 — Fix: eshell falha ao abrir (void eshell-mode-map + kmacro no GUI)
+
+*** Feito
+- Causa-raiz única (confirmada por backtrace): o bloco =(with-eval-after-load 'eshell ... (define-key eshell-mode-map ...))= em =custom-term.el:134= rodava quando o =eshell.elc= carregava, mas no Emacs 30 o =eshell-mode-map= só existe após o =esh-mode= carregar (módulos do eshell carregam lazy) — =(require 'eshell)= NÃO define o mapa (=boundp=nil=; só =(require 'esh-mode)= o define). O =(defvar eshell-mode-map)= (custom-term.el:19) é só forward-declaration para o byte-compiler — não liga a variável em runtime.
+- Efeito colateral: o mesmo erro quebrava o =justl= ("Cannot load justl: (void-variable eshell-mode-map)") porque =justl.el:76= faz =(require 'eshell)= e disparava o =with-eval-after-load= prematuro.
+- Fix: trocar para =(with-eval-after-load 'esh-mode ...)= (o mapa vive em =esh-mode.el=; esh-mode carrega quando o eshell abre o buffer). =defvar= do byte-compiler mantido.
+- Validado: batch =eshell= abre (=major-mode=eshell-mode=, =map-bound=t=), keys =C-c C-q= / =C-c A a= / =C-c A o= ligadas, =justl= carrega OK, =just check= + =just compile= (zero warnings novos). Observação: no GUI o erro original era acompanhado de =kmacro-end-and-call-macro: No kbd macro has been defined= — efeito do eshell quebrando no meio do boot, não um bind de macro; some junto com o fix.
+
+*** Status: ✅ DONE
+
 ** 2026-08-05 — Backlog: Revisão da Stack de IA (gptel + gptel-agent)
 
 *** Pendente

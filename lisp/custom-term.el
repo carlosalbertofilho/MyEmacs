@@ -130,8 +130,9 @@ ORIG-FUN and ARGS are passed to the original function."
         eshell-hist-file-size 10000
         eshell-cmpl-cycle-completions nil))
 
-;; Eshell keybindings (after eshell fully loads)
-(with-eval-after-load 'eshell
+;; Eshell keybindings (after esh-mode loads; eshell-mode-map lives in
+;; esh-mode, which loads lazily after eshell in Emacs 30)
+(with-eval-after-load 'esh-mode
   (define-key eshell-mode-map (kbd "C-c C-q") #'eat-toggle-char-mode)
   (define-key eshell-mode-map (kbd "C-c A a") #'+carlos/eshell-run-agy)
   (define-key eshell-mode-map (kbd "C-c A o") #'+carlos/eshell-run-opencode))
