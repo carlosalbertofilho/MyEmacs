@@ -45,8 +45,9 @@
   ;; Layout oficial de 3 painéis (main . side . preview)
   (dirvish-default-layout '(1 0.11 0.55))
   ;; Visual attributes (order matters for rendering)
+  ;; git-msg apenas no painel principal; sidebar continua limpa (attrs separados)
   (dirvish-attributes
-   '(vc-state subtree-state nerd-icons collapse file-time file-size))
+   '(vc-state git-msg subtree-state nerd-icons collapse file-time file-size))
   ;; Icon settings — offset é `:v-adjust` (float); `-2` quebrava o alinhamento
   (dirvish-nerd-icons-height 0.85)
   (dirvish-nerd-icons-offset 0.00)
@@ -73,6 +74,16 @@
   ;; Preview dispatchers (correct values: file types, NOT vc commands)
   (dirvish-preview-dispatchers
    '(image gif video audio epub pdf archive))
+  ;; Emerge: grupos padrão para o toggle `E' (filter stack)
+  (dirvish-emerge-groups
+   '(("Recent files" (predicate . recent-files-2h))
+     ("Documents"    (extensions "pdf" "tex" "bib" "epub"))
+     ("Video"        (extensions "mp4" "mkv" "webm"))
+     ("Pictures"     (extensions "jpg" "png" "svg" "gif"))
+     ("Audio"        (extensions "mp3" "flac" "wav" "ape" "aac"))
+     ("Archives"     (extensions "gz" "rar" "zip"))))
+  ;; Peek: preview de arquivos no minibuffer com debounce (evita flicker)
+  (dirvish-peek-key (list :debounce 0.5 'any))
   :bind
   (:map dirvish-mode-map
    (";"   . dired-up-directory)
@@ -82,8 +93,11 @@
    ("r"   . dirvish-history-jump)
    ("s"   . dirvish-quicksort)
    ("v"   . dirvish-vc-menu)
+   ("E"   . dirvish-emerge-mode)
    ("N"   . dirvish-narrow))
   :config
+  ;; Preview no minibuffer (vertico) com dirvish
+  (dirvish-peek-mode 1)
   ;; Sidebar segue o buffer selecionado (modo global)
   (dirvish-side-follow-mode 1)
   ;; `dirvish-directory-view-mode' deriva de special-mode, não de dired-mode,
