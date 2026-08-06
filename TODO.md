@@ -1,5 +1,58 @@
 # TODO — Planejamento Ativo e Backlog (MyEmacs)
 
+## 0.11. Plano de Ação — Migração Definitiva Doom Emacs → Vanilla MyEmacs
+
+> **Autor:** Agente Arquiteto (modelo Pro/Opus). Plano EXECUTÁVEL para o Agente Executor e Auditor.
+
+### Tópicos do Plano:
+
+1. [x] **Fase 1: Snapshot e Backup do Doom Emacs Legado**
+   - Criar diretório de backup `~/.config/doom-emacs-backup-$(date +%Y%m%d)` contendo cópia integral de `~/.config/doom` e `~/.config/emacs` antigos antes de qualquer remoção.
+   - Código sugerido:
+     ```bash
+     BACKUP_DIR=~/.config/doom-emacs-backup-$(date +%Y%m%d)
+     mkdir -p $BACKUP_DIR
+     cp -R ~/.config/doom $BACKUP_DIR/doom 2>/dev/null || true
+     cp -R ~/.config/emacs $BACKUP_DIR/emacs 2>/dev/null || true
+     ```
+
+2. [x] **Fase 2: Substituição Autoritativa de `~/.config/emacs`**
+   - Remover os links/diretórios antigos de `~/.config/emacs` (Doom) e `~/.config/emacs-vanilla`.
+   - Copiar/sincronizar o repositório autoritativo `MyEmacs` (`~/Projetos/emacsConfig/MyEmacs`) diretamente para `~/.config/emacs` (ou criar o link simbólico correto se desejado, mantendo a regra de sync do Justfile).
+   - Atualizar o `Justfile` para que o alvo `sync` sincronize para `~/.config/emacs` (oficial) em vez de `~/.config/emacs-vanilla`.
+   - Código sugerido:
+     ```bash
+     rm -rf ~/.config/emacs ~/.config/emacs-vanilla
+     # A sincronização inicial (se for cópia)
+     cp -R ~/Projetos/emacsConfig/MyEmacs ~/.config/emacs
+     ```
+     - No `Justfile`, alterar referências de `~/.config/emacs-vanilla/` para `~/.config/emacs/`.
+
+3. [x] **Fase 3: Remoção Completa do Doom Emacs e Caches Legados**
+   - Remover a pasta `~/.config/doom`.
+   - Remover a pasta `~/.local/share/doom` e `~/.emacs.d` (se existirem).
+   - Remover alias ou wrappers legados que apontavam para `doom`.
+   - Código sugerido:
+     ```bash
+     rm -rf ~/.config/doom ~/.local/share/doom ~/.emacs.d
+     # Remover wrappers se houver, ex: ~/.local/bin/doom
+     ```
+
+4. [x] **Fase 4: Validação Total de Inicialização Nativa & Suíte ERT**
+   - Executar `just check-all` apontando para o novo ambiente padrão `~/.config/emacs`.
+   - Testar lançamento nativo via terminal: `emacs --batch -l init.el`.
+   - Garantir 100% de passagem dos 111 testes ERT.
+   - Código sugerido:
+     ```bash
+     cd ~/Projetos/emacsConfig/MyEmacs
+     just check-all
+     emacs --init-directory ~/.config/emacs --batch -l init.el --eval '(message "OK")'
+     ```
+
+5. [x] **Fase 5: Atualização da Documentação (`AGENTS.md`, `TODO.md`, `roadmap.org`)**
+   - Atualizar `AGENTS.md` refletindo que `~/.config/emacs` agora é o ambiente oficial de execução de testes e uso produtivo do usuário (removendo a referência temporária a `emacs-vanilla`).
+   - Atualizar o changelog no `roadmap.org`.
+
 ## 0.10. Plano de Ação — Integração Magit Transient Commit IA & Fix Void Magent / Warnings
 
 > **Autor:** Agente Arquiteto (modelo Pro/Opus). Plano EXECUTÁVEL para o Agente Executor e Auditor.
