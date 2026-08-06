@@ -8,13 +8,37 @@
 
 ;;; Code:
 
-(defvar magent-system-prompt)
-(defvar magent-skill-directories)
-(defvar magent-project-instruction-file-names)
-(autoload 'magent-start "magent-agent-shell" "Start Magent agent-shell session." t)
-(autoload 'magent-agent-shell-ensure-config "magent-agent-shell")
-(autoload 'magent-agent-shell-interrupt "magent-agent-shell" "Interrupt Magent agent-shell." t)
-(autoload 'magent-agent-shell-prompt-region "magent-agent-shell" "Send region to Magent." t)
+(declare-function magent-start "magent-agent-shell")
+(declare-function magent-agent-shell-interrupt "magent-agent-shell")
+(declare-function magent-agent-shell-prompt-region "magent-agent-shell")
+(declare-function magent-agent-shell-ensure-config "magent-agent-shell")
+
+(defun +carlos/magent-start ()
+  "Garante o carregamento do Magent e inicia a sessão agent-shell."
+  (interactive)
+  (require 'magent nil t)
+  (require 'magent-agent-shell nil t)
+  (if (fboundp 'magent-start)
+      (magent-start)
+    (user-error "Magent ainda não foi construído/carregado pelo Elpaca")))
+
+(defun +carlos/magent-agent-shell-interrupt ()
+  "Interrompe a requisição ativa do Magent."
+  (interactive)
+  (require 'magent nil t)
+  (require 'magent-agent-shell nil t)
+  (if (fboundp 'magent-agent-shell-interrupt)
+      (magent-agent-shell-interrupt)
+    (user-error "Magent ainda não foi construído/carregado pelo Elpaca")))
+
+(defun +carlos/magent-agent-shell-prompt-region ()
+  "Envia a região para o Magent."
+  (interactive)
+  (require 'magent nil t)
+  (require 'magent-agent-shell nil t)
+  (if (fboundp 'magent-agent-shell-prompt-region)
+      (magent-agent-shell-prompt-region)
+    (user-error "Magent ainda não foi construído/carregado pelo Elpaca")))
 
 (use-package magent
   :ensure (magent :repo "Jamie-Cui/magent"

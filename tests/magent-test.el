@@ -24,7 +24,7 @@
 
 (ert-deftest myemacs-magent-kbd-bind ()
   (skip-unless myemacs-magent-available)
-  (should (eq (key-binding (kbd "C-c A m")) 'magent-start)))
+  (should (eq (key-binding (kbd "C-c A m")) '+carlos/magent-start)))
 
 (ert-deftest myemacs-magent-skill-dirs ()
   (skip-unless myemacs-magent-available)
