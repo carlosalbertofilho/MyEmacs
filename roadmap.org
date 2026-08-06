@@ -11,6 +11,16 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-06 — Integração Magit Transient Commit IA & Fix Void Magent / Warnings
+
+*** Feito
+- **Magit Transient Commit IA (`c g`):** adicionado o sufixo `g` ("IA Commit (Ollama Local)") no menu de commit do Magit (`magit-commit` transient) em `custom-git.el`. Pressionar `c g` no Magit Status dispara a geração instantânea e offline de commit IA via Ollama local.
+- **Fix Void Function `magent-start`:** adicionados autoloads explícitos em `custom-magent.el` para `magent-start`, `magent-agent-shell-interrupt` e `magent-agent-shell-prompt-region`.
+- **Eliminação dos 11 Avisos de Compilação Nativa:** adicionados `declare-function` para `popper-echo-mode`, `project-root`, `elpaca-wait`, `gptel-make-*` (openai, anthropic, gemini, ollama), `denote-link-dired`, `justl-compile`, `dirvish-peek-mode` e `dirvish-side-follow-mode`.
+- **Suíte ERT:** adicionado teste `myemacs-git-magit-commit-ia-transient`. Suíte completa: **108 testes ERT (100 aprovados, 0 falhas, 8 skipped)**.
+
+*** Status: ✅ DONE
+
 ** 2026-08-06 — Automação com Modelos Locais & Pipeline RAG (Ollama CPU Pipeline)
 
 *** Feito

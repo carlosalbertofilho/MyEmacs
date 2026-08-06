@@ -15,6 +15,8 @@
 (declare-function eat-exec-cmd "eat")
 (declare-function eat-make-buffer "eat")
 (declare-function vterm-send-string "vterm")
+(declare-function popper-echo-mode "popper")
+(declare-function project-root "project")
 ;; Forward declarations peladas: vterm/eshell definem esses maps com
 ;; keymap NÃO-nil — `(defvar X nil)' clobberaria o default (gotcha Emacs 30).
 ;; Os define-key abaixo rodam após o pacote dono carregar (map já bound).

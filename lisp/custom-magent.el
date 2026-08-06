@@ -11,9 +11,10 @@
 (defvar magent-system-prompt)
 (defvar magent-skill-directories)
 (defvar magent-project-instruction-file-names)
-(declare-function magent-agent-shell-ensure-config "magent-agent-shell")
-(declare-function magent-agent-shell-interrupt "magent-agent-shell")
-(declare-function magent-agent-shell-prompt-region "magent-agent-shell")
+(autoload 'magent-start "magent-agent-shell" "Start Magent agent-shell session." t)
+(autoload 'magent-agent-shell-ensure-config "magent-agent-shell")
+(autoload 'magent-agent-shell-interrupt "magent-agent-shell" "Interrupt Magent agent-shell." t)
+(autoload 'magent-agent-shell-prompt-region "magent-agent-shell" "Send region to Magent." t)
 
 (use-package magent
   :ensure (magent :repo "Jamie-Cui/magent"

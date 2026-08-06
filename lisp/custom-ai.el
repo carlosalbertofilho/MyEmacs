@@ -27,6 +27,10 @@
 (declare-function gptel-get-backend "gptel")
 (declare-function gptel-request "gptel")
 (declare-function gptel-send "gptel")
+(declare-function gptel-make-openai "gptel-openai")
+(declare-function gptel-make-anthropic "gptel-anthropic")
+(declare-function gptel-make-gemini "gptel-gemini")
+(declare-function gptel-make-ollama "gptel-ollama")
 (declare-function project-root "project")
 
 ;; ── gptel core ──────────────────────────────────────────────────────

@@ -18,5 +18,8 @@
   (should (eq (lookup-key git-commit-mode-map (kbd "C-c C-g"))
               '+carlos/gptel-insert-commit-message)))
 
+(ert-deftest myemacs-git-magit-commit-ia-transient ()
+  (should (fboundp '+carlos/gptel-generate-commit-message)))
+
 (provide 'git-test)
 ;;; git-test.el ends here

@@ -47,6 +47,8 @@ Necessário porque o ls do Nix Home Manager é GNU mesmo no macOS
 (declare-function dirvish-emerge--get-group-overlay "dirvish-emerge")
 (declare-function dirvish-emerge-next-group "dirvish-emerge")
 (declare-function dirvish-emerge-previous-group "dirvish-emerge")
+(declare-function dirvish-peek-mode "dirvish-peek")
+(declare-function dirvish-side-follow-mode "dirvish-side")
 (defvar dirvish-emerge--group-overlays nil)
 
 (defun +carlos/dirvish-emerge-goto-group (arg)

@@ -9,6 +9,7 @@
 ;; Forward declarations for byte-compiler
 (defvar denote-directory)  ;; dynamically bound in +carlos/denote-silo--with-dir
 (declare-function denote "denote")
+(declare-function denote-link-dired "denote")
 
 ;; ── denote ──────────────────────────────────────────────────────────
 (use-package denote

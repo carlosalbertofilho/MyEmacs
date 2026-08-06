@@ -11,6 +11,8 @@
 (declare-function makefile-executor-execute-project-target "makefile-executor")
 (declare-function makefile-executor-execute-last "makefile-executor")
 (declare-function makefile-executor-mode "makefile-executor")
+(declare-function justl-compile "justl")
+(declare-function transient-append-suffix "transient")
 
 ;; ── magit ───────────────────────────────────────────────────────────
 ;; transient é instalado/ativado cedo no init.el (use-package + elpaca-wait);
@@ -110,6 +112,11 @@ Funciona em buffers `git-commit-mode' ou `magit-commit-mode'."
   (when (boundp 'magit-commit-mode-map)
     (define-key magit-commit-mode-map (kbd "C-c C-g")
       #'+carlos/gptel-insert-commit-message)))
+
+(with-eval-after-load 'magit-commit
+  (when (fboundp 'transient-append-suffix)
+    (transient-append-suffix 'magit-commit "c"
+      '("g" "IA Commit (Ollama Local)" +carlos/gptel-generate-commit-message))))
 
 (provide 'custom-git)
 ;;; custom-git.el ends here

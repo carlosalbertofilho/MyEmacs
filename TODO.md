@@ -1,5 +1,28 @@
 # TODO — Planejamento Ativo e Backlog (MyEmacs)
 
+## 0.10. Plano de Ação — Integração Magit Transient Commit IA & Fix Void Magent / Warnings
+
+> **Autor:** Agente Arquiteto (modelo Pro/Opus). Plano EXECUTÁVEL para o Agente Executor e Auditor.
+
+### Tópicos do Plano:
+
+1. [x] **Fix `magent-start` Void Function (`lisp/custom-magent.el`):**
+   - Adicionar autoloads explícitos em `custom-magent.el` para `magent-start`, `magent-agent-shell-interrupt` e `magent-agent-shell-prompt-region`.
+
+2. [x] **Eliminar os 11 Avisos de Compilação Nativa (`declare-function`):**
+   - `custom-term.el`: `(declare-function popper-echo-mode "popper")` e `(declare-function project-root "project")`.
+   - `custom-42.el`: `(declare-function elpaca-wait "elpaca")`.
+   - `custom-ai.el`: `(declare-function gptel-make-openai "gptel-openai")`, `(declare-function gptel-make-anthropic "gptel-anthropic")`, `(declare-function gptel-make-gemini "gptel-gemini")` e `(declare-function gptel-make-ollama "gptel-ollama")`.
+   - `custom-knowledge.el`: `(declare-function denote-link-dired "denote")`.
+   - `custom-git.el`: `(declare-function justl-compile "justl")`.
+   - `custom-files.el`: `(declare-function dirvish-peek-mode "dirvish-peek")` e `(declare-function dirvish-side-follow-mode "dirvish-side")`.
+
+3. [x] **Integração do Magit Transient Commit IA (`lisp/custom-git.el`):**
+   - Adicionar o sulfixo `g` no menu de commit do Magit (`magit-commit` transient): `c g` no Magit Status dispara a geração de commit IA offline via Ollama local.
+
+4. [x] **Testes ERT (`tests/git-test.el` e `tests/magent-test.el`):**
+   - Adicionado teste ERT `myemacs-git-magit-commit-ia-transient` (108 testes ERT verdes).
+
 ## 0.9. Plano de Ação — Automação com Modelos Locais (Ollama CPU Pipeline)
 
 > **Autor:** Agente Arquiteto (modelo Pro/Opus). Plano EXECUTÁVEL para automação local sem custo de tokens de nuvem.

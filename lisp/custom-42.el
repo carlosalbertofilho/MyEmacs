@@ -6,6 +6,8 @@
 
 ;;; Code:
 
+(declare-function elpaca-wait "elpaca")
+
 ;; ── flycheck (dependency for norminette) ───────────────────────────
 ;; Installed by custom-lang.el (:ensure t). Use :ensure nil here to prevent duplicate Elpaca queue error.
 (use-package flycheck
