@@ -262,6 +262,17 @@ Criar cache de referência para que agentes possam:
 
 *** Status: ✅ DONE
 
+** 2026-08-05 — Iteração do dirvish-emerge (validação + navegação + grupos)
+
+*** Feito
+- Validação batch: buffer principal do dirvish é =dired-mode= com =dirvish-mode-map= (=dirvish-directory-view-mode=/special-mode é só para buffers auxiliares) → escopo =dired-mode= do =w= em =.dir-locals.el= é lido de volta em buffers dirvish reais; escopo =nil= também funciona.
+- =w= upstream deixa o buffer =.dir-locals.el= modificado sem salvar (Emacs 30.2 não chama =save-buffer= em =modify-dir-local-variable=) → gravar com C-x C-s após =w=.
+- Fix de navegação: =dirvish-emerge-next-group= upstream crasheia (=+ nil 1=) com ponto fora de overlay (ex.: header). Criados =+carlos/dirvish-emerge-{next,previous}-group= e =goto-group= com guard (fallback =point-min=) e binds =[/]= em =dirvish-mode-map= (=n/p= são herdados do dired).
+- Grupos globais refinados: grupo =Directories= (predicate =directories=) em primeiro — predicados antes de extensões (primeira correspondência vence): Directories → Recent files → Documents → Video → Pictures → Audio → Archives.
+- Validado: =just check= + =just compile= (zero warnings) + batch runtime + smoke test GUI. Commit =35a2042=.
+
+*** Status: ✅ DONE
+
 ** 2026-08-05 — Backlog: Revisão da Stack de IA (gptel + gptel-agent)
 
 *** Pendente

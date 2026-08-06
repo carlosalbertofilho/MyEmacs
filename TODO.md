@@ -31,6 +31,11 @@
   - `S` → `dirvish-ls-switches-menu` (transient completo: options/toggles/actions) e `s` → `dirvish-quicksort` já existente.
   - Detecção GNU melhorada: `+carlos/gnu-ls-p` checa `ls --version` (GNU coreutils) — o `ls` do Nix no macOS é GNU mas não se chama `gls`; agora o default é `-ahl -v --group-directories-first` em vez do fallback BSD `-ahl`.
   - Testado funcional: quicksort gera `-ahl -v --group-directories-first --sort=size` sem erro de switch. RAG (`docs/dirvish-reference.org`) atualizado com todas as teclas do menu/quicksort.
+- [x] **Iteração do dirvish-emerge (validação + navegação + grupos):**
+  - **Validação em batch (descobertas):** o buffer principal do dirvish é `dired-mode` com `dirvish-mode-map` (o `dirvish-directory-view-mode`/special-mode é só para buffers auxiliares) — portanto o escopo `dired-mode` do `w` em `.dir-locals.el` **é lido** de volta em buffers dirvish reais; escopo `nil` também funciona. O `w` upstream deixa o buffer `.dir-locals.el` **modificado sem salvar** (Emacs 30.2 não chama `save-buffer` em `modify-dir-local-variable`) — gravar com C-x C-s após `w`. O menu `dirvish-emerge-menu` abre; grupos aplicam (8 overlays com Directories).
+  - **Fix de navegação:** `dirvish-emerge-next-group` upstream crasheia (`+ nil 1`) com ponto fora de overlay de grupo (ex.: header). Criados `+carlos/dirvish-emerge-next-group`/`previous-group`/`goto-group` com guard (`ignore-errors` + fallback para `point-min`) e binds `[`/`]` em `dirvish-mode-map` (comentado: `n`/`p` são herdados do dired).
+  - **Grupos globais refinados:** novo grupo `Directories` (predicate `directories`) primeiro na ordem — predicados antes de extensões (primeira correspondência vence). Ordem: Directories → Recent files → Documents → Video → Pictures → Audio → Archives.
+  - Validado: `just check` + `just compile` (zero warnings) + batch runtime (binds `[`/`]`, guard sem crash em header/grupo/inativo, grupos carregados) + smoke test GUI. Commit `35a2042`.
 - [x] **Bug do `ob-mermaid` resolvido:**
   - Desacoplado da inicialização do Org core e ativado dinamicamente via `:after org` no `:config`.
   - Adicionado `exec-path-from-shell` para garantir herança de caminhos Nix/npm em modo GUI no macOS.
