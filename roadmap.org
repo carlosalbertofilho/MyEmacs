@@ -11,6 +11,19 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-06 — Automação com Modelos Locais & Pipeline RAG (Ollama CPU Pipeline)
+
+*** Feito
+- **Commit IA Local Offline:** atualizado o gerador de mensagens de commit IA (`C-c C-g` / `+carlos/gptel-generate-commit-message`) em `custom-git.el` para usar por padrão o Ollama local (`qwen2.5-coder:1.5b`), garantindo geração de mensagens em <0.5s e 100% offline.
+- **RAG Document Converter (`bin/rag-convert`):** criado script executável Python em `bin/rag-convert` que consome PDFs, HTML e Markdown via `markitdown` e utiliza o Ollama local (`qwen2.5-coder:3b`) para converter e gerar arquivos Org-Mode padronizados em `docs/`.
+- **Triagem Inteligente de Erros (`bin/log-triage` & `just triage`):** criado script executável Python `bin/log-triage` e receita `just triage` no `Justfile`. Consome logs brutos de testes e compilação, acionando o Ollama local para gerar resumos sintéticos de 15 linhas (Categorização, Causa Raiz e Ação Recomendada) sem gastar tokens de nuvem.
+- **Docstrings & Testes On-Demand (`C-c c d` / `C-c c t`):** criadas funções Elisp `+carlos/generate-docstring-at-point` e `+carlos/generate-test-at-point` em `custom-lang.el` usando o Ollama local (`qwen2.5-coder:3b`).
+- **Novas Skills Magent:** criadas `.magent/skills/rag-converter/SKILL.md` e `.magent/skills/test-triage/SKILL.md`.
+- **Novas Guias RAG:** criados `docs/task-runners-reference.org` (Justl + Makefile Executor) e `docs/formatting-stack.org` (Apheleia + reformatter).
+- **Suíte ERT:** criado `tests/local-ai-automation-test.el` (5 testes ERT). Suíte completa atualizada para **107 testes ERT (99 aprovados, 0 falhas, 8 skipped)**.
+
+*** Status: ✅ DONE
+
 ** 2026-08-06 — Migração para Magent (Agente de Codificação Nativo)
 
 *** Feito

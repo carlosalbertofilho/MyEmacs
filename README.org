@@ -6,12 +6,13 @@
 * Visão Geral
 
 Configuração modular do Emacs baseada no template *Emacs Bedrock*, sem Evil
-mode, com IA unificada via =gptel=, integrada ao NixOS via Home Manager.
+mode, com IA unificada via =Magent= (agente nativo Emacs-Lisp de codificação com 15 ferramentas e frontend =agent-shell=) e =gptel= (transporte multi-backend), integrada ao NixOS via Home Manager.
 
 - **Framework:** Emacs Bedrock (use-package nativo, Emacs 29+)
 - **Sem Evil:** keybindings 100% nativos com prefixo =C-c=
-- **IA:** gptel + gptel-agent + SuperChat + MCP (OpenCode Zen, Claude, Gemini, Ollama, MLX Local)
-- **42 School:** header42.el + custom-norminette.el (JSON-based, eglot chain)
+- **IA Nativa & Agentes:** Magent (15 tools, agent-shell UI, skills) + gptel (OpenCode Zen, Claude, Gemini, Ollama Local, MLX Local)
+- **Automação Local (CPU/Offline):** Commit IA instantâneo, triagem de logs de teste (=just triage=), gerador local de docstrings/testes (=C-c c d=/=C-c c t=) e gerador de documentos Org RAG (=bin/rag-convert=)
+- **42 School:** header42.el + custom-norminette.el (JSON-based, eglot chain) + reformatter C 42
 - **Dashboard:** Estilo Nano Emacs (minimalista, tipografia premium)
 - **Arquivos:** Dirvish (13 extensões consolidadas), ibuffer, TRAMP otimizado
 
@@ -24,25 +25,28 @@ mode, com IA unificada via =gptel=, integrada ao NixOS via Home Manager.
 ├── custom-file.el          ← gerado por M-x customize
 ├── lisp/
 │   ├── custom-core.el      ← fontes, GPG, editor basics, line numbers
-│   ├── custom-ui.el        ← ef-themes, mood-line, olivetti, which-key
-│   ├── custom-completion.el← vertico, consult, corfu, marginalia, orderless, embark
+│   ├── custom-ui.el        ← ef-themes, mood-line, olivetti, which-key, display-buffer-alist
+│   ├── custom-completion.el← vertico, consult, corfu, marginalia, orderless, embark, nerd-icons-corfu
 │   ├── custom-files.el     ← dirvish (consolidado), ibuffer, TRAMP, project
 │   ├── custom-term.el      ← vterm, eshell, eshell-prompt-extras
-│   ├── custom-lang.el      ← eglot (per-mode hooks), treesit, linguagens
+│   ├── custom-lang.el      ← eglot, treesit, apheleia, flycheck-inline, eldoc-box, local AI
 │   ├── custom-org.el       ← org-babel, jupyter, mermaid, pdf-tools, org-modern
-│   ├── custom-42.el        ← header42, custom-norminette, estilo C 42
-│   ├── custom-ai.el        ← gptel backends, gptel-agent, SuperChat, MCP
+│   ├── custom-42.el        ← header42, custom-norminette, estilo C 42, reformatter
+│   ├── custom-ai.el        ← gptel backends, gptel-agent
+│   ├── custom-magent.el    ← Magent (agente de codificação nativo, 15 ferramentas, agent-shell)
 │   ├── custom-knowledge.el ← denote (Zettelkasten + silos)
-│   ├── custom-git.el       ← magit, justl, commit com IA
+│   ├── custom-git.el       ← magit, justl, makefile-executor, commit IA local
 │   ├── custom-keybindings.el← atalhos C-c (todos habilitados)
 │   ├── custom-dashboard.el ← dashboard estilo Nano Emacs
 │   └── custom-norminette.el← norminette JSON-based + eglot chain
 ├── site-lisp/
 │   └── header42.el
-├── docs/                   ← RAG reference docs (8 pacotes)
+├── .magent/skills/         ← Skills nativas Magent (c-42, cpp-42, python, rag-converter, test-triage)
+├── docs/                   ← RAG reference docs (16 arquivos de pacotes)
 ├── bin/
-│   └── emacs-vanilla       ← wrapper
-├── Justfile                ← run, install, compile, check, sync, test, deploy
+│   ├── rag-convert         ← conversor de PDFs/HTML/MD para Org RAG via Ollama
+│   └── log-triage          ← resumidor/triador local de logs de compilação e teste
+├── Justfile                ← run, install, compile, check, sync, test, triage, deploy
 ├── README.org
 ├── guia_emacs.org
 ├── guia_detalhado.org
@@ -57,6 +61,9 @@ Todos os pacotes principais possuem documentação de referência em =docs/=:
 
 | Pacote | Arquivo | Conteúdo |
 |--------+---------+----------|
+| Magent | =docs/magent-reference.org= | Agente nativo, 15 ferramentas, permissões, agent-shell, skills |
+| Task Runners | =docs/task-runners-reference.org= | Justl (=C-c j=) e Makefile Executor (=C-c m= / =C-c M=) |
+| Formatting Stack | =docs/formatting-stack.org= | Apheleia (format-on-save) e reformatter (=c_formatter_42=) |
 | Dirvish | =docs/dirvish-reference.org= | API, 13 extensões, hooks, pitfalls |
 | GPTel | =docs/gptel-reference.org= | Backends, agent, org integration, tools |
 | Completion | =docs/completion-stack.org= | Vertico, consult, corfu, marginalia, orderless, embark |
@@ -124,23 +131,27 @@ Depois configurar em =custom-org.el=:
 | =just compile= | Compila módulos nativos (vterm, tree-sitter) + arquivos .el → .elc |
 | =just check= | Verifica carregamento rápido de configuração |
 | =just check-all= | Executa check + compile + checkdoc + suíte ERT |
+| =just triage= | Executa os testes e aciona o Ollama local para triar e resumir erros em RAG |
 | =just sync= | Sincroniza para ~/.config/emacs-vanilla |
 | =just test= | Testa no dir de sync |
-| =just test-all= | Executa compilação, checkdoc e suíte de 89 testes ERT |
+| =just test-all= | Executa compilação, checkdoc e suíte completa de 107 testes ERT |
 | =just deploy "msg"= | Check-all, commit, push, sync e test |
 
-* Recursos Recentes de Dev & UX
+* Recursos Recentes de Dev, IA & UX
 
+- **Plataforma Magent (Agente Nativo Emacs-Lisp):** Agente de codificação com 15 ferramentas nativas de inspeção e edição de código, controle de permissões por agente e frontend =agent-shell= (=C-c M m=).
+- **Commit IA Local Offline (=C-c C-g=):** Geração instantânea (<0.5s) e offline de mensagens de commit padronizadas utilizando o modelo `qwen2.5-coder:1.5b` local via Ollama.
+- **Triagem Inteligente de Logs (=just triage=):** Script `bin/log-triage` que consome erros de compilação/testes e utiliza a IA local para gerar um relatório RAG de 15 linhas (sem consumir tokens de nuvem).
+- **Docstrings & Testes On-Demand (=C-c c d= / =C-c c t=):** Funções Elisp que injetam docstrings PEP 257 / Doxygen e esqueletos de testes unitários diretamente sob o cursor via `qwen2.5-coder:3b`.
+- **RAG Document Converter (=bin/rag-convert=):** Script local que converte PDFs, HTML e Markdown em arquivos Org-Mode padronizados para a pasta `docs/`.
 - **Guias de Indentação Modernas:** `indent-bars` com stipples de alta performance, escopo inteligente via Tree-sitter e harmonização com temas `ef-themes`.
 - **Aninhamento & Parênteses:** `rainbow-delimiters` ativado em todos os modos de programação para diferenciação visual de profundidade de blocos.
-- **Linha Atual & Caracteres Invisíveis:** `hl-line-mode` nativo para destaque da linha ativa e `whitespace-mode` sutil (exibindo apenas espaços desnecessários no fim de linha e tabulações).
+- **Linha Atual & Caracteres Invisíveis:** `hl-line-mode` nativo para destaque da linha ativa e `whitespace-mode` sutil.
 - **Diagnósticos Inline VS Code:** Sublinhados ondulados nas faces `flycheck-error/warning/info`, mensagens no final da linha via `flycheck-inline` e indicadores na `left-fringe`.
-- **Autocomplete & Hover Docs:** Ícones visuais de tipo no popup do Corfu via `nerd-icons-corfu` e cartões flutuantes de documentação ao lado do cursor via `eldoc-box`.
-- **Navegação Dirvish-Side:** Abertura de arquivos via `dirvish-side-open-file-action 'reuse` (reaproveita com precisão a janela principal de código de onde a sidebar foi aberta).
-- **Task Runners (Just & Makefile):** `justl` (`C-c j`/`C-c J`) para receitas de Justfile e `makefile-executor` (`C-c m`/`C-c M`) para alvos interativos de Makefile.
-- **Tree-Sitter & Nix:** Integração automatizada dos diretórios do Nix Store (`/nix/store/*-emacs-treesit-grammars`, `~/.nix-profile`) com fallback gracioso e compilação nativa no `just compile`.
-- **Format-on-Save Assíncrono:** `apheleia` ativado globalmente (inibido em C/C++ para preservar o `c_formatter_42` da Norma 42).
-- **Gavetas Inferiores Nativas:** Regras centralizadas em `display-buffer-alist` para compilação, eglot events, magit, vterm, eshell e gptel.
+- **Autocomplete & Hover Docs:** Ícones visuais no popup do Corfu via `nerd-icons-corfu` e cartões flutuantes de documentação via `eldoc-box`.
+- **Navegação Dirvish-Side:** Abertura de arquivos via `dirvish-side-open-file-action 'reuse`.
+- **Task Runners (Just & Makefile):** `justl` (`C-c j`) para receitas de Justfile e `makefile-executor` (`C-c m`/`C-c M`) para alvos interativos de Makefile.
+- **Format-on-Save Assíncrono:** `apheleia` ativado globalmente (inibido em C/C++ para preservar o `c_formatter_42`).
 
 * Backends de IA Configurados
 
@@ -156,6 +167,13 @@ Depois configurar em =custom-org.el=:
 
 | Ação | Atalho |
 |------+--------|
+| Magent Iniciar / Alternar | =C-c M m= |
+| Magent Interromper | =C-c M i= |
+| Magent Enviar Região | =C-c M r= |
+| Commit IA Local | =C-c C-g= |
+| Gerar Docstring Local | =C-c c d= |
+| Gerar Teste Unitário Local | =C-c c t= |
+| Hover Documentation (eldoc-box) | =C-c c h= |
 | Buscar no projeto | =C-c s= (consult-ripgrep) |
 | Buscar no buffer | =C-c S= (consult-line) |
 | Trocar buffer | =C-x b= (consult-buffer) |
