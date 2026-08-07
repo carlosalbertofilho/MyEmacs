@@ -11,6 +11,10 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-07 — Planejamento & Início do Roteador de Agentes, RAG MarkItDown e FinOps (WIP)
+   - **Histórico e Backlog:** Definido o plano de ação no `TODO.md` focando em rastreabilidade de custos (FinOps), orquestradores de agentes locais/nuvem e automação do `markitdown` com suporte a ZIP, PDFs e YouTube.
+   - **Status:** 🚧 WORK IN PROGRESS
+
 ** 2026-08-07 — Detecção Dinâmica de Host para IA & Suíte de Testes Rigorosa
    - **Detecção de Host Dinâmica (`custom-ai.el`):** Criada a função `+carlos/gptel-setup-defaults-by-host` baseada em `(system-name)` que seleciona os backends e modelos padrões de acordo com o hardware do host:
      - No macOS (`agnes` - M2): Local-first usando **MLX Local** com `Qwen3-14B-4bit` (geral) e `DeepSeek-R1-Distill-Qwen-14B-4bit` (agente/raciocínio).

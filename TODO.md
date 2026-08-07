@@ -1,5 +1,29 @@
 # TODO — Planejamento Ativo e Backlog (MyEmacs)
 
+## 0.12. Plano de Ação — Roteador de Agentes, RAG MarkItDown e FinOps
+
+### Tópicos do Plano:
+
+1. [ ] **Fase 1: FinOps - Sistema de Rastreamento de Tokens e Custos (`custom-ai-tracker`)**
+   - Criar uma função hook `+carlos/gptel-track-usage` ligada a `gptel-post-response-functions`.
+   - Extrair a contagem de tokens do JSON de metadados da resposta de APIs OpenAI/Anthropic/Gemini.
+   - Salvar os dados de consumo em uma tabela Org-Mode formatada no arquivo `docs/ai-usage-tracker.org`.
+   
+2. [ ] **Fase 2: Roteamento de Agentes e Presets do Magent/GPTel**
+   - Configurar presets no Magent (`"triage"`, `"writer"`, `"build"`) mapeados a modelos locais (triage/RAG) e nuvem (SWE).
+   - Estender o `custom-ai.el` com suporte completo aos novos modelos premium (`big-pickle`, `claude-opus-5`, `gemini-3.1-pro`, etc.).
+
+3. [ ] **Fase 3: Pipeline de RAG Universal com MarkItDown**
+   - Criar o comando `+carlos/ai-rag-ingest` no Emacs que pergunta por um arquivo local (PDF, DOCX, ZIP, EPUB) ou URL do YouTube.
+   - Chamar o `markitdown` em segundo plano de forma assíncrona.
+   - Encaminhar a transcrição/markdown resultante para um prompt do gptel local formatar em Org-Mode de RAG final.
+
+4. [ ] **Fase 4: Validação Prática e de Testes ERT**
+   - Rodar testes em batch com `just test-all`.
+   - Gerar um arquivo de RAG de exemplo real (`docs/server-triage.org`) usando o modelo local.
+
+---
+
 ## 0.11. Plano de Ação — Migração Definitiva Doom Emacs → Vanilla MyEmacs
 
 > **Autor:** Agente Arquiteto (modelo Pro/Opus). Plano EXECUTÁVEL para o Agente Executor e Auditor.

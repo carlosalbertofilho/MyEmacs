@@ -1,0 +1,29 @@
+```org
+#+TITLE: Test Input
+#+AUTHOR: Carlos Filho
+#+FILETAGS: :RAG:DOCS:
+
+## REQUISITOS OBRIGATÓRIOS
+
+1. Inclua os metadados no topo:
+   #+TITLE: Test Input
+   #+AUTHOR: Carlos Filho
+   #+FILETAGS: :RAG:DOCS:
+
+## CONTEÚDO
+
+# RAG Document Ingestion Test
+
+This document describes the validation of our new local RAG ingestion pipeline using the Microsoft MarkItDown tool and local GPU-accelerated model (MLX) on macOS Mini M2.
+
+## Technical Stack
+
+| Step | Action | Duration | Cost |
+|---|---|---|---|
+| 1 | Extract raw markdown | 0.4s | $0.00 (Local) |
+| 2 | Refine Org Structure | 1.8s | $0.00 (Local GPU) |
+| 3 | Save to docs/ | 0.1s | $0.00 |
+
+## Conclusion
+
+The hybrid approach combining MarkItDown with local LLMs provides a reliable and cost-effective method to maintain our RAG knowledge base.
