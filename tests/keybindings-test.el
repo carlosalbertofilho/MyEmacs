@@ -57,5 +57,61 @@
   (should (eq (key-binding (kbd "C-c s")) 'consult-ripgrep))
   (should (eq (key-binding (kbd "C-c S")) 'consult-line)))
 
+(ert-deftest myemacs-kbd-magent ()
+  (should (eq (key-binding (kbd "C-c A m")) '+carlos/magent-start))
+  (should (eq (key-binding (kbd "C-c A i")) '+carlos/magent-agent-shell-interrupt))
+  (should (eq (key-binding (kbd "C-c A r")) '+carlos/magent-agent-shell-prompt-region)))
+
+(ert-deftest myemacs-kbd-local-ai ()
+  (should (eq (key-binding (kbd "C-c c d")) '+carlos/generate-docstring-at-point))
+  (should (eq (key-binding (kbd "C-c c t")) '+carlos/generate-test-at-point)))
+
+(ert-deftest myemacs-kbd-eshell ()
+  (should (eq (key-binding (kbd "C-c e")) 'eshell)))
+
+(ert-deftest myemacs-kbd-no-collisions ()
+  "Verifica colisões e integridade de atalhos críticos em diferentes major modes do Emacs."
+  (let ((critical-bindings
+         '(("C-c g" . magit-status)
+           ("C-c i" . gptel)
+           ("C-c I" . +carlos/gptel-agent-run)
+           ("C-c A m" . +carlos/magent-start)
+           ("C-c A i" . +carlos/magent-agent-shell-interrupt)
+           ("C-c A r" . +carlos/magent-agent-shell-prompt-region)
+           ("C-c h" . stdheader)
+           ("C-c j" . justl)
+           ("C-c n n" . denote)
+           ("C-c z" . olivetti-mode)
+           ("C-c t" . vterm)
+           ("C-c e" . eshell)
+           ("C-c d d" . +carlos/dashboard-open)
+           ("C-c c d" . +carlos/generate-docstring-at-point)
+           ("C-c c t" . +carlos/generate-test-at-point)
+           ("M-o" . other-window)
+           ("C-x k" . kill-current-buffer))))
+    
+    (dolist (binding critical-bindings)
+      (let ((key (car binding))
+            (cmd (cdr binding)))
+        ;; 1. Garantir que o comando referenciado é interativo e válido
+        (should (commandp cmd))
+        ;; 2. Validar que o comando está associado ao atalho no escopo global
+        (should (eq (key-binding (kbd key)) cmd))))
+
+    ;; 3. Validar ausência de colisão nos principais Major Modes
+    (dolist (mode '(org-mode dired-mode c-mode emacs-lisp-mode))
+      (let ((buf (generate-new-buffer (format "*temp-kbd-test-%s*" mode))))
+        (unwind-protect
+            (with-current-buffer buf
+              (when (fboundp mode)
+                ;; Ativa o modo principal temporariamente no buffer de teste
+                (funcall mode)
+                (dolist (binding critical-bindings)
+                  (let ((key (car binding))
+                        (cmd (cdr binding)))
+                    ;; Garante que o major-mode local não interceptou/sobrescreveu nosso atalho global
+                    (should (eq (key-binding (kbd key)) cmd))))))
+          (kill-buffer buf))))))
+
 (provide 'keybindings-test)
 ;;; keybindings-test.el ends here
