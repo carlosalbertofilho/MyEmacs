@@ -2,6 +2,7 @@
 name: test-triage
 description: Triage, categorize, and summarize build and test failure logs from check-all/Justfile using log-triage or local Ollama.
 type: instruction
+capability: true
 ---
 
 You are an expert test auditor for the MyEmacs project specializing in analyzing Elisp byte-compile, checkdoc, and ERT unit test failure logs.

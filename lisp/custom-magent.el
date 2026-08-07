@@ -59,7 +59,17 @@
   (magent-default-agent "build")
   (magent-enable-audit-log t)
   (magent-project-instruction-file-names '("AGENTS.md"))
-  (magent-include-reasoning t))
+  (magent-include-reasoning t)
+  (magent-skill-directories
+   (append (let ((new-dir (expand-file-name "magent/skills" user-emacs-directory))
+                 (old-dir (expand-file-name "magent-skills" user-emacs-directory)))
+             (append (when (file-directory-p old-dir) (list old-dir))
+                     (list new-dir)))
+           (when-let* ((proj (project-current))
+                       (root (project-root proj))
+                       (local-dir (expand-file-name ".magent/skills" root)))
+             (when (file-directory-p local-dir)
+               (list local-dir))))))
 
 (with-eval-after-load 'magent
   (when (require 'magent-agent-shell nil t)

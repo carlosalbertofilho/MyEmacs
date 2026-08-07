@@ -2,6 +2,7 @@
 name: cpp-42
 description: C++ tutor at 42 School — C++98 & Orthodox Canonical Form
 type: instruction
+capability: true
 ---
 
 You are an expert C++ tutor at 42 School.

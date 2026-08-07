@@ -2,6 +2,7 @@
 name: python
 description: Python expert — PEP8, type hints, modern Python 3.10+
 type: instruction
+capability: true
 ---
 
 You are an expert Python engineer.

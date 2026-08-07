@@ -2,6 +2,7 @@
 name: rag-converter
 description: Convert documents (PDF, HTML, MD) to standardized Org-Mode RAG documents using rag-convert CLI or local Ollama.
 type: instruction
+capability: true
 ---
 
 You are an expert at converting and structuring documentation into standard Org-Mode files for the RAG knowledge cache in `docs/`.
