@@ -201,11 +201,15 @@ CRITICAL RULES (Violating these fails the project):
 1. FORBIDDEN SYNTAX: No `for`, `do...while`, `switch`, `case`, `goto`, ternary operators, or VLAs.
 2. FORMATTING: REAL TABS (width 4). Max 25 lines per function, max 80 columns, max 5 variables.
 3. STRUCTURE: Declarations at the top, separated from code by one empty line. No inline initializations (e.g. `int i = 0;` is ILLEGAL).
-4. Code must compile with `-Wall -Wextra -Werror`.")
+4. Code must compile with `-Wall -Wextra -Werror`.
+")
              (cpp-42 . "You are an expert C++ mentor at 42 School.
 1. Adhere to C++98 standard.
 2. ALWAYS implement the 'Orthodox Canonical Form' (Constructor, Destructor, Copy Constructor, Assignment).")
-             (python . "You are a senior Python Developer. Follow PEP8, use Type Hinting, write pythonic code, and prefer modern Python 3.10+ syntax.")))
+             (python . "You are a senior Python Developer. Follow PEP8, use Type Hinting, write pythonic code, and prefer modern Python 3.10+ syntax.")
+             (hephaestus . "You are Hephaestus, a senior coding assistant. Write clean, modular, and optimized code. Avoid boilerplate, focus on dry implementations, use type annotations, and write code that works out of the box.")
+             (architect . "You are the Architect, a senior software architect. Analyze system requirements, design clean modular structures, design data models, create Mermaid diagrams to illustrate architecture flows, and prioritize maintainability and scalability.")
+             (revisor . "You are the Revisor, a senior code reviewer. Review changes strictly for bug patterns, memory leaks, performance bottlenecks, code style consistency, security holes, and compliance with project conventions (like the 42 School Norm for C code).")))
     (setf (alist-get (car directive) gptel-directives) (cdr directive))))
 
 ;; ── +carlos/gptel-request (helper para chamadas programáticas) ──────
@@ -371,6 +375,92 @@ Sem advice: chama `+carlos/gptel-agent-add-project-dirs' diretamente."
 
 ;; Atalho para Emergency Fallback
 (global-set-key (kbd "C-c A f") #'+carlos/gptel-emergency-fallback)
+
+;; ── Dynamic Task/Backend Router ─────────────────────────────────────
+(defun +carlos/gptel-dynamic-router-advice (prompt &rest args)
+  "Roteador dinâmico de IA. Executa :before `gptel-request' para definir o backend/modelo ideais."
+  (let* ((target-buffer (or (plist-get args :buffer) (current-buffer)))
+         (prompt-text (or prompt ""))
+         (hostname (system-name)))
+    (when (buffer-live-p target-buffer)
+      (with-current-buffer target-buffer
+        (cond
+         ;; REGRA 1: Se for buffer do Magent -> Prioridade para nuvem premium da assinatura (Zen Claude)
+         ((or (string-match-p "\\*Magent" (buffer-name))
+              (derived-mode-p 'magent-mode))
+          (when-let ((backend (gptel-get-backend "Zen Claude")))
+            (setq-local gptel-backend backend
+                        gptel-model 'claude-sonnet-5)
+            (message "Dynamic Route: Magent roteado para Zen Claude (Sonnet 3.5)")))
+
+         ;; REGRA 2: Prompts gerais de resumo, busca ou explicações -> Gemini Cloud (quota gratuita)
+         ((let ((case-fold-search t))
+            (string-match-p "resuma\\|explicar\\|pesquise\\|rag\\|resumo" prompt-text))
+          (when-let ((backend (gptel-get-backend "Gemini")))
+            (setq-local gptel-backend backend
+                        gptel-model 'gemini-2.5-flash)
+            (message "Dynamic Route: Geral roteado para Gemini Cloud (2.5 Flash)")))
+
+         ;; REGRA 3: Tarefas mecânicas locais de programação no macOS -> MLX Local (GPU custo zero)
+         ((and (derived-mode-p 'prog-mode)
+               (string-match-p "agnes" hostname))
+          (when-let ((backend (gptel-get-backend "MLX Local")))
+            (setq-local gptel-backend backend
+                        gptel-model 'mlx-community/Qwen3.5-9B-MLX-4bit)
+            (message "Dynamic Route: Código roteado para MLX Local (Qwen 3.5 9B)")))
+
+         ;; REGRA 4: Tarefas mecânicas no EliteDesk -> Ollama Local (CPU/GPU)
+         ((and (derived-mode-p 'prog-mode)
+               (string-match-p "aa102-006l" hostname))
+          (when-let ((backend (gptel-get-backend "Ollama Local")))
+            (setq-local gptel-backend backend
+                        gptel-model 'qwen2.5-coder:3b)
+            (message "Dynamic Route: Código roteado para Ollama Local (Qwen 2.5 3B)"))))))))
+
+(advice-add 'gptel-request :before #'+carlos/gptel-dynamic-router-advice)
+
+;; ── FinOps Token & Cost Tracker ─────────────────────────────────────
+(defvar +carlos/gptel-tracker-file-override nil
+  "Se não-nil, substitui o caminho padrão de gravação do log do tracker de consumo.")
+
+(defun +carlos/gptel-track-usage (beg end)
+  "Hook executado após a resposta do gptel para registrar o consumo de tokens."
+  (let* ((last-usage (car gptel--token-usage))
+         (input (or (plist-get last-usage :input) 0))
+         (output (or (plist-get last-usage :output) 0))
+         (cached (or (plist-get last-usage :cached) 0))
+         (backend-name (if gptel-backend (gptel-backend-name gptel-backend) "Unknown"))
+         (model-name (if gptel-model (symbol-name gptel-model) "Unknown"))
+         (buf-name (buffer-name))
+         (time-str (format-time-string "%Y-%m-%d %H:%M:%S"))
+         (cost-str (cond
+                    ((string-equal backend-name "MLX Local") "$0.00 (Local GPU)")
+                    ((string-equal backend-name "Ollama Local") "$0.00 (Local CPU)")
+                    ((string-equal backend-name "Gemini") "$0.00 (Free Tier)")
+                    ((string-equal backend-name "Zen Claude") "$0.00 (Signature)")
+                    ((string-equal backend-name "OpenCode Zen") "$0.00 (Signature)")
+                    (t "$0.00 (Zero Cost)")))
+         (tracker-file (or +carlos/gptel-tracker-file-override
+                           (expand-file-name "docs/ai-usage-tracker.org" 
+                                             (or (and (project-current) (project-root (project-current)))
+                                                 "~/Projects/Github/MyEmacs")))))
+    (when (or (> input 0) (> output 0))
+      (with-temp-buffer
+        (if (and (file-exists-p tracker-file)
+                 (> (file-attribute-size (file-attributes tracker-file)) 0))
+            (insert-file-contents tracker-file)
+          (insert "#+TITLE: Registro de Uso e Consumo de IA - FinOps\n")
+          (insert "#+AUTHOR: Carlos Filho\n")
+          (insert "#+FILETAGS: :FINOPS:RAG:AI:\n\n")
+          (insert "| Timestamp | Buffer | Backend | Modelo | Input | Output | Cached | Custo Est. |\n")
+          (insert "|-----------+--------+---------+--------+-------+--------+--------+------------|\n"))
+        (goto-char (point-max))
+        (unless (bolp) (insert "\n"))
+        (insert (format "| %s | %s | %s | %s | %d | %d | %d | %s |\n"
+                        time-str buf-name backend-name model-name input output cached cost-str))
+        (write-region (point-min) (point-max) tracker-file nil 'silent)))))
+
+(add-hook 'gptel-post-response-functions #'+carlos/gptel-track-usage)
 
 (provide 'custom-ai)
 ;;; custom-ai.el ends here

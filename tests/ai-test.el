@@ -13,6 +13,8 @@
 (require 'gptel-agent)
 (require 'cl-lib)
 
+(defvar +carlos/gptel-tracker-file-override nil)
+
 (defun myemacs-ai--backend-names ()
   "Nomes dos backends registrados no gptel."
   (mapcar #'car gptel--known-backends))
@@ -120,6 +122,78 @@
             +carlos/gptel-agent-model old-agent-model
             +carlos/gptel-quick-local-backend old-quick-backend
             +carlos/gptel-quick-local-model old-quick-model))))
+
+(ert-deftest myemacs-ai-dynamic-router ()
+  "Valida se o roteamento dinâmico de IA escolhe os modelos/backends certos por contexto."
+  :tags '(ai)
+  (let ((old-backend gptel-backend)
+        (old-model gptel-model)
+        (hostname (system-name)))
+    (unwind-protect
+        (progn
+          ;; 1. Testar Roteamento de Magent (Zen Claude)
+          (let ((buf (get-buffer-create "*Magent-test*")))
+            (with-current-buffer buf
+              (setq gptel-backend nil
+                    gptel-model nil)
+              (+carlos/gptel-dynamic-router-advice "Escreva um commit" :buffer buf)
+              (should (equal "Zen Claude" (gptel-backend-name gptel-backend)))
+              (should (eq 'claude-sonnet-5 gptel-model)))
+            (kill-buffer buf))
+
+          ;; 2. Testar Roteamento de Prompt Geral (Gemini Cloud)
+          (let ((buf (get-buffer-create "*test-general*")))
+            (with-current-buffer buf
+              (setq gptel-backend nil
+                    gptel-model nil)
+              (+carlos/gptel-dynamic-router-advice "Resuma o conteudo do link acima por favor" :buffer buf)
+              (should (equal "Gemini" (gptel-backend-name gptel-backend)))
+              (should (eq 'gemini-2.5-flash gptel-model)))
+            (kill-buffer buf))
+
+          ;; 3. Testar Roteamento de Código local no macOS (MLX Qwen 3.5 9B)
+          (let ((buf (get-buffer-create "*test-prog-code*")))
+            (with-current-buffer buf
+              (prog-mode)
+              (setq gptel-backend nil
+                    gptel-model nil)
+              (cl-letf (((symbol-function 'system-name) (lambda () "agnes.local")))
+                (+carlos/gptel-dynamic-router-advice "def my_func():" :buffer buf)
+                (should (equal "MLX Local" (gptel-backend-name gptel-backend)))
+                (should (eq 'mlx-community/Qwen3.5-9B-MLX-4bit gptel-model))))
+            (kill-buffer buf)))
+
+      ;; Limpeza
+      (setq gptel-backend old-backend
+            gptel-model old-model))))
+
+(ert-deftest myemacs-ai-tracker ()
+  "Valida se a gravação de tokens do FinOps funciona e gera a tabela Org corretamente."
+  :tags '(ai)
+  (let* ((temp-file (make-temp-file "ai-usage-tracker-test" nil ".org")))
+    (setq +carlos/gptel-tracker-file-override temp-file)
+    (unwind-protect
+        (let ((buf (get-buffer-create "*test-tracker*")))
+          (with-current-buffer buf
+            (cl-letf (((symbol-function 'gptel-backend-name) (lambda (&rest _) "Zen Claude")))
+              (setq-local gptel-backend t
+                          gptel-model 'claude-sonnet-5
+                          gptel--token-usage '((:input 150 :output 75 :cached 50)
+                                               (:input 150 :output 75 :cached 50)))
+              (+carlos/gptel-track-usage nil nil)))
+          
+          ;; Valida se o arquivo foi criado e contém os dados corretos
+          (should (file-exists-p temp-file))
+          (with-temp-buffer
+            (insert-file-contents temp-file)
+            (goto-char (point-min))
+            (should (search-forward "#+TITLE: Registro de Uso e Consumo de IA - FinOps" nil t))
+            (should (search-forward "| 150 | 75 | 50 | $0.00 (Signature) |" nil t)))
+          (kill-buffer buf))
+      ;; Garante a limpeza do arquivo temporário e reset do override
+      (setq +carlos/gptel-tracker-file-override nil)
+      (when (file-exists-p temp-file)
+        (delete-file temp-file)))))
 
 (provide 'ai-test)
 ;;; ai-test.el ends here

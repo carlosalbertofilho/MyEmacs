@@ -1,5 +1,39 @@
 # TODO — Planejamento Ativo e Backlog (MyEmacs)
 
+## 0.14. Plano de Ação — Importação de Skills do Cursor e Servidores MCP (Futuro)
+
+### Tópicos do Plano:
+
+1. [ ] **Fase 1: Analisar os repositórios clonados de regras de IA**
+   - [ ] **1.1. Inspecionar `awesome-cursorrules`** e selecionar regras de interesse (NixOS, Python, TypeScript).
+   - [ ] **1.2. Adaptar regras para o formato de skills do Magent** e salvá-las em `magent/skills/`.
+2. [ ] **Fase 2: Conectar o Magent a servidores MCP locais**
+   - [ ] **2.1. Configurar scripts CLI de bridge** para servidores MCP (como Figma/Stitch e Chrome DevTools) usando a tool `run_command` do Magent.
+
+---
+
+## 0.13. Plano de Ação — Adaptação de Skills da Plataforma & Agentes do OpenCode
+
+### Tópicos do Plano:
+
+1. [x] **Fase 1: Criar Personas/Agentes em `gptel-directives` (custom-ai.el)**
+   - [x] **1.1. Adicionar os Agentes do OpenCode** (`hephaestus`, `architect`, `revisor`) no `custom-ai.el` em `gptel-directives`.
+
+2. [x] **Fase 2: Adaptar as Skills para o Magent**
+   - [x] **2.1. Criar as Skills no formato do Magent** em `magent/skills/` (mapeadas dinamicamente):
+     - [x] `architect`: Instruções de arquitetura de software e design de sistemas baseadas no oh-my-openagent.
+     - [x] `revisor`: Lógica de code-review automatizado para o Magent.
+     - [x] `librarian`: Pesquisa e análise de documentação RAG estruturada em formato Org local.
+     - [x] `modern-web-guidance`: Boas práticas de CSS moderno, layout responsivo e UI premium do Antigravity.
+     - [x] `a11y-debugging`: Auditoria e correção de acessibilidade baseada no web.dev.
+     - [x] `memory-leak-debugging`: Diagnóstico de vazamento de memória e heap dumps em JS/Node.
+   - [x] **2.2. Clonar bibliotecas de referência de IA** na pasta `~/Projects/Github` (`awesome-cursorrules`, `awesome-mcp-servers`, `awesome-mcp`) para análise e futuras importações.
+   
+3. [x] **Fase 3: Criar Testes Unitários de Regressão em `tests/magent-test.el`**
+   - [x] **3.1. Validar se as novas skills** estão presentes e expostas corretamente (teste `myemacs-local-ai-skills-exist` estendido e validado).
+
+---
+
 ## 0.12. Plano de Ação — Roteador de Agentes, RAG MarkItDown e FinOps
 
 ### Tópicos do Plano:
@@ -9,10 +43,10 @@
    - [x] **1.2. Implementar a lógica de roteamento por contexto/buffer/prompt** (Magent ➜ Claude; Local Prog ➜ MLX Qwen 9B; Geral ➜ Gemini Cloud).
    - [x] **1.3. Criar testes unitários em `tests/ai-test.el`** (teste `myemacs-ai-dynamic-router` mockando buffers e system-name passou 100% verde).
 
-2. [ ] **Fase 2: FinOps - Sistema de Rastreamento de Tokens e Custos (`custom-ai-tracker`)**
-   - [ ] **2.1. Criar a função `+carlos/gptel-track-usage`** em `custom-ai.el` conectada a `gptel-post-response-functions`.
-   - [ ] **2.2. Ler a variável local do buffer `gptel--token-usage`** após a requisição.
-   - [ ] **2.3. Salvar os logs** formatados como tabela Org no arquivo `docs/ai-usage-tracker.org`.
+2. [x] **Fase 2: FinOps - Sistema de Rastreamento de Tokens e Custos (`custom-ai-tracker`)**
+   - [x] **2.1. Criar a função `+carlos/gptel-track-usage`** em `custom-ai.el` conectada a `gptel-post-response-functions`.
+   - [x] **2.2. Ler a variável local do buffer `gptel--token-usage`** após a requisição.
+   - [x] **2.3. Salvar os logs** formatados como tabela Org no arquivo `docs/ai-usage-tracker.org`.
 
 3. [ ] **Fase 3: Structured Outputs nos Scripts Locais (JSON / FSM)**
    - [ ] **3.1. Adaptar `bin/rag-convert` e `bin/log-triage`** para enviar `"response_format"` com JSON Schema ao MLX Local e `"format": "json"` ao Ollama, evitando alucinações estruturais nos parsers.

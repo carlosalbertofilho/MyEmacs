@@ -44,11 +44,12 @@
     (should (file-exists-p (expand-file-name "bin/log-triage" root)))))
 
 (ert-deftest myemacs-local-ai-skills-exist ()
-  "Verifica se as skills .magent/skills/rag-converter e test-triage existem."
+  "Verifica se as skills locais do Magent existem no repositório."
   :tags '(ai)
   (let ((root (myemacs-local-ai--root)))
-    (should (file-exists-p (expand-file-name ".magent/skills/rag-converter/SKILL.md" root)))
-    (should (file-exists-p (expand-file-name ".magent/skills/test-triage/SKILL.md" root)))))
+    (dolist (skill '("rag-converter" "test-triage" "architect" "revisor" 
+                     "librarian" "modern-web-guidance" "a11y-debugging" "memory-leak-debugging"))
+      (should (file-exists-p (expand-file-name (format "magent/skills/%s/SKILL.md" skill) root))))))
 
 (provide 'local-ai-automation-test)
 ;;; local-ai-automation-test.el ends here

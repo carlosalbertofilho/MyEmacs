@@ -33,6 +33,8 @@
   (should (eq (key-binding (kbd "C-c i")) 'gptel)))
 
 (ert-deftest myemacs-kbd-just ()
+  (require 'just-mode nil t)
+  (require 'justl nil t)
   (should (eq (key-binding (kbd "C-c j")) 'justl)))
 
 (ert-deftest myemacs-kbd-denote ()
@@ -76,6 +78,8 @@
 
 (ert-deftest myemacs-kbd-no-collisions ()
   "Verifica colisões e integridade de atalhos críticos em diferentes major modes do Emacs."
+  (require 'just-mode nil t)
+  (require 'justl nil t)
   (let ((critical-bindings
          '(("C-c g" . magit-status)
            ("C-c i" . gptel)

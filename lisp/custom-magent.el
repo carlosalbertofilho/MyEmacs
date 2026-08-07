@@ -67,7 +67,7 @@
                      (list new-dir)))
            (when-let* ((proj (project-current))
                        (root (project-root proj))
-                       (local-dir (expand-file-name ".magent/skills" root)))
+                       (local-dir (expand-file-name "magent/skills" root)))
              (when (file-directory-p local-dir)
                (list local-dir))))))
 

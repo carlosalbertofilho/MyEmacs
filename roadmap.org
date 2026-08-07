@@ -11,6 +11,12 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-07 — FinOps Token & Cost Tracker, e Auto-Mapeamento de Skills
+   - **FinOps Token & Cost Tracker (`custom-ai.el`):** Criada a função `+carlos/gptel-track-usage` e atada ao hook pós-resposta `gptel-post-response-functions`. Ela lê de forma assíncrona a variável buffer-local `gptel--token-usage` e grava os tokens de entrada, saída, cached e custo aproximado em formato de tabela Org em `docs/ai-usage-tracker.org`.
+   - **Auto-Mapeamento de Skills por Projeto (`custom-magent.el`):** O diretório de busca de skills do Magent foi configurado para dinamicamente descobrir a raiz do projeto Git ativo utilizando a API `project-current`, mapeando a pasta `magent/skills/` (unificada e limpa) por repositório de forma automática.
+   - **Clonagem de Bibliotecas de Referência de IA:** Efetuada a clonagem de `awesome-cursorrules` (regras comunitárias), `awesome-mcp-servers` e `awesome-mcp` na pasta `~/Projects/Github` para análise e futuro reaproveitamento de skills.
+   - **Status:** 🏆 120 TESTES ERT COMPLETAMENTE VERDES, incluindo o teste unitário de gravação FinOps (`just test-all` OK).
+
 ** 2026-08-07 — Roteador de Agentes Automático, Qwen 3.5 9B no Mac e Documentação de IA
    - **Roteador Dinâmico baseada em Advice (`custom-ai.el`):** Criado o roteador automático `+carlos/gptel-dynamic-router-advice` conectado `:before` a `gptel-request`. Ele altera dinamicamente as variáveis buffer-local de backend e modelo:
      - Se o buffer for do Magent ➜ Roteia para **Zen Claude (Sonnet 3.5)** na nuvem premium de assinatura.
