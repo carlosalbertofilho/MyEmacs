@@ -55,12 +55,12 @@ Deve ser executada após o gptel ter carregado todos os backends."
      ;; --- HOST: agnes (macOS M2) -> Local-first via MLX ---
      ((string-match-p "agnes" hostname)
       (setq-default gptel-backend (gptel-get-backend "MLX Local")
-                    gptel-model 'mlx-community/Qwen3-14B-4bit
+                    gptel-model 'mlx-community/Qwen3.5-9B-MLX-4bit
                     +carlos/gptel-agent-backend "MLX Local"
-                    +carlos/gptel-agent-model 'mlx-community/DeepSeek-R1-Distill-Qwen-14B-4bit
+                    +carlos/gptel-agent-model 'mlx-community/Qwen3.5-9B-MLX-4bit
                     +carlos/gptel-quick-local-backend "MLX Local"
                     +carlos/gptel-quick-local-model 'mlx-community/Qwen3.5-9B-MLX-4bit)
-      (message "Emacs AI: Configurado para MLX Local (agnes)"))
+      (message "Emacs AI: Configurado para MLX Local (agnes) com Qwen 3.5 9B"))
      
      ;; --- HOST: aa102-006l (EliteDesk NixOS) -> API-first (Zen Claude) ---
      ((string-match-p "aa102-006l" hostname)
@@ -343,6 +343,34 @@ Sem advice: chama `+carlos/gptel-agent-add-project-dirs' diretamente."
                (display-buffer-in-direction)
                (direction . bottom)
                (window-height . 0.4)))
+
+;; ── Network Timeouts for Local LLMs ─────────────────────────────────
+(setq gptel-use-curl t)
+(setq url-connection-timeout 120)
+(setq url-queue-timeout 120)
+
+;; ── Emergency Fallback Router ───────────────────────────────────────
+(defun +carlos/gptel-emergency-fallback ()
+  "Interrompe a chamada de IA ativa lenta e altera o backend para a nuvem da assinatura (Zen Claude)."
+  (interactive)
+  (require 'gptel)
+  ;; 1. Se houver processo ativo no buffer, mata-o
+  (when-let* ((proc (get-buffer-process (current-buffer))))
+    (delete-process proc)
+    (message "Chamada lenta interrompida."))
+  ;; 2. Altera o backend e modelo para Zen Claude (nuvem da assinatura)
+  (setq gptel-backend (gptel-get-backend "Zen Claude"))
+  (setq gptel-model 'claude-sonnet-5)
+  (setq-default gptel-backend (gptel-get-backend "Zen Claude")
+                gptel-model 'claude-sonnet-5)
+  (message "IA reconfigurada para a Nuvem: Zen Claude (claude-sonnet-5)")
+  ;; 3. Se for um buffer de chat do gptel, re-envia a requisição automaticamente
+  (when (bound-and-true-p gptel-mode)
+    (gptel-send)
+    (message "Re-enviando mensagem para a nuvem...")))
+
+;; Atalho para Emergency Fallback
+(global-set-key (kbd "C-c A f") #'+carlos/gptel-emergency-fallback)
 
 (provide 'custom-ai)
 ;;; custom-ai.el ends here

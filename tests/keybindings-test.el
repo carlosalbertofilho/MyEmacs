@@ -68,7 +68,8 @@
 
 (ert-deftest myemacs-kbd-cli-ai ()
   (should (eq (key-binding (kbd "C-c A g")) '+carlos/agy-prompt))
-  (should (eq (key-binding (kbd "C-c A c")) '+carlos/copilot-explain-region)))
+  (should (eq (key-binding (kbd "C-c A c")) '+carlos/copilot-explain-region))
+  (should (eq (key-binding (kbd "C-c A f")) '+carlos/gptel-emergency-fallback)))
 
 (ert-deftest myemacs-kbd-eshell ()
   (should (eq (key-binding (kbd "C-c e")) 'eshell)))
@@ -84,6 +85,7 @@
            ("C-c A r" . +carlos/magent-agent-shell-prompt-region)
            ("C-c A g" . +carlos/agy-prompt)
            ("C-c A c" . +carlos/copilot-explain-region)
+           ("C-c A f" . +carlos/gptel-emergency-fallback)
            ("C-c h" . stdheader)
            ("C-c j" . justl)
            ("C-c n n" . denote)

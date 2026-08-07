@@ -89,9 +89,9 @@
           (cl-letf (((symbol-function 'system-name) (lambda () "agnes.local")))
             (+carlos/gptel-setup-defaults-by-host)
             (should (equal "MLX Local" (gptel-backend-name gptel-backend)))
-            (should (eq 'mlx-community/Qwen3-14B-4bit gptel-model))
+            (should (eq 'mlx-community/Qwen3.5-9B-MLX-4bit gptel-model))
             (should (equal "MLX Local" +carlos/gptel-agent-backend))
-            (should (eq 'mlx-community/DeepSeek-R1-Distill-Qwen-14B-4bit +carlos/gptel-agent-model))
+            (should (eq 'mlx-community/Qwen3.5-9B-MLX-4bit +carlos/gptel-agent-model))
             (should (equal "MLX Local" +carlos/gptel-quick-local-backend))
             (should (eq 'mlx-community/Qwen3.5-9B-MLX-4bit +carlos/gptel-quick-local-model)))
 
