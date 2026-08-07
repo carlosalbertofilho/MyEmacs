@@ -101,7 +101,11 @@ Deve ser executada após o gptel ter carregado todos os backends."
     :endpoint "/zen/v1/chat/completions"
     :stream t
     :key (lambda () (getenv "OPENCODE_ZEN_API_KEY"))
-    :models '("deepseek-v4-flash-free"
+    :models '("big-pickle"
+              "gpt-5.3-codex"
+              "gpt-5.2-codex"
+              "deepseek-v4-pro"
+              "deepseek-v4-flash-free"
               "north-mini-code-free"))
 
   ;; ── Backend: Zen Claude (Anthropic-compatible) ────────────────────
@@ -119,8 +123,15 @@ Deve ser executada após o gptel ter carregado todos os backends."
     :stream t
     :key (lambda () (or (getenv "GEMINI_API_KEY")
                         (getenv "GOOGLE_API_KEY")))
-    :models '("gemini-2.5-flash"
-              "gemini-2.5-pro"))
+    :models '("gemini-3.5-flash"
+              "gemini-3.5-flash-lite"
+              "gemini-3.6-flash"
+              "gemini-3.1-pro-preview"
+              "gemini-2.5-flash"
+              "gemini-2.5-pro"
+              "gemini-2.0-flash"
+              "gemma-4-31b-it"
+              "antigravity-preview-05-2026"))
 
   ;; ── Backend: Ollama Local ─────────────────────────────────────────
   (gptel-make-ollama "Ollama Local"
@@ -261,6 +272,74 @@ Sem advice: chama `+carlos/gptel-agent-add-project-dirs' diretamente."
 
 (add-to-list 'display-buffer-alist
              '("\\*gptel.*"
+               (display-buffer-in-direction)
+               (direction . bottom)
+               (window-height . 0.4)))
+
+;; ── CLI Integrations (agy & copilot-cli) ────────────────────────────
+(defun +carlos/agy-prompt (prompt)
+  "Executa de forma assíncrona o Gemini CLI (agy) passando PROMPT e exibe o resultado."
+  (interactive "sPergunta para o Gemini CLI: ")
+  (let ((output-buffer (get-buffer-create "*Gemini CLI Output*")))
+    (with-current-buffer output-buffer
+      (read-only-mode -1)
+      (erase-buffer)
+      (markdown-mode)
+      (insert (format "# Pergunta: %s\n\n_Aguardando resposta do agy..._\n\n" prompt)))
+    (display-buffer output-buffer)
+    ;; Dispara o subprocesso de forma assíncrona
+    (make-process
+     :name "agy-process"
+     :buffer output-buffer
+     :command (list "agy" prompt)
+     :filter (lambda (proc string)
+               (when (buffer-live-p (process-buffer proc))
+                 (with-current-buffer (process-buffer proc)
+                   (let ((inhibit-read-only t))
+                     (goto-char (point-max))
+                     ;; Substitui a mensagem de aguardando se for a primeira escrita
+                     (when (search-backward "_Aguardando resposta do agy..._" nil t)
+                       (replace-match ""))
+                     (insert string))))))))
+
+(defun +carlos/copilot-explain-region ()
+  "Envia a região ativa para o GitHub Copilot CLI explicar."
+  (interactive)
+  (if (not (use-region-p))
+      (user-error "Selecione uma região de código primeiro")
+    (let* ((code (buffer-substring-no-properties (region-beginning) (region-end)))
+           (prompt (format "Explique o código a seguir:\n\n%s" code))
+           (output-buffer (get-buffer-create "*Copilot CLI Output*")))
+      (with-current-buffer output-buffer
+        (read-only-mode -1)
+        (erase-buffer)
+        (markdown-mode)
+        (insert "# Explicação do Copilot:\n\n"))
+      (display-buffer output-buffer)
+      (make-process
+       :name "copilot-explain"
+       :buffer output-buffer
+       :command (list "gh" "copilot" "explain" prompt)
+       :filter (lambda (proc string)
+                 (when (buffer-live-p (process-buffer proc))
+                   (with-current-buffer (process-buffer proc)
+                     (let ((inhibit-read-only t))
+                       (goto-char (point-max))
+                       (insert string)))))))))
+
+;; Atalhos globais de integração CLI
+(global-set-key (kbd "C-c A g") #'+carlos/agy-prompt)
+(global-set-key (kbd "C-c A c") #'+carlos/copilot-explain-region)
+
+;; Regras de exibição para os popups de CLI
+(add-to-list 'display-buffer-alist
+             '("\\*Gemini CLI Output\\*"
+               (display-buffer-in-direction)
+               (direction . bottom)
+               (window-height . 0.4)))
+
+(add-to-list 'display-buffer-alist
+             '("\\*Copilot CLI Output\\*"
                (display-buffer-in-direction)
                (direction . bottom)
                (window-height . 0.4)))

@@ -66,6 +66,10 @@
   (should (eq (key-binding (kbd "C-c c d")) '+carlos/generate-docstring-at-point))
   (should (eq (key-binding (kbd "C-c c t")) '+carlos/generate-test-at-point)))
 
+(ert-deftest myemacs-kbd-cli-ai ()
+  (should (eq (key-binding (kbd "C-c A g")) '+carlos/agy-prompt))
+  (should (eq (key-binding (kbd "C-c A c")) '+carlos/copilot-explain-region)))
+
 (ert-deftest myemacs-kbd-eshell ()
   (should (eq (key-binding (kbd "C-c e")) 'eshell)))
 
@@ -78,6 +82,8 @@
            ("C-c A m" . +carlos/magent-start)
            ("C-c A i" . +carlos/magent-agent-shell-interrupt)
            ("C-c A r" . +carlos/magent-agent-shell-prompt-region)
+           ("C-c A g" . +carlos/agy-prompt)
+           ("C-c A c" . +carlos/copilot-explain-region)
            ("C-c h" . stdheader)
            ("C-c j" . justl)
            ("C-c n n" . denote)
