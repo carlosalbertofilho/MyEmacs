@@ -207,6 +207,13 @@ Regras:
 | `+carlos/dashboard-open`/`-refresh` declarados e bindados mas **nunca definidos** (void-function em `C-c d d`/`C-c d r`) | definidos como wrappers de `dashboard-open`/`dashboard-refresh-buffer` | `myemacs-dashboard-commands-exist` |
 | `git-commit` `C-c C-g` via hook (só aplicava em buffer real) | `define-key` direto no `git-commit-mode-map` via `with-eval-after-load 'git-commit` | `myemacs-git-commit-mode-map-bind` |
 
+### Encontrados pela suíte (2026-08-07)
+
+| Bug | Fix | Teste |
+|-----|-----|-------|
+| `custom-42.el:61: Error: reference to free variable ‘+carlos/c-formatter-42’` (macro `reformatter-define` expandida como função na ausência de reformatter em batch compile) | `reformatter` carregado síncronamente via `:demand t` e `(elpaca-wait)` no `custom-lang.el` | `just compile` |
+| `void-variable +carlos/gptel-quick-local-backend` no boot-test e ai-test (falha ao testar dinâmicas de host) | Variáveis declaradas globalmente e testadas via mock unitário de `system-name` | `myemacs-ai-host-detection` |
+
 ---
 
 ## Testing (ERT Suite)
@@ -249,6 +256,13 @@ just test-batch EMACS_TEST_DIR="$(pwd)"
 - Em `--batch`, `--eval` avalia **apenas a primeira forma**; use `-l` com
   arquivo ou múltiplos `--eval` para scripts de verificação.
 
+### Portões de Qualidade e Prevenção de Regressões (Rigorosos)
+
+Todo agente que realizar alterações na configuração deve obrigatoriamente garantir que a suíte passe de forma limpa, respeitando os seguintes portões de qualidade:
+- **Zero Warnings de Configuração**: O teste `myemacs-boot-no-custom-warnings` proíbe warnings relacionados ao nosso código (`custom-*` ou `+carlos/*`) no boot.
+- **Zero Lisp Errors Silenciosos**: O teste `myemacs-boot-no-lisp-errors` varre `*Messages*` por falhas ocultas (`void-variable`, `void-function`) em hooks de inicialização.
+- **Zero Colisões de Keybindings**: O teste `myemacs-kbd-no-collisions` garante que os atalhos globais críticos (como prefixos `C-c` de IA, terminal, denote, e Git) permaneçam mapeados para os comandos corretos mesmo dentro de major-modes principais (`org-mode`, `dired-mode`, `c-mode`, `emacs-lisp-mode`). Qualquer colisão introduzida falhará o teste.
+
 ---
 
 ## Package Reference Docs (RAG Cache)
@@ -267,6 +281,7 @@ All package APIs are documented in `docs/`. Reference these files before making 
 | UI Stack | `docs/ui-stack.org` | ef-themes, mood-line, olivetti, nerd-icons, which-key |
 | Terminal | `docs/term-stack.org` | vterm, eshell, eshell-prompt-extras, display-buffer |
 | Doom Inspiration | `docs/doom-inspiration.org` | Doom Emacs configurations for Dirvish, Dired, Org aesthetics, fonts, and slides |
+| Testing Suite | `docs/testing-suite.org` | Testes ERT, detecção de colisões de teclas, portões de qualidade, warnings e erros de Lisp |
 
 **ALWAYS read the relevant doc file before modifying a package's configuration.**
 

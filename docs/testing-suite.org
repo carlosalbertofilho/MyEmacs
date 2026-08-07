@@ -1,0 +1,71 @@
+#+TITLE: Suíte de Testes ERT e Padrões de Qualidade
+#+DESCRIPTION: Guia de referência para a suíte de testes de regressão ERT e práticas de controle de qualidade do MyEmacs.
+#+CREATED: 2026-08-07
+#+LAST_MODIFIED: 2026-08-07
+#+CATEGORY: quality
+
+* Visão Geral
+
+O MyEmacs utiliza uma suíte de testes nativa baseada no framework *ERT (Emacs Regression Testing)*. A suíte é executada em modo batch e não possui dependências de pacotes externos para rodar o bootstrap básico, garantindo portabilidade absoluta.
+
+Toda e qualquer alteração feita nas configurações deve passar na validação estrita da suíte antes do deploy.
+
+* Estrutura dos Arquivos de Teste
+
+Os testes residem na pasta =tests/= e são estruturados por área de responsabilidade:
+
+| Arquivo de Teste               | Escopo de Validação |
+|--------------------------------+---------------------|
+| [[file:../tests/boot-test.el][boot-test.el]]                   | Módulos carregados, load-path, ausência de warnings e erros Lisp ocultos. |
+| [[file:../tests/keybindings-test.el][keybindings-test.el]]            | Integridade de atalhos globais, comandos ativos e prevenção de colisões. |
+| [[file:../tests/ai-test.el][ai-test.el]]                     | Registro de backends gptel, prompts, diretórios de agentes e detecção de host. |
+| [[file:../tests/files-test.el][files-test.el]]                  | Configurações e validações do dirvish, layouts e ícones. |
+| [[file:../tests/term-test.el][term-test.el]]                   | Inicialização do vterm (se compilado) e atalhos de terminal/eshell. |
+| [[file:../tests/git-test.el][git-test.el]]                    | Integração com o Magit, transients e IA Commit local. |
+| [[file:../tests/org-test.el][org-test.el]]                    | Configurações de org-mode, org-modern e babel engines. |
+| [[file:../tests/dashboard-test.el][dashboard-test.el]]              | Comandos e buffers do dashboard nano-style. |
+| [[file:../tests/ai-network-test.el][ai-network-test.el]]            | Testes de rede (live API requests) para provedores de nuvem (opt-in). |
+
+* Portões de Qualidade Rigorosos
+
+Para manter a estabilidade do editor entre diferentes hosts (agnes, aa102-006l), futuros agentes devem respeitar estritamente três portões de qualidade:
+
+** 1. Prevenção de Erros Ocultos de Lisp
+Durante a inicialização interativa, erros em hooks (como =after-init-hook= ou =window-setup-hook=) podem ser recuperados pelo Emacs sem abortar o processo, mas deixando a configuração em estado quebrado.
+- *Teste associado:* =myemacs-boot-no-lisp-errors= varre o buffer =*Messages*= por strings como =void-function=, =void-variable= ou =Symbol's value as variable is void=.
+- *Regra:* Nenhum erro latente de Lisp deve ser gerado no log durante o bootstrap.
+
+** 2. Prevenção de Warnings de Configuração
+Warnings sobre sintaxe obsoleta, pacotes ausentes de autoria própria ou chamadas incorretas abrem o buffer =*Warnings*= e atrapalham o fluxo de trabalho.
+- *Teste associado:* =myemacs-boot-no-custom-warnings= garante que nenhum aviso vindo de arquivos com prefixo =custom-= ou funções =+carlos/= seja jogado no buffer de warnings.
+- *Regra:* Avisos gerados por configurações locais causam a falha imediata da suíte.
+
+** 3. Validação Dinâmica contra Colisões de Atalhos
+O Emacs possui um sistema de prioridade de keymaps onde major modes ou minor modes locais podem obscurecer e sobrescrever comandos globais de forma indesejada.
+- *Teste associado:* =myemacs-kbd-no-collisions= cria buffers de teste, ativa os principais major modes (=org-mode=, =dired-mode=, =c-mode=, =emacs-lisp-mode=) e usa =key-binding= para garantir que as teclas globais críticas (como =C-c g= para Magit, =C-c i= para gptel e atalhos de IA/Magent) resolvam para os comandos esperados sem sofrer colisões locais.
+- *Regra:* Atalhos globais essenciais devem ser funcionais e consistentes em qualquer buffer do editor.
+
+* Como Executar as Validações
+
+O =Justfile= encapsula o fluxo de controle de qualidade:
+
+#+begin_src bash
+# 1. Rodar a verificação de carregamento rápido
+just check
+
+# 2. Executar compilação de byte-code (trata warnings como erros críticos)
+just compile
+
+# 3. Rodar a suíte ERT batch local
+just test-batch
+
+# 4. Executar o fluxo completo de qualidade (CI/CD nativo)
+just test-all  # Roda compile + checkdoc + test-batch
+#+end_src
+
+* Diretrizes para Evolução da Suíte
+
+Ao adicionar novos recursos ou consertar bugs, siga as regras:
+1. *Bugs de Inicialização:* Cada bug resolvido (ex: `void-variable` ou `void-function`) deve ganhar uma asserção específica no =boot-test.el= ou =ai-test.el=.
+2. *Novos Atalhos:* Se adicionar um novo atalho global em =custom-keybindings.el=, declare-o na lista =critical-bindings= do teste =myemacs-kbd-no-collisions= em =tests/keybindings-test.el= para protegê-lo contra futuras regressões ou colisões em major modes.
+3. *Isolamento de Testes:* Testes de rede (Live APIs) devem conter a tag =:tags '(ai network)= e a macro =(skip-unless (getenv "EMACS_TEST_NETWORK"))= para evitar que falhas de conexão ou falta de chaves quebrem a suíte de testes offline local.
