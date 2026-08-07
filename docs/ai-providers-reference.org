@@ -1,0 +1,73 @@
+#+TITLE: Referência de Provedores de IA - MyEmacs
+#+DESCRIPTION: Detalhamento de limites, quotas, privacidade e modelos disponíveis no Google AI Studio (Free Tier) e OpenCode Zen (Assinatura).
+#+CREATED: 2026-08-07
+#+LAST_MODIFIED: 2026-08-07
+#+FILETAGS: :RAG:AI:DOCS:
+
+* Visão Geral
+
+Este documento serve como RAG Cache e referência técnica para o usuário e agentes de IA sobre as quotas de uso, custos e modelos de IA integrados no ecossistema MyEmacs (gptel, Magent e CLIs locais).
+
+* 1. Google AI Studio (Gemini Developer API)
+
+** Quotas e Limites do Free Tier
+A Gemini Developer API do Google AI Studio oferece uma quota gratuita generosa para fins de desenvolvimento, desde que a chave de API não esteja vinculada a uma conta com faturamento pago habilitado.
+
+| Recurso / Modelo | Requests por Minuto (RPM) | Requests por Dia (RPD) | Tokens por Minuto (TPM) |
+|------------------+---------------------------+------------------------+-------------------------|
+| Gemini 2.5 Flash | 15 RPM                    | 1500 RPD               | 1.000.000 TPM           |
+| Gemini 2.5 Pro   | 2 RPM                     | 50 RPD                 | 32.000 TPM              |
+| Gemini 3.5 Flash | 15 RPM                    | 1500 RPD               | 1.000.000 TPM           |
+| Gemini 3.6 Flash | 15 RPM                    | 1500 RPD               | 1.000.000 TPM           |
+
+** Segurança e Privacidade (Free Tier vs. Pay-per-Use)
+- *Aviso de Privacidade:* Na modalidade *Free Tier*, os dados enviados (prompts) e recebidos (completions) podem ser revisados por revisores humanos e utilizados pelo Google para treinar e aprimorar seus modelos.
+- *Recomendação:* Evite enviar chaves privadas, credenciais ou código comercial sensível/proprietário através do backend "Gemini" na nuvem gratuita. Use o *MLX Local* (GPU Mac M2) ou a assinatura do *OpenCode Zen* para dados sensíveis.
+
+** Modelos Disponíveis (Confirmados via Chave Ativa)
+Estes modelos foram validados e estão disponíveis para consumo com a chave =GEMINI_API_KEY= do usuário:
+
+| ID do Modelo | Nome de Exibição | Categoria de Uso |
+|--------------+------------------+------------------|
+| =gemini-3.6-flash= | Gemini 3.6 Flash | Conversação geral ultrarrápida |
+| =gemini-3.5-flash= | Gemini 3.5 Flash | Conversação geral estável |
+| =gemini-3.5-flash-lite= | Gemini 3.5 Flash Lite | Resumos e tarefas leves |
+| =gemini-3.1-pro-preview= | Gemini 3.1 Pro Preview | Raciocínio de alta complexidade |
+| =antigravity-preview-05-2026= | Antigravity Agent Preview | Codificação assistida |
+| =deep-research-max-preview-04-2026= | Deep Research Max | Pesquisa em lote de grande escala |
+| =gemma-4-31b-it= | Gemma 4 31B IT | Modelo Open-source ultra moderno |
+| =gemini-2.5-pro= | Gemini 2.5 Pro | Código e lógica gerais |
+| =gemini-2.5-flash= | Gemini 2.5 Flash | Chat padrão de baixo atrito |
+
+** Endpoint de Coleta / URL de Consulta
+Para consultar os modelos disponíveis e atualizações de forma dinâmica:
+=https://generativelanguage.googleapis.com/v1beta/models?key=SUA_API_KEY=
+
+* 2. OpenCode Zen
+
+** Modalidade de Cobrança e Quotas
+- *Tipo de Conta:* Assinatura Fixa Mensal.
+- *Consumo:* Ilimitado sob política de uso justo (sem cobrança incremental por token / FinOps amigável).
+- *Uso Recomendado:* Ideal para o agente autônomo *Magent* e tarefas que processam contextos gigantes (como projetos inteiros e logs de compilação longos), eliminando o risco de contas de API inesperadas de centenas de dólares.
+
+** Modelos Premium Disponíveis (Confirmados via API)
+Estes modelos são oferecidos no backend da assinatura e estão disponíveis no gptel/Magent:
+
+| ID do Modelo | Provedor / Tipo | Recomendação de Uso |
+|--------------+-----------------+---------------------|
+| =claude-opus-5= | Anthropic | Agente principal, SWE-Bench, refatorações complexas |
+| =claude-sonnet-5= | Anthropic | Chat rápido de programação, geração de testes |
+| =big-pickle= | OpenCode Custom | Otimizado para engenharia de software complexa |
+| =gpt-5.3-codex= | OpenAI | Codificação estruturada e lógica de sistemas |
+| =gpt-5.2-codex= | OpenAI | Geração rápida de código e snippets |
+| =deepseek-v4-pro= | DeepSeek | Raciocínio matemático e algoritmos |
+| =grok-4.5= | xAI / Grok | Conversação de contexto expandido |
+
+** Modelos Gratuitos (Free Tier no OpenCode)
+Modelos disponíveis para tráfego fallback de custo zero absoluto no OpenCode:
+- =deepseek-v4-flash-free=
+- =north-mini-code-free=
+
+** Endpoint de Coleta / URL de Consulta
+Para consultar os modelos ativos e novos releases da sua assinatura de forma dinâmica:
+=https://opencode.ai/zen/v1/models=

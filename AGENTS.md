@@ -282,6 +282,7 @@ All package APIs are documented in `docs/`. Reference these files before making 
 | Terminal | `docs/term-stack.org` | vterm, eshell, eshell-prompt-extras, display-buffer |
 | Doom Inspiration | `docs/doom-inspiration.org` | Doom Emacs configurations for Dirvish, Dired, Org aesthetics, fonts, and slides |
 | Testing Suite | `docs/testing-suite.org` | Testes ERT, detecção de colisões de teclas, portões de qualidade, warnings e erros de Lisp |
+| AI Providers | `docs/ai-providers-reference.org` | Detalhamento de quotas, modelos e segurança do Google AI Studio e OpenCode Zen |
 
 **ALWAYS read the relevant doc file before modifying a package's configuration.**
 
