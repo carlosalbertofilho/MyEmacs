@@ -7,6 +7,8 @@
 ;;; Code:
 
 (defvar treesit-extra-load-path)
+(defvar +carlos/gptel-quick-local-backend)
+(defvar +carlos/gptel-quick-local-model)
 
 ;; Registrar diretórios de gramáticas Tree-Sitter do Nix no top-level
 (dolist (dir (append (file-expand-wildcards "/nix/store/*-emacs-treesit-grammars")
@@ -86,7 +88,8 @@
 ;; Used by custom-42.el to define c_formatter_42 integration.
 (use-package reformatter
   :ensure t
-  :defer t)
+  :demand t)
+(elpaca-wait)
 
 ;; ── Elisp ───────────────────────────────────────────────────────────
 (use-package elisp-mode
@@ -175,7 +178,7 @@
 ;; ── Local AI docstring & test generation ───────────────────────────
 (defun +carlos/generate-docstring-at-point ()
   "Gera docstring padronizada para a função sob o cursor.
-Usa o backend Ollama local."
+Usa o backend local configurado para tarefas rápidas."
   (interactive)
   (let ((bounds (bounds-of-thing-at-point 'defun)))
     (if (not bounds)
@@ -183,8 +186,8 @@ Usa o backend Ollama local."
       (let ((code (buffer-substring-no-properties (car bounds) (cdr bounds))))
         (+carlos/gptel-request
          (format "Escreva apenas a docstring padronizada (PEP 257 / Doxygen / Norm 4.1) para o código a seguir. Não inclua código extra:\n\n%s" code)
-         "Ollama Local"
-         'qwen2.5-coder:3b
+         +carlos/gptel-quick-local-backend
+         +carlos/gptel-quick-local-model
          :callback (lambda (response info)
                      (if response
                          (message "Docstring Gerada:\n%s" response)
@@ -192,7 +195,7 @@ Usa o backend Ollama local."
 
 (defun +carlos/generate-test-at-point ()
   "Gera esqueleto de teste unitário para a função sob o cursor.
-Usa o backend Ollama local."
+Usa o backend local configurado para tarefas rápidas."
   (interactive)
   (let ((bounds (bounds-of-thing-at-point 'defun)))
     (if (not bounds)
@@ -200,8 +203,8 @@ Usa o backend Ollama local."
       (let ((code (buffer-substring-no-properties (car bounds) (cdr bounds))))
         (+carlos/gptel-request
          (format "Escreva um teste unitário conciso para a função a seguir:\n\n%s" code)
-         "Ollama Local"
-         'qwen2.5-coder:3b
+         +carlos/gptel-quick-local-backend
+         +carlos/gptel-quick-local-model
          :callback (lambda (response info)
                      (if response
                          (message "Esqueleto de Teste Gerado:\n%s" response)

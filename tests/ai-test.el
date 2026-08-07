@@ -75,5 +75,51 @@
   :tags '(ai)
   (should-not gptel-context-restrict-to-project-files))
 
+(ert-deftest myemacs-ai-host-detection ()
+  :tags '(ai)
+  (let ((old-backend gptel-backend)
+        (old-model gptel-model)
+        (old-agent-backend +carlos/gptel-agent-backend)
+        (old-agent-model +carlos/gptel-agent-model)
+        (old-quick-backend +carlos/gptel-quick-local-backend)
+        (old-quick-model +carlos/gptel-quick-local-model))
+    (unwind-protect
+        (progn
+          ;; 1. Testar host: agnes (macOS M2)
+          (cl-letf (((symbol-function 'system-name) (lambda () "agnes.local")))
+            (+carlos/gptel-setup-defaults-by-host)
+            (should (equal "MLX Local" (gptel-backend-name gptel-backend)))
+            (should (eq 'mlx-community/Qwen3-14B-4bit gptel-model))
+            (should (equal "MLX Local" +carlos/gptel-agent-backend))
+            (should (eq 'mlx-community/DeepSeek-R1-Distill-Qwen-14B-4bit +carlos/gptel-agent-model))
+            (should (equal "MLX Local" +carlos/gptel-quick-local-backend))
+            (should (eq 'mlx-community/Qwen3.5-9B-MLX-4bit +carlos/gptel-quick-local-model)))
+
+          ;; 2. Testar host: aa102-006l (EliteDesk)
+          (cl-letf (((symbol-function 'system-name) (lambda () "aa102-006l")))
+            (+carlos/gptel-setup-defaults-by-host)
+            (should (equal "Zen Claude" (gptel-backend-name gptel-backend)))
+            (should (eq 'claude-sonnet-5 gptel-model))
+            (should (equal "Zen Claude" +carlos/gptel-agent-backend))
+            (should (eq 'claude-sonnet-5 +carlos/gptel-agent-model))
+            (should (equal "Ollama Local" +carlos/gptel-quick-local-backend))
+            (should (eq 'qwen2.5-coder:3b +carlos/gptel-quick-local-model)))
+
+          ;; 3. Testar host fallback (outros)
+          (cl-letf (((symbol-function 'system-name) (lambda () "unknown-host")))
+            (+carlos/gptel-setup-defaults-by-host)
+            (should (equal "Zen Claude" (gptel-backend-name gptel-backend)))
+            (should (eq 'claude-sonnet-5 gptel-model))
+            (should (equal "Zen Claude" +carlos/gptel-quick-local-backend))
+            (should (eq 'claude-sonnet-5 +carlos/gptel-quick-local-model))))
+      
+      ;; Garantir a restauração dos estados originais de backend/modelo após o teste
+      (setq gptel-backend old-backend
+            gptel-model old-model
+            +carlos/gptel-agent-backend old-agent-backend
+            +carlos/gptel-agent-model old-agent-model
+            +carlos/gptel-quick-local-backend old-quick-backend
+            +carlos/gptel-quick-local-model old-quick-model))))
+
 (provide 'ai-test)
 ;;; ai-test.el ends here

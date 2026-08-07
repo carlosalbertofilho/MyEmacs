@@ -26,5 +26,23 @@
   (require 'vc-git nil t)
   (should (vc-git-root default-directory)))
 
+(ert-deftest myemacs-boot-no-custom-warnings ()
+  "Garante que nenhum warning relacionado a custom-* ou +carlos/ foi gerado no boot."
+  (let ((warnings-buf (get-buffer "*Warnings*")))
+    (when warnings-buf
+      (with-current-buffer warnings-buf
+        (let ((content (buffer-string)))
+          ;; Garante que nenhum warning venha dos nossos arquivos de configuração
+          (should-not (or (string-match-p "custom-" content)
+                          (string-match-p "\\+carlos/" content))))))))
+
+(ert-deftest myemacs-boot-no-lisp-errors ()
+  "Verifica se o buffer *Messages* não contém indícios de erros ocultos de Lisp dos nossos módulos."
+  (with-current-buffer "*Messages*"
+    (save-excursion
+      (goto-char (point-min))
+      ;; Buscamos erros severos como void-variable ou void-function
+      (should-not (re-search-forward "\\(void-function\\|void-variable\\|Symbol’s value as variable is void\\|Symbol’s function definition is void\\)" nil t)))))
+
 (provide 'boot-test)
 ;;; boot-test.el ends here

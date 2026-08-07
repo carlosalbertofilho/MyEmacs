@@ -11,6 +11,18 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-07 — Detecção Dinâmica de Host para IA & Suíte de Testes Rigorosa
+   - **Detecção de Host Dinâmica (`custom-ai.el`):** Criada a função `+carlos/gptel-setup-defaults-by-host` baseada em `(system-name)` que seleciona os backends e modelos padrões de acordo com o hardware do host:
+     - No macOS (`agnes` - M2): Local-first usando **MLX Local** com `Qwen3-14B-4bit` (geral) e `DeepSeek-R1-Distill-Qwen-14B-4bit` (agente/raciocínio).
+     - No NixOS (`aa102-006l` - EliteDesk): API-first usando **Zen Claude** (`claude-sonnet-5`) como padrão geral e de agente.
+   - **Atalhos e Tarefas Rápidas Dinâmicas (`custom-lang.el`):** Refatorados os atalhos de geração de docstrings (`C-c c d`) e esqueletos de testes unitários (`C-c c t`) para ler dinamicamente das variáveis `+carlos/gptel-quick-local-backend` e `+carlos/gptel-quick-local-model` configuradas por host.
+   - **Suíte de Testes ERT Rigorosa (`tests/boot-test.el` e `tests/ai-test.el`):**
+     - Adicionado o teste `myemacs-ai-host-detection` que valida a inicialização e troca de backends mocado para os hosts `agnes` e `aa102-006l`.
+     - Adicionado o teste `myemacs-boot-no-custom-warnings` que varre o buffer `*Warnings*` na inicialização batch garantindo zero avisos do nosso código de configuração.
+     - Adicionado o teste `myemacs-boot-no-lisp-errors` que varre o buffer `*Messages*` por falhas ocultas (`void-variable`, `void-function`) no boot.
+   - **Fix da Compilação Síncrona do reformatter (`custom-lang.el`):** Corrigido o erro de macro livre em `custom-42.el` forçando a instalação e carregamento síncrono do `reformatter` com `:demand t` e `(elpaca-wait)`.
+   - **Status:** 🏆 113 TESTES ERT COMPLETAMENTE VERDES (`just test-all` OK).
+
 ** 2026-08-06 — Migração Definitiva Doom Emacs → Vanilla MyEmacs (~/.config/emacs)
 
 *** Feito

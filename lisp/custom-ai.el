@@ -34,6 +34,54 @@
 (declare-function gptel-make-ollama "gptel-ollama")
 (declare-function project-root "project")
 
+(defvar +carlos/gptel-agent-backend "Zen Claude"
+  "Backend padrão para sessões de agente.")
+
+(defvar +carlos/gptel-agent-model 'claude-sonnet-5
+  "Modelo padrão para sessões de agente.")
+
+(defvar +carlos/gptel-quick-local-backend "Ollama Local"
+  "Backend usado para tarefas locais rápidas como docstrings e testes.")
+
+(defvar +carlos/gptel-quick-local-model 'qwen2.5-coder:3b
+  "Modelo usado para tarefas locais rápidas como docstrings e testes.")
+
+(defun +carlos/gptel-setup-defaults-by-host ()
+  "Aplica preferências de IA baseadas no hostname do sistema.
+Deve ser executada após o gptel ter carregado todos os backends."
+  (interactive)
+  (let ((hostname (system-name)))
+    (cond
+     ;; --- HOST: agnes (macOS M2) -> Local-first via MLX ---
+     ((string-match-p "agnes" hostname)
+      (setq-default gptel-backend (gptel-get-backend "MLX Local")
+                    gptel-model 'mlx-community/Qwen3-14B-4bit
+                    +carlos/gptel-agent-backend "MLX Local"
+                    +carlos/gptel-agent-model 'mlx-community/DeepSeek-R1-Distill-Qwen-14B-4bit
+                    +carlos/gptel-quick-local-backend "MLX Local"
+                    +carlos/gptel-quick-local-model 'mlx-community/Qwen3.5-9B-MLX-4bit)
+      (message "Emacs AI: Configurado para MLX Local (agnes)"))
+     
+     ;; --- HOST: aa102-006l (EliteDesk NixOS) -> API-first (Zen Claude) ---
+     ((string-match-p "aa102-006l" hostname)
+      (setq-default gptel-backend (gptel-get-backend "Zen Claude")
+                    gptel-model 'claude-sonnet-5
+                    +carlos/gptel-agent-backend "Zen Claude"
+                    +carlos/gptel-agent-model 'claude-sonnet-5
+                    +carlos/gptel-quick-local-backend "Ollama Local"
+                    +carlos/gptel-quick-local-model 'qwen2.5-coder:3b)
+      (message "Emacs AI: Configurado para Zen Claude API (aa102-006l)"))
+     
+     ;; --- FALLBACK: Outros (ex: nanami) -> API-first ---
+     (t
+      (setq-default gptel-backend (gptel-get-backend "Zen Claude")
+                    gptel-model 'claude-sonnet-5
+                    +carlos/gptel-agent-backend "Zen Claude"
+                    +carlos/gptel-agent-model 'claude-sonnet-5
+                    +carlos/gptel-quick-local-backend "Zen Claude"
+                    +carlos/gptel-quick-local-model 'claude-sonnet-5)
+      (message "Emacs AI: Configuração fallback carregada")))))
+
 ;; ── gptel core ──────────────────────────────────────────────────────
 (use-package gptel
   :ensure t
@@ -95,9 +143,11 @@
               "mlx-community/DeepSeek-R1-Distill-Qwen-14B-4bit"
               "mlx-community/Qwen3-14B-4bit"))
 
-  ;; ── Set default backend and model globally ─────────────────────────
+  ;; ── Set default backend and model globally (host-based detection) ─
   (setq-default gptel-backend (gptel-get-backend "Zen Claude"))
-  (setq-default gptel-model 'claude-sonnet-5))
+  (setq-default gptel-model 'claude-sonnet-5)
+  (when (fboundp '+carlos/gptel-setup-defaults-by-host)
+    (+carlos/gptel-setup-defaults-by-host)))
 
 ;; ── gptel-agent ─────────────────────────────────────────────────────
 ;; NOTA: com `use-package-expand-minimally t', o keyword `:after' do
@@ -168,11 +218,6 @@ Garante que o gptel esteja carregado antes de buscar o backend."
     (apply #'gptel-request prompt :buffer buffer args)))
 
 ;; ── +carlos/gptel-agent-run (reescrito sem advice bug) ─────────────
-(defvar +carlos/gptel-agent-backend "Zen Claude"
-  "Backend padrão para sessões de agente.")
-
-(defvar +carlos/gptel-agent-model 'claude-sonnet-5
-  "Modelo padrão para sessões de agente.")
 
 (defun +carlos/gptel-agent-add-project-dirs ()
   "Adiciona `.agents/gptel/' do projeto atual a `gptel-agent-dirs'.
