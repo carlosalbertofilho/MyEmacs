@@ -4,23 +4,21 @@
 
 ### Tópicos do Plano:
 
-1. [ ] **Fase 1: FinOps - Sistema de Rastreamento de Tokens e Custos (`custom-ai-tracker`)**
-   - Criar uma função hook `+carlos/gptel-track-usage` ligada a `gptel-post-response-functions`.
-   - Extrair a contagem de tokens do JSON de metadados da resposta de APIs OpenAI/Anthropic/Gemini.
-   - Salvar os dados de consumo em uma tabela Org-Mode formatada no arquivo `docs/ai-usage-tracker.org`.
-   
-2. [ ] **Fase 2: Roteamento de Agentes e Presets do Magent/GPTel**
-   - Configurar presets no Magent (`"triage"`, `"writer"`, `"build"`) mapeados a modelos locais (triage/RAG) e nuvem (SWE).
-   - Estender o `custom-ai.el` com suporte completo aos novos modelos premium (`big-pickle`, `claude-opus-5`, `gemini-3.1-pro`, etc.).
+1. [x] **Fase 1: Roteador Dinâmico baseado em Hooks (Proposta A)**
+   - [x] **1.1. Criar a função `+carlos/gptel-dynamic-router-hook`** (implementado como `+carlos/gptel-dynamic-router-advice` `:before` `gptel-request`).
+   - [x] **1.2. Implementar a lógica de roteamento por contexto/buffer/prompt** (Magent ➜ Claude; Local Prog ➜ MLX Qwen 9B; Geral ➜ Gemini Cloud).
+   - [x] **1.3. Criar testes unitários em `tests/ai-test.el`** (teste `myemacs-ai-dynamic-router` mockando buffers e system-name passou 100% verde).
 
-3. [ ] **Fase 3: Pipeline de RAG Universal com MarkItDown**
-   - Criar o comando `+carlos/ai-rag-ingest` no Emacs que pergunta por um arquivo local (PDF, DOCX, ZIP, EPUB) ou URL do YouTube.
-   - Chamar o `markitdown` em segundo plano de forma assíncrona.
-   - Encaminhar a transcrição/markdown resultante para um prompt do gptel local formatar em Org-Mode de RAG final.
+2. [ ] **Fase 2: FinOps - Sistema de Rastreamento de Tokens e Custos (`custom-ai-tracker`)**
+   - [ ] **2.1. Criar a função `+carlos/gptel-track-usage`** em `custom-ai.el` conectada a `gptel-post-response-functions`.
+   - [ ] **2.2. Ler a variável local do buffer `gptel--token-usage`** após a requisição.
+   - [ ] **2.3. Salvar os logs** formatados como tabela Org no arquivo `docs/ai-usage-tracker.org`.
 
-4. [ ] **Fase 4: Validação Prática e de Testes ERT**
-   - Rodar testes em batch com `just test-all`.
-   - Gerar um arquivo de RAG de exemplo real (`docs/server-triage.org`) usando o modelo local.
+3. [ ] **Fase 3: Structured Outputs nos Scripts Locais (JSON / FSM)**
+   - [ ] **3.1. Adaptar `bin/rag-convert` e `bin/log-triage`** para enviar `"response_format"` com JSON Schema ao MLX Local e `"format": "json"` ao Ollama, evitando alucinações estruturais nos parsers.
+
+4. [ ] **Fase 4: Pipeline de RAG Universal com MarkItDown**
+   - [ ] **4.1. Criar o comando `+carlos/ai-rag-ingest`** no Emacs integrando o MarkItDown (para PDFs, EPubs, ZIP e YouTube) com as IAs locais e fallback do Gemini Cloud.
 
 ---
 

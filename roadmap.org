@@ -11,9 +11,14 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
-** 2026-08-07 — Planejamento & Início do Roteador de Agentes, RAG MarkItDown e FinOps (WIP)
-   - **Histórico e Backlog:** Definido o plano de ação no `TODO.md` focando em rastreabilidade de custos (FinOps), orquestradores de agentes locais/nuvem e automação do `markitdown` com suporte a ZIP, PDFs e YouTube.
-   - **Status:** 🚧 WORK IN PROGRESS
+** 2026-08-07 — Roteador de Agentes Automático, Qwen 3.5 9B no Mac e Documentação de IA
+   - **Roteador Dinâmico baseada em Advice (`custom-ai.el`):** Criado o roteador automático `+carlos/gptel-dynamic-router-advice` conectado `:before` a `gptel-request`. Ele altera dinamicamente as variáveis buffer-local de backend e modelo:
+     - Se o buffer for do Magent ➜ Roteia para **Zen Claude (Sonnet 3.5)** na nuvem premium de assinatura.
+     - Se o prompt for genérico ("resuma", "explicar") ➜ Roteia para **Gemini Cloud (2.5 Flash)** na nuvem gratuita.
+     - Se for tarefa de programação local no Mac ➜ Roteia para **MLX Local (Qwen 3.5 9B)** (GPU custo zero).
+   - **Upgrade de Modelo no macOS:** Substituído o modelo local Qwen 14B lento pelo **Qwen 3.5 9B** no Emacs e no launchd agent do `home.nix` (MyMachine). Deletamos o modelo de 14B do cache para economizar **~10 GB de disco** no Mac.
+   - **Referência de Provedores de IA (`docs/ai-providers-reference.org`):** Criado documento detalhado de quotas, limites do Free Tier do Google AI Studio e lista de modelos do OpenCode Zen.
+   - **Status:** 🏆 119 TESTES ERT COMPLETAMENTE VERDES (`just test-all` OK).
 
 ** 2026-08-07 — Detecção Dinâmica de Host para IA & Suíte de Testes Rigorosa
    - **Detecção de Host Dinâmica (`custom-ai.el`):** Criada a função `+carlos/gptel-setup-defaults-by-host` baseada em `(system-name)` que seleciona os backends e modelos padrões de acordo com o hardware do host:
