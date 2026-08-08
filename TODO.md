@@ -399,11 +399,9 @@
        - [ ] `wordpress-claude-stack.mdc`
        - [ ] `wordpress-php-guzzle-gutenberg-cursorrules-prompt-.mdc`
      </details>
-   - [ ] **1.2. Adaptar regras para o formato de skills do Magent**:
-     - Usar o script `bin/skill-convert` (desenvolvido na fase 0.15) para automatizar a conversão.
-     - Origem: diretórios de regras específicas no repositório `awesome-cursorrules` (ex: `NixOS`, `Python`, `TypeScript`).
-     - Destino: `magent/skills/`.
-     - O script converterá o `.mdc` ou `.md` para o frontmatter exigido pelo Magent (`type: instruction`, `capability: true`).
+   - [x] **1.2. Adaptar regras para o formato de skills do Magent**:
+     - Clonado o repositório `awesome-cursorrules` em `~/Projetos/Github/awesome-cursorrules`.
+     - Convertidas as 9 regras prioritárias (`cpp-programming-guidelines`, `clean-code`, `python-fastapi-scalable-api`, `pytorch-scikit-learn`, `python-312-fastapi-best-practices`, `javascript-typescript-code-quality`, `nextjs-typescript-tailwind`, `git-conventional-commit-messages`, `anti-overengineering`) para `magent/skills/` com o script `bin/skill-convert`. Total de 21 skills ativas.
 2. [x] **Fase 2: Conectar o Magent a servidores MCP locais**
    - [x] **2.1. Configurar scripts CLI de bridge** para servidores MCP:
      - **Servidores Alvo:** Chrome DevTools e Figma/Stitch.
