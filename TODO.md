@@ -1,5 +1,205 @@
 # TODO — Planejamento Ativo e Backlog (MyEmacs)
 
+## 0.25. Plano de Ação — REPL Nativo (IELM + eval inline) + Dinâmica de Testes ERT com IA (Plano)
+
+> **Autor:** Agente Planejador (modelo Pro/Opus). Plano EXECUTÁVEL para o Agente Executor. **Nada aplicado ainda.**
+
+### Contexto
+
+Fluxo de desenvolvimento assistido por IA (gptel) integrado ao REPL nativo do Emacs
+para Elisp: IA gera → REPL valida instantaneamente (sem reiniciar o processo) → ERT
+fixa. O Emacs é o próprio ambiente de execução, então não há processo externo — a
+"memória do código" e o REPL são o mesmo processo (IELM + `C-x C-e` avaliam no Emacs
+vivo).
+
+Fatos verificados no ambiente (Emacs 30.2, `--batch -Q`):
+
+| Binding | Estado | Observação |
+|---------|--------|------------|
+| `C-x C-e` | **já global** → `eval-last-sexp` | Nada a fazer (default nativo) |
+| `C-c C-e` (emacs-lisp-mode) | **já** → `elisp-eval-region-or-buffer` | Built-in Emacs 30 |
+| `C-c C-k` / `C-c C-c` / `C-c C-t` (emacs-lisp-mode) | livres (nil) | Disponíveis para binds locais |
+| `C-c D` (global) | livre (nil) | Prefixo escolhido p/ Dev |
+| `ert-run-test-at-point` | **NÃO existe** (nil) | Implementar `+carlos/ert-run-test-at-point` |
+| `ert-run-tests-interactively` | existe (t) | API built-in para o runner |
+
+Colisões do plano original da conversa que **devem ser evitadas** (já ocupadas e
+protegidas por testes): `C-c r` (RAG ingest), `C-c t` (vterm), `C-c c t` (gerar
+teste IA) → usar prefixo dedicado `C-c D`.
+
+### Fase 1 — `lisp/custom-dev.el` (novo módulo)
+
+Criar módulo com helpers de REPL/teste + keybindings, seguindo o template do AGENTS.md
+(header `;;; custom-dev.el --- ... -*- lexical-binding: t; -*-`, Commentary, `:Code:`,
+`(provide 'custom-dev)`). Sem dependências externas (só built-ins: `ert`, `ielm`).
+
+```elisp
+;;; custom-dev.el --- Interactive dev loop: IELM + inline eval + ERT runner -*- lexical-binding: t; -*-
+
+;;; Commentary:
+;; Ciclo IA → REPL → ERT para Elisp. Avalia expressões inline (C-x C-e, já
+;; global), inspeciona estado no IELM, roda testes ERT do buffer com feedback
+;; visual (verde/vermelho) e depura backtrace com IA via gptel.
+;; Prefixo global: C-c D (Dev).
+
+;;; Code:
+
+(defun +carlos/ert-run-buffer ()
+  "Avalia o buffer atual e roda apenas os testes ERT definidos nele.
+Usa um selector ERT baseado no nome do arquivo (tests/<area>-test.el ⇒
+selector `myemacs-<area>-'), exibindo o resultado no buffer de resultados
+do ERT com cores (passou/falhou)."
+  (interactive)
+  (let ((file (buffer-file-name)))
+    (unless (and file (string-match-p "-test\\.el\\'" file))
+      (user-error "Buffer não é um arquivo de teste (*-test.el)"))
+    (eval-buffer)
+    (let* ((area (replace-regexp-in-string "-test\\.el\\'" "" (file-name-base file)))
+           (selector (format "myemacs-%s-" area)))
+      (ert selector))))
+
+(defun +carlos/ert-run-test-at-point ()
+  "Roda o teste ERT sob o ponto (dentro de um `ert-deftest')."
+  (interactive)
+  (let* ((beg (save-excursion
+                (or (search-backward-regexp "^(ert-deftest " nil t) (point-min))))
+         (test-name (save-excursion
+                      (when (search-backward-regexp "^(ert-deftest +\\\([-[:alnum:]]+\\\)" nil t)
+                        (string-to-symbol (match-string-no-properties 1))))))
+    (if test-name
+        (ert test-name)
+      (user-error "Não há `ert-deftest' antes do ponto"))))
+
+(defun +carlos/ielm-open ()
+  "Abre o IELM (REPL Elisp)."
+  (interactive)
+  (ielm))
+
+(defun +carlos/toggle-debug-on-error ()
+  "Alterna `debug-on-error' com feedback no minibuffer."
+  (interactive)
+  (setq debug-on-error (not debug-on-error))
+  (message "debug-on-error: %s" (if debug-on-error "ON (backtrace ao errar)" "OFF")))
+
+;; ── Depuração com IA (gptel) ────────────────────────────────────────
+(declare-function +carlos/gptel-request "custom-ai")
+
+(defun +carlos/debug-region-with-ai ()
+  "Envia o backtrace/região selecionada + código ao gptel para diagnóstico.
+O prompt pede explicação do estado de memória/escopo que causou o erro e a
+correção, seguindo o fluxo 'pós-morte' do REPL."
+  (interactive)
+  (let* ((beg (if (region-active-p) (region-beginning) (point-min)))
+         (end (if (region-active-p) (region-end) (point-max)))
+         (text (buffer-substring-no-properties beg end)))
+    (when (require 'custom-ai nil t)
+      (+carlos/gptel-request
+       (format "O REPL do Emacs estourou este erro/backtrace ao rodar meu teste Elisp. Explique o estado de memória/escopo que causou e dê a correção:\n\n%s" text)
+       +carlos/gptel-quick-local-backend
+       +carlos/gptel-quick-local-model
+       :buffer "*gptel-debug*"
+       :callback (lambda (response _info)
+                   (when response
+                     (with-current-buffer (get-buffer-create "*debug-ai*")
+                       (goto-char (point-max))
+                       (insert response "\n"))))))))
+
+;; ── Keybindings ─────────────────────────────────────────────────────
+(global-set-key (kbd "C-c D r") #'+carlos/ielm-open)            ; REPL dedicado
+(global-set-key (kbd "C-c D t") #'+carlos/ert-run-buffer)       ; roda testes do buffer
+(global-set-key (kbd "C-c D T") #'+carlos/ert-run-test-at-point); teste sob o ponto
+(global-set-key (kbd "C-c D d") #'+carlos/toggle-debug-on-error); debug-on-error
+(global-set-key (kbd "C-c D a") #'+carlos/debug-region-with-ai) ; depura com IA
+(global-set-key (kbd "C-c C-k") #'eval-buffer)                  ; avalia arquivo inteiro
+
+;; Binds locais do emacs-lisp-mode (sem poluir o global)
+(with-eval-after-load 'emacs-lisp-mode
+  (define-key emacs-lisp-mode-map (kbd "C-c C-c") #'+carlos/ert-run-buffer)
+  (define-key emacs-lisp-mode-map (kbd "C-c C-t") #'+carlos/ert-run-test-at-point))
+
+(provide 'custom-dev)
+;;; custom-dev.el ends here
+```
+
+**Notas de implementação:**
+- `+carlos/ert-run-buffer` avalia o arquivo de teste (`eval-buffer`) e roda só os
+  testes daquela área via selector `myemacs-<area>-`; o buffer de resultados do ERT
+  mostra passou/falhou com cores.
+- `+carlos/gptel-request` já aceita `:buffer` (Fase jinx concluída); o helper usa
+  backend local rápido (`+carlos/gptel-quick-local-backend`), sem custo de nuvem.
+- `declare-function` para `+carlos/gptel-request`; `+carlos/gptel-quick-local-backend`
+  é `defvar` global (declarado em custom-ai.el).
+
+### Fase 2 — Registro no `init.el`
+
+Adicionar `(require 'custom-dev)` **após** `custom-ai` (usa `+carlos/gptel-request` e
+o quick backend de custom-ai) e **antes** de `custom-jinx`/`custom-magent`, ou no fim
+junto de `custom-git`/`custom-dashboard` — requer apenas `custom-ai`:
+
+```elisp
+(require 'custom-ai)
+(require 'custom-dev)   ; ← novo
+(require 'custom-jinx)
+```
+
+### Fase 3 — Testes ERT (`tests/dev-test.el`, prefixo `myemacs-dev-*`)
+
+| Teste | Verifica |
+|-------|----------|
+| `myemacs-dev-ielm-bind` | `C-c D r` → `+carlos/ielm-open`; `commandp` |
+| `myemacs-dev-ert-runner-bind` | `C-c D t` → `+carlos/ert-run-buffer`; `commandp` |
+| `myemacs-dev-ert-test-at-point-bind` | `C-c D T` → `+carlos/ert-run-test-at-point` |
+| `myemacs-dev-toggle-debug-bind` | `C-c D d` → `+carlos/toggle-debug-on-error` |
+| `myemacs-dev-debug-ai-bind` | `C-c D a` → `+carlos/debug-region-with-ai` |
+| `myemacs-dev-eval-buffer-bind` | `C-c C-k` → `eval-buffer` |
+| `myemacs-dev-ert-runner-selects-buffer` | selector `myemacs-<area>-` a partir do nome do arquivo `*-test.el` (mock de `buffer-file-name`) |
+| `myemacs-dev-ert-test-at-point-finds-test` | `ert-deftest` sob o ponto é encontrado (buffer temp) |
+| `myemacs-dev-no-collisions` | em `emacs-lisp-mode`, `C-c D*` continua apontando para os comandos `+carlos/dev-*`; `C-c r`/`C-c t`/`C-c c t` **intactos** (regressão das fases anteriores) |
+
+**Importante:** adicionar `C-c D r/t/T/d/a` e `C-c C-k` à lista `critical-bindings` do
+teste existente `myemacs-kbd-no-collisions` (`tests/keybindings-test.el`) para o portão
+de colisão cobrir o novo prefixo também.
+
+### Fase 4 — Docs
+
+1. **`docs/testing-suite.org`:** nova seção "Fluxo Interativo (REPL/ERT com IA)"
+   documentando o ciclo IA → REPL → ERT, os atalhos `C-c D*`, `C-x C-e` (inline),
+   `C-c C-e` (região/buffer), `M-x ielm`, e o fluxo de depuração `C-c D d` +
+   `C-c D a` (backtrace → gptel).
+2. **`AGENTS.md`:** atualizar a árvore (`custom-dev.el ← REPL/ERT + depuração IA`),
+   a ordem de carga, e a tabela de docs (novo `docs/dev-repl.org` OU seção no
+   testing-suite — decisão do executor: manter tudo em testing-suite.org é mais leve).
+
+### Fase 5 — Validação (portões)
+
+1. `just compile` (zero warnings — `byte-compile-error-on-warn t`; custom-dev.el deve
+   compilar limpo; erro pré-existente `gptel--token-usage`/`agent-smith` no repo é
+   conhecido e fora do escopo).
+2. `just checkdoc` OK.
+3. `just test-batch EMACS_TEST_DIR="$(pwd)"` no repo e `just test-all` no
+   `~/.config/emacs` autoritativo (com env vars do jinx exportadas se necessário).
+4. `just sync` + boot interativo `emacs --init-directory ~/.config/emacs`: testar
+   manualmente `C-c D r`, `C-c D t` num `*-test.el`, `C-x C-e` numa expressão, e
+   `C-c D a` com um backtrace falso.
+
+### Critérios de aceite
+
+- `C-c D r` abre IELM; `C-c D t` num `tests/*-test.el` roda só aqueles testes com
+  feedback colorido; `C-c C-k` avalia o buffer; `C-c D d` alterna `debug-on-error`.
+- `C-c D a` envia a região ao gptel local e exibe o diagnóstico em `*debug-ai*`.
+- Nenhuma colisão nova: `myemacs-kbd-no-collisions` + novos `myemacs-dev-*` verdes.
+- Zero warnings de boot (`myemacs-boot-no-custom-warnings`).
+
+### Riscos e mitigação
+
+- `+carlos/ert-run-buffer` com arquivos que não são `*-test.el` → `user-error`
+  (guard de filename).
+- `eval-buffer` pode avaliar `provide`/`require` múltiplas vezes → benigno no
+  desenvolvimento interativo; suíte batch não roda `eval-buffer` (só verifica binds).
+- Testes que exigem `ert-run-test-at-point` (built-in inexistente no 30.2) → nossa
+  implementação `+carlos/ert-run-test-at-point` cobre; teste usa buffer temp com um
+  `ert-deftest` real para validar o regex.
+
 ## 0.24. Plano de Ação — Jinx (spellcheck pt_BR/en_US) + Correção Gramatical via IA (Concluído)
 
 > **Autor:** Agente Executor/Auditor. Aplicado e validado com `just test-all` (139 testes, 0 falhas) + E2E real contra Ollama/mistral.
