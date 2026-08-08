@@ -18,6 +18,7 @@
 (declare-function +carlos/dashboard-open "custom-dashboard")
 (declare-function +carlos/dashboard-refresh "custom-dashboard")
 (declare-function +carlos/gptel-agent-run "custom-ai")
+(declare-function +carlos/ai-rag-ingest "custom-ai")
 (declare-function +carlos/gptel-generate-commit-message "custom-git")
 (declare-function denote-rename-file "denote")
 (declare-function denote-backlinks "denote")
@@ -47,6 +48,7 @@
 ;; ── AI (gptel) ──────────────────────────────────────────────────────
 (global-set-key (kbd "C-c i")   #'gptel)
 (global-set-key (kbd "C-c I")   #'+carlos/gptel-agent-run)
+(global-set-key (kbd "C-c r")   #'+carlos/ai-rag-ingest)
 ;; Commit IA: global gera a mensagem (copias p/ kill-ring);
 ;; dentro do buffer de commit, C-c C-g insere direto (custom-git.el).
 (global-set-key (kbd "C-c C-g") #'+carlos/gptel-generate-commit-message)

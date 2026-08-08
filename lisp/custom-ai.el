@@ -462,5 +462,47 @@ Sem advice: chama `+carlos/gptel-agent-add-project-dirs' diretamente."
 
 (add-hook 'gptel-post-response-functions #'+carlos/gptel-track-usage)
 
+(defun +carlos/ai-rag-ingest (target)
+  "Ingere um arquivo local ou URL assincronamente via `bin/rag-convert`.
+O arquivo Org-mode gerado resultante será aberto no Emacs quando concluído."
+  (interactive
+   (list (let* ((is-url (y-or-n-p "A origem é uma URL da Web? "))
+                (prompt (if is-url "URL para ingestão: " "Escolha o arquivo para ingestão: ")))
+           (if is-url
+               (read-string prompt)
+             (expand-file-name (read-file-name prompt nil nil t))))))
+  (let* ((script-path (expand-file-name "bin/rag-convert" user-emacs-directory))
+         (buf-name "*rag-ingest*")
+         (buf (get-buffer-create buf-name)))
+    (unless (file-executable-p script-path)
+      (error "O script de conversão RAG não foi encontrado ou não é executável: %s" script-path))
+    (message "Iniciando a ingestão de '%s' via RAG converter..." target)
+    (with-current-buffer buf
+      (read-only-mode -1)
+      (erase-buffer)
+      (insert (format "Ingestão iniciada em: %s\nAlvo: %s\nComando: %s %s\n\n--- Saída do Processo ---\n"
+                      (current-time-string) target script-path target))
+      (setq-local default-directory user-emacs-directory))
+    (make-process
+     :name "rag-ingest"
+     :buffer buf
+     :command (list script-path target)
+     :sentinel
+     (lambda (proc event)
+       (when (string= event "finished\n")
+         (let ((out-file (concat target ".org")))
+           (if (file-exists-p out-file)
+               (progn
+                 (message "Ingestão concluída com sucesso! Abrindo %s" out-file)
+                 (find-file out-file))
+             (with-current-buffer (process-buffer proc)
+               (goto-char (point-min))
+               (if (re-search-forward "✅ Document successfully converted to Org-Mode: \\(.*\\)$" nil t)
+                   (let ((resolved-path (match-string 1)))
+                     (message "Ingestão concluída com sucesso! Abrindo %s" resolved-path)
+                     (find-file resolved-path))
+                 (message "Ingestão concluída. Veja o buffer *rag-ingest* para detalhes.")
+                 (pop-to-buffer (process-buffer proc)))))))))))
+
 (provide 'custom-ai)
 ;;; custom-ai.el ends here
