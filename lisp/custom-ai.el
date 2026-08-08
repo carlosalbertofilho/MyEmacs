@@ -108,9 +108,11 @@
               "gemma-4-31b-it"
               "antigravity-preview-05-2026"))
 
-  ;; ── Backend: Ollama Local ─────────────────────────────────────────
-  (gptel-make-ollama "Ollama Local"
+  ;; ── Backend: Ollama Local (OpenAI-compatible endpoint com suporte a Tool Calling) ──
+  (gptel-make-openai "Ollama Local"
     :host "localhost:11434"
+    :protocol "http"
+    :endpoint "/v1/chat/completions"
     :stream t
     :request-params '(:options (:num_ctx 16384))
     :models '("qwen2.5-coder:3b"
