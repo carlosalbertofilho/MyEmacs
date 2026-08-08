@@ -1,5 +1,31 @@
 # TODO — Planejamento Ativo e Backlog (MyEmacs)
 
+## 0.26. Plano de Ação — Limpeza Definitiva do `~/.config/emacs` via Clone do Repo + Verificação do Enchant (Concluído)
+
+> **Autor:** Agente Executor/Auditor. Aplicado e validado.
+
+1. [x] **Contexto:** o `~/.config/emacs` (ambiente oficial de testes) acumulava lixo
+   residual da migração Doom→Vanilla (`.doom/`, `.local/`, `modules/`, `static/`,
+   `elpa/`, `profiles/`, `.dir-locals.el`, `README.md`, `shell.nix`). O diretório
+   deixou de ser um espelho fiel do repo.
+2. [x] **Limpeza via clone:** backup do estado runtime preservado em
+   `/tmp/opencode/emacs-preserve`, `rm -rf` do diretório, e clone limpo de
+   `git@github.com:carlosalbertofilho/MyEmacs.git` (commit `68fee0c`) em
+   `~/.config/emacs` — sem cruft Doom, `git status` limpo.
+3. [x] **Restauração do estado runtime (não trackeado):** `elpaca/`, `tree-sitter/`,
+   `eln-cache/`, `agent/`, `.agent-shell/`, `magent/sessions`, `recentf`, `places`,
+   `bookmarks`, `auto-save-list`, `transient`. `.gitignore` do repo já cobre os
+   caches (elpaca, tree-sitter, eln-cache, elpa, recentf, places, auto-save-list).
+4. [x] **Verificação:** `emacs --init-directory ~/.config/emacs --batch -l init.el`
+   → `CONFIG OK`; boot sem warnings.
+5. [x] **Nix (enchant/jinx):** confirmado que `emacs.nix` já estava aplicado
+   (`nix flake check` OK; rebuild gerou o mesmo store path `d4ngd9avlnbv`). As
+   sessionVariables `PKG_CONFIG_PATH`/`LD_LIBRARY_PATH` do enchant-2.6.9 estão no
+   `hm-session-vars.sh` ativo (`/etc/profiles/per-user/carlosfilho/etc/profile.d/`,
+   store `vcjd51aapq...-home-manager-path`). `pkg-config --cflags --libs enchant-2`
+   resolve; `jinx` carrega (`JINX LOADED: jinx.el`).
+6. [x] **Docs:** `TODO.md` §0.26 e `roadmap.org` (2026-08-08).
+
 ## 0.25. Plano de Ação — REPL Nativo (IELM + eval inline) + Dinâmica de Testes ERT com IA (Plano)
 
 > **Autor:** Agente Planejador (modelo Pro/Opus). Plano EXECUTÁVEL para o Agente Executor. **Nada aplicado ainda.**

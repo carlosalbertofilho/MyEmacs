@@ -11,6 +11,27 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-08 — [CONCLUÍDO] Limpeza definitiva do `~/.config/emacs` via clone do repo + verificação do enchant (Nix)
+   - **Contexto:** o ambiente oficial de testes (`~/.config/emacs`) acumulava lixo
+     residual da migração Doom→Vanilla (`.doom/`, `.local/`, `modules/`, `static/`,
+     `elpa/`, `profiles/`, `.dir-locals.el`, `README.md`, `shell.nix`), deixando de
+     ser um espelho fiel do repo.
+   - **Limpeza:** estado runtime preservado em backup, `rm -rf` do diretório e clone
+     limpo de `git@github.com:carlosalbertofilho/MyEmacs.git` (commit `68fee0c`) —
+     sem cruft Doom, `git status` limpo.
+   - **Restauração do runtime (não trackeado):** `elpaca/`, `tree-sitter/`,
+     `eln-cache/`, `agent/`, `.agent-shell/`, `magent/sessions`, `recentf`, `places`,
+     `bookmarks`, `auto-save-list`, `transient` (caches cobertos pelo `.gitignore`).
+   - **Verificação:** `emacs --init-directory ~/.config/emacs --batch -l init.el` →
+     `CONFIG OK`; boot sem warnings.
+   - **Nix (enchant/jinx):** `emacs.nix` já estava aplicado (`nix flake check` OK,
+     mesmo store path `d4ngd9avlnbv` no rebuild). As sessionVariables
+     `PKG_CONFIG_PATH`/`LD_LIBRARY_PATH` do enchant-2.6.9 estão no `hm-session-vars.sh`
+     ativo (`/etc/profiles/per-user/carlosfilho/etc/profile.d/`,
+     store `vcjd51aapq...-home-manager-path`). `pkg-config --cflags --libs enchant-2`
+     resolve; `jinx` carrega (`JINX LOADED: jinx.el`).
+   - **Status:** ✅ CONCLUÍDO — clone limpo, runtime restaurado, ambiente de testes íntegro.
+
 ** 2026-08-08 — [CONCLUÍDO] Jinx: Spellcheck pt_BR/en_US + Correção Gramatical via IA Local (`lisp/custom-jinx.el` + Nix)
    - **Contexto:** o Doom usava aspell; na migração Vanilla o MyEmacs ficou sem corretor. Adotado o **jinx** (minad, GNU ELPA 2.9, via elpaca cache `gnu-elpa.eld`) — corretor JIT sobre libenchant com pt_BR + en_US simultâneos — mais correção gramatical profunda via IA local (gptel + Ollama/mistral).
    - **Nix (`emacs.nix`):** `home.file.".config/enchant/enchant.ordering"` com `pt_BR:hunspell`/`en_US:hunspell` (provider hunspell forçado; antes aspell). Rebuild OK; `enchant-lsmod-2 -list-dicts` mostra `en_US (hunspell)`/`pt_BR (hunspell)`; runtime validado com `enchant-2 -a -d <lang>`.
