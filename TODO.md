@@ -1,5 +1,27 @@
 # TODO — Planejamento Ativo e Backlog (MyEmacs)
 
+## 0.24. Plano de Ação — Jinx (spellcheck pt_BR/en_US) + Correção Gramatical via IA (Concluído)
+
+> **Autor:** Agente Executor/Auditor. Aplicado e validado com `just test-all` (139 testes, 0 falhas) + E2E real contra Ollama/mistral.
+
+1. [x] **Contexto:** substituir o aspell por um corretor JIT com dicionários pt_BR + en_US simultâneos; correção gramatical profunda via IA local (gptel + Ollama/mistral) com substituição in-place.
+2. [x] **Nix (`~/Projetos/Nixos/MyMachine/home/carlosfilho/emacs.nix`):**
+   - `home.file.".config/enchant/enchant.ordering"` = `pt_BR:hunspell` / `en_US:hunspell` (força o provider hunspell; antes era aspell).
+   - Rebuild OK; `enchant-lsmod-2 -list-dicts` mostra `en_US (hunspell)` e `pt_BR (hunspell)`; runtime `enchant-2 -a -d <lang>` validado.
+3. [x] **`lisp/custom-jinx.el` (novo):**
+   - `use-package jinx` (`:ensure t :demand t`), `jinx-languages "pt_BR en_US"`, hooks `text-mode-hook`/`prog-mode-hook`, binds `M-$`→`jinx-correct` e `C-M-$`→`jinx-languages` no `jinx-mode-map`.
+   - `+carlos/grammar-correct-region` (interactive "r"; `C-c c g`): prompt JSON `{"corrected": ...}`, chama `+carlos/gptel-request` com `:buffer "*gptel-grammar*"` e `:schema '(:type object :properties (:corrected (:type string)))`, substitui a região in-place via markers.
+   - Helpers `+carlos/--grammar-extract-corrected` (json-parse-string alist com fallback) e `+carlos/--grammar-apply-corrected`.
+4. [x] **`lisp/custom-ai.el`:**
+   - Modelo `mistral` adicionado ao backend "Ollama Local"; defvars `+carlos/gptel-grammar-backend`/"model".
+   - `+carlos/gptel-request` agora aceita `:buffer` (remove a key dos args com `cl-loop`).
+   - **Bug fix:** repassava `:response_format` (keyword inexistente no `&key` do gptel 0.9.9.5) — quebrava TODA chamada Ollama/MLX. Removido; JSON agora só via `:schema` quando o caller precisa.
+   - Roteador dinâmico ignora buffers `*gptel-grammar*` (modelo fixo em mistral, REGRA 3 não sobrescreve).
+5. [x] **`init.el`:** `(require 'custom-jinx)` após `custom-ai`.
+6. [x] **Testes (`tests/spell-test.el`, 9 testes `myemacs-spell-*`):** commands, languages, hooks, mode-map, module/C-c c g, grammar vars, json extraction, router skip, e `myemacs-spell-grammar-schema-passthrough` (regressão do bug `:response_format` via fake `cl-defun`).
+7. [x] **Docs:** `docs/spell-stack.org` (novo) e AGENTS.md (árvore, ordem de carga, tabela docs, external tools).
+8. [x] **Validação:** `just test-all` 139 testes 0 falhas; E2E `/tmp/opencode/grammar-e2e.el` → "Eles vao para a escola amanha." → "Eles vão para a escola amanhã."; `just sync` aplicado.
+
 ## 0.22. Plano de Ação — Fix Roteador Dinâmico: Magent não é mais sequestrado + Análise do Agent_Smith com caminho real
 
 > **Autor:** Agente Executor/Auditor. Aplicado e validado com `just test-all` (125 testes, 0 falhas).
@@ -13,6 +35,146 @@
    - `myemacs-ai-dynamic-router-skips-magent` (`tests/ai-test.el`): requisição em buffer ` *magent-llm-gptel-request*` e com contexto `:magent-llm-gptel` **mantêm** `Ollama Local`/`qwen2.5-coder:3b`; roteamento `/plan` normal continua intacto.
    - `myemacs-magent-analyze-agent-smith-target` (`tests/magent-test.el`): valida o `defcustom` com `~/Projetos/42rio/CommonCore/Rank05/Agent_Smith`, que o diretório existe e que o prompt enviado ao `magent-start` (mockado) contém o caminho.
 4. [x] **Portões de qualidade:** `just test-all` (compile + checkdoc + 125 testes ERT) 100% verde; `just sync` aplicado.
+
+## 0.23. Plano de Ação — Tempel: Snippets Elisp Nativos (tempel + tempel-collection + eglot-tempel)
+
+> **Autor:** Agente Arquiteto (modelo Pro/Opus). Plano EXECUTÁVEL para o Agente Executor. **Nada aplicado ainda.**
+
+### Contexto
+
+O MyEmacs migrou do Doom (que embarcava YASnippet) para Vanilla sem um sistema de
+snippets. O Tempel (minad, GNU ELPA) é o substituto leve: usa a sintaxe Tempo,
+integra-se com o **Corfu** (já usado em `custom-completion.el`) via o mecanismo
+padrão `completion-at-point-functions` (Capf). Três fontes de templates:
+
+1. **`tempel-collection`** (Crandel, MELPA) — coleção estática comunitária,
+   arquivos `.eld` organizados por major mode (`python-mode.eld`, `org-mode.eld`,
+   `sh-mode.eld`) na pasta `templates/`.
+2. **`minad/tempel`** — repo oficial; templates de referência no README/manual
+   (prog-mode, text-mode, latex-mode, org-mode).
+3. **`fejfighter/eglot-tempel`** — ponte dinâmica: captura os snippets que o
+   servidor LSP fornece via Eglot e os converte em runtime para o formato nativo
+   do Tempel (elimina arquivos estáticos para linguagens modernas).
+
+### Fase 1 — Instalação e configuração do `tempel` (`lisp/custom-completion.el`)
+
+Adicionar após o bloco `nerd-icons-corfu` (fim do arquivo), seguindo o padrão do
+arquivo (`use-package` + Elpaca `:ensure t`; `tempel` não precisa de boot
+síncrono, pode ser deferido):
+
+```elisp
+;; ── tempel ─────────────────────────────────────────────────────────
+(use-package tempel
+  :ensure t
+  :bind (("M-+" . tempel-complete)     ; Corfu mostra o popup com os templates
+         ("M-*" . tempel-insert))
+  :config
+  ;; Inserir o Capf ANTES dos Capfs de prog-mode (tempel-expand só dispara em
+  ;; match exato, então não rouba a completion do Eglot/LSP).
+  (defun +carlos/tempel-setup-capf ()
+    (setq-local completion-at-point-functions
+                (cons #'tempel-expand completion-at-point-functions)))
+  (add-hook 'prog-mode-hook #'+carlos/tempel-setup-capf)
+  (add-hook 'text-mode-hook #'+carlos/tempel-setup-capf)
+  (add-hook 'conf-mode-hook #'+carlos/tempel-setup-capf))
+```
+
+- Navegação entre campos do template: `M-{` / `M-}` (ou `C-up`/`C-down`), que o
+  Tempel remapeia temporariamente para `tempel-next`/`tempel-previous` (mapa
+  `tempel-map`).
+- Templates próprios: `tempel-path` aponta por padrão para `~/.config/emacs/templates`
+  (arquivo lisp-data agrupado por major mode). **Opcional:** criar `templates/`
+  no repo com snippets 42/org e sincronizá-lo via `just sync`.
+
+### Fase 2 — `tempel-collection` (templates estáticos)
+
+```elisp
+;; ── tempel-collection ───────────────────────────────────────────────
+(use-package tempel-collection
+  :ensure t
+  :after tempel
+  :config
+  ;; ⚠️ Verificar a API real do pacote instalado (regra do AGENTS.md: não
+  ;; assumir). Ativação típica: `(tempel-collection--load)` ou hook em
+  ;; `tempel--update-hook`; o README oficial sugere apenas o use-package.
+  )
+```
+
+### Fase 3 — `eglot-tempel` (snippets dinâmicos do LSP)
+
+```elisp
+;; ── eglot-tempel ────────────────────────────────────────────────────
+(use-package eglot-tempel
+  :ensure t
+  :after eglot
+  :config
+  ;; ⚠️ Verificar a API real (README do fejfighter/eglot-tempel): adicionar o
+  ;; Capf `eglot-tempel-capf` aos `completion-at-point-functions` dos buffers
+  ;; gerenciados pelo Eglot (geralmente via `eglot-managed-mode-hook`).
+  )
+```
+
+### Fase 4 — Testes ERT (`tests/completion-test.el` — arquivo NOVO)
+
+1. Criar `tests/completion-test.el` (naming `myemacs-completion-*`; o loader
+   `tests/load-tests.el` já carrega automaticamente via `directory-files`):
+   - `myemacs-completion-tempel-commands`: `fboundp` de `tempel-expand`,
+     `tempel-complete`, `tempel-insert`.
+   - `myemacs-completion-tempel-binds`: `(key-binding (kbd "M-+"))` =
+     `#'tempel-complete` e `M-*` = `#'tempel-insert` (usar `key-binding` para
+     pegar conflitos reais de minor modes).
+   - `myemacs-completion-tempel-capf`: em buffer `emacs-lisp-mode` (deriva de
+     prog-mode), `completion-at-point-functions` contém `tempel-expand`.
+   - `myemacs-completion-tempel-collection`: `(featurep 'tempel-collection)` ou
+     `tempel-templates` populado (guard `skip-unless` se o pacote não carregar
+     em builds parciais do repo).
+   - `myemacs-completion-eglot-tempel`: `fboundp` do Capf do eglot-tempel
+     (`skip-unless` quando eglot não estiver ativo no ambiente).
+2. Adicionar `(require 'completion-test)` explícito em `tests/load-tests.el` se
+   o teste não for descoberto (padrão dos outros arquivos).
+
+### Fase 5 — Documentação
+
+- Adicionar seção "Snippets: Tempel" em `docs/completion-stack.org` (tabela de
+  packages + pitfalls: competição com Capf LSP, `corfu-auto-trigger` opcional).
+- Atualizar a tabela de Package Reference Docs no `AGENTS.md` com o novo doc.
+
+### Riscos
+
+| Risco | Mitigação |
+|-------|-----------|
+| `M-+`/`M-*` colidirem com binds de major modes | Teste `key-binding` no ERT + `which-key` |
+| Capf do tempel competir com o Capf do Eglot/LSP | `tempel-expand` ANTES dos demais (só match exato) |
+| `tempel-collection` mudar API de ativação | Executor valida a API real do pacote instalado (AGENTS.md) |
+| `eglot-tempel` exigir versão específica do eglot | `:after eglot` + guard `(require 'eglot-tempel nil t)` |
+| Build parcial do repo sem os pacotes | `skip-unless` nos testes |
+
+### Critérios de aceite
+
+1. `just test-all` 100% verde (compile + checkdoc + ERT, zero warnings).
+2. `M-+` expande templates com popup do Corfu em `emacs-lisp-mode` e `org-mode`.
+3. Snippets do `tempel-collection` disponíveis por major mode.
+4. Em buffers gerenciados pelo Eglot, snippets do servidor aparecem via
+   `eglot-tempel` sem arquivos estáticos.
+5. `just sync` aplicado e boot em `~/.config/emacs` sem warnings (`myemacs-boot-no-custom-warnings`).
+
+### ✅ EXECUÇÃO CONCLUÍDA (2026-08-08)
+
+| Fase | Resultado |
+|------|-----------|
+| 1 (tempel) | ✅ `lisp/custom-completion.el`: use-package `:ensure nil :demand t`, binds `M-+`/`M-*` em global-map, Capf `+carlos/tempel-setup-capf` em prog/text/conf-mode-hook. Filas explícitas `(elpaca tempel)` antes do `elpaca-wait`. |
+| 2 (tempel-collection) | ✅ `:ensure nil :demand t` (API real: `require` do arquivo gerado `tempel-collection-templates` — sem hook extra necessário). |
+| 3 (eglot-tempel) | ✅ `eglot-tempel-mode 1` em `:config`. API real verificada na fonte: minor mode GLOBAL (não Capf por-buffer como o plano supôs) que faz `advice-add :override` em `eglot--snippet-expansion-fn`. |
+| 4 (testes) | ✅ `tests/completion-test.el` criado (5 testes `myemacs-completion-*`). O loader `directory-files` descobre automaticamente — sem editar `load-tests.el`. |
+| 5 (docs) | ✅ Seção "Tempel (Snippets)" em `docs/completion-stack.org` + tabelas Package Summary/Essential Variables/Notes; linha do AGENTS.md atualizada. |
+
+**Desvios do plano (justificados):**
+- Planos usavam `:after tempel`/`:after eglot`, mas `use-package-expand-minimally t` **ignora** `:after` (regra do AGENTS.md). Substituído por fila elpaca explícita + `:demand t` na ordem tempel → tempel-collection → eglot-tempel.
+- Plano previa `:ensure t` deferido; adotado `:demand t` para registrar o Capf no boot (padrão do arquivo).
+
+**Validação:**
+- `just sync` → `emacs --init-directory ~/.config/emacs` boot OK, tempel/tempel-collection/eglot-tempel instalados via elpaca.
+- 5 testes de completion passam; suíte completa: 121 pass, 1 fail **pré-existente** (`myemacs-local-ai-skills-exist` — `magent/skills/` não é sincronizado pelo `just sync`; falha no HEAD sem as mudanças), 8 skipped (rede).
 
 ## 0.20. Plano de Ação — Fortalecimento de Contexto e Sanitizador Nativo das 15 Ferramentas do Magent
 ## 0.21. Plano de Ação — Corrigir erro persistente do Magent ao usar modelo local qwen2.5-coder:3b

@@ -11,6 +11,25 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-08 — [CONCLUÍDO] Jinx: Spellcheck pt_BR/en_US + Correção Gramatical via IA Local (`lisp/custom-jinx.el` + Nix)
+   - **Contexto:** o Doom usava aspell; na migração Vanilla o MyEmacs ficou sem corretor. Adotado o **jinx** (minad, GNU ELPA 2.9, via elpaca cache `gnu-elpa.eld`) — corretor JIT sobre libenchant com pt_BR + en_US simultâneos — mais correção gramatical profunda via IA local (gptel + Ollama/mistral).
+   - **Nix (`emacs.nix`):** `home.file.".config/enchant/enchant.ordering"` com `pt_BR:hunspell`/`en_US:hunspell` (provider hunspell forçado; antes aspell). Rebuild OK; `enchant-lsmod-2 -list-dicts` mostra `en_US (hunspell)`/`pt_BR (hunspell)`; runtime validado com `enchant-2 -a -d <lang>`.
+   - **custom-jinx.el:** `use-package jinx` (`:demand t`), `jinx-languages "pt_BR en_US"`, hooks text/prog-mode, `M-$`→jinx-correct, `C-M-$`→jinx-languages; `+carlos/grammar-correct-region` (`C-c c g`) com prompt JSON, `:schema '(:type object :properties (:corrected (:type string)))`, substituição in-place; helpers `--grammar-extract-corrected`/`--grammar-apply-corrected`.
+   - **Bug fix (custom-ai.el):** `+carlos/gptel-request` repassava `:response_format` — keyword inexistente no `&key` do gptel 0.9.9.5 (quebrava TODA chamada Ollama/MLX). JSON agora só via `:schema` (helper não força mais nada). Aceita `:buffer`. Roteador ignora buffers `*gptel-grammar*`.
+   - **Testes:** 9 testes `myemacs-spell-*` em `tests/spell-test.el`, incluindo regressão `myemacs-spell-grammar-schema-passthrough` (fake `cl-defun` reproduz o erro do keyword).
+   - **Docs:** `docs/spell-stack.org` + AGENTS.md (árvore, ordem de carga, docs, external tools).
+   - **Validação:** `just test-all` 139 testes, 0 falhas (8 skipped: rede + formatters 42); E2E real → "Eles vao para a escola amanha." → "Eles vão para a escola amanhã."; `just sync` aplicado.
+
+** 2026-08-08 — [CONCLUÍDO] Tempel: Snippets Elisp Nativos (tempel + tempel-collection + eglot-tempel)
+   - **Contexto:** migração Doom→Vanilla deixou o MyEmacs sem sistema de snippets (YASnippet não foi portado). O Tempel (minad, GNU ELPA) é o substituto leve: sintaxe Tempo, integra com o Corfu via `completion-at-point-functions` (Capf).
+   - **Fontes de templates:** (1) `tempel-collection` (Crandel, MELPA) — coleção estática por major mode (`templates/*.eld`); (2) `minad/tempel` — exemplos de referência no README/manual; (3) `fejfighter/eglot-tempel` — ponte dinâmica que converte em runtime os snippets fornecidos pelo LSP via Eglot.
+   - **Escopo do plano (TODO.md §0.23):** `tempel` em `lisp/custom-completion.el` (binds `M-+`/`M-*`, Capf `tempel-expand` em prog/text/conf-mode), `tempel-collection` e `eglot-tempel` com `:after`, novo `tests/completion-test.el` (`myemacs-completion-*`), docs em `docs/completion-stack.org` + tabela do `AGENTS.md`.
+   - **Riscos mapeados:** colisão de `M-+`/`M-*` (teste `key-binding`), Capf do tempel competindo com LSP (`tempel-expand` antes, match exato), API de ativação do `tempel-collection`/`eglot-tempel` (executor valida a API real instalada, regra do AGENTS.md), builds parciais (`skip-unless`).
+   - **Execução (2026-08-08):** implementado em `lisp/custom-completion.el` (fila elpaca explícita + `:demand t`, já que `:after` é ignorado com `use-package-expand-minimally t`); `eglot-tempel-mode` é minor mode GLOBAL (verificado na fonte do fejfighter/eglot-tempel); 5 testes `myemacs-completion-*` criados em `tests/completion-test.el` (descobertos automaticamente pelo loader); docs atualizados.
+   - **Validação:** `just sync` + boot em `~/.config/emacs` OK; 5 testes de completion passam; suíte completa 121 pass / 1 fail pré-existente (`myemacs-local-ai-skills-exist`, `magent/skills/` não sincronizado) / 8 skipped (rede).
+   - **Critérios de aceite:** `just test-all` verde (compile do repo tem erros pré-existentes de docstring em `custom-ai.el`/`custom-magent.el`), `M-+` expande com popup Corfu, snippets do `tempel-collection` por major mode, snippets do Eglot via `eglot-tempel`, boot em `~/.config/emacs` sem warnings.
+   - **Status:** ✅ CONCLUÍDO — Fases 1–5 aplicadas, sincronizado e testado.
+
 ** 2026-08-08 — Roteador Dinâmico não sequestra o Magent + Análise do Agent_Smith com caminho real (`lisp/custom-ai.el`)
    - **Bug raiz (plano 0.21):** O conselho `+carlos/gptel-dynamic-router-advice` sobrescrevia o backend/modelo escolhidos pelo Magent. O Magent cria um backend temporário sem nome no topo de `gptel--known-backends` (buffer prefixo ` *magent-llm-gptel-request*`) e envia contexto `:magent-llm-gptel`; o roteador então migrava a requisição para Gemini Cloud → resposta vazia (`stop unknown reason`) ao usar o modelo local `qwen2.5-coder:3b`.
    - **Correção:** Novo predicado `+carlos/magent-managed-request-p` (buffer prefixo OU contexto `:magent-llm-gptel`). Requisições gerenciadas pelo Magent retornam imediatamente no início do roteador, preservando `gptel-backend`/`gptel-model` locais do Magent.

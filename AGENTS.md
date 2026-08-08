@@ -32,13 +32,14 @@ emacs --init-directory ~/.config/emacs
 ├── lisp/
 │   ├── custom-core.el            ← Fonts, GPG, SSH, editor defaults, line numbers
 │   ├── custom-ui.el              ← ef-themes, mood-line, olivetti, which-key
-│   ├── custom-completion.el      ← vertico, consult, corfu, marginalia, orderless, embark
+│   ├── custom-completion.el      ← vertico, consult, corfu, marginalia, orderless, embark, tempel
 │   ├── custom-files.el           ← dirvish, ibuffer, TRAMP, project
 │   ├── custom-term.el            ← vterm, eshell, eshell-prompt-extras
 │   ├── custom-lang.el            ← eglot, treesit-auto, languages (go/ts/python/cc)
 │   ├── custom-org.el             ← org-mode, babel, jupyter, pdf-tools, org-modern
 │   ├── custom-42.el              ← 42 School: header42, flycheck-norminette, C style
 │   ├── custom-ai.el              ← gptel backends, gptel-agent, superchat, mcp
+│   ├── custom-jinx.el            ← jinx spellcheck (enchant) + grammar correction via AI
 │   ├── custom-magent.el          ← Magent native coding agent (15 tools, agent-shell)
 │   ├── custom-knowledge.el       ← Denote (Zettelkasten)
 │   ├── custom-git.el             ← magit, justl, commit message with IA
@@ -214,6 +215,12 @@ Regras:
 | `custom-42.el:61: Error: reference to free variable ‘+carlos/c-formatter-42’` (macro `reformatter-define` expandida como função na ausência de reformatter em batch compile) | `reformatter` carregado síncronamente via `:demand t` e `(elpaca-wait)` no `custom-lang.el` | `just compile` |
 | `void-variable +carlos/gptel-quick-local-backend` no boot-test e ai-test (falha ao testar dinâmicas de host) | Variáveis declaradas globalmente e testadas via mock unitário de `system-name` | `myemacs-ai-host-detection` |
 
+### Encontrados pela suíte (2026-08-08)
+
+| Bug | Fix | Teste |
+|-----|-----|-------|
+| `+carlos/gptel-request` repassava `:response_format (:type "json_object")` a `gptel-request`, keyword que não existe no `&key` do gptel 0.9.9.5 (erro "Keyword argument :response_format not one of (...)") — quebrava TODA chamada Ollama/MLX | JSON forçado via `:schema` (único mecanismo do gptel 0.9.9.5); o helper não força mais nada e `:schema (:type object)` isolado produz `{}` — o caller (gramática) passa `:schema (:type object :properties (:corrected (:type string)))` explícito | `myemacs-spell-grammar-schema-passthrough` (fake `cl-defun` com o mesmo `&key` reproduz o erro) |
+
 ---
 
 ## Testing (ERT Suite)
@@ -274,12 +281,13 @@ All package APIs are documented in `docs/`. Reference these files before making 
 | Dirvish | `docs/dirvish-reference.org` | Attributes, extensions, quick-access, peek, vc, subtree |
 | GPTel | `docs/gptel-reference.org` | Backends, gptel-request, gptel-agent, gptel-org, tools |
 | Magent | `docs/magent-reference.org` | Native agent, 15 tools, agent-shell, permissions, skills |
-| Completion | `docs/completion-stack.org` | Vertico, consult, corfu, marginalia, orderless, embark |
+| Completion | `docs/completion-stack.org` | Vertico, consult, corfu, marginalia, orderless, embark, tempel |
 | Magit | `docs/magit-reference.org` | Status, staging, commit, push/pull, log |
 | Denote | `docs/denote-reference.org` | Notes, silos, links, backlinks, keywords |
 | Org Ecosystem | `docs/org-ecosystem.org` | org-modern, ob-mermaid, jupyter, pdf-tools, org-noter |
 | UI Stack | `docs/ui-stack.org` | ef-themes, mood-line, olivetti, nerd-icons, which-key |
 | Terminal | `docs/term-stack.org` | vterm, eshell, eshell-prompt-extras, display-buffer |
+| Jinx/Spell | `docs/spell-stack.org` | jinx, libenchant, dicionários pt_BR/en_US, correção gramatical IA |
 | Doom Inspiration | `docs/doom-inspiration.org` | Doom Emacs configurations for Dirvish, Dired, Org aesthetics, fonts, and slides |
 | Testing Suite | `docs/testing-suite.org` | Testes ERT, detecção de colisões de teclas, portões de qualidade, warnings e erros de Lisp |
 | AI Providers | `docs/ai-providers-reference.org` | Detalhamento de quotas, modelos e segurança do Google AI Studio e OpenCode Zen |
@@ -360,6 +368,7 @@ custom-lang      ← Languages (eglot, treesit)
 custom-org       ← Org mode (babel, jupyter, pdf)
 custom-42        ← 42 School (depends on flycheck, header42)
 custom-ai        ← AI (gptel, depends on core being loaded)
+custom-jinx      ← Spell (jinx + grammar IA, depends on custom-ai)
 custom-magent    ← Magent (native coding agent, depends on custom-ai)
 custom-knowledge ← Denote (knowledge management)
 custom-git       ← Git (magit, justl)
@@ -375,7 +384,7 @@ custom-dashboard ← Dashboard (depends on many modules)
 - **Package manager:** Elpaca (git-based, async, native-comp)
 - **Nix role:** System deps only (rg, fd, mmdc, fonts, Python, LSP servers)
 - **Portability:** Works anywhere with Emacs 29+ and git (no Nix required for elisp)
-- **External tools:** ripgrep, fd, clangd, gopls, basedpyright, ruff, norminette, mmdc
+- **External tools:** ripgrep, fd, clangd, gopls, basedpyright, ruff, norminette, mmdc, pkg-config, enchant (jinx)
 
 ---
 

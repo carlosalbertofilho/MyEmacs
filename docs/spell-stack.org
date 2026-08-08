@@ -1,0 +1,174 @@
+#+TITLE: Spell Stack Reference (jinx + Grammar AI)
+#+AUTHOR: Generated Reference
+#+DATE: 2026-08-08
+#+DESCRIPTION: jinx (JIT spell checker via libenchant), pt_BR + en_US, e correção gramatical via gptel/Ollama
+
+* Overview
+
+O stack de spellcheck é composto por duas camadas:
+
+| Camada                | Pacote   | Função                                        |
+|-----------------------+----------+-----------------------------------------------|
+| Ortografia (JIT)      | jinx     | Marca erros ortográficos sob o cursor (enchant)|
+| Gramática (IA local)  | gptel    | Reescrita da região via Ollama/mistral        |
+
+O =jinx= é um spell checker *just-in-time*: em vez de varrer o buffer inteiro,
+ele verifica apenas a palavra sob o cursor a cada pause. Usa a lib =enchant=
+como backend de dicionários (hunspell/aspell/nuspell), o que permite múltiplos
+idiomas simultâneos (pt_BR + en_US) sem trocar de dicionário.
+
+* Arquitetura
+
+#+begin_example
+┌──────────────────────────────────────────────┐
+│             jinx-mode (minor mode)           │
+│  text-mode-hook + prog-mode-hook            │
+└──────────────────┬───────────────────────────┘
+                   │ verifica palavra sob cursor
+                   ▼
+┌──────────────────────────────────────────────┐
+│              jinx-mod (C module)            │
+│  compile flags: -I. -O2 -Wall -Wextra       │
+│                 -fPIC -shared               │
+│  + $(pkg-config --cflags --libs enchant-2)  │
+└──────────────────┬───────────────────────────┘
+                   ▼
+┌──────────────────────────────────────────────┐
+│             libenchant-2.so.2               │
+│  ┌───────────┐  ┌───────────┐  ┌──────────┐ │
+│  │ hunspell  │  │  aspell   │  │ nuspell  │ │
+│  └───────────┘  └───────────┘  └──────────┘ │
+└──────────────────┬───────────────────────────┘
+                   ▼
+  dicionários em share/hunspell (XDG_DATA_DIRS)
+  pt_BR.aff/dic  en_US.aff/dic
+#+end_example
+
+* Dependências de Sistema (NixOS)
+
+No `home/carlosfilho/emacs.nix` do flake:
+
+```nix
+# home.packages
+enchant                        # runtime libenchant-2.so.2 (out) + .pc (dev)
+hunspellDicts.pt_BR            # share/hunspell/pt_BR.aff/.dic
+hunspellDicts.en_US            # share/hunspell/en_US.aff/.dic
+gcc pkg-config                 # já presentes; jinx-mod precisa do CC + pkg-config
+
+# home.sessionVariables (obrigatório)
+PKG_CONFIG_PATH = "${pkgs.enchant.dev}/lib/pkgconfig"   # para jinx-mod achar enchant-2.pc
+LD_LIBRARY_PATH = "${pkgs.enchant.out}/lib"             # para o módulo achar libenchant-2.so.2
+```
+
+Pontos críticos:
+
+1. =enchant= tem dois outputs: =out= (libs runtime) e =dev= (=enchant-2.pc=).
+   O =pkg-config= do NixOS é um wrapper que só repassa =PKG_CONFIG_PATH=.
+2. O módulo C do jinx (jinx-mod.c) é compilado na ativação de =jinx-mode= com
+   =pkg-config --cflags --libs enchant-2=. Sem =PKG_CONFIG_PATH= o fallback
+   (=-I/usr/include/enchant-2 ...=) não existe no NixOS → erro.
+3. =ld.so.conf= é vazio no NixOS → sem =LD_LIBRARY_PATH= o módulo não resolve
+   =libenchant-2.so.2= em runtime (erro "cannot open shared object file").
+4. Descoberta de dicionários hunspell: o provider procura o diretório de dicts
+   do usuário + cada =XDG_DATA_DIR/hunspell=. Como =home.packages= coloca os
+   dicts em =share/hunspell= do profile, e =XDG_DATA_DIRS= já inclui o profile,
+   os dicts são encontrados automaticamente.
+5. A ordem de provisão padrão do enchant prefere =aspell= para =en_US=
+   (aspellDicts.en está instalado). Para forçar hunspell em pt_BR/en_US, criar
+   =~/.config/enchant/enchant.ordering=:
+
+   ```
+   pt_BR:hunspell
+   en_US:hunspell
+   ```
+
+   Ver a issue minad/jinx#173 (dicionários no NixOS).
+
+* Configuração (lisp/custom-jinx.el)
+
+```elisp
+(use-package jinx
+  :ensure t
+  :demand t
+  :custom
+  (jinx-languages "pt_BR en_US")   ; multi-idioma simultâneo
+  :config
+  (add-hook 'text-mode-hook #'jinx-mode)
+  (add-hook 'prog-mode-hook #'jinx-mode)
+  (define-key jinx-mode-map (kbd "M-$")   #'jinx-correct)
+  (define-key jinx-mode-map (kbd "C-M-$") #'jinx-languages))
+```
+
+Regras de uso:
+
+- =jinx-languages= é uma string com os idiomas separados por espaço.
+- =jinx-mode-map= é vazio por padrão (os binds M-$/C-M-$ são recomendação
+  oficial e ficam livres para definição).
+- O módulo C só é compilado na *ativação* do minor-mode, não no load.
+
+* Correção Gramatical via IA (gptel + Ollama/mistral)
+
+O comando =+carlos/grammar-correct-region= (=C-c c g=) reescreve a região
+selecionada com correção ortográfica/gramatical profunda usando o backend
+local =Ollama Local= (modelo =mistral=).
+
+Fluxo:
+
+1. Captura o texto da região (BEG..END).
+2. Monta prompt pedindo JSON ={"corrected": "<texto>"}=, instruindo o modelo a
+   preservar o idioma ORIGINAL do texto (sem heurística de detecção no elisp).
+3. Chama =+carlos/gptel-request= com =:buffer "*gptel-grammar*"= e
+   =:schema (:type object :properties (:corrected (:type string)))= — em
+   gptel 0.9.9.5, saída JSON só é forçada via keyword =:schema= (o antigo
+   =:response_format= não existe mais em `gptel-request`).
+4. No callback (2 args: RESPONSE INFO), extrai o campo =corrected= e substitui
+   a região in-place (delete-region + insert), sem abrir buffer.
+
+Por que =*gptel-grammar*=:
+
+- O helper =+carlos/gptel-request= repassa keywords a `gptel-request`; quem
+  precisa de JSON passa =:schema= (o helper não força nada automaticamente).
+  O JSON da resposta é parseado com =json-parse-string=.
+- O roteador dinâmico (=+carlos/gptel-dynamic-router-advice=) é *pulado* para
+  buffers =*gptel-grammar*: o modelo fica fixo em =mistral=, evitando que a
+  REGRA 3 sobrescreva com =qwen2.5-coder:3b=.
+
+Variáveis de configuração (em custom-ai.el):
+
+| Variável                        | Default        | Uso                       |
+|---------------------------------+----------------+---------------------------|
+| =+carlos/gptel-grammar-backend= | "Ollama Local" | Backend da correção       |
+| =+carlos/gptel-grammar-model=   | mistral        | Modelo da correção        |
+
+* Keybindings
+
+| Bind    | Comando                         | Contexto                       |
+|---------+----------------------------------+--------------------------------|
+| =M-$=   | jinx-correct                    | jinx-mode (buffer)             |
+| =C-M-$= | jinx-languages                  | jinx-mode (buffer)             |
+| =C-c c g= | +carlos/grammar-correct-region | global (região marcada)        |
+
+* Pitfalls & Troubleshooting
+
+| Sintoma                                    | Causa                                  | Fix                                   |
+|--------------------------------------------+----------------------------------------+---------------------------------------|
+| =jinx-mod.c= não compila                   | =pkg-config= não acha =enchant-2.pc=   | Reabrir sessão (PKG_CONFIG_PATH via hm-session-vars) |
+| =cannot open shared object file= ao ativar | sem =LD_LIBRARY_PATH= para =libenchant-2.so.2= | Reabrir sessão ou relogin KDE      |
+| =en_US= marcando palavras erradas          | provisão via aspell em vez de hunspell | ~/.config/enchant/enchant.ordering |
+| "Could not open the file 'pt_BR'"          | =enchant-2 -l= recebe *arquivo*, não idioma | usar =-d pt_BR= no CLI; em Emacs use jinx |
+
+* Testes (tests/spell-test.el)
+
+Prefixos =myemacs-spell-*=:
+
+- =jinx-commands=: funções/var do jinx carregadas.
+- =jinx-languages-ptbr-enus=: =jinx-languages= contém pt_BR e en_US.
+- =jinx-hooks=: =jinx-mode= em text-mode-hook e prog-mode-hook.
+- =jinx-mode-map-binds=: M-$/C-M-$ mapeados no jinx-mode-map.
+- =jinx-module=: =+carlos/grammar-correct-region= fboundp + =C-c c g=.
+- =grammar-vars=: backends/modelo de gramática definidos.
+- =grammar-json-extraction=: parse de ={"corrected": ...}= e fallback raw.
+- =router-ignores-grammar-buffer=: =*gptel-grammar*= não é sequestrado pelo router.
+
+Os testes não ativam =jinx-mode= (isso compilaria o módulo C em batch); cobrem
+carregamento, hooks, binds, vars e parse de resposta.

@@ -52,6 +52,12 @@
 (defvar +carlos/gptel-quick-local-model 'qwen2.5-coder:3b
   "Modelo usado para tarefas locais rápidas como docstrings e testes.")
 
+(defvar +carlos/gptel-grammar-backend "Ollama Local"
+  "Backend usado para correção gramatical/ortográfica profunda.")
+
+(defvar +carlos/gptel-grammar-model 'mistral
+  "Modelo usado para correção gramatical/ortográfica profunda.")
+
 ;; ── gptel core ──────────────────────────────────────────────────────
 (use-package gptel
   :ensure t
@@ -117,7 +123,8 @@
     :request-params '(:options (:num_ctx 16384))
     :models '("qwen2.5-coder:3b"
               "qwen2.5-coder:1.5b"
-              "deepseek-r1:1.5b"))
+              "deepseek-r1:1.5b"
+              "mistral"))
 
   ;; ── Backend: MLX Local (5 modelos validados, M2/24GB) ────────────
   ;; Servidor roda em 127.0.0.1:8081 via launchd (mlx_lm.server)
@@ -199,18 +206,24 @@ CRITICAL RULES (Violating these fails the project):
 
 BACKEND é o nome do backend registrado (string); MODEL um símbolo.
 ARGS são repassados a `gptel-request' (:system, :callback, ...).
+Quando ARGS contém `:buffer', usa esse buffer; senão usa
+`*gptel-request*'.
 
 Garante que o gptel esteja carregado antes de buscar o backend."
   (require 'gptel)
-  (let ((buffer (get-buffer-create "*gptel-request*")))
-    (with-current-buffer buffer
-      (setq gptel-backend (gptel-get-backend backend))
-      (setq gptel-model model)
-      (setq buffer-read-only nil)
-      (erase-buffer))
-    (let ((extra (when (member backend '("Ollama Local" "MLX Local"))
-                   '(:response_format (:type "json_object")))))
-      (apply #'gptel-request prompt :buffer buffer (append args extra)))))
+  (let* ((buffer-name (or (plist-get args :buffer) "*gptel-request*"))
+         (args (cl-loop for (k v) on args by #'cddr
+                        unless (eq k :buffer)
+                        append (list k v))))
+    (let ((buffer (get-buffer-create buffer-name)))
+      (with-current-buffer buffer
+        (setq gptel-backend (gptel-get-backend backend))
+        (setq gptel-model model)
+        (setq buffer-read-only nil)
+        (erase-buffer))
+      ;; gptel 0.9.9.5: resposta JSON só via keyword `:schema' (não
+      ;; `:response_format'); callers que precisam de JSON passam :schema.
+      (apply #'gptel-request prompt :buffer buffer args))))
 
 ;; ── +carlos/gptel-agent-run (reescrito sem advice bug) ─────────────
 
@@ -440,8 +453,11 @@ não esteja registrado (ex.: MLX não disponível em máquinas sem agnes)."
   "Non-nil quando o gptel-request para BUFFER com CONTEXT é gerenciado pelo Magent.
 O Magent (`magent-llm-gptel') define seu próprio backend/modelo; o roteador
 dinâmico e o watchdog de latência NÃO devem tocá-lo — redirecionar para a
-nuvem quebra o tool calling local (erro 'stop unknown reason')."
+nuvem quebra o tool calling local (erro `stop unknown reason').
+Também ignora correção gramatical (`*gptel-grammar*'), que fixa o modelo
+mistral local em `+carlos/gptel-grammar-model'."
   (or (string-prefix-p " *magent-llm-gptel-request*" (buffer-name buffer))
+      (string-prefix-p "*gptel-grammar" (buffer-name buffer))
       (and (listp context) (plist-member context :magent-llm-gptel))))
 
 (defun +carlos/gptel-dynamic-router-advice (prompt &rest args)
