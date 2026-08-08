@@ -19,6 +19,7 @@
 (declare-function +carlos/dashboard-refresh "custom-dashboard")
 (declare-function +carlos/gptel-agent-run "custom-ai")
 (declare-function +carlos/ai-rag-ingest "custom-ai")
+(declare-function +carlos/magent-show-usage "custom-ai")
 (declare-function +carlos/gptel-generate-commit-message "custom-git")
 (declare-function denote-rename-file "denote")
 (declare-function denote-backlinks "denote")
@@ -94,6 +95,7 @@
 ;; ── Dashboard ───────────────────────────────────────────────────────
 (global-set-key (kbd "C-c d d") #'+carlos/dashboard-open)
 (global-set-key (kbd "C-c d r") #'+carlos/dashboard-refresh)
+(global-set-key (kbd "C-c d u") #'+carlos/magent-show-usage)
 
 (provide 'custom-keybindings)
 ;;; custom-keybindings.el ends here

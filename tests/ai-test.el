@@ -188,9 +188,49 @@
             (insert-file-contents temp-file)
             (goto-char (point-min))
             (should (search-forward "#+TITLE: Registro de Uso e Consumo de IA - FinOps" nil t))
-            (should (search-forward "| 150 | 75 | 50 | $0.00 (Signature) |" nil t)))
+            (should (search-forward "| No Agent (gptel) | Zen Claude | claude-sonnet-5 | 150 | 75 | 50 | $0.0016 (Market) |" nil t)))
           (kill-buffer buf))
       ;; Garante a limpeza do arquivo temporário e reset do override
+      (setq +carlos/gptel-tracker-file-override nil)
+      (when (file-exists-p temp-file)
+        (delete-file temp-file)))))
+
+(ert-deftest myemacs-ai-show-usage-dashboard ()
+  "Valida se o parser e a geração do dashboard +carlos/magent-show-usage funcionam."
+  :tags '(ai)
+  (let* ((temp-file (make-temp-file "ai-usage-tracker-test-dashboard" nil ".org")))
+    (setq +carlos/gptel-tracker-file-override temp-file)
+    (unwind-protect
+        (progn
+          ;; Prepara o arquivo com dados de teste
+          (with-temp-file temp-file
+            (insert "#+TITLE: Registro de Uso e Consumo de IA - FinOps\n")
+            (insert "| Timestamp | Buffer | Agent | Backend | Modelo | Input | Output | Cached | Custo Est. |\n")
+            (insert "|-----------+--------+-------+---------+--------+-------+--------+--------+------------|\n")
+            (insert "| 2026-08-07 16:57:52 | *test* | Agent A | Zen Claude | claude-sonnet-5 | 100 | 50 | 10 | $0.0011 (Market) |\n")
+            (insert "| 2026-08-07 17:00:00 | *test* | Agent A | Zen Claude | claude-sonnet-5 | 200 | 100 | 20 | $0.0021 (Market) |\n")
+            (insert "| 2026-08-07 17:05:00 | *test* | No Agent (gptel) | Gemini | gemini-2.5-flash | 1000 | 500 | 0 | $0.0002 (Market) |\n"))
+          
+          ;; Executa a função
+          (+carlos/magent-show-usage)
+          
+          ;; Verifica se o buffer foi gerado corretamente
+          (let ((buf (get-buffer "*Magent Usage Summary*")))
+            (should buf)
+            (with-current-buffer buf
+              (goto-char (point-min))
+              (should (search-forward "#+TITLE: Resumo de Consumo de IA por Agente (Magent)" nil t))
+              (should (search-forward "| Agent | Input Tokens | Output Tokens | Cached Tokens | Est. Cost |" nil t))
+              ;; Agent A deve ter 300 input, 150 output, 30 cached, e $0.0032
+              (should (search-forward "| Agent A | 300 | 150 | 30 | $0.0032 |" nil t))
+              ;; No Agent (gptel) deve ter 1000 input, 500 output, 0 cached, e $0.0002
+              (goto-char (point-min))
+              (should (search-forward "| No Agent (gptel) | 1000 | 500 | 0 | $0.0002 |" nil t))
+              ;; Total Geral deve ser 1300 input, 650 output, 30 cached, e $0.0034
+              (goto-char (point-min))
+              (should (search-forward "| Total Geral | 1300 | 650 | 30 | $0.0034 |" nil t)))
+            (kill-buffer buf)))
+      ;; Limpeza
       (setq +carlos/gptel-tracker-file-override nil)
       (when (file-exists-p temp-file)
         (delete-file temp-file)))))

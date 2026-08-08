@@ -2,6 +2,6 @@
 #+AUTHOR: Carlos Filho
 #+FILETAGS: :FINOPS:RAG:AI:
 
-| Timestamp | Buffer | Backend | Modelo | Input | Output | Cached | Custo Est. |
-|-----------+--------+---------+--------+-------+--------+--------+------------|
-| 2026-08-07 16:57:52 | *test-tracker* | Zen Claude | claude-sonnet-5 | 150 | 75 | 50 | $0.00 (Signature) |
+| Timestamp | Buffer | Agent | Backend | Modelo | Input | Output | Cached | Custo Est. |
+|-----------+--------+-------+---------+--------+-------+--------+--------+------------|
+| 2026-08-07 16:57:52 | *test-tracker* | No Agent (gptel) | Zen Claude | claude-sonnet-5 | 150 | 75 | 50 | $0.00 (Signature) |

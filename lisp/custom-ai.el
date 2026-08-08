@@ -33,6 +33,10 @@
 (declare-function gptel-make-gemini "gptel-gemini")
 (declare-function gptel-make-ollama "gptel-ollama")
 (declare-function project-root "project")
+(defvar magent--current-session)
+(declare-function magent-session-agent "magent-session")
+(declare-function magent-agent-info-name "magent-agent-info")
+(declare-function org-table-align "org-table")
 
 (defvar +carlos/gptel-agent-backend "Zen Claude"
   "Backend padrão para sessões de agente.")
@@ -433,13 +437,29 @@ Sem advice: chama `+carlos/gptel-agent-add-project-dirs' diretamente."
          (model-name (if gptel-model (symbol-name gptel-model) "Unknown"))
          (buf-name (buffer-name))
          (time-str (format-time-string "%Y-%m-%d %H:%M:%S"))
-         (cost-str (cond
-                    ((string-equal backend-name "MLX Local") "$0.00 (Local GPU)")
-                    ((string-equal backend-name "Ollama Local") "$0.00 (Local CPU)")
-                    ((string-equal backend-name "Gemini") "$0.00 (Free Tier)")
-                    ((string-equal backend-name "Zen Claude") "$0.00 (Signature)")
-                    ((string-equal backend-name "OpenCode Zen") "$0.00 (Signature)")
-                    (t "$0.00 (Zero Cost)")))
+         (agent-name (if (and (bound-and-true-p magent--current-session)
+                              (magent-session-agent magent--current-session))
+                         (magent-agent-info-name (magent-session-agent magent--current-session))
+                       "No Agent (gptel)"))
+         (cost-val (cond
+                    ((and (string-equal backend-name "Zen Claude") (string-equal model-name "claude-sonnet-5"))
+                     (+ (* input (/ 3.0 1000000.0)) (* output (/ 15.0 1000000.0))))
+                    ((and (string-equal backend-name "Zen Claude") (string-equal model-name "claude-opus-5"))
+                     (+ (* input (/ 15.0 1000000.0)) (* output (/ 75.0 1000000.0))))
+                    ((and (string-equal backend-name "Gemini") (string-equal model-name "gemini-2.5-pro"))
+                     (+ (* input (/ 1.25 1000000.0)) (* output (/ 5.0 1000000.0))))
+                    ((and (string-equal backend-name "Gemini") (string-equal model-name "gemini-2.5-flash"))
+                     (+ (* input (/ 0.075 1000000.0)) (* output (/ 0.30 1000000.0))))
+                    (t 0.0)))
+         (cost-str (if (> cost-val 0.0)
+                       (format "$%0.4f (Market)" cost-val)
+                     (cond
+                      ((string-equal backend-name "MLX Local") "$0.00 (Local GPU)")
+                      ((string-equal backend-name "Ollama Local") "$0.00 (Local CPU)")
+                      ((string-equal backend-name "Gemini") "$0.00 (Free Tier)")
+                      ((string-equal backend-name "Zen Claude") "$0.00 (Signature)")
+                      ((string-equal backend-name "OpenCode Zen") "$0.00 (Signature)")
+                      (t "$0.00 (Zero Cost)"))))
          (tracker-file (or +carlos/gptel-tracker-file-override
                            (expand-file-name "docs/ai-usage-tracker.org" 
                                              (or (and (project-current) (project-root (project-current)))
@@ -452,12 +472,12 @@ Sem advice: chama `+carlos/gptel-agent-add-project-dirs' diretamente."
           (insert "#+TITLE: Registro de Uso e Consumo de IA - FinOps\n")
           (insert "#+AUTHOR: Carlos Filho\n")
           (insert "#+FILETAGS: :FINOPS:RAG:AI:\n\n")
-          (insert "| Timestamp | Buffer | Backend | Modelo | Input | Output | Cached | Custo Est. |\n")
-          (insert "|-----------+--------+---------+--------+-------+--------+--------+------------|\n"))
+          (insert "| Timestamp | Buffer | Agent | Backend | Modelo | Input | Output | Cached | Custo Est. |\n")
+          (insert "|-----------+--------+-------+---------+--------+-------+--------+--------+------------|\n"))
         (goto-char (point-max))
         (unless (bolp) (insert "\n"))
-        (insert (format "| %s | %s | %s | %s | %d | %d | %d | %s |\n"
-                        time-str buf-name backend-name model-name input output cached cost-str))
+        (insert (format "| %s | %s | %s | %s | %s | %d | %d | %d | %s |\n"
+                        time-str buf-name agent-name backend-name model-name input output cached cost-str))
         (write-region (point-min) (point-max) tracker-file nil 'silent)))))
 
 (add-hook 'gptel-post-response-functions #'+carlos/gptel-track-usage)
@@ -503,6 +523,73 @@ O arquivo Org-mode gerado resultante será aberto no Emacs quando concluído."
                      (find-file resolved-path))
                  (message "Ingestão concluída. Veja o buffer *rag-ingest* para detalhes.")
                  (pop-to-buffer (process-buffer proc)))))))))))
+
+(defun +carlos/magent-show-usage ()
+  "Exibe o resumo de consumo de IA agrupado por agente no buffer *Magent Usage Summary*."
+  (interactive)
+  (let ((tracker-file (or +carlos/gptel-tracker-file-override
+                           (expand-file-name "docs/ai-usage-tracker.org" 
+                                             (or (and (project-current) (project-root (project-current)))
+                                                 "~/Projects/Github/MyEmacs")))))
+    (if (not (file-exists-p tracker-file))
+        (message "Arquivo de rastreamento de consumo não encontrado: %s" tracker-file)
+      (let ((usage-hash (make-hash-table :test 'equal))
+            (total-input 0)
+            (total-output 0)
+            (total-cached 0)
+            (total-cost 0.0))
+        (with-temp-buffer
+          (insert-file-contents tracker-file)
+          (goto-char (point-min))
+          (while (not (eobp))
+            (let ((line (buffer-substring-no-properties (line-beginning-position) (line-end-position))))
+              (when (string-match-p "^\\s*|\\s*[0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}" line)
+                (let* ((fields (mapcar #'string-trim (split-string line "|")))
+                       (agent (if (>= (length fields) 4) (nth 3 fields) "Unknown"))
+                       (input (if (>= (length fields) 7) (string-to-number (nth 6 fields)) 0))
+                       (output (if (>= (length fields) 8) (string-to-number (nth 7 fields)) 0))
+                       (cached (if (>= (length fields) 9) (string-to-number (nth 8 fields)) 0))
+                       (cost-str (if (>= (length fields) 10) (nth 9 fields) "$0.00"))
+                       (cost 0.0))
+                  (when (string-match "\\$\\([0-9.]+\\)" cost-str)
+                    (setq cost (string-to-number (match-string 1 cost-str))))
+                  ;; Acumular no hash-table
+                  (let ((agent-data (gethash agent usage-hash (list 0 0 0 0.0))))
+                    (setcar agent-data (+ (nth 0 agent-data) input))
+                    (setcar (cdr agent-data) (+ (nth 1 agent-data) output))
+                    (setcar (cddr agent-data) (+ (nth 2 agent-data) cached))
+                    (setcar (cdddr agent-data) (+ (nth 3 agent-data) cost))
+                    (puthash agent agent-data usage-hash))
+                  ;; Acumular nos totais gerais
+                  (setq total-input (+ total-input input)
+                        total-output (+ total-output output)
+                        total-cached (+ total-cached cached)
+                        total-cost (+ total-cost cost)))))
+            (forward-line 1)))
+        ;; Agora vamos gerar o buffer de visualização
+        (let ((buf (get-buffer-create "*Magent Usage Summary*")))
+          (with-current-buffer buf
+            (read-only-mode -1)
+            (erase-buffer)
+            (org-mode)
+            (insert "#+TITLE: Resumo de Consumo de IA por Agente (Magent)\n")
+            (insert "#+AUTHOR: Carlos Filho\n")
+            (insert "#+DATE: " (format-time-string "%Y-%m-%d %H:%M:%S") "\n\n")
+            (insert "| Agent | Input Tokens | Output Tokens | Cached Tokens | Est. Cost |\n")
+            (insert "|-------+--------------+---------------+---------------+-----------|\n")
+            (maphash (lambda (agent data)
+                       (insert (format "| %s | %d | %d | %d | $%0.4f |\n"
+                                       agent (nth 0 data) (nth 1 data) (nth 2 data) (nth 3 data))))
+                     usage-hash)
+            (insert "|-------+--------------+---------------+---------------+-----------|\n")
+            (insert (format "| Total Geral | %d | %d | %d | $%0.4f |\n"
+                            total-input total-output total-cached total-cost))
+            (goto-char (point-min))
+            (when (search-forward "|" nil t)
+              (org-table-align))
+            (read-only-mode 1))
+          (pop-to-buffer buf)
+          (message "Resumo de consumo de IA carregado!"))))))
 
 (provide 'custom-ai)
 ;;; custom-ai.el ends here

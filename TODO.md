@@ -1,5 +1,30 @@
 # TODO — Planejamento Ativo e Backlog (MyEmacs)
 
+## 0.16. Plano de Ação — Dashboard de Consumo e Rastreamento por Agente
+
+> **Autor:** Agente Arquiteto (modelo Pro/Opus). Plano EXECUTÁVEL para o Agente Executor.
+
+### Tópicos do Plano:
+
+1. [x] **Fase 1: Atualização do Layout da Tabela de Consumo (`docs/ai-usage-tracker.org`)**
+   - [x] Inserir a nova coluna 'Agent' na tabela existente para rastrear qual persona/agente do Magent realizou a chamada de IA (ou 'No Agent (gptel)' para requisições diretas).
+
+2. [x] **Fase 2: Forward Declarations e Adaptação do Tracker (`lisp/custom-ai.el`)**
+   - [x] Adicionar as declarações `(defvar magent--current-session)` e `(declare-function magent-session-agent "magent")`, além de `(declare-function magent-agent-info-name "magent")` para evitar warnings do byte-compiler.
+   - [x] Atualizar a função `+carlos/gptel-track-usage` para:
+     - [x] Identificar o agente ativo consultando `(magent-session-agent magent--current-session)` e obtendo seu nome via `magent-agent-info-name` (se aplicável).
+     - [x] Injetar o nome do agente (ou fallback 'No Agent (gptel)') na nova coluna da tabela.
+     - [x] Estimar o custo financeiro aproximado de mercado para modelos como Claude (Sonnet 3.5/Opus 5) e Gemini (Pro/Flash) com base em taxas padrão por milhão de tokens.
+
+3. [x] **Fase 3: Criar o Dashboard Visual Interativo (`+carlos/magent-show-usage`)**
+   - [x] Criar uma nova função interativa `+carlos/magent-show-usage` em um local apropriado.
+   - [x] Fazer o parse da tabela Org em `docs/ai-usage-tracker.org`.
+   - [x] Agrupar os dados por agente, somar os tokens (input, output, cached) e calcular totais.
+   - [x] Exibir uma tabela resumida de custos e tokens em um buffer temporário `*Magent Usage Summary*` no modo Org.
+
+4. [x] **Fase 4: Configuração de Atalhos (`lisp/custom-keybindings.el`)**
+   - [x] Associar o comando `+carlos/magent-show-usage` ao atalho global `C-c d u` (Usage/Uso).
+
 ## 0.15. Plano de Ação — Conversor de Skills para o Magent
 
 > **Autor:** Agente Arquiteto (modelo Pro/Opus). Plano EXECUTÁVEL para o Agente Executor.
@@ -570,6 +595,7 @@
   - **`tests/42-test.el`:** +8 testes (executable custom, format-on-save default, commands exist, keybinding C-c C-f, keybinding não global, group, format-and-check exists, format-and-check error). Suíte completa: **78 tests, 73 expected, 0 unexpected, 5 skipped**.
   - **Commits:** 4 commits no total (feat + 2 fixes de reformatter keywords + fix test group property).
 
+- [x] Registro do planejamento de migração para Magent no TODO.md
 ## 0.5. Plano de Ação — Migração para Magent (Agente Planejador)
 
 > **Autor:** Agente Planejador/Arquiteto (alta performance). Plano EXECUTÁVEL para o Agente Executor (aplicar) e para o Agente Auditor (validar). **NÃO foi aplicado nada ainda.**
