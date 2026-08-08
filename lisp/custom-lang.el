@@ -8,7 +8,7 @@
 
 (defvar treesit-extra-load-path)
 (defvar +carlos/gptel-quick-local-backend)
-(defvar +carlos/gptel-quick-local-model)
+
 
 ;; Registrar diretórios de gramáticas Tree-Sitter do Nix no top-level
 (dolist (dir (append (file-expand-wildcards "/nix/store/*-emacs-treesit-grammars")

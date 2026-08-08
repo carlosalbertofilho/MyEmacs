@@ -1399,3 +1399,36 @@ Fase 3 (skills/agentes) → Fase 5 (integração/docs) → Fase 7 (validação/r
   (should (memq 'whitespace-mode prog-mode-hook))
   (should (equal whitespace-style '(face trailing tabs tab-mark))))
 ```
+## Plan: Fix `myemacs-ai-host-detection` test failure
+
+- **Goal:** Ensure the test passes by using symbols for model identifiers.
+- **Steps:**
+  1. Open `lisp/custom-ai.el` and change the definition of `+carlos/gptel-quick-local-model` from a string to a symbol:
+     ```elisp
+     (defvar +carlos/gptel-quick-local-model 'qwen2.5-coder:3b
+       "Modelo usado para tarefas locais rápidas como docstrings e testes.")
+     ```
+  2. Ensure `+carlos/gptel-quick-local-backend` is also a symbol if used in comparisons.
+  3. In `+carlos/gptel-setup-defaults-by-host` (function defined later in the file), replace any `setq` that assigns a string to `gptel-model` with a quoted symbol, e.g.:
+     ```elisp
+     (setq gptel-model 'qwen2.5-coder:3b)
+     ```
+  4. Run the full test suite:
+     ```bash
+     just test-all
+     ```
+     Verify that `myemacs-ai-host-detection` now passes.
+  5. Run `just compile` and `just checkdoc` to confirm no new warnings.
+  6. Commit and push:
+     ```bash
+     git add lisp/custom-ai.el TODO.md tests/ai-test.el
+     git commit -m "fix(ai): use symbols for model identifiers in host detection"
+     git push
+     ```
+  7. Sync to the official Emacs config and run a quick sanity check:
+     ```bash
+     just sync
+     just run
+     ```
+
+*Status:* Planned – awaiting execution.

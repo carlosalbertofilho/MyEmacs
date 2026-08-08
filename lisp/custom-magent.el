@@ -81,11 +81,11 @@
 ;; ── Tool Sanitization & Path Auto-Expansion ──────────────────────────
 (defconst +carlos/magent-system-directives
   "CRITICAL MAGENT TOOL DIRECTIVES:
-1. ABSOLUTE PATHS: Always provide exact absolute file paths starting with '/' (e.g. '/home/carlosfilho/...').
-2. NON-EMPTY PARAMETERS: Never call write_file or edit_file with empty or missing required arguments (path, content, old_text, new_text).
-3. NATIVE TOOLS FIRST: Always use 'read_file', 'grep' (ripgrep), and 'glob' instead of running shell commands ('cat', 'head', 'grep', 'find') inside the 'bash' tool.
-4. NON-INTERACTIVE SHELL: Do not invoke interactive shell programs. For git commits, ALWAYS include '-m \"message\"'.
-5. SUBAGENT LIFECYCLE: When calling 'spawn_agent', you MUST call 'wait_agent(job_id)' to retrieve subagent results."
+1. ABSOLUTE PATHS: Use full absolute paths starting with '/' (e.g. '/home/carlosfilho/...').
+2. NON-EMPTY PARAMETERS: Do not call write_file or edit_file with empty or missing args.
+3. NATIVE TOOLS FIRST: Prefer 'read_file', 'grep' (ripgrep), and 'glob' over shell commands.
+4. NON-INTERACTIVE SHELL: Avoid interactive shells; git commits must include '-m \"message\"'.
+5. SUBAGENT LIFECYCLE: When using 'spawn_agent', call 'wait_agent(job_id)' to get results."
   "Instruções estritas de uso de ferramentas para os modelos do Magent.")
 
 (defun +carlos/magent-resolve-path-advice (orig-fun path)

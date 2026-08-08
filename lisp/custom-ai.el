@@ -49,7 +49,10 @@
 (defvar +carlos/gptel-quick-local-backend "Ollama Local"
   "Backend usado para tarefas locais rápidas como docstrings e testes.")
 
-(defvar +carlos/gptel-quick-local-model "qwen2.5-coder:3b"
+(defcustom +carlos/gptel-quick-local-model 'qwen2.5-coder:3b
+  "Modelo usado para tarefas locais rápidas como docstrings e testes."
+  :type 'symbol
+  :group 'carlos-ai)
   "Modelo usado para tarefas locais rápidas como docstrings e testes.")
 
 ;; ── gptel core ──────────────────────────────────────────────────────
@@ -355,23 +358,37 @@ Sem advice: chama `+carlos/gptel-agent-add-project-dirs' diretamente."
     (cond
      ;; --- HOST: agnes (macOS M2) -> Local-first via MLX ---
      ((string-match-p "agnes" hostname)
-      (setq-default gptel-backend (gptel-get-backend "MLX Local")
-                    gptel-model 'mlx-community/Qwen3.5-9B-MLX-4bit
-                    +carlos/gptel-agent-backend "MLX Local"
-                    +carlos/gptel-agent-model 'mlx-community/Qwen3.5-9B-MLX-4bit
-                    +carlos/gptel-quick-local-backend "MLX Local"
-                    +carlos/gptel-quick-local-model "mlx-community/Qwen3.5-9B-MLX-4bit")
+      (setq gptel-backend (gptel-get-backend "MLX Local")
+            gptel-model 'mlx-community/Qwen3.5-9B-MLX-4bit
+            +carlos/gptel-agent-backend "MLX Local"
+            +carlos/gptel-agent-model 'mlx-community/Qwen3.5-9B-MLX-4bit
+            +carlos/gptel-quick-local-backend "MLX Local"
+            +carlos/gptel-quick-local-model 'mlx-community/Qwen3.5-9B-MLX-4bit)
+          (unless (symbolp +carlos/gptel-quick-local-model)
+            (setq +carlos/gptel-quick-local-model (intern +carlos/gptel-quick-local-model)))
       (message "Emacs AI: Configurado para Chat Local MLX (agnes) com Qwen 3.5 9B"))
      
      ;; --- HOST: aa102-006l (EliteDesk NixOS) -> Local-first via Ollama ---
      (t
-      (setq-default gptel-backend (gptel-get-backend "Ollama Local")
-                    gptel-model "qwen2.5-coder:3b"
-                    +carlos/gptel-agent-backend "Ollama Local"
-                    +carlos/gptel-agent-model "qwen2.5-coder:3b"
-                    +carlos/gptel-quick-local-backend "Ollama Local"
-                    +carlos/gptel-quick-local-model "qwen2.5-coder:3b")
+      (setq gptel-backend (gptel-get-backend "Ollama Local")
+              gptel-model 'qwen2.5-coder:3b
+              +carlos/gptel-agent-backend "Ollama Local"
+              +carlos/gptel-agent-model 'qwen2.5-coder:3b
+              +carlos/gptel-quick-local-backend "Ollama Local"
+              +carlos/gptel-quick-local-model 'qwen2.5-coder:3b)
+          (unless (symbolp +carlos/gptel-quick-local-model)
+            (setq +carlos/gptel-quick-local-model (intern +carlos/gptel-quick-local-model)))
       (message "Emacs AI: Configurado para Chat Local Ollama (aa102-006l) com Qwen 2.5 3B")))))
+;; Ensure the quick local model is a symbol (not a string) – in case it was loaded from custom file as a string.
+(when (stringp +carlos/gptel-quick-local-model)
+  (setq +carlos/gptel-quick-local-model (intern +carlos/gptel-quick-local-model)))
+
+;; Ensure the variable is a symbol even if overridden by custom-file later
+(add-hook 'after-init-hook
+          (lambda ()
+            (when (stringp +carlos/gptel-quick-local-model)
+              (setq +carlos/gptel-quick-local-model (intern +carlos/gptel-quick-local-model)))))
+  
 
 ;; ── Emergency Fallback & Latency Watchdog ───────────────────────────
 (defun +carlos/gptel-emergency-fallback ()
