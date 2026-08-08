@@ -49,7 +49,7 @@
 (defvar +carlos/gptel-quick-local-backend "Ollama Local"
   "Backend usado para tarefas locais rápidas como docstrings e testes.")
 
-(defvar +carlos/gptel-quick-local-model 'qwen2.5-coder:3b
+(defvar +carlos/gptel-quick-local-model "qwen2.5-coder:3b"
   "Modelo usado para tarefas locais rápidas como docstrings e testes.")
 
 ;; ── gptel core ──────────────────────────────────────────────────────
@@ -358,17 +358,17 @@ Sem advice: chama `+carlos/gptel-agent-add-project-dirs' diretamente."
                     +carlos/gptel-agent-backend "MLX Local"
                     +carlos/gptel-agent-model 'mlx-community/Qwen3.5-9B-MLX-4bit
                     +carlos/gptel-quick-local-backend "MLX Local"
-                    +carlos/gptel-quick-local-model 'mlx-community/Qwen3.5-9B-MLX-4bit)
+                    +carlos/gptel-quick-local-model "mlx-community/Qwen3.5-9B-MLX-4bit")
       (message "Emacs AI: Configurado para Chat Local MLX (agnes) com Qwen 3.5 9B"))
      
      ;; --- HOST: aa102-006l (EliteDesk NixOS) -> Local-first via Ollama ---
      (t
       (setq-default gptel-backend (gptel-get-backend "Ollama Local")
-                    gptel-model 'qwen2.5-coder:3b
+                    gptel-model "qwen2.5-coder:3b"
                     +carlos/gptel-agent-backend "Ollama Local"
-                    +carlos/gptel-agent-model 'qwen2.5-coder:3b
+                    +carlos/gptel-agent-model "qwen2.5-coder:3b"
                     +carlos/gptel-quick-local-backend "Ollama Local"
-                    +carlos/gptel-quick-local-model 'qwen2.5-coder:3b)
+                    +carlos/gptel-quick-local-model "qwen2.5-coder:3b")
       (message "Emacs AI: Configurado para Chat Local Ollama (aa102-006l) com Qwen 2.5 3B")))))
 
 ;; ── Emergency Fallback & Latency Watchdog ───────────────────────────
@@ -630,5 +630,26 @@ O arquivo Org-mode gerado resultante será aberto no Emacs quando concluído."
           (pop-to-buffer buf)
           (message "Resumo de consumo de IA carregado!"))))))
 
+(defun +carlos/magent-analyze-agent-smith ()
+  "Run Magent to analyze the Rank05/Agent_Smith project using the local Ollama backend.
+Ensures the request is sent to the OpenAI‑compatible Ollama endpoint, bypassing the dynamic router."
+  (interactive)
+  (require 'magent)
+  (let ((default-directory (expand-file-name "Rank05/Agent_Smith" (project-root (project-current)))))
+    (let ((gptel-backend (gptel-get-backend "Ollama Local"))
+          (gptel-model "qwen2.5-coder:3b"))
+      ;; Disable the dynamic router that may switch to cloud backends
+      (when (boundp 'gptel-dynamic-router)
+        (setq-local gptel-dynamic-router nil))
+      (magent-start "Ola! Analise o projeto Rank05/Agent_Smith e diga o que voce entendeu"))))
+
+(defun +carlos/magent-log-context (request response)
+  "Log REQUEST and RESPONSE strings to *magent-log* buffer for debugging."
+  (let ((log-buf (get-buffer-create "*magent-log*")))
+    (with-current-buffer log-buf
+      (goto-char (point-max))
+      (insert (format "\n--- Magent Log (%s) ---\nRequest:\n%s\n\nResponse:\n%s\n" (format-time-string "%Y-%m-%d %H:%M:%S") request response)))))
+
 (provide 'custom-ai)
+;;; custom-ai.el ends here
 ;;; custom-ai.el ends here

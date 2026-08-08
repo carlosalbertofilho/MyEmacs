@@ -1,6 +1,31 @@
 # TODO — Planejamento Ativo e Backlog (MyEmacs)
 
 ## 0.20. Plano de Ação — Fortalecimento de Contexto e Sanitizador Nativo das 15 Ferramentas do Magent
+## 0.21. Plano de Ação — Corrigir erro persistente do Magent ao usar modelo local qwen2.5-coder:3b
+
+### Tópicos do Plano:
+
+1. **Diagnóstico aprofundado**  
+   - Inspecionar o buffer `*magent-log*` para identificar se a resposta do modelo contém texto ou chamadas de ferramenta vazias.  
+   - Verificar o payload enviado ao backend OpenAI (`gptel-make-openai`) para garantir que o parâmetro `response_format` está definido como `json` quando necessário.
+
+2. **Ajustes de configuração**  
+   - Garantir que `gptel-model` está definido como a string `"qwen2.5-coder:3b"` em `custom-ai.el`.  
+   - Atualizar `+carlos/gptel-request` para incluir `:response_format "json"` quando o modelo for local e a ferramenta exigir saída estruturada.  
+   - Remover/adaptar quaisquer conselhos de roteador dinâmico que possam redirecionar solicitações para backends remotos.
+
+3. **Validação de Ferramentas**  
+   - Testar cada uma das 15 ferramentas nativas do Magent individualmente com um prompt simples (`M-x magent-tool-test`) para confirmar que retornam chamadas válidas.  
+   - Criar teste ERT em `tests/magent-test.el` que simula uma resposta vazia do modelo e verifica que o Magent gera um erro controlado e não aborta a sessão.
+
+4. **Monitoramento e Feedback**  
+   - Implementar função `+carlos/magent-log-context` que grava no buffer `*magent-log*` o request/response completo para depuração futura.  
+   - Exibir aviso visual (`message`) ao usuário quando a resposta do modelo não contiver texto nem chamadas de ferramenta.
+
+5. **Rollout**  
+   - Aplicar as mudanças, executar `just test-all` e validar que todos os testes passam sem warnings.  
+   - Commitar as alterações com mensagem `fix(magent): resolves stop unknown reason error with qwen2.5-coder:3b`.  
+   - Sincronizar para `~/.config/emacs` e comunicar que o problema está resolvido.
 
 > **Autor:** Agente Arquiteto (modelo Pro/Opus). Plano EXECUTÁVEL para o Agente Executor.
 
