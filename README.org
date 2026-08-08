@@ -44,8 +44,10 @@ mode, com IA unificada via =Magent= (agente nativo Emacs-Lisp de codificação c
 ├── .magent/skills/         ← Skills nativas Magent (c-42, cpp-42, python, rag-converter, test-triage)
 ├── docs/                   ← RAG reference docs (16 arquivos de pacotes)
 ├── bin/
-│   ├── rag-convert         ← conversor de PDFs/HTML/MD para Org RAG via Ollama
-│   ├── log-triage          ← resumidor/triador local de logs de compilação e teste
+│   ├── rag-convert         ← conversor de PDFs/HTML/MD para Org RAG via Ollama/Gemini (com saídas estruturadas)
+│   ├── log-triage          ← resumidor/triador local estruturado de logs de teste via Ollama
+│   ├── skill-convert       ← script de conversão de regras e skills para formato do Magent
+│   ├── mcp-bridge          ← ponte JSON-RPC stdio CLI para servidores MCP locais (Stitch, etc.)
 │   └── promote-migration.py← script de migração definitiva Doom → Vanilla MyEmacs
 ├── Justfile                ← run, install, compile, check, sync, test, triage, promote, deploy
 ├── README.org
@@ -143,9 +145,10 @@ Depois configurar em =custom-org.el=:
 
 - **Plataforma Magent (Agente Nativo Emacs-Lisp):** Agente de codificação com 15 ferramentas nativas de inspeção e edição de código, controle de permissões por agente e frontend =agent-shell= (=C-c M m=).
 - **Commit IA Local Offline (=C-c C-g=):** Geração instantânea (<0.5s) e offline de mensagens de commit padronizadas utilizando o modelo `qwen2.5-coder:1.5b` local via Ollama.
-- **Triagem Inteligente de Logs (=just triage=):** Script `bin/log-triage` que consome erros de compilação/testes e utiliza a IA local para gerar um relatório RAG de 15 linhas (sem consumir tokens de nuvem).
-- **Docstrings & Testes On-Demand (=C-c c d= / =C-c c t=):** Funções Elisp que injetam docstrings PEP 257 / Doxygen e esqueletos de testes unitários diretamente sob o cursor via `qwen2.5-coder:3b`.
-- **RAG Document Converter (=bin/rag-convert=):** Script local que converte PDFs, HTML e Markdown em arquivos Org-Mode padronizados para a pasta `docs/`.
+- **Triagem Inteligente & Estruturada de Logs (=just triage=):** Script `bin/log-triage` atualizado para Structured Outputs (JSON Schema/format), processando erros de testes/compilação e formatando um relatório RAG estruturado.
+- **Ponte CLI de Servidores MCP (=bin/mcp-bridge=):** Script local de ponte JSON-RPC sobre stdio para acionar servidores Model Context Protocol (ex: Stitch, Chrome DevTools) de forma assíncrona.
+- **Conversor & Importador de Skills (=bin/skill-convert=):** Conversor inteligente com tratamento de frontmatter YAML para migrar regras comunitárias do Cursor (.mdc) e de outros agentes para o formato do Magent.
+- **RAG Document Converter (=bin/rag-convert=):** Script local atualizado para Structured Outputs, garantindo ingestão limpa de arquivos em Org-Mode sem alucinações de markdown.
 - **Guias de Indentação Modernas:** `indent-bars` com stipples de alta performance, escopo inteligente via Tree-sitter e harmonização com temas `ef-themes`.
 - **Aninhamento & Parênteses:** `rainbow-delimiters` ativado em todos os modos de programação para diferenciação visual de profundidade de blocos.
 - **Linha Atual & Caracteres Invisíveis:** `hl-line-mode` nativo para destaque da linha ativa e `whitespace-mode` sutil.
