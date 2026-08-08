@@ -112,6 +112,7 @@
   (gptel-make-ollama "Ollama Local"
     :host "localhost:11434"
     :stream t
+    :request-params '(:options (:num_ctx 16384))
     :models '("qwen2.5-coder:3b"
               "qwen2.5-coder:1.5b"
               "deepseek-r1:1.5b"))
@@ -424,9 +425,9 @@ Sem advice: chama `+carlos/gptel-agent-add-project-dirs' diretamente."
     (when (buffer-live-p target-buffer)
       (with-current-buffer target-buffer
         (cond
-         ;; REGRA 1: Tarefas de Planejamento / Arquitetura (/plan ou architect) -> Nuvem Premium (Zen Claude / agy)
+         ;; REGRA 1: Tarefas de Planejamento / Arquitetura / Análise (/plan, architect, analise) -> Nuvem Premium (Zen Claude / agy)
          ((or (string-match-p "\\*gptel-plan" (buffer-name))
-              (string-match-p "planejamento\\|arquitetura\\|/plan" prompt-text))
+              (string-match-p "planejamento\\|arquitetura\\|/plan\\|analis" prompt-text))
           (when-let ((backend (gptel-get-backend "Zen Claude")))
             (setq-local gptel-backend backend
                         gptel-model 'claude-sonnet-5)
