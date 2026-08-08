@@ -20,9 +20,8 @@
         (append (list (expand-file-name "lisp" user-emacs-directory)
                       (expand-file-name "site-lisp" user-emacs-directory))
                 load-path))
-  ;; Permitir checagem em buffers sem arquivo (ex: *scratch*)
-  (add-hook 'emacs-lisp-mode-hook #'flycheck-mode)
-  (add-hook 'lisp-interaction-mode-hook #'flycheck-mode))
+  ;; Habilitar checagem emacs-lisp para arquivos .el
+  (add-hook 'emacs-lisp-mode-hook #'flycheck-mode))
 
 ;; Wait for flycheck to be installed before loading custom-norminette
 ;; (which has a hard (require 'flycheck) at the top)

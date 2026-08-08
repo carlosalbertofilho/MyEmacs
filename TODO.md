@@ -1,5 +1,17 @@
 # TODO — Planejamento Ativo e Backlog (MyEmacs)
 
+## 0.17. Correção de Sync e Byte-Compile sem Avisos/Erros
+
+- [x] **1. Purga de arquivos residuais no `just sync` (`Justfile`)**
+  - Alterada a sincronização do `Justfile` de `cp -r` para `rsync -a --delete` em `lisp/`, `site-lisp/`, `tests/`, `docs/` e `bin/`.
+  - Motivo: `cp -r` deixava arquivos residuais legados do Doom Emacs em `~/.config/emacs/lisp/` (`doom-cli.el`, `doom-lib.el`, `cli/`, `lib/`), fazendo o `byte-recompile-directory` falhar.
+- [x] **2. Correção de warnings/erros do byte-compiler (`lisp/custom-ai.el`)**
+  - [x] Reduzido o tamanho de linhas de docstrings de mais de 80 caracteres para suprimir `docstring wider than 80 characters` (`+carlos/agy-prompt`, `+carlos/gptel-emergency-fallback`, `+carlos/gptel-dynamic-router-advice`, `+carlos/gptel-tracker-file-override`, `+carlos/magent-show-usage`).
+  - [x] Adicionadas forward declarations `(defvar url-connection-timeout)` e `(defvar url-queue-timeout)`.
+  - [x] Renomeados argumentos não utilizados `beg` e `end` para `_beg` e `_end` em `+carlos/gptel-track-usage` (suprimindo warning de lexical binding).
+- [x] **3. Validação dos Portões de Qualidade**
+  - Executados `just compile`, `just checkdoc` e `just sync` com 100% de sucesso sem avisos nem erros.
+
 ## 0.16. Plano de Ação — Dashboard de Consumo e Rastreamento por Agente
 
 > **Autor:** Agente Arquiteto (modelo Pro/Opus). Plano EXECUTÁVEL para o Agente Executor.
@@ -416,8 +428,8 @@
        }
        ```
 
-4. [ ] **Fase 4: Pipeline de RAG Universal com MarkItDown**
-   - [ ] **4.1. Criar o comando `+carlos/ai-rag-ingest`** em `lisp/custom-ai.el`:
+4. [x] **Fase 4: Pipeline de RAG Universal com MarkItDown**
+   - [x] **4.1. Criar o comando `+carlos/ai-rag-ingest`** em `lisp/custom-ai.el`:
      - Solicitar arquivo ou URL interativamente: `(read-file-name "Arquivo/URL para ingestão: ")`.
      - Executar assincronamente: usar `make-process` ou `async-shell-command` chamando `bin/rag-convert <caminho>`.
      - Exibição: Adicionar sentinel ao processo para, no sucesso, abrir o buffer com o arquivo `.org` resultante (`find-file`).

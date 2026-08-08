@@ -11,6 +11,14 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-08 — Correção de Sync e Byte-Compile sem Avisos/Erros (`custom-ai.el` e `Justfile`)
+   - **Correção da Receita `sync` no `Justfile`:** Alterado o comando de cópia para `rsync -a --delete` em `lisp/`, `site-lisp/`, `tests/`, `docs/` e `bin/`. Isso garante a remoção automática de arquivos residuais do Doom Emacs em `~/.config/emacs/lisp/` (`doom-*.el`, `cli/`, `lib/`), eliminando erros no `byte-recompile-directory`.
+   - **Fixes no `lisp/custom-ai.el`:**
+     - Ajustadas docstrings de mais de 80 caracteres (`+carlos/agy-prompt`, `+carlos/gptel-emergency-fallback`, `+carlos/gptel-dynamic-router-advice`, `+carlos/gptel-tracker-file-override`, `+carlos/magent-show-usage`).
+     - Adicionadas forward declarations `(defvar url-connection-timeout)` e `(defvar url-queue-timeout)`.
+     - Ajustados argumentos não utilizados em `+carlos/gptel-track-usage` para `_beg` e `_end` (evitando erro em `lexical-binding: t`).
+   - **Status:** 🏆 Compilação byte-compiled 100% limpa, checkdoc OK, sincronizado com `~/.config/emacs`.
+
 ** 2026-08-07 — FinOps Token & Cost Tracker, e Auto-Mapeamento de Skills
    - **FinOps Token & Cost Tracker (`custom-ai.el`):** Criada a função `+carlos/gptel-track-usage` e atada ao hook pós-resposta `gptel-post-response-functions`. Ela lê de forma assíncrona a variável buffer-local `gptel--token-usage` e grava os tokens de entrada, saída, cached e custo aproximado em formato de tabela Org em `docs/ai-usage-tracker.org`.
    - **Auto-Mapeamento de Skills por Projeto (`custom-magent.el`):** O diretório de busca de skills do Magent foi configurado para dinamicamente descobrir a raiz do projeto Git ativo utilizando a API `project-current`, mapeando a pasta `magent/skills/` (unificada e limpa) por repositório de forma automática.

@@ -220,15 +220,15 @@
             (with-current-buffer buf
               (goto-char (point-min))
               (should (search-forward "#+TITLE: Resumo de Consumo de IA por Agente (Magent)" nil t))
-              (should (search-forward "| Agent | Input Tokens | Output Tokens | Cached Tokens | Est. Cost |" nil t))
+              (should (re-search-forward "|\\s-*Agent\\s-*|\\s-*Input Tokens\\s-*|\\s-*Output Tokens\\s-*|\\s-*Cached Tokens\\s-*|\\s-*Est\\. Cost\\s-*|" nil t))
               ;; Agent A deve ter 300 input, 150 output, 30 cached, e $0.0032
-              (should (search-forward "| Agent A | 300 | 150 | 30 | $0.0032 |" nil t))
+              (should (re-search-forward "|\\s-*Agent A\\s-*|\\s-*300\\s-*|\\s-*150\\s-*|\\s-*30\\s-*|\\s-*\\$0\\.0032\\s-*|" nil t))
               ;; No Agent (gptel) deve ter 1000 input, 500 output, 0 cached, e $0.0002
               (goto-char (point-min))
-              (should (search-forward "| No Agent (gptel) | 1000 | 500 | 0 | $0.0002 |" nil t))
+              (should (re-search-forward "|\\s-*No Agent (gptel)\\s-*|\\s-*1000\\s-*|\\s-*500\\s-*|\\s-*0\\s-*|\\s-*\\$0\\.0002\\s-*|" nil t))
               ;; Total Geral deve ser 1300 input, 650 output, 30 cached, e $0.0034
               (goto-char (point-min))
-              (should (search-forward "| Total Geral | 1300 | 650 | 30 | $0.0034 |" nil t)))
+              (should (re-search-forward "|\\s-*Total Geral\\s-*|\\s-*1300\\s-*|\\s-*650\\s-*|\\s-*30\\s-*|\\s-*\\$0\\.0034\\s-*|" nil t)))
             (kill-buffer buf)))
       ;; Limpeza
       (setq +carlos/gptel-tracker-file-override nil)

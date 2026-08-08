@@ -37,6 +37,8 @@
 (declare-function magent-session-agent "magent-session")
 (declare-function magent-agent-info-name "magent-agent-info")
 (declare-function org-table-align "org-table")
+(defvar url-connection-timeout)
+(defvar url-queue-timeout)
 
 (defvar +carlos/gptel-agent-backend "Zen Claude"
   "Backend padrão para sessões de agente.")
@@ -286,7 +288,7 @@ Sem advice: chama `+carlos/gptel-agent-add-project-dirs' diretamente."
 
 ;; ── CLI Integrations (agy & copilot-cli) ────────────────────────────
 (defun +carlos/agy-prompt (prompt)
-  "Executa de forma assíncrona o Gemini CLI (agy) passando PROMPT e exibe o resultado."
+  "Executa assincronamente o Gemini CLI (agy) passando PROMPT."
   (interactive "sPergunta para o Gemini CLI: ")
   (let ((output-buffer (get-buffer-create "*Gemini CLI Output*")))
     (with-current-buffer output-buffer
@@ -359,7 +361,7 @@ Sem advice: chama `+carlos/gptel-agent-add-project-dirs' diretamente."
 
 ;; ── Emergency Fallback Router ───────────────────────────────────────
 (defun +carlos/gptel-emergency-fallback ()
-  "Interrompe a chamada de IA ativa lenta e altera o backend para a nuvem da assinatura (Zen Claude)."
+  "Interrompe a chamada de IA ativa e altera o backend para a nuvem."
   (interactive)
   (require 'gptel)
   ;; 1. Se houver processo ativo no buffer, mata-o
@@ -382,7 +384,8 @@ Sem advice: chama `+carlos/gptel-agent-add-project-dirs' diretamente."
 
 ;; ── Dynamic Task/Backend Router ─────────────────────────────────────
 (defun +carlos/gptel-dynamic-router-advice (prompt &rest args)
-  "Roteador dinâmico de IA. Executa :before `gptel-request' para definir o backend/modelo ideais."
+  "Roteador dinâmico de IA para PROMPT com ARGS.
+Executa :before `gptel-request' para definir backend/modelo ideais."
   (let* ((target-buffer (or (plist-get args :buffer) (current-buffer)))
          (prompt-text (or prompt ""))
          (hostname (system-name)))
@@ -425,9 +428,9 @@ Sem advice: chama `+carlos/gptel-agent-add-project-dirs' diretamente."
 
 ;; ── FinOps Token & Cost Tracker ─────────────────────────────────────
 (defvar +carlos/gptel-tracker-file-override nil
-  "Se não-nil, substitui o caminho padrão de gravação do log do tracker de consumo.")
+  "Se não-nil, substitui o caminho padrão do log de consumo.")
 
-(defun +carlos/gptel-track-usage (beg end)
+(defun +carlos/gptel-track-usage (_beg _end)
   "Hook executado após a resposta do gptel para registrar o consumo de tokens."
   (let* ((last-usage (car gptel--token-usage))
          (input (or (plist-get last-usage :input) 0))
@@ -525,7 +528,7 @@ O arquivo Org-mode gerado resultante será aberto no Emacs quando concluído."
                  (pop-to-buffer (process-buffer proc)))))))))))
 
 (defun +carlos/magent-show-usage ()
-  "Exibe o resumo de consumo de IA agrupado por agente no buffer *Magent Usage Summary*."
+  "Exibe o resumo de consumo de IA por agente em buffer Org."
   (interactive)
   (let ((tracker-file (or +carlos/gptel-tracker-file-override
                            (expand-file-name "docs/ai-usage-tracker.org" 
@@ -543,7 +546,7 @@ O arquivo Org-mode gerado resultante será aberto no Emacs quando concluído."
           (goto-char (point-min))
           (while (not (eobp))
             (let ((line (buffer-substring-no-properties (line-beginning-position) (line-end-position))))
-              (when (string-match-p "^\\s*|\\s*[0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}" line)
+              (when (string-match-p "^[ \t]*|[ \t]*[0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}" line)
                 (let* ((fields (mapcar #'string-trim (split-string line "|")))
                        (agent (if (>= (length fields) 4) (nth 3 fields) "Unknown"))
                        (input (if (>= (length fields) 7) (string-to-number (nth 6 fields)) 0))
