@@ -214,7 +214,7 @@ def find_skills(sources):
         logger.info(f"Scanning source directory: {source}")
         for root, dirs, files in os.walk(source):
             for file in files:
-                if file.upper() == 'SKILL.MD' or file == 'SKILL.md':
+                if file.upper() == 'SKILL.MD' or file == 'SKILL.md' or file.endswith('.mdc'):
                     full_path = os.path.join(root, file)
                     skill_files.append(full_path)
     return skill_files
@@ -269,11 +269,14 @@ def main():
                 
             frontmatter, body = parse_frontmatter(content)
             
-            # Pegar nome do frontmatter ou da pasta pai
+            # Pegar nome do frontmatter ou do arquivo/pasta pai
             skill_name = frontmatter.get('name')
             if not skill_name:
-                # Fallback para o nome da pasta pai
-                skill_name = os.path.basename(os.path.dirname(skill_file))
+                filename = os.path.basename(skill_file)
+                if filename.upper() == 'SKILL.MD':
+                    skill_name = os.path.basename(os.path.dirname(skill_file))
+                else:
+                    skill_name = os.path.splitext(filename)[0]
                 
             skill_desc = frontmatter.get('description')
             if not skill_desc:
