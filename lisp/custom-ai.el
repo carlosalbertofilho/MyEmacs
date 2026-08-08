@@ -209,7 +209,7 @@ Garante que o gptel esteja carregado antes de buscar o backend."
       (setq buffer-read-only nil)
       (erase-buffer))
     (let ((extra (when (member backend '("Ollama Local" "MLX Local"))
-                   '(:response_format "json"))))
+                   '(:response_format (:type "json_object")))))
       (apply #'gptel-request prompt :buffer buffer (append args extra)))))
 
 ;; ── +carlos/gptel-agent-run (reescrito sem advice bug) ─────────────
