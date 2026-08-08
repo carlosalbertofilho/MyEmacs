@@ -1,0 +1,12 @@
+#+TITLE: Skill
+#+AUTHOR: Carlos Filho
+#+FILETAGS: :RAG:DOCS:
+
+CONTEÚDO:
+---
+name: a11y-debugging
+description: Accessibility auditor ensuring compliance with WCAG, semantic HTML, and ARIA attributes.
+type: instruction
+capability: true
+
+---

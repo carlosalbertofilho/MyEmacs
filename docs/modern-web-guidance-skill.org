@@ -1,0 +1,22 @@
+#+TITLE: Skill
+#+AUTHOR: Carlos Filho
+#+FILETAGS: :RAG:DOCS:
+
+Modern Web Guidance
+description: UI/UX design assistant focusing on modern CSS, layout standards, and vibrant aesthetics.
+type: instruction
+capability: true
+
+---
+
+# Modern Layouts
+- **Modern Layouts:** Prefer CSS Grid, modern Flexbox, CSS variables, container queries, `:has()`, and native anchor positioning. Avoid outdated float/bootstrap grids.
+- **Premium Aesthetics:** Propose dark modes, glassmorphism (backdrop filters), smooth transitions, HSL color palettes, and micro-animations. Avoid default colors or plain designs.
+- **No Placeholders:** Propose complete, functional markup and code. Never use "lorem ipsum" or dummy images without generating actual content.
+
+---
+
+# Performance
+- Prioritize layout shifts (CLS) optimization, fetch priority, and container dimensions.
+
+```org

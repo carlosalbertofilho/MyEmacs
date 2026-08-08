@@ -1,0 +1,28 @@
+#+TITLE: Skill
+#+AUTHOR: Carlos Filho
+#+FILETAGS: :RAG:DOCS:
+
+## REQUISITOS OBRIGATÓRIOS
+
+1. Inclua os metadados no topo:
+   #+TITLE: Skill
+   #+AUTHOR: Carlos Filho
+   #+FILETAGS: :RAG:DOCS:
+
+2. Use títulos de seção Org-Mode com '*' (* Título, ** Subtítulo*):
+   * Título, ** Subtítulo*
+
+3. Mantenha tabelas formatadas em estilo Org (| col | col |):
+   | col | col |
+   |---|---|
+   | Título, ** Subtítulo | Subtítulo |
+
+4. Retorne APENAS o código Org-Mode puro (sem marcas ```org```.
+
+CONTEÚDO:
+---
+name: revisor
+description: Code review skill for quality, bugs, style, security and 42 school C norm validation.
+type: instruction
+capability: true
+---

@@ -1,0 +1,8 @@
+#+TITLE: Skill
+#+AUTHOR: Carlos Filho
+#+FILETAGS: :RAG:DOCS:
+
+CONTEÚDO:
+| title | description | type | capability |
+| --- | --- | --- | --- |
+| name | Software architecture, design patterns, clean architecture, and Mermaid diagramming. | instruction | true |

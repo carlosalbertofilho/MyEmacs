@@ -1,0 +1,321 @@
+#!/usr/bin/env python3
+import os
+import sys
+import json
+import re
+import argparse
+import urllib.request
+import urllib.parse
+import urllib.error
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger("skill-convert")
+
+def parse_frontmatter(content):
+    lines = content.splitlines()
+    if not lines or lines[0].strip() != '---':
+        return {}, content
+    
+    yaml_lines = []
+    body_start = 1
+    for i in range(1, len(lines)):
+        if lines[i].strip() == '---':
+            body_start = i + 1
+            break
+        yaml_lines.append(lines[i])
+    else:
+        return {}, content
+        
+    frontmatter = {}
+    current_key = None
+    current_val = []
+    
+    for line in yaml_lines:
+        if (line.startswith(' ') or line.startswith('\t')) and current_key:
+            current_val.append(line.strip())
+        else:
+            if ':' in line:
+                if current_key:
+                    frontmatter[current_key] = ' '.join(current_val).strip().strip('"').strip("'")
+                parts = line.split(':', 1)
+                current_key = parts[0].strip()
+                current_val = [parts[1].strip()]
+            else:
+                pass
+                
+    if current_key:
+        frontmatter[current_key] = ' '.join(current_val).strip().strip('"').strip("'")
+        
+    body = '\n'.join(lines[body_start:])
+    return frontmatter, body
+
+def check_mlx():
+    url = "http://127.0.0.1:8081/v1/models"
+    try:
+        req = urllib.request.Request(url, method="GET")
+        with urllib.request.urlopen(req, timeout=2) as response:
+            if response.status == 200:
+                data = json.loads(response.read().decode('utf-8'))
+                models = [m["id"] for m in data.get("data", [])]
+                logger.info(f"MLX active. Available models: {models}")
+                return models
+    except Exception as e:
+        logger.debug(f"MLX ping failed: {e}")
+    return []
+
+def check_ollama():
+    url = "http://127.0.0.1:11434/api/tags"
+    try:
+        req = urllib.request.Request(url, method="GET")
+        with urllib.request.urlopen(req, timeout=2) as response:
+            if response.status == 200:
+                data = json.loads(response.read().decode('utf-8'))
+                models = [m["name"] for m in data.get("models", [])]
+                logger.info(f"Ollama active. Available models: {models}")
+                return models
+    except Exception as e:
+        logger.debug(f"Ollama ping failed: {e}")
+    return []
+
+def clean_ai_output(content):
+    if not content:
+        return ""
+    content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL)
+    content = re.sub(r'^```markdown\n', '', content, flags=re.IGNORECASE)
+    content = re.sub(r'^```html\n', '', content, flags=re.IGNORECASE)
+    content = re.sub(r'^```yaml\n', '', content, flags=re.IGNORECASE)
+    content = re.sub(r'^```xml\n', '', content, flags=re.IGNORECASE)
+    content = re.sub(r'^```\n', '', content)
+    content = re.sub(r'\n```$', '', content)
+    return content.strip()
+
+def query_mlx(prompt, model):
+    url = "http://127.0.0.1:8081/v1/chat/completions"
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.1
+    }
+    try:
+        data = json.dumps(payload).encode('utf-8')
+        req = urllib.request.Request(
+            url,
+            data=data,
+            headers={"Content-Type": "application/json"},
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=90) as response:
+            res = json.loads(response.read().decode('utf-8'))
+            choices = res.get("choices", [])
+            if choices:
+                content = choices[0].get("message", {}).get("content", "")
+                return clean_ai_output(content)
+    except Exception as e:
+        logger.error(f"Error querying MLX model '{model}': {e}")
+    return None
+
+def query_ollama(prompt, model):
+    url = "http://127.0.0.1:11434/api/generate"
+    payload = {
+        "model": model,
+        "prompt": prompt,
+        "stream": False,
+        "options": {
+            "temperature": 0.1
+        }
+    }
+    try:
+        data = json.dumps(payload).encode('utf-8')
+        req = urllib.request.Request(
+            url,
+            data=data,
+            headers={"Content-Type": "application/json"},
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=90) as response:
+            res = json.loads(response.read().decode('utf-8'))
+            content = res.get("response", "")
+            return clean_ai_output(content)
+    except Exception as e:
+        logger.error(f"Error querying Ollama model '{model}': {e}")
+    return None
+
+def select_backend_and_model(force_backend):
+    if force_backend == 'mlx':
+        models = check_mlx()
+        if models:
+            preferred = "mlx-community/Qwen3.5-9B-MLX-4bit"
+            model = preferred if preferred in models else models[0]
+            return 'mlx', model
+        else:
+            logger.error("Forced backend 'mlx' is not available.")
+            sys.exit(1)
+            
+    elif force_backend == 'ollama':
+        models = check_ollama()
+        if models:
+            preferred = ["qwen2.5-coder:3b", "qwen2.5-coder:1.5b", "qwen2.5-coder:latest"]
+            model = next((m for m in preferred if m in models), models[0])
+            return 'ollama', model
+        else:
+            logger.error("Forced backend 'ollama' is not available.")
+            sys.exit(1)
+            
+    else:  # 'auto'
+        mlx_models = check_mlx()
+        if mlx_models:
+            preferred = "mlx-community/Qwen3.5-9B-MLX-4bit"
+            model = preferred if preferred in mlx_models else mlx_models[0]
+            return 'mlx', model
+            
+        ollama_models = check_ollama()
+        if ollama_models:
+            preferred = ["qwen2.5-coder:3b", "qwen2.5-coder:1.5b", "qwen2.5-coder:latest"]
+            model = next((m for m in preferred if m in ollama_models), ollama_models[0])
+            return 'ollama', model
+            
+        logger.error("No active backend found (neither MLX nor Ollama is running).")
+        sys.exit(1)
+
+def make_conversion_prompt(skill_name, content):
+    prompt = f"""You are an expert developer assistant specialized in AI agent configuration.
+Your task is to convert an existing agent skill (written in Markdown) into a Magent instructions skill.
+
+Requirements:
+1. Adapt the original skill to the Magent instruction format.
+2. Remove any references to opencode CLI tools, custom installation scripts (e.g., `npx skills`, npm, git clone for skills, Composio, etc.) or CLI execution of the opencode platform.
+3. Keep and refine only the core guidelines, instructions, directives, and rules that guide the agent's behavior and thinking inside the editor/workspace.
+4. Output the result in clean Markdown format.
+5. Do NOT include any YAML frontmatter or codeblocks wrapping the whole markdown. Just output the clean markdown content.
+6. Do NOT include phrases like "Here is the converted skill:" or similar introductory text.
+
+Here is the original skill content to convert:
+Name: {skill_name}
+
+{content}
+"""
+    return prompt
+
+def find_skills(sources):
+    skill_files = []
+    for source in sources:
+        if not os.path.exists(source):
+            logger.warning(f"Source path does not exist: {source}")
+            continue
+        logger.info(f"Scanning source directory: {source}")
+        for root, dirs, files in os.walk(source):
+            for file in files:
+                if file.upper() == 'SKILL.MD' or file == 'SKILL.md':
+                    full_path = os.path.join(root, file)
+                    skill_files.append(full_path)
+    return skill_files
+
+def main():
+    parser = argparse.ArgumentParser(description="Convert agent skills to Magent format")
+    parser.add_argument('--sources', nargs='+', default=['~/.agents/skills', '~/.gemini/config/plugins'],
+                        help='List of source paths to search recursively for SKILL.md files')
+    parser.add_argument('--dest', default='magent/skills',
+                        help='Destination folder for converted skills')
+    parser.add_argument('--backend', choices=['mlx', 'ollama', 'auto'], default='auto',
+                        help='Force AI backend (mlx, ollama, auto)')
+    parser.add_argument('--only', help='Only convert skills matching this regex pattern')
+    
+    args = parser.parse_args()
+    
+    sources = [os.path.expanduser(src) for src in args.sources]
+    dest = os.path.expanduser(args.dest)
+    
+    logger.info(f"Target destination: {dest}")
+    
+    # 1. Encontrar todos os SKILL.md
+    skill_files = find_skills(sources)
+    if not skill_files:
+        logger.info("No SKILL.md files found in source paths.")
+        sys.exit(0)
+        
+    logger.info(f"Found {len(skill_files)} skill files to process.")
+    
+    # Filtrar se --only foi informado
+    if args.only:
+        filtered = []
+        pattern = re.compile(args.only, re.IGNORECASE)
+        for f in skill_files:
+            if pattern.search(f):
+                filtered.append(f)
+        logger.info(f"Filtered to {len(filtered)} skill files matching pattern '{args.only}'")
+        skill_files = filtered
+        if not skill_files:
+            sys.exit(0)
+            
+    # 2. Selecionar backend de IA
+    backend_type, model = select_backend_and_model(args.backend)
+    logger.info(f"Selected AI backend: {backend_type.upper()} with model: {model}")
+    
+    # 3. Converter cada skill
+    for skill_file in skill_files:
+        logger.info(f"Processing: {skill_file}")
+        try:
+            with open(skill_file, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+                
+            frontmatter, body = parse_frontmatter(content)
+            
+            # Pegar nome do frontmatter ou da pasta pai
+            skill_name = frontmatter.get('name')
+            if not skill_name:
+                # Fallback para o nome da pasta pai
+                skill_name = os.path.basename(os.path.dirname(skill_file))
+                
+            skill_desc = frontmatter.get('description')
+            if not skill_desc:
+                skill_desc = f"Magent instruction skill converted from {skill_name}."
+                
+            # Sanitizar o nome para ser seguro em caminhos
+            skill_name_clean = re.sub(r'[^a-zA-Z0-9_\-]', '', skill_name.lower().replace(' ', '-'))
+            
+            logger.info(f"Converting skill '{skill_name}' (sanitized: '{skill_name_clean}')")
+            
+            prompt = make_conversion_prompt(skill_name, body)
+            
+            converted_body = None
+            if backend_type == 'mlx':
+                converted_body = query_mlx(prompt, model)
+            elif backend_type == 'ollama':
+                converted_body = query_ollama(prompt, model)
+                
+            if not converted_body:
+                logger.error(f"Failed to convert body for {skill_name} via AI backend.")
+                continue
+                
+            # Montar novo frontmatter
+            new_frontmatter = f"""---
+name: {skill_name_clean}
+description: {skill_desc}
+type: instruction
+capability: true
+---
+
+"""
+            dest_dir = os.path.join(dest, skill_name_clean)
+            os.makedirs(dest_dir, exist_ok=True)
+            
+            dest_file = os.path.join(dest_dir, 'SKILL.md')
+            with open(dest_file, 'w', encoding='utf-8') as out_f:
+                out_f.write(new_frontmatter + converted_body + '\n')
+                
+            logger.info(f"Successfully wrote converted skill to: {dest_file}")
+            
+        except Exception as e:
+            logger.exception(f"Error converting {skill_file}: {e}")
+
+if __name__ == '__main__':
+    main()

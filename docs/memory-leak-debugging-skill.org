@@ -1,0 +1,11 @@
+#+TITLE: Skill
+#+AUTHOR: Carlos Filho
+#+FILETAGS: :RAG:DOCS:
+
+CONTEÚDO:
+| col | col |
+|------|------|
+| **Garbage Collection:** Look for unresolved global variables, uncleared intervals/timeouts, and active event listeners that prevent GC. |
+| **Closures:** Audit loops and scope bindings to check if massive objects are captured in callbacks. |
+| **Detached Nodes:** For frontend files, check for DOM element caches that are not freed when the node is removed. |
+| **Data Streams:** Ensure file readers, sockets, and HTTP request flows implement correct close/destroy hooks to avoid file descriptor and socket leakage. |

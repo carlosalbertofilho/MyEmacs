@@ -1,0 +1,21 @@
+# +TITLE: Skill
+# +AUTHOR: Carlos Filho
+# +FILETAGS: :RAG:DOCS:
+
+## REQUISITOS OBRIGATÓRIOS
+
+1. Inclua os metadados no topo:
+   #+TITLE: Skill
+   #+AUTHOR: Carlos Filho
+   #+FILETAGS: :RAG:DOCS:
+
+2. Use títulos de seção Org-Mode com *:
+   * Local Docs First: Always check if there are reference files under the `docs/` directory of the project.
+   * Search Before Guessing: Use `grep_search` or `find_files` in the `docs/` folder to locate official configuration patterns, APIs, and resolved bugs for packages (e.g. dirvish, gptel, denote).
+
+3. Mantenha tabelas formatadas em estilo Org:
+   | col | col |
+   |------|------|
+   | No Hallucinations: Do not guess third-party APIs or elisp macros. Ground your responses in the actual reference files retrieved from the repository's docs. |
+
+CONTEÚDO:

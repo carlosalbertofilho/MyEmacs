@@ -1,0 +1,10 @@
+#+TITLE: Skill
+#+AUTHOR: Carlos Filho
+#+FILETAGS: :RAG:DOCS:
+
+CONTEÚDO:
+---
+name: rag-converter
+description: Convert documents (PDF, HTML, MD) to standardized Org-Mode RAG documents using rag-convert CLI or local Ollama.
+type: instruction
+capability: true
