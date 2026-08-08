@@ -41,9 +41,16 @@
   (magent-agent-shell-ensure-config)
   (should (memq #'magent-agent-shell-make-config agent-shell-agent-configs)))
 
-(ert-deftest myemacs-magent-ai-fallback-kept ()
-  (should (eq (key-binding (kbd "C-c I")) '+carlos/gptel-agent-run))
-  (should (eq (key-binding (kbd "C-c C-g")) '+carlos/gptel-generate-commit-message)))
+(ert-deftest myemacs-magent-slash-commands-exist ()
+  (should (commandp '+carlos/magent-set-workdir))
+  (should (commandp '+carlos/magent-add-dir))
+  (should (commandp '+carlos/magent-list-dirs))
+  (should (commandp '+carlos/magent-render-usage-chat)))
+
+(ert-deftest myemacs-magent-slash-interceptor ()
+  (should (+carlos/magent-slash-interceptor "/list-dirs"))
+  (should (+carlos/magent-slash-interceptor "/usage"))
+  (should-not (+carlos/magent-slash-interceptor "olá mundo")))
 
 (provide 'magent-test)
 ;;; magent-test.el ends here

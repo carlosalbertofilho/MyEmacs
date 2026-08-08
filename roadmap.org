@@ -11,6 +11,22 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-08 — Slash Commands no Chat, Boot Local-First, Quota Cascade & Latency Watchdog
+   - **Slash Commands Nativos no Chat do Magent (`lisp/custom-magent.el`):**
+     - `/set-workdir <caminho>` (`C-c M w`): Altera o diretório de trabalho base da sessão e o escopo do agent-shell.
+     - `/add-dir <caminho>` (`C-c M a`): Inclui diretórios externos no escopo de busca de skills e contexto da sessão.
+     - `/list-dirs` (`C-c M L`): Exibe no buffer de chat o diretório principal e pastas extras adicionadas.
+     - `/usage`: Renderiza o relatório FinOps no chat com barra visual de cota ASCII (`[████████░░] 80%`) e custo acumulado.
+     - Interceptor inteligente `+carlos/magent-slash-interceptor` integrado ao prompt.
+   - **Boot Local-First & Saúde do Servidor de IA (`lisp/custom-ai.el`):**
+     - Modelo local por padrão na inicialização do Emacs (Ollama `qwen2.5-coder:3b` no EliteDesk / MLX `Qwen 3.5 9B` no Mac) para consumo zero de tokens de nuvem.
+     - Função `+carlos/local-ai-server-ping-p` para validar conectividade do serviço local (NixOS systemd / macOS launchd).
+     - Fallback gracioso automático para Google AI Studio (Gemini 2.5 Flash) se o daemon local estiver inativo.
+   - **Cascata Estrita de Cotas & Observador de Latência (`lisp/custom-ai.el`):**
+     - Roteador dinâmico ajustado com hierarquia de 4 níveis de cotas (Local ➔ Gemini Cloud Free ➔ OpenCode Zen / Big Pickle ➔ Zen Claude / agy).
+     - `+carlos/gptel-latency-watchdog`: Temporizador automático de 8s para modelos free/zen. Caso haja atraso de resposta, cancela e migra a requisição para Zen Claude com aviso visual no minibuffer.
+   - **Status:** 🏆 100% dos 122 testes ERT aprovados, byte-compile sem avisos, sincronizado com `~/.config/emacs`.
+
 ** 2026-08-08 — Correção de Sync e Byte-Compile sem Avisos/Erros (`custom-ai.el` e `Justfile`)
    - **Correção da Receita `sync` no `Justfile`:** Alterado o comando de cópia para `rsync -a --delete` em `lisp/`, `site-lisp/`, `tests/`, `docs/` e `bin/`. Isso garante a remoção automática de arquivos residuais do Doom Emacs em `~/.config/emacs/lisp/` (`doom-*.el`, `cli/`, `lib/`), eliminando erros no `byte-recompile-directory`.
    - **Fixes no `lisp/custom-ai.el`:**

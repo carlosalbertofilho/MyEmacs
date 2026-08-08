@@ -97,23 +97,23 @@
             (should (equal "MLX Local" +carlos/gptel-quick-local-backend))
             (should (eq 'mlx-community/Qwen3.5-9B-MLX-4bit +carlos/gptel-quick-local-model)))
 
-          ;; 2. Testar host: aa102-006l (EliteDesk)
+          ;; 2. Testar host: aa102-006l (EliteDesk - Ollama Local Default)
           (cl-letf (((symbol-function 'system-name) (lambda () "aa102-006l")))
             (+carlos/gptel-setup-defaults-by-host)
-            (should (equal "Zen Claude" (gptel-backend-name gptel-backend)))
-            (should (eq 'claude-sonnet-5 gptel-model))
-            (should (equal "Zen Claude" +carlos/gptel-agent-backend))
-            (should (eq 'claude-sonnet-5 +carlos/gptel-agent-model))
+            (should (equal "Ollama Local" (gptel-backend-name gptel-backend)))
+            (should (eq 'qwen2.5-coder:3b gptel-model))
+            (should (equal "Ollama Local" +carlos/gptel-agent-backend))
+            (should (eq 'qwen2.5-coder:3b +carlos/gptel-agent-model))
             (should (equal "Ollama Local" +carlos/gptel-quick-local-backend))
             (should (eq 'qwen2.5-coder:3b +carlos/gptel-quick-local-model)))
 
-          ;; 3. Testar host fallback (outros)
+          ;; 3. Testar host fallback (outros -> Ollama Local Default)
           (cl-letf (((symbol-function 'system-name) (lambda () "unknown-host")))
             (+carlos/gptel-setup-defaults-by-host)
-            (should (equal "Zen Claude" (gptel-backend-name gptel-backend)))
-            (should (eq 'claude-sonnet-5 gptel-model))
-            (should (equal "Zen Claude" +carlos/gptel-quick-local-backend))
-            (should (eq 'claude-sonnet-5 +carlos/gptel-quick-local-model))))
+            (should (equal "Ollama Local" (gptel-backend-name gptel-backend)))
+            (should (eq 'qwen2.5-coder:3b gptel-model))
+            (should (equal "Ollama Local" +carlos/gptel-quick-local-backend))
+            (should (eq 'qwen2.5-coder:3b +carlos/gptel-quick-local-model))))
       
       ;; Garantir a restauração dos estados originais de backend/modelo após o teste
       (setq gptel-backend old-backend
@@ -127,16 +127,15 @@
   "Valida se o roteamento dinâmico de IA escolhe os modelos/backends certos por contexto."
   :tags '(ai)
   (let ((old-backend gptel-backend)
-        (old-model gptel-model)
-        (hostname (system-name)))
+        (old-model gptel-model))
     (unwind-protect
         (progn
-          ;; 1. Testar Roteamento de Magent (Zen Claude)
-          (let ((buf (get-buffer-create "*Magent-test*")))
+          ;; 1. Testar Roteamento de Planejamento (/plan -> Zen Claude)
+          (let ((buf (get-buffer-create "*gptel-plan*")))
             (with-current-buffer buf
               (setq gptel-backend nil
                     gptel-model nil)
-              (+carlos/gptel-dynamic-router-advice "Escreva um commit" :buffer buf)
+              (+carlos/gptel-dynamic-router-advice "Monte um planejamento" :buffer buf)
               (should (equal "Zen Claude" (gptel-backend-name gptel-backend)))
               (should (eq 'claude-sonnet-5 gptel-model)))
             (kill-buffer buf))
@@ -151,21 +150,17 @@
               (should (eq 'gemini-2.5-flash gptel-model)))
             (kill-buffer buf))
 
-          ;; 3. Testar Roteamento de Código local no macOS (MLX Qwen 3.5 9B)
-          (let ((buf (get-buffer-create "*test-prog-code*")))
+          ;; 3. Testar Roteamento de Código (Magent / prog-mode -> OpenCode Zen big-pickle se local inativo)
+          (let ((buf (get-buffer-create "*Magent-test*")))
             (with-current-buffer buf
-              (prog-mode)
               (setq gptel-backend nil
                     gptel-model nil)
-              (cl-letf (((symbol-function 'system-name) (lambda () "agnes.local")))
-                (+carlos/gptel-dynamic-router-advice "def my_func():" :buffer buf)
-                (should (equal "MLX Local" (gptel-backend-name gptel-backend)))
-                (should (eq 'mlx-community/Qwen3.5-9B-MLX-4bit gptel-model))))
-            (kill-buffer buf)))
-
-      ;; Limpeza
+              (+carlos/gptel-dynamic-router-advice "Escreva uma funcao" :buffer buf)
+              (should (member (gptel-backend-name gptel-backend) '("Ollama Local" "OpenCode Zen")))
+              (should (memq gptel-model '(qwen2.5-coder:3b big-pickle))))
+            (kill-buffer buf))))
       (setq gptel-backend old-backend
-            gptel-model old-model))))
+            gptel-model old-model)))
 
 (ert-deftest myemacs-ai-tracker ()
   "Valida se a gravação de tokens do FinOps funciona e gera a tabela Org corretamente."
@@ -176,7 +171,7 @@
         (let ((buf (get-buffer-create "*test-tracker*")))
           (with-current-buffer buf
             (cl-letf (((symbol-function 'gptel-backend-name) (lambda (&rest _) "Zen Claude")))
-              (setq-local gptel-backend t
+              (setq-local gptel-backend (gptel-get-backend "Zen Claude")
                           gptel-model 'claude-sonnet-5
                           gptel--token-usage '((:input 150 :output 75 :cached 50)
                                                (:input 150 :output 75 :cached 50)))

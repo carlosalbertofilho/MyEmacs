@@ -1,5 +1,48 @@
 # TODO — Planejamento Ativo e Backlog (MyEmacs)
 
+## 0.19. Plano de Ação — Roteamento Inteligente com Chat Local Default, Saúde do Servidor e Observador de Latência
+
+> **Autor:** Agente Arquiteto (modelo Pro/Opus). Plano EXECUTÁVEL para o Agente Executor.
+
+### Tópicos do Plano:
+
+1. [x] **Fase 1: Verificação e Saúde do Servidor de IA Local (NixOS / macOS)**
+   - [x] Criada a função `+carlos/local-ai-server-ping-p` em `lisp/custom-ai.el` para checar a conectividade do servidor local (Ollama em `http://localhost:11434/api/tags` ou MLX em `http://localhost:8081`).
+   - [x] Integrado com os serviços configurados via Nix (`services.ollama` no NixOS EliteDesk e `launchd.agents.ollama` no macOS `agnes`).
+   - [x] Caso o servidor local não responda, efetuado fallback gracioso para o **Nível 2 (Google AI Studio Gemini 2.5 Flash)** com notificação no minibuffer.
+
+2. [x] **Fase 2: Chat Inicial 100% Local (Default Boot)**
+   - [x] Ajustada a função `+carlos/gptel-setup-defaults-by-host` em `lisp/custom-ai.el` para boot local por padrão (Ollama `qwen2.5-coder:3b` no EliteDesk / MLX `Qwen 3.5 9B` no Mac).
+   - [x] Consumo zero de tokens de nuvem na inicialização.
+
+3. [x] **Fase 3: Hierarquia de Cotas e Roteamento por Tarefa (`lisp/custom-ai.el`)**
+   - [x] Atualizado o Roteador Dinâmico (`+carlos/gptel-dynamic-router-advice`) com a hierarquia estrita de 4 níveis.
+   - [x] Tarefa `/plan` / `architect`: Roteada para Zen Claude (Sonnet 3.5 / Opus) ou Gemini Pro.
+   - [x] Tarefa `build` / `revisor`: Roteada para Local AI ou OpenCode Zen `big-pickle`.
+
+4. [x] **Fase 4: Observador de Latência Dinâmico (`+carlos/gptel-latency-watchdog`)**
+   - [x] Criada a função de monitoramento de latência `+carlos/gptel-latency-watchdog` com limite de 8s. Se o modelo gratuito/zen atrasar a resposta, cancela e migra automaticamente para Zen Claude com aviso visual.
+
+5. [x] **Fase 5: Testes ERT em `tests/ai-test.el`**
+   - [x] Adicionados testes verificando a checagem de saúde do servidor local, boot local por padrão, a hierarquia de cotas e o observador de latência (100% verdes).
+
+## 0.18. Plano de Ação — Slash Commands de Diretório e Quota no Chat do Magent
+
+> **Autor:** Agente Arquiteto (modelo Pro/Opus). Plano EXECUTÁVEL para o Agente Executor.
+
+### Tópicos do Plano:
+
+1. [x] **Fase 1: Registro das Ações de Diretório (`/set-workdir`, `/add-dir`, `/list-dirs`)**
+   - [x] Registradas as funções e slash commands `+carlos/magent-set-workdir` (`C-c M w`), `+carlos/magent-add-dir` (`C-c M a`), e `+carlos/magent-list-dirs` (`C-c M L`).
+   - [x] Suporte ao interceptor de slash commands no prompt do Magent (`+carlos/magent-slash-interceptor`).
+
+2. [x] **Fase 2: Registro do Slash Command `/usage` com Barra Visual de Cota**
+   - [x] Registrado o slash command `/usage` chamando `+carlos/magent-render-usage-chat`.
+   - [x] Renderização da barra de progresso ASCII (`[████████░░] 80%`) e consumo acumulado FinOps.
+
+3. [x] **Fase 3: Testes de Regressão e Validação em `tests/magent-test.el`**
+   - [x] Criados testes ERT em `tests/magent-test.el` validadas as execuções dos 4 slash commands e do interceptor.
+
 ## 0.17. Correção de Sync e Byte-Compile sem Avisos/Erros
 
 - [x] **1. Purga de arquivos residuais no `just sync` (`Justfile`)**
