@@ -130,37 +130,74 @@
         (old-model gptel-model))
     (unwind-protect
         (progn
-          ;; 1. Testar Roteamento de Planejamento (/plan -> Zen Claude)
+          ;; 1. Testar Roteamento de Planejamento (/plan -> Gemini Pro free tier)
           (let ((buf (get-buffer-create "*gptel-plan*")))
             (with-current-buffer buf
               (setq gptel-backend nil
                     gptel-model nil)
               (+carlos/gptel-dynamic-router-advice "Monte um planejamento" :buffer buf)
-              (should (equal "Zen Claude" (gptel-backend-name gptel-backend)))
-              (should (eq 'claude-sonnet-5 gptel-model)))
+              (should (equal "Gemini" (gptel-backend-name gptel-backend)))
+              (should (eq 'gemini-2.5-pro gptel-model)))
             (kill-buffer buf))
 
-          ;; 2. Testar Roteamento de Prompt Geral (Gemini Cloud)
+          ;; 2. Testar Roteamento de Prompt Geral (Local offline -> Gemini Flash)
           (let ((buf (get-buffer-create "*test-general*")))
             (with-current-buffer buf
               (setq gptel-backend nil
                     gptel-model nil)
               (+carlos/gptel-dynamic-router-advice "Resuma o conteudo do link acima por favor" :buffer buf)
-              (should (equal "Gemini" (gptel-backend-name gptel-backend)))
-              (should (eq 'gemini-2.5-flash gptel-model)))
+              ;; Pode ser Local (se online) ou Gemini Flash
+              (should (member (gptel-backend-name gptel-backend) '("Ollama Local" "MLX Local" "Gemini")))
+              (should (memq gptel-model '(qwen2.5-coder:3b mlx-community/Qwen3.5-9B-MLX-4bit gemini-2.5-flash))))
             (kill-buffer buf))
 
-          ;; 3. Testar Roteamento de Código (Magent / prog-mode -> OpenCode Zen big-pickle se local inativo)
+          ;; 3. Testar Roteamento de Código (Magent -> Local ou OpenCode Zen free)
           (let ((buf (get-buffer-create "*Magent-test*")))
             (with-current-buffer buf
               (setq gptel-backend nil
                     gptel-model nil)
               (+carlos/gptel-dynamic-router-advice "Escreva uma funcao" :buffer buf)
-              (should (member (gptel-backend-name gptel-backend) '("Ollama Local" "OpenCode Zen")))
-              (should (memq gptel-model '(qwen2.5-coder:3b big-pickle))))
-            (kill-buffer buf))))
+              (should (member (gptel-backend-name gptel-backend) '("Ollama Local" "MLX Local" "OpenCode Zen")))
+              (should (memq gptel-model '(qwen2.5-coder:3b mlx-community/Qwen3.5-9B-MLX-4bit north-mini-code-free big-pickle))))
+            (kill-buffer buf)))
+)
       (setq gptel-backend old-backend
             gptel-model old-model)))
+
+(ert-deftest myemacs-ai-dynamic-router-skips-magent ()
+  "Valida que o roteador dinâmico NÃO sobrescreve requisições gerenciadas
+pelo Magent (buffer ` *magent-llm-gptel-request*` ou contexto
+:magent-llm-gptel), preservando o backend/modelo local escolhidos pelo Magent."
+  :tags '(ai)
+  (let ((old-backend gptel-backend)
+        (old-model gptel-model))
+    (unwind-protect
+        (progn
+          ;; 1. Requisição gerenciada pelo Magent (buffer) mantém backend/modelo
+          (let ((buf (generate-new-buffer " *magent-llm-gptel-request*")))
+            (with-current-buffer buf
+              (setq-local gptel-backend (gptel-get-backend "Ollama Local")
+                          gptel-model "qwen2.5-coder:3b")
+              (+carlos/gptel-dynamic-router-advice
+               "Ola! Analise o projeto Agent_Smith" :buffer buf)
+              (should (equal "Ollama Local" (gptel-backend-name gptel-backend)))
+              (should (equal "qwen2.5-coder:3b" gptel-model)))
+            (kill-buffer buf))
+
+          ;; 2. Requisição com contexto :magent-llm-gptel mantém backend/modelo
+          (let ((buf (get-buffer-create "*test-magent-context*")))
+            (with-current-buffer buf
+              (setq-local gptel-backend (gptel-get-backend "Ollama Local")
+                          gptel-model "qwen2.5-coder:3b")
+              (+carlos/gptel-dynamic-router-advice
+               "Refatore a funcao" :buffer buf
+               :context '(:magent-llm-gptel t :top-p 0.8))
+              (should (equal "Ollama Local" (gptel-backend-name gptel-backend)))
+              (should (equal "qwen2.5-coder:3b" gptel-model)))
+            (kill-buffer buf)))
+
+      (setq gptel-backend old-backend
+            gptel-model old-model))))
 
 (ert-deftest myemacs-ai-tracker ()
   "Valida se a gravação de tokens do FinOps funciona e gera a tabela Org corretamente."

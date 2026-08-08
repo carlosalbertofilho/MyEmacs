@@ -1,5 +1,19 @@
 # TODO — Planejamento Ativo e Backlog (MyEmacs)
 
+## 0.22. Plano de Ação — Fix Roteador Dinâmico: Magent não é mais sequestrado + Análise do Agent_Smith com caminho real
+
+> **Autor:** Agente Executor/Auditor. Aplicado e validado com `just test-all` (125 testes, 0 falhas).
+
+1. [x] **Diagnóstico:** o `+carlos/gptel-dynamic-router-advice` sobrescrevia o backend/modelo escolhidos pelo Magent. Magent registra um backend temporário **sem nome** (`(car gptel--known-backends)` → prefixo ` *magent-llm-gptel-request*`) e envia o contexto `:magent-llm-gptel`; o roteador virava a requisição para Gemini Cloud → resposta vazia (`stop unknown reason`) com o modelo local qwen2.5-coder:3b (bug persistente do plano 0.21).
+2. [x] **Correção (`lisp/custom-ai.el`):**
+   - Criado o predicado `+carlos/magent-managed-request-p` (buffer prefixo ` *magent-llm-gptel-request*` OU contexto `:magent-llm-gptel`).
+   - No início de `+carlos/gptel-dynamic-router-advice`, requisições gerenciadas pelo Magent agora **retornam imediatamente** (preservando `gptel-backend`/`gptel-model` locais do Magent).
+   - `+carlos/magent-agent-smith-dir` agora é `defcustom` com o caminho real `~/Projetos/42rio/CommonCore/Rank05/Agent_Smith`; `+carlos/magent-analyze-agent-smith` valida o diretório e informa o caminho ao agente no prompt.
+3. [x] **Testes ERT:**
+   - `myemacs-ai-dynamic-router-skips-magent` (`tests/ai-test.el`): requisição em buffer ` *magent-llm-gptel-request*` e com contexto `:magent-llm-gptel` **mantêm** `Ollama Local`/`qwen2.5-coder:3b`; roteamento `/plan` normal continua intacto.
+   - `myemacs-magent-analyze-agent-smith-target` (`tests/magent-test.el`): valida o `defcustom` com `~/Projetos/42rio/CommonCore/Rank05/Agent_Smith`, que o diretório existe e que o prompt enviado ao `magent-start` (mockado) contém o caminho.
+4. [x] **Portões de qualidade:** `just test-all` (compile + checkdoc + 125 testes ERT) 100% verde; `just sync` aplicado.
+
 ## 0.20. Plano de Ação — Fortalecimento de Contexto e Sanitizador Nativo das 15 Ferramentas do Magent
 ## 0.21. Plano de Ação — Corrigir erro persistente do Magent ao usar modelo local qwen2.5-coder:3b
 

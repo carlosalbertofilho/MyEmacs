@@ -58,5 +58,25 @@
     (should (string-prefix-p "/home/carlosfilho/Projetos/emacsConfig/MyEmacs/"
                              (magent-tools--resolve-path "AGENTS.md")))))
 
+(ert-deftest myemacs-magent-analyze-agent-smith-target ()
+  "Valida que +carlos/magent-analyze-agent-smith aponta para o projeto
+Agent_Smith real (~/Projetos/42rio/CommonCore/Rank05/Agent_Smith) e informa
+o caminho ao agente no prompt enviado ao magent-start."
+  (skip-unless myemacs-magent-available)
+  (should (string= "~/Projetos/42rio/CommonCore/Rank05/Agent_Smith"
+                   +carlos/magent-agent-smith-dir))
+  (let ((expected (expand-file-name "~/Projetos/42rio/CommonCore/Rank05/Agent_Smith")))
+    (should (file-directory-p expected))
+    (let (captured-prompt captured-dir)
+      (cl-letf (((symbol-function 'magent-start)
+                 (lambda (prompt &rest _)
+                   (setq captured-prompt prompt
+                         captured-dir default-directory))))
+        (+carlos/magent-analyze-agent-smith))
+      (should (stringp captured-prompt))
+      (should (string-match-p "Agent_Smith" captured-prompt))
+      (should (string-match-p (regexp-quote expected) captured-prompt))
+      (should (string= expected captured-dir)))))
+
 (provide 'magent-test)
 ;;; magent-test.el ends here

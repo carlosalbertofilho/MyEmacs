@@ -349,29 +349,34 @@ Sem advice: chama `+carlos/gptel-agent-add-project-dirs' diretamente."
     (error nil)))
 
 (defun +carlos/gptel-setup-defaults-by-host ()
-  "Aplica preferências de IA baseadas no hostname do sistema."
+  "Aplica preferências de IA baseadas no hostname do sistema.
+Usa when-let* para evitar setar gptel-backend como nil caso o backend
+não esteja registrado (ex.: MLX não disponível em máquinas sem agnes)."
   (interactive)
   (let ((hostname (system-name)))
     (cond
      ;; --- HOST: agnes (macOS M2) -> Local-first via MLX ---
      ((string-match-p "agnes" hostname)
-      (setq gptel-backend (gptel-get-backend "MLX Local")
-            gptel-model (intern "mlx-community/Qwen3.5-9B-MLX-4bit")
-            +carlos/gptel-agent-backend "MLX Local"
-            +carlos/gptel-agent-model (intern "mlx-community/Qwen3.5-9B-MLX-4bit")
-            +carlos/gptel-quick-local-backend "MLX Local"
-            +carlos/gptel-quick-local-model (intern "mlx-community/Qwen3.5-9B-MLX-4bit"))
-      (message "Emacs AI: Configurado para Chat Local MLX (agnes) com Qwen 3.5 9B"))
-     
-     ;; --- HOST: aa102-006l (EliteDesk NixOS) -> Local-first via Ollama ---
+      (when-let* ((backend (gptel-get-backend "MLX Local")))
+        (setq gptel-backend backend
+              gptel-model (intern "mlx-community/Qwen3.5-9B-MLX-4bit")
+              +carlos/gptel-agent-backend "MLX Local"
+              +carlos/gptel-agent-model (intern "mlx-community/Qwen3.5-9B-MLX-4bit")
+              +carlos/gptel-quick-local-backend "MLX Local"
+              +carlos/gptel-quick-local-model (intern "mlx-community/Qwen3.5-9B-MLX-4bit"))
+        (message "Emacs AI: Configurado para Chat Local MLX (%s) com Qwen 3.5 9B" hostname)))
+
+     ;; --- HOST: qualquer outro (fallback) -> Ollama Local ---
+     ;; Inclui aa102-006l (EliteDesk NixOS) e qualquer máquina sem MLX.
      (t
-      (setq gptel-backend (gptel-get-backend "Ollama Local")
-            gptel-model (intern "qwen2.5-coder:3b")
-            +carlos/gptel-agent-backend "Ollama Local"
-            +carlos/gptel-agent-model (intern "qwen2.5-coder:3b")
-            +carlos/gptel-quick-local-backend "Ollama Local"
-            +carlos/gptel-quick-local-model (intern "qwen2.5-coder:3b"))
-      (message "Emacs AI: Configurado para Chat Local Ollama (aa102-006l) com Qwen 2.5 3B")))))
+      (when-let* ((backend (gptel-get-backend "Ollama Local")))
+        (setq gptel-backend backend
+              gptel-model (intern "qwen2.5-coder:3b")
+              +carlos/gptel-agent-backend "Ollama Local"
+              +carlos/gptel-agent-model (intern "qwen2.5-coder:3b")
+              +carlos/gptel-quick-local-backend "Ollama Local"
+              +carlos/gptel-quick-local-model (intern "qwen2.5-coder:3b"))
+        (message "Emacs AI: Configurado para Chat Local Ollama (%s) com Qwen 2.5 3B" hostname))))))
 
 
 ;; ── Emergency Fallback & Latency Watchdog ───────────────────────────
@@ -423,47 +428,104 @@ Sem advice: chama `+carlos/gptel-agent-add-project-dirs' diretamente."
                (+carlos/gptel-emergency-fallback)))))))))
 
 ;; ── Dynamic Task/Backend Router ─────────────────────────────────────
+;; Precedencia de custo (do mais barato ao mais caro):
+;;   Local (GPU/CPU gratis) > Gemini free tier > OpenCode Zen free > Pago (Big Pickle / Zen Claude)
+;;
+;; Regras:
+;;   PLANEJAMENTO  -> Gemini Pro (free tier) -> Zen Claude pago (fallback)
+;;   CODIGO        -> Local -> OpenCode Zen free -> Big Pickle pago (fallback)
+;;   GERAL         -> Local -> Gemini Flash (free tier) -> OpenCode Zen free (fallback)
+
+(defun +carlos/magent-managed-request-p (buffer context)
+  "Non-nil quando o gptel-request para BUFFER com CONTEXT é gerenciado pelo Magent.
+O Magent (`magent-llm-gptel') define seu próprio backend/modelo; o roteador
+dinâmico e o watchdog de latência NÃO devem tocá-lo — redirecionar para a
+nuvem quebra o tool calling local (erro 'stop unknown reason')."
+  (or (string-prefix-p " *magent-llm-gptel-request*" (buffer-name buffer))
+      (and (listp context) (plist-member context :magent-llm-gptel))))
+
 (defun +carlos/gptel-dynamic-router-advice (prompt &rest args)
-  "Roteador dinâmico de IA para PROMPT com ARGS com cascata estrita de cotas."
+  "Roteador dinamico de IA para PROMPT com ARGS com cascata estrita de cotas.
+Prioridade: Local > Gemini free > OpenCode Zen free > Pago.
+Ignora requisições gerenciadas pelo Magent — ver
+`+carlos/magent-managed-request-p'."
   (let* ((target-buffer (or (plist-get args :buffer) (current-buffer)))
-         (prompt-text (or prompt "")))
-    (when (buffer-live-p target-buffer)
-      (with-current-buffer target-buffer
-        (cond
-         ;; REGRA 1: Tarefas de Planejamento / Arquitetura / Análise (/plan, architect, analise) -> Nuvem Premium (Zen Claude / agy)
-         ((or (string-match-p "\\*gptel-plan" (buffer-name))
-              (string-match-p "planejamento\\|arquitetura\\|/plan\\|analis" prompt-text))
-          (when-let ((backend (gptel-get-backend "Zen Claude")))
-            (setq-local gptel-backend backend
-                        gptel-model 'claude-sonnet-5)
-            (message "Dynamic Route: Planejamento roteado para Zen Claude (Sonnet 3.5)")))
-
-         ;; REGRA 2: Codificação & Refatoração (Magent / prog-mode) -> Local / OpenCode Zen (Big Pickle)
-         ((or (string-match-p "\\*Magent" (buffer-name))
-              (derived-mode-p 'magent-mode)
-              (derived-mode-p 'prog-mode))
-          (if (+carlos/local-ai-server-ping-p)
-              (let ((local-name (if (string-match-p "agnes" (system-name)) "MLX Local" "Ollama Local"))
-                    (local-mdl (if (string-match-p "agnes" (system-name)) 'mlx-community/Qwen3.5-9B-MLX-4bit 'qwen2.5-coder:3b)))
-                (when-let ((backend (gptel-get-backend local-name)))
+         (context (plist-get args :context)))
+    (unless (+carlos/magent-managed-request-p target-buffer context)
+      (let* ((prompt-text (or prompt ""))
+             (local-online (+carlos/local-ai-server-ping-p))
+             (local-name (if (string-match-p "agnes" (system-name)) "MLX Local" "Ollama Local"))
+             (local-mdl  (if (string-match-p "agnes" (system-name))
+                             (intern "mlx-community/Qwen3.5-9B-MLX-4bit")
+                           (intern "qwen2.5-coder:3b"))))
+        (when (buffer-live-p target-buffer)
+          (with-current-buffer target-buffer
+            (cond
+             ;; REGRA 1: Planejamento / Arquitetura / Analise
+             ;; -> Gemini Pro (cota free generosa) -> Zen Claude pago so como fallback
+             ((or (string-match-p "\\*gptel-plan" (buffer-name))
+                  (string-match-p "planejamento\\|arquitetura\\|/plan\\|analis" prompt-text))
+              (if-let ((backend (gptel-get-backend "Gemini")))
+                  (progn
+                    (setq-local gptel-backend backend
+                                gptel-model 'gemini-2.5-pro)
+                    (message "Dynamic Route: Planejamento roteado para Gemini Pro (free tier)"))
+                (when-let ((backend (gptel-get-backend "Zen Claude")))
                   (setq-local gptel-backend backend
-                              gptel-model local-mdl)
-                  (message "Dynamic Route: Mantendo modelo local ativo (%s)" local-name)))
-            (when-let ((backend (gptel-get-backend "OpenCode Zen")))
-              (setq-local gptel-backend backend
-                          gptel-model 'big-pickle)
-              (message "Dynamic Route: Código roteado para OpenCode Zen (big-pickle)"))))
+                              gptel-model 'claude-sonnet-5)
+                  (message "Dynamic Route: Planejamento -> fallback Zen Claude (pago)"))))
 
-         ;; REGRA 3: Perguntas Gerais e Resumos -> Google AI Studio (Gemini 2.5 Flash Free Tier)
-         (t
-          (when-let ((backend (gptel-get-backend "Gemini")))
-            (setq-local gptel-backend backend
-                        gptel-model 'gemini-2.5-flash)
-            (message "Dynamic Route: Geral roteado para Gemini Cloud (2.5 Flash)"))))))
-    ;; Ativa o observador de latência para a requisição
-    (apply #'+carlos/gptel-latency-watchdog prompt args)))
+             ;; REGRA 2: Codificacao & Refatoracao (Magent / prog-mode)
+             ;; -> Local -> OpenCode Zen free -> Big Pickle pago (ultimo recurso)
+             ((or (string-match-p "\\*Magent" (buffer-name))
+                  (derived-mode-p 'magent-mode)
+                  (derived-mode-p 'prog-mode))
+              (cond
+               ((and local-online (gptel-get-backend local-name))
+                (setq-local gptel-backend (gptel-get-backend local-name)
+                            gptel-model local-mdl)
+                (message "Dynamic Route: Codigo -> Local ativo (%s)" local-name))
+               ((gptel-get-backend "OpenCode Zen")
+                (setq-local gptel-backend (gptel-get-backend "OpenCode Zen")
+                            gptel-model 'north-mini-code-free)
+                (message "Dynamic Route: Codigo -> OpenCode Zen free (north-mini-code-free)"))
+               (t
+                (when-let ((backend (gptel-get-backend "OpenCode Zen")))
+                  (setq-local gptel-backend backend
+                              gptel-model 'big-pickle)
+                  (message "Dynamic Route: Codigo -> fallback Big Pickle (pago)")))))
+
+             ;; REGRA 3: Conversas gerais, resumos, perguntas
+             ;; -> Local -> Gemini Flash (free tier) -> OpenCode Zen free (fallback)
+             (t
+              (cond
+               ((and local-online (gptel-get-backend local-name))
+                (setq-local gptel-backend (gptel-get-backend local-name)
+                            gptel-model local-mdl)
+                (message "Dynamic Route: Geral -> Local ativo (%s)" local-name))
+               ((gptel-get-backend "Gemini")
+                (setq-local gptel-backend (gptel-get-backend "Gemini")
+                            gptel-model 'gemini-2.5-flash)
+                (message "Dynamic Route: Geral -> Gemini Flash (free tier)"))
+               (t
+                (when-let ((backend (gptel-get-backend "OpenCode Zen")))
+                  (setq-local gptel-backend backend
+                              gptel-model 'mimo-v2.5-free)
+                  (message "Dynamic Route: Geral -> fallback OpenCode Zen free (mimo-v2.5-free)")))))))))
+      ;; Ativa o observador de latencia para a requisicao
+      (apply #'+carlos/gptel-latency-watchdog prompt args))))
 
 (advice-add 'gptel-request :before #'+carlos/gptel-dynamic-router-advice)
+
+(defun +carlos/magent-guard-empty-response (beg end)
+  "Avisa no minibuffer quando o Magent recebe resposta vazia do modelo.
+BEG e END delimitam a resposta inserida pelo gptel; quando iguais, o
+modelo não devolveu texto nem chamadas de ferramenta."
+  (when (and (string-prefix-p " *magent-llm-gptel-request*" (buffer-name))
+             (= beg end))
+    (message "Magent: resposta vazia do modelo (sem texto nem tool calls). Verifique o backend local e o roteador dinâmico.")))
+
+(add-hook 'gptel-post-response-functions #'+carlos/magent-guard-empty-response)
 
 ;; ── FinOps Token & Cost Tracker ─────────────────────────────────────
 (defvar +carlos/gptel-tracker-file-override nil
@@ -633,16 +695,28 @@ O arquivo Org-mode gerado resultante será aberto no Emacs quando concluído."
           (pop-to-buffer buf)
           (message "Resumo de consumo de IA carregado!"))))))
 
+(defcustom +carlos/magent-agent-smith-dir
+  "~/Projetos/42rio/CommonCore/Rank05/Agent_Smith"
+  "Diretório do projeto Agent_Smith que o Magent deve analisar."
+  :type 'directory)
+
 (defun +carlos/magent-analyze-agent-smith ()
-  "Run Magent to analyze Rank05/Agent_Smith using Ollama backend."
+  "Run Magent to analyze the Agent_Smith project using the local Ollama backend.
+Analisa o projeto em `+carlos/magent-agent-smith-dir' com o modelo local
+qwen2.5-coder:3b, contornando o roteador dinâmico. O caminho do projeto
+é informado ao agente no prompt."
   (interactive)
   (require 'magent)
-  (let ((default-directory (expand-file-name "Rank05/Agent_Smith" (project-root (project-current)))))
-    (let ((gptel-backend (gptel-get-backend "Ollama Local"))
+  (let ((target-dir (expand-file-name +carlos/magent-agent-smith-dir)))
+    (unless (file-directory-p target-dir)
+      (user-error "Diretório do projeto Agent_Smith não encontrado: %s" target-dir))
+    (let ((default-directory target-dir)
+          (gptel-backend (gptel-get-backend "Ollama Local"))
           (gptel-model "qwen2.5-coder:3b"))
       (when (boundp 'gptel-dynamic-router)
         (setq-local gptel-dynamic-router nil))
-      (magent-start "Ola! Analise o projeto Rank05/Agent_Smith e diga o que voce entendeu"))))
+      (magent-start (format "Analise o projeto em %s e explique o que voce entendeu"
+                            target-dir)))))
 
 (defun +carlos/magent-log-context (request response)
   "Log REQUEST and RESPONSE strings to *magent-log* buffer for debugging."
@@ -652,5 +726,4 @@ O arquivo Org-mode gerado resultante será aberto no Emacs quando concluído."
       (insert (format "\n--- Magent Log (%s) ---\nRequest:\n%s\n\nResponse:\n%s\n" (format-time-string "%Y-%m-%d %H:%M:%S") request response)))))
 
 (provide 'custom-ai)
-;;; custom-ai.el ends here
 ;;; custom-ai.el ends here

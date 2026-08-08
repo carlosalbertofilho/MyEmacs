@@ -11,6 +11,13 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-08 — Roteador Dinâmico não sequestra o Magent + Análise do Agent_Smith com caminho real (`lisp/custom-ai.el`)
+   - **Bug raiz (plano 0.21):** O conselho `+carlos/gptel-dynamic-router-advice` sobrescrevia o backend/modelo escolhidos pelo Magent. O Magent cria um backend temporário sem nome no topo de `gptel--known-backends` (buffer prefixo ` *magent-llm-gptel-request*`) e envia contexto `:magent-llm-gptel`; o roteador então migrava a requisição para Gemini Cloud → resposta vazia (`stop unknown reason`) ao usar o modelo local `qwen2.5-coder:3b`.
+   - **Correção:** Novo predicado `+carlos/magent-managed-request-p` (buffer prefixo OU contexto `:magent-llm-gptel`). Requisições gerenciadas pelo Magent retornam imediatamente no início do roteador, preservando `gptel-backend`/`gptel-model` locais do Magent.
+   - **Análise Agent_Smith:** `+carlos/magent-agent-smith-dir` virou `defcustom` apontando para `~/Projetos/42rio/CommonCore/Rank05/Agent_Smith` (antes resolvia via `project-root`, que era nil em batch → `~/Rank05/Agent_Smith`). `+carlos/magent-analyze-agent-smith` valida o diretório e informa o caminho real ao agente no prompt enviado ao `magent-start`.
+   - **Testes:** `myemacs-ai-dynamic-router-skips-magent` (requisição Magent preserva `Ollama Local`/`qwen2.5-coder:3b`; `/plan` continua roteando para Gemini) e `myemacs-magent-analyze-agent-smith-target` (caminho real + diretório existe + prompt contém o caminho).
+   - **Status:** 🏆 125/125 testes ERT aprovados (8 skipped opt-in de rede), byte-compile sem avisos, checkdoc limpo, sincronizado com `~/.config/emacs`.
+
 ** 2026-08-08 — Fortalecimento de Contexto e Auto-Sanitizador de Ferramentas Magent (`lisp/custom-magent.el`)
    - **Auto-Expansão de Caminhos Relativos (`+carlos/magent-resolve-path-advice`):** Intercepta o resolvedor de recursos `magent-tools--resolve-path` e garante que qualquer caminho relativo enviado pelos LLMs (ex: `AGENTS.md` ou `Rank05/...`) seja expandido instantaneamente usando o `default-directory` da sessão. Elimina falhas de arquivo não encontrado quando o modelo navega em subdiretórios.
    - **Validação Resiliente de Payloads (`+carlos/magent-write-file-advice` e `+carlos/magent-edit-file-advice`):** Intercepta as ferramentas de escrita e edição para impedir a execução com parâmetros nulos ou vazios (`content` ou `old_text`), retornando uma mensagem de erro instrutiva para o modelo se auto-corrigir no próximo turno.
