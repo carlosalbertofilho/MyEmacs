@@ -14,12 +14,19 @@
 (declare-function elpaca "elpaca")
 (declare-function elpaca-wait "elpaca")
 (declare-function nerd-icons-corfu-formatter "nerd-icons-corfu")
+(declare-function tempel-expand "tempel")
+(declare-function tempel-complete "tempel")
+(declare-function tempel-insert "tempel")
+(declare-function eglot-tempel-mode "eglot-tempel")
 
 ;; Queue completion packages and wait to prevent race conditions during cold boot
 (elpaca vertico)
 (elpaca marginalia)
 (elpaca orderless)
 (elpaca corfu)
+(elpaca tempel)
+(elpaca tempel-collection)
+(elpaca eglot-tempel)
 (elpaca-wait)
 
 ;; ── vertico ─────────────────────────────────────────────────────────
@@ -105,6 +112,33 @@
   :config
   (with-eval-after-load 'corfu
     (add-to-list 'corfu-margin-formatters #'nerd-icons-corfu-formatter)))
+
+;; ── tempel ──────────────────────────────────────────────────────────
+(use-package tempel
+  :ensure nil
+  :demand t  ;; Capf hook must be registered at startup
+  :bind (("M-+" . tempel-complete)
+         ("M-*" . tempel-insert))
+  :config
+  (defun +carlos/tempel-setup-capf ()
+    "Prepend `tempel-expand' to the local completion Capf list."
+    (setq-local completion-at-point-functions
+                (cons #'tempel-expand completion-at-point-functions)))
+  (add-hook 'prog-mode-hook #'+carlos/tempel-setup-capf)
+  (add-hook 'text-mode-hook #'+carlos/tempel-setup-capf)
+  (add-hook 'conf-mode-hook #'+carlos/tempel-setup-capf))
+
+;; ── tempel-collection ───────────────────────────────────────────────
+(use-package tempel-collection
+  :ensure nil
+  :demand t)  ;; Load bundled static templates at startup
+
+;; ── eglot-tempel ────────────────────────────────────────────────────
+(use-package eglot-tempel
+  :ensure nil
+  :demand t  ;; Global mode translates LSP snippets for tempel
+  :config
+  (eglot-tempel-mode 1))
 
 (provide 'custom-completion)
 ;;; custom-completion.el ends here

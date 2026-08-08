@@ -307,6 +307,64 @@ provide completion in the minibuffer for specific scenarios:
 (global-set-key (kbd "C-M-i") #'corfu-complete)
 #+end_src
 
+* Tempel (Snippets)
+
+Tempel adds text snippets to the Corfu in-buffer completion, both from
+static template files and from LSP server snippet hints (via Eglot).
+
+** Enable Tempel
+#+begin_src elisp
+(use-package tempel
+  :ensure t
+  :demand t  ;; Capf hook must be registered at startup
+  :bind (("M-+" . tempel-complete)
+         ("M-*" . tempel-insert))
+  :config
+  (defun +carlos/tempel-setup-capf ()
+    "Prepend `tempel-expand' to the local completion Capf list."
+    (setq-local completion-at-point-functions
+                (cons #'tempel-expand completion-at-point-functions)))
+  (add-hook 'prog-mode-hook #'+carlos/tempel-setup-capf)
+  (add-hook 'text-mode-hook #'+carlos/tempel-setup-capf)
+  (add-hook 'conf-mode-hook #'+carlos/tempel-setup-capf))
+#+end_src
+
+** Static Templates (tempel-collection)
+#+begin_src elisp
+(use-package tempel-collection
+  :ensure t
+  :demand t)  ;; Load bundled static templates at startup
+#+end_src
+
+`tempel-collection` ships ready-made template files for many major modes
+(Go, TypeScript, Elisp, etc.). They are picked up automatically through
+`tempel-path`.
+
+** LSP Snippets (eglot-tempel)
+#+begin_src elisp
+(use-package eglot-tempel
+  :ensure t
+  :demand t
+  :config
+  (eglot-tempel-mode 1))
+#+end_src
+
+`eglot-tempel-mode` is a global minor mode that patches
+`eglot--snippet-expansion-fn` so LSP-provided snippet hints are rendered
+as Tempel templates instead of being ignored.
+
+** Key Variables
+| Variable          | Default | Description                        |
+|-------------------+---------+------------------------------------|
+| =tempel-path=     | =templates/= dirs | Directories scanned for `.eld` templates |
+| =tempel-expand=   | Capf    | Only fires on exact template-name match |
+
+** Keybindings
+| Key     | Command           | Action                            |
+|---------+-------------------+------------------------------------|
+| =M-+=   | =tempel-complete= | Complete/expand template at point |
+| =M-*=   | =tempel-insert=   | Select and insert a template      |
+
 * Marginalia Annotations
 
 Marginalia adds helpful annotations to completion candidates in the
@@ -573,6 +631,7 @@ M-x embark-bindings  ;; Shows available actions for current context
 | Corfu       | In-buffer completion     | =global-corfu-mode= | Yes  |
 | Marginalia  | Annotations              | =marginalia-mode=   | Yes  |
 | Embark      | Context actions          | N/A (commands)      | No   |
+| Tempel      | Snippets (static + LSP)  | =tempel-expand= Capf | Yes  |
 
 ** Essential Variables
 | Variable                           | Recommended Value           |
@@ -584,6 +643,7 @@ M-x embark-bindings  ;; Shows available actions for current context
 | =corfu-auto-prefix=                | =2=                         |
 | =corfu-cycle=                      | =t=                         |
 | =marginalia-mode=                  | =1= (enabled)               |
+| =eglot-tempel-mode=                | =1= (enabled)               |
 
 ** Consult Command Replacements
 | Built-in Command          | Consult Replacement     |
@@ -608,3 +668,5 @@ This reference covers the standard Emacs completion stack as used in
 6. Embark-act is the universal context action command
 7. Embark-consult integration requires both packages loaded
 8. File completion should preserve =partial-completion= as first style
+9. Tempel expands snippets via Corfu; it only fires on exact template match
+10. =tempel-collection= provides static templates, =eglot-tempel= adds LSP snippets
