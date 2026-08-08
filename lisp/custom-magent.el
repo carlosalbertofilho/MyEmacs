@@ -21,11 +21,13 @@
   (require 'magent)
   (require 'magent-agent-shell)
   (unless gptel-backend
-    (setq gptel-backend (or (gptel-get-backend "Zen Claude")
+    (setq gptel-backend (or (gptel-get-backend "OpenAI")
+                            (gptel-get-backend "Gemini")
+                            (gptel-get-backend "Zen Claude")
                             (gptel-get-backend "Ollama Local")
                             (car gptel-backend-list))))
   (unless gptel-model
-    (setq gptel-model (or 'claude-sonnet-5 'qwen2.5-coder:3b)))
+    (setq gptel-model (or "claude-sonnet-5" "qwen2.5-coder:3b")))
   (if (fboundp 'magent-start)
       (magent-start)
     (user-error "Magent ainda não foi construído/carregado pelo Elpaca")))

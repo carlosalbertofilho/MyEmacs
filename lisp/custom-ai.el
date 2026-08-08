@@ -208,7 +208,9 @@ Garante que o gptel esteja carregado antes de buscar o backend."
       (setq gptel-model model)
       (setq buffer-read-only nil)
       (erase-buffer))
-    (apply #'gptel-request prompt :buffer buffer args)))
+    (let ((extra (when (member backend '("Ollama Local" "MLX Local"))
+                   '(:response_format "json"))))
+      (apply #'gptel-request prompt :buffer buffer (append args extra)))))
 
 ;; ── +carlos/gptel-agent-run (reescrito sem advice bug) ─────────────
 
@@ -631,14 +633,12 @@ O arquivo Org-mode gerado resultante será aberto no Emacs quando concluído."
           (message "Resumo de consumo de IA carregado!"))))))
 
 (defun +carlos/magent-analyze-agent-smith ()
-  "Run Magent to analyze the Rank05/Agent_Smith project using the local Ollama backend.
-Ensures the request is sent to the OpenAI‑compatible Ollama endpoint, bypassing the dynamic router."
+  "Run Magent to analyze Rank05/Agent_Smith using Ollama backend."
   (interactive)
   (require 'magent)
   (let ((default-directory (expand-file-name "Rank05/Agent_Smith" (project-root (project-current)))))
     (let ((gptel-backend (gptel-get-backend "Ollama Local"))
           (gptel-model "qwen2.5-coder:3b"))
-      ;; Disable the dynamic router that may switch to cloud backends
       (when (boundp 'gptel-dynamic-router)
         (setq-local gptel-dynamic-router nil))
       (magent-start "Ola! Analise o projeto Rank05/Agent_Smith e diga o que voce entendeu"))))
