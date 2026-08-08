@@ -319,9 +319,16 @@
        - [ ] `wordpress-claude-stack.mdc`
        - [ ] `wordpress-php-guzzle-gutenberg-cursorrules-prompt-.mdc`
      </details>
-   - [ ] **1.2. Adaptar regras para o formato de skills do Magent** e salvá-las em `magent/skills/`.
+   - [ ] **1.2. Adaptar regras para o formato de skills do Magent**:
+     - Usar o script `bin/skill-convert` (desenvolvido na fase 0.15) para automatizar a conversão.
+     - Origem: diretórios de regras específicas no repositório `awesome-cursorrules` (ex: `NixOS`, `Python`, `TypeScript`).
+     - Destino: `magent/skills/`.
+     - O script converterá o `.mdc` ou `.md` para o frontmatter exigido pelo Magent (`type: instruction`, `capability: true`).
 2. [ ] **Fase 2: Conectar o Magent a servidores MCP locais**
-   - [ ] **2.1. Configurar scripts CLI de bridge** para servidores MCP (como Figma/Stitch e Chrome DevTools) usando a tool `run_command` do Magent.
+   - [ ] **2.1. Configurar scripts CLI de bridge** para servidores MCP:
+     - **Servidores Alvo:** Chrome DevTools e Figma/Stitch.
+     - **Abordagem:** Criar um script executável (`bin/mcp-bridge`) em Node.js ou Python que instancie o cliente MCP e exponha comandos via CLI (ex: `bin/mcp-bridge chrome --inspect <url>`).
+     - **Integração no Magent:** O Magent utilizará sua tool nativa `run_command` para invocar o `bin/mcp-bridge`, recebendo as respostas do servidor MCP no `stdout` do shell e interpretando-as no loop de ação.
 
 ---
 
@@ -362,10 +369,48 @@
    - [x] **2.3. Salvar os logs** formatados como tabela Org no arquivo `docs/ai-usage-tracker.org`.
 
 3. [ ] **Fase 3: Structured Outputs nos Scripts Locais (JSON / FSM)**
-   - [ ] **3.1. Adaptar `bin/rag-convert` e `bin/log-triage`** para enviar `"response_format"` com JSON Schema ao MLX Local e `"format": "json"` ao Ollama, evitando alucinações estruturais nos parsers.
+   - [ ] **3.1. Adaptar `bin/rag-convert` e `bin/log-triage`** para injeção de `response_format`:
+     - Para Ollama: Adicionar `"format": "json"` no payload da API.
+     - Para MLX Local (compatível com OpenAI): Incluir o parâmetro `"response_format"` contendo o JSON Schema exigido.
+     - **Schema Exemplo para RAG/Triage:**
+       ```json
+       {
+         "type": "json_schema",
+         "json_schema": {
+           "name": "triage_result",
+           "schema": {
+             "type": "object",
+             "properties": {
+               "summary": { "type": "string" },
+               "error_count": { "type": "integer" },
+               "recommendations": { "type": "array", "items": { "type": "string" } }
+             },
+             "required": ["summary", "error_count", "recommendations"]
+           }
+         }
+       }
+       ```
 
 4. [ ] **Fase 4: Pipeline de RAG Universal com MarkItDown**
-   - [ ] **4.1. Criar o comando `+carlos/ai-rag-ingest`** no Emacs integrando o MarkItDown (para PDFs, EPubs, ZIP e YouTube) com as IAs locais e fallback do Gemini Cloud.
+   - [ ] **4.1. Criar o comando `+carlos/ai-rag-ingest`** em `lisp/custom-ai.el`:
+     - Solicitar arquivo ou URL interativamente: `(read-file-name "Arquivo/URL para ingestão: ")`.
+     - Executar assincronamente: usar `make-process` ou `async-shell-command` chamando `bin/rag-convert <caminho>`.
+     - Exibição: Adicionar sentinel ao processo para, no sucesso, abrir o buffer com o arquivo `.org` resultante (`find-file`).
+     - **Código Base Sugerido:**
+       ```elisp
+       (defun +carlos/ai-rag-ingest (target)
+         "Ingere um arquivo ou URL via MarkItDown e RAG converter."
+         (interactive "fArquivo/URL para ingestão: ")
+         (message "Iniciando ingestão de %s..." target)
+         (make-process
+          :name "rag-ingest"
+          :buffer "*rag-ingest*"
+          :command (list (expand-file-name "bin/rag-convert" user-emacs-directory) target)
+          :sentinel (lambda (proc event)
+                      (when (string= event "finished\n")
+                        (message "Ingestão concluída!")
+                        (find-file (concat target ".org")))))) ;; Ajustar caminho conforme saída real
+       ```
 
 ---
 
