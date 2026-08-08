@@ -40,7 +40,10 @@ def query_mlx(prompt, model):
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.2,
-        "max_tokens": 2048  # Reduced to avoid excessive generation delays
+        "max_tokens": 2048,  # Reduced to avoid excessive generation delays
+        "response_format": {
+            "type": "json_object"
+        }
     }
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
@@ -85,6 +88,7 @@ def query_ollama(prompt):
         "model": model,
         "prompt": prompt,
         "stream": False,
+        "format": "json",
         "options": {
             "num_predict": 2048
         }
@@ -113,7 +117,10 @@ def query_gemini_api(prompt):
     
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
     payload = {
-        "contents": [{"parts": [{"text": prompt}]}]
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "responseMimeType": "application/json"
+        }
     }
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
@@ -217,18 +224,21 @@ def main():
 
     truncated_text = raw_text[:8000]
 
-    prompt = f"""Estruture o conteúdo abaixo como um documento Org-Mode padronizado para RAG Cache.
+    prompt = f"""Responda estritamente no seguinte formato JSON:
+{{
+  "org_content": "<o conteúdo do documento formatado em Org-mode puro contendo metadados, títulos e tabelas>"
+}}
 
-REQUISITOS OBRIGATÓRIOS:
+O conteúdo de "org_content" deve ser estruturado como um documento Org-Mode padronizado para RAG Cache, atendendo aos seguintes requisitos:
 1. Inclua os metadados no topo:
    #+TITLE: {title}
    #+AUTHOR: Carlos Filho
    #+FILETAGS: :RAG:DOCS:
 2. Use títulos de seção Org-Mode com '*' (* Título, ** Subtítulo).
 3. Mantenha tabelas formatadas em estilo Org (| col | col |).
-4. Retorne APENAS o código Org-Mode puro (sem marcas ```org).
+4. Não use marcas de código ```org dentro da string JSON para o conteúdo Org.
 
-CONTEÚDO:
+CONTEÚDO PARA FORMATAR:
 {truncated_text}
 """
 
@@ -245,7 +255,29 @@ CONTEÚDO:
         except Exception:
             pass
 
-    org_content = detect_and_query_ai(prompt)
+    ai_response = detect_and_query_ai(prompt)
+    org_content = None
+
+    if ai_response:
+        try:
+            clean_content = ai_response.strip()
+            if clean_content.startswith("```"):
+                lines = clean_content.splitlines()
+                if lines[0].startswith("```"):
+                    lines = lines[1:]
+                if lines and lines[-1].strip() == "```":
+                    lines = lines[:-1]
+                clean_content = "\n".join(lines).strip()
+            
+            parsed_json = json.loads(clean_content)
+            if isinstance(parsed_json, dict) and "org_content" in parsed_json:
+                org_content = parsed_json["org_content"]
+            else:
+                print("⚠️ JSON parsed but 'org_content' not found in response keys. Using raw response.", file=sys.stderr)
+                org_content = ai_response
+        except Exception as json_err:
+            print(f"⚠️ JSON parsing failed: {json_err}. Using raw response as fallback.", file=sys.stderr)
+            org_content = ai_response
 
     if not org_content:
         print("⚠️ Failed to receive formatted output from local and cloud AI. Saving fallback raw Org file.", file=sys.stderr)

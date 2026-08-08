@@ -324,8 +324,8 @@
      - Origem: diretórios de regras específicas no repositório `awesome-cursorrules` (ex: `NixOS`, `Python`, `TypeScript`).
      - Destino: `magent/skills/`.
      - O script converterá o `.mdc` ou `.md` para o frontmatter exigido pelo Magent (`type: instruction`, `capability: true`).
-2. [ ] **Fase 2: Conectar o Magent a servidores MCP locais**
-   - [ ] **2.1. Configurar scripts CLI de bridge** para servidores MCP:
+2. [x] **Fase 2: Conectar o Magent a servidores MCP locais**
+   - [x] **2.1. Configurar scripts CLI de bridge** para servidores MCP:
      - **Servidores Alvo:** Chrome DevTools e Figma/Stitch.
      - **Abordagem:** Criar um script executável (`bin/mcp-bridge`) em Node.js ou Python que instancie o cliente MCP e exponha comandos via CLI (ex: `bin/mcp-bridge chrome --inspect <url>`).
      - **Integração no Magent:** O Magent utilizará sua tool nativa `run_command` para invocar o `bin/mcp-bridge`, recebendo as respostas do servidor MCP no `stdout` do shell e interpretando-as no loop de ação.
@@ -368,8 +368,8 @@
    - [x] **2.2. Ler a variável local do buffer `gptel--token-usage`** após a requisição.
    - [x] **2.3. Salvar os logs** formatados como tabela Org no arquivo `docs/ai-usage-tracker.org`.
 
-3. [ ] **Fase 3: Structured Outputs nos Scripts Locais (JSON / FSM)**
-   - [ ] **3.1. Adaptar `bin/rag-convert` e `bin/log-triage`** para injeção de `response_format`:
+3. [x] **Fase 3: Structured Outputs nos Scripts Locais (JSON / FSM)**
+   - [x] **3.1. Adaptar `bin/rag-convert` e `bin/log-triage`** para injeção de `response_format`:
      - Para Ollama: Adicionar `"format": "json"` no payload da API.
      - Para MLX Local (compatível com OpenAI): Incluir o parâmetro `"response_format"` contendo o JSON Schema exigido.
      - **Schema Exemplo para RAG/Triage:**

@@ -18,6 +18,8 @@ entenderem o estado atual do projeto e decisões tomadas.
    - **Catálogo de Regras do awesome-cursorrules (Plano 0.14):** Mapeamento, categorização e catalogação de 257 regras clonadas sob formato colapsável em `TODO.md` agrupadas por foco.
    - **Script de Conversão de Skills (`bin/skill-convert`):** Criado script em Python 3 puro que realiza a varredura e conversão de skills do OpenCode/Gemini para o padrão do Magent (`type: instruction`, `capability: true`) via backend local de IA. Implementado e validado com sucesso.
    - **Conversão RAG de Skills para Org-Mode (`docs/`):** Efetuada a conversão e sanitização de todas as 8 skills locais para arquivos `.org` RAG padronizados em `docs/`.
+   - **Ponte de Servidor MCP (`bin/mcp-bridge`):** Criado script em Python 3 para conectar o Magent de forma CLI-driven a servidores MCP locais (como o `StitchMCP` de prototipagem da Google) usando comunicação JSON-RPC sobre stdio com timeouts robustos.
+   - **Structured Outputs nos Scripts Locais (`bin/rag-convert`, `bin/log-triage`):** Injetados parâmetros de formato JSON (`format: json` no Ollama, `response_format` no MLX, e `responseMimeType` no Gemini) para forçar o retorno estruturado em JSON e lógica de parsing resiliente com fallbacks rápidos, prevenindo alucinações de blocos markdown.
    - **Status:** 🏆 120 TESTES ERT COMPLETAMENTE VERDES, incluindo o teste unitário de gravação FinOps (`just test-all` OK).
 
 ** 2026-08-07 — Roteador de Agentes Automático, Qwen 3.5 9B no Mac e Documentação de IA

@@ -17,7 +17,8 @@ def query_ollama(prompt, model="qwen2.5-coder:1.5b"):
     payload = {
         "model": model,
         "prompt": prompt,
-        "stream": False
+        "stream": False,
+        "format": "json"
     }
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
@@ -56,22 +57,53 @@ def main():
         print("✅ Todos os testes e checks passaram limpos.")
         return
 
-    print("⚠️ Erros detectados nos logs. Gerando resumo de triagem via Ollama local...")
-
     prompt = f"""Você é um triador de logs de compilação/testes do Emacs Lisp / Just.
-Analise o log de erros a seguir e gere um resumo sintético de NO MÁXIMO 15 LINHAS no formato Markdown/Org RAG:
-
-1. Categorização do erro (ex: Compilação Bytecode, ERT Unit Test, Checkdoc, Pre-condition)
-2. Causa raiz / Função / Arquivo afetado
-3. Ação corretiva recomendada
+Analise o log de erros a seguir e responda estritamente no seguinte formato JSON:
+{{
+  "summary": "Categorização: <sua categorização (ex: Compilação Bytecode, ERT Unit Test, Checkdoc, etc.)>\\nCausa Raiz: <causa raiz e descrição resumida do erro>",
+  "error_count": <número inteiro de erros/falhas>,
+  "recommendations": ["<recomendação 1>", "<recomendação 2>", ...]
+}}
 
 LOG DE ERROS:
 {log_content[-6000:]}
 """
 
-    summary = query_ollama(prompt)
+    summary_raw = query_ollama(prompt)
+    
+    parsed = None
+    try:
+        clean_content = summary_raw.strip()
+        if clean_content.startswith("```"):
+            lines = clean_content.splitlines()
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            clean_content = "\n".join(lines).strip()
+            
+        parsed = json.loads(clean_content)
+    except Exception as e:
+        print(f"⚠️ JSON parsing of Ollama response failed: {e}. Falling back to raw output.", file=sys.stderr)
+        
     print("\n--- RESUMO DE TRIAGEM (Ollama AI) ---")
-    print(summary)
+    if parsed and isinstance(parsed, dict) and "summary" in parsed and "error_count" in parsed and "recommendations" in parsed:
+        summary_val = parsed.get("summary", "")
+        category = "Outro / Não categorizado"
+        clean_summary = summary_val
+        category_match = re.search(r"Categorização:\s*([^\n]+)", summary_val, re.IGNORECASE)
+        if category_match:
+            category = category_match.group(1).strip()
+            clean_summary = re.sub(r"Categorização:\s*[^\n]+\n?", "", summary_val, flags=re.IGNORECASE).strip()
+            
+        print(f"Categorização: {category}")
+        print(f"Erros detectados: {parsed.get('error_count', 0)}")
+        print(f"Resumo: {clean_summary}")
+        print("Recomendações:")
+        for rec in parsed.get("recommendations", []):
+            print(f"  - {rec}")
+    else:
+        print(summary_raw)
 
 if __name__ == "__main__":
     main()

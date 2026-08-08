@@ -1,0 +1,289 @@
+#!/usr/bin/env python3
+import sys
+import os
+import json
+import subprocess
+import select
+import time
+import argparse
+import urllib.parse
+import urllib.request
+
+# Timeout padrão de 30 segundos para comunicações de rede se necessário
+DEFAULT_TIMEOUT = 30.0
+
+def load_mcp_config():
+    paths = [
+        "/Users/carlosfilho/.gemini/antigravity/mcp_config.json",
+        os.path.expanduser("~/.gemini/antigravity-ide/mcp_config.json"),
+        os.path.expanduser("~/.gemini/antigravity/mcp_config.json"),
+    ]
+    for path in paths:
+        if os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    config = json.load(f)
+                    print(f"[bridge] Loaded config from {path}", file=sys.stderr)
+                    return config
+            except Exception as e:
+                print(f"[bridge] Error reading config from {path}: {e}", file=sys.stderr)
+    return None
+
+def read_json_line(process, timeout=DEFAULT_TIMEOUT):
+    start_time = time.time()
+    while True:
+        elapsed = time.time() - start_time
+        remaining = max(0.0, timeout - elapsed)
+        if remaining <= 0:
+            raise TimeoutError("Timeout waiting for response from server")
+            
+        r, _, _ = select.select([process.stdout], [], [], remaining)
+        if not r:
+            raise TimeoutError("Timeout waiting for response from server")
+            
+        line = process.stdout.readline()
+        if not line:
+            raise EOFError("Server process terminated or closed stdout")
+            
+        line_str = line.decode('utf-8', errors='ignore').strip()
+        if not line_str:
+            continue
+            
+        try:
+            data = json.loads(line_str)
+            return data
+        except json.JSONDecodeError:
+            # Ignora e loga no stderr
+            print(f"[bridge] [server stdout] {line_str}", file=sys.stderr)
+            continue
+
+def send_request(process, method, params=None, request_id=1, timeout=DEFAULT_TIMEOUT):
+    req = {
+        "jsonrpc": "2.0",
+        "id": request_id,
+        "method": method
+    }
+    if params is not None:
+        req["params"] = params
+        
+    req_str = json.dumps(req) + "\n"
+    process.stdin.write(req_str.encode('utf-8'))
+    process.stdin.flush()
+    
+    start_time = time.time()
+    while True:
+        elapsed = time.time() - start_time
+        remaining = max(0.0, timeout - elapsed)
+        resp = read_json_line(process, timeout=remaining)
+        
+        if isinstance(resp, dict) and resp.get("id") == request_id:
+            return resp
+        else:
+            # Notificação ou outra mensagem
+            print(f"[bridge] Notification received: {json.dumps(resp)}", file=sys.stderr)
+
+def send_notification(process, method, params=None):
+    notif = {
+        "jsonrpc": "2.0",
+        "method": method
+    }
+    if params is not None:
+        notif["params"] = params
+        
+    notif_str = json.dumps(notif) + "\n"
+    process.stdin.write(notif_str.encode('utf-8'))
+    process.stdin.flush()
+
+def perform_handshake(process, timeout=DEFAULT_TIMEOUT):
+    init_params = {
+        "protocolVersion": "2024-11-05",
+        "capabilities": {},
+        "clientInfo": {
+            "name": "mcp-bridge",
+            "version": "1.0.0"
+        }
+    }
+    print("[bridge] Initiating handshake...", file=sys.stderr)
+    resp = send_request(process, "initialize", init_params, request_id=1, timeout=timeout)
+    if "error" in resp:
+        raise RuntimeError(f"Server returned initialization error: {resp['error']}")
+        
+    send_notification(process, "notifications/initialized")
+    print("[bridge] Handshake successful.", file=sys.stderr)
+    return resp.get("result", {})
+
+def parse_args():
+    if len(sys.argv) < 2:
+        print("Usage: mcp-bridge <subcommand> [args...]", file=sys.stderr)
+        print("Subcommands: list, call, run-list, run-call", file=sys.stderr)
+        sys.exit(1)
+        
+    subcommand = sys.argv[1]
+    
+    if subcommand == "list":
+        if len(sys.argv) < 3:
+            print("Usage: mcp-bridge list <server_name>", file=sys.stderr)
+            sys.exit(1)
+        return {
+            "subcommand": "list",
+            "server_name": sys.argv[2]
+        }
+        
+    elif subcommand == "call":
+        if len(sys.argv) < 4:
+            print("Usage: mcp-bridge call <server_name> <tool_name> [arguments_json_string]", file=sys.stderr)
+            sys.exit(1)
+        tool_args = sys.argv[4] if len(sys.argv) > 4 else None
+        return {
+            "subcommand": "call",
+            "server_name": sys.argv[2],
+            "tool_name": sys.argv[3],
+            "tool_args": tool_args
+        }
+        
+    elif subcommand == "run-list":
+        if len(sys.argv) < 3:
+            print("Usage: mcp-bridge run-list <command> [args...]", file=sys.stderr)
+            sys.exit(1)
+        return {
+            "subcommand": "run-list",
+            "cmd": sys.argv[2:]
+        }
+        
+    elif subcommand == "run-call":
+        args_list = sys.argv[2:]
+        tool_name = None
+        tool_args = None
+        
+        i = 0
+        cmd_parts = []
+        while i < len(args_list):
+            if args_list[i] == "--tool":
+                if i + 1 < len(args_list):
+                    tool_name = args_list[i+1]
+                    i += 2
+                else:
+                    print("Error: --tool requires a value", file=sys.stderr)
+                    sys.exit(1)
+            elif args_list[i] == "--args":
+                if i + 1 < len(args_list):
+                    tool_args = args_list[i+1]
+                    i += 2
+                else:
+                    print("Error: --args requires a value", file=sys.stderr)
+                    sys.exit(1)
+            else:
+                cmd_parts.append(args_list[i])
+                i += 1
+                
+        if not tool_name:
+            print("Error: --tool is required for run-call", file=sys.stderr)
+            sys.exit(1)
+        if not cmd_parts:
+            print("Usage: mcp-bridge run-call <command> [args...] --tool <tool_name> --args <arguments_json_string>", file=sys.stderr)
+            sys.exit(1)
+            
+        return {
+            "subcommand": "run-call",
+            "cmd": cmd_parts,
+            "tool_name": tool_name,
+            "tool_args": tool_args
+        }
+    else:
+        print(f"Unknown subcommand: {subcommand}", file=sys.stderr)
+        print("Subcommands: list, call, run-list, run-call", file=sys.stderr)
+        sys.exit(1)
+
+def main():
+    args = parse_args()
+    subcommand = args["subcommand"]
+    
+    # Resolver o comando a ser executado
+    cmd = None
+    env_update = {}
+    
+    if subcommand in ("list", "call"):
+        server_name = args["server_name"]
+        config = load_mcp_config()
+        if not config or "mcpServers" not in config or server_name not in config["mcpServers"]:
+            print(f"Error: Server '{server_name}' not found in mcp_config.json", file=sys.stderr)
+            sys.exit(1)
+            
+        server_cfg = config["mcpServers"][server_name]
+        cmd = [server_cfg["command"]] + server_cfg.get("args", [])
+        env_update = server_cfg.get("env", {})
+    else:
+        cmd = args["cmd"]
+        
+    # Inicializar variáveis para o processo
+    process = None
+    try:
+        env = os.environ.copy()
+        if env_update:
+            env.update(env_update)
+            
+        print(f"[bridge] Starting server process: {cmd}", file=sys.stderr)
+        process = subprocess.Popen(
+            cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=sys.stderr,
+            env=env
+        )
+        
+        # Realizar Handshake
+        perform_handshake(process)
+        
+        # Executar comando
+        if subcommand in ("list", "run-list"):
+            print("[bridge] Listing tools...", file=sys.stderr)
+            resp = send_request(process, "tools/list", request_id=2)
+            if "error" in resp:
+                print(json.dumps(resp, indent=2))
+                sys.exit(1)
+            # Imprime o result formatado no stdout
+            print(json.dumps(resp.get("result", {}), indent=2))
+            
+        elif subcommand in ("call", "run-call"):
+            tool_name = args["tool_name"]
+            tool_args_str = args["tool_args"]
+            
+            parsed_args = {}
+            if tool_args_str:
+                try:
+                    parsed_args = json.loads(tool_args_str)
+                except json.JSONDecodeError as e:
+                    print(f"Error parsing tool arguments as JSON: {e}", file=sys.stderr)
+                    sys.exit(1)
+                    
+            call_params = {
+                "name": tool_name,
+                "arguments": parsed_args
+            }
+            
+            print(f"[bridge] Calling tool '{tool_name}' with args: {json.dumps(parsed_args)}", file=sys.stderr)
+            resp = send_request(process, "tools/call", call_params, request_id=3)
+            if "error" in resp:
+                print(json.dumps(resp, indent=2))
+                sys.exit(1)
+            # Imprime o result formatado no stdout
+            print(json.dumps(resp.get("result", {}), indent=2))
+            
+    except Exception as e:
+        print(f"Error during execution: {e}", file=sys.stderr)
+        sys.exit(1)
+        
+    finally:
+        if process and process.poll() is None:
+            try:
+                process.stdin.close()
+            except Exception:
+                pass
+            try:
+                process.terminate()
+                process.wait(timeout=2.0)
+            except subprocess.TimeoutExpired:
+                process.kill()
+
+if __name__ == "__main__":
+    main()
