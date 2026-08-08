@@ -52,5 +52,11 @@
   (should (+carlos/magent-slash-interceptor "/usage"))
   (should-not (+carlos/magent-slash-interceptor "olá mundo")))
 
+(ert-deftest myemacs-magent-tool-sanitizers ()
+  (skip-unless myemacs-magent-available)
+  (let ((default-directory "/home/carlosfilho/Projetos/emacsConfig/MyEmacs/"))
+    (should (string-prefix-p "/home/carlosfilho/Projetos/emacsConfig/MyEmacs/"
+                             (magent-tools--resolve-path "AGENTS.md")))))
+
 (provide 'magent-test)
 ;;; magent-test.el ends here

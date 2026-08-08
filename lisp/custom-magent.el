@@ -76,6 +76,41 @@
     (when (fboundp 'magent-agent-shell-ensure-config)
       (magent-agent-shell-ensure-config))))
 
+;; ── Tool Sanitization & Path Auto-Expansion ──────────────────────────
+(defconst +carlos/magent-system-directives
+  "CRITICAL MAGENT TOOL DIRECTIVES:
+1. ABSOLUTE PATHS: Always provide exact absolute file paths starting with '/' (e.g. '/home/carlosfilho/...').
+2. NON-EMPTY PARAMETERS: Never call write_file or edit_file with empty or missing required arguments (path, content, old_text, new_text).
+3. NATIVE TOOLS FIRST: Always use 'read_file', 'grep' (ripgrep), and 'glob' instead of running shell commands ('cat', 'head', 'grep', 'find') inside the 'bash' tool.
+4. NON-INTERACTIVE SHELL: Do not invoke interactive shell programs. For git commits, ALWAYS include '-m \"message\"'.
+5. SUBAGENT LIFECYCLE: When calling 'spawn_agent', you MUST call 'wait_agent(job_id)' to retrieve subagent results."
+  "Instruções estritas de uso de ferramentas para os modelos do Magent.")
+
+(defun +carlos/magent-resolve-path-advice (orig-fun path)
+  "Expande PATH relativo para absoluto usando `default-directory` antes de ORIG-FUN."
+  (if (and (stringp path)
+           (not (string-empty-p path))
+           (not (file-name-absolute-p path)))
+      (funcall orig-fun (expand-file-name path default-directory))
+    (funcall orig-fun path)))
+
+(defun +carlos/magent-write-file-advice (orig-fun callback path content)
+  "Valida se CONTENT não está vazio antes de executar ORIG-FUN."
+  (if (or (null content) (not (stringp content)) (string-empty-p (string-trim content)))
+      (funcall callback (magent-tools--failed "Error: Required parameter 'content' is empty. Please retry providing full content."))
+    (funcall orig-fun callback path content)))
+
+(defun +carlos/magent-edit-file-advice (orig-fun callback path old-text new-text)
+  "Valida se OLD-TEXT não está vazio antes de executar ORIG-FUN."
+  (if (or (null old-text) (not (stringp old-text)) (string-empty-p (string-trim old-text)))
+      (funcall callback (magent-tools--failed "Error: Required parameter 'old_text' is empty. Please retry providing exact text to replace."))
+    (funcall orig-fun callback path old-text new-text)))
+
+(with-eval-after-load 'magent-tools
+  (advice-add 'magent-tools--resolve-path :around #'+carlos/magent-resolve-path-advice)
+  (advice-add 'magent-tools--write-file :around #'+carlos/magent-write-file-advice)
+  (advice-add 'magent-tools--edit-file :around #'+carlos/magent-edit-file-advice))
+
 ;; ── Slash Commands & Directory Context Scope ──────────────────────
 (defvar +carlos/magent-extra-directories nil
   "Lista de diretórios adicionais incluídos no contexto do Magent.")

@@ -1,5 +1,22 @@
 # TODO — Planejamento Ativo e Backlog (MyEmacs)
 
+## 0.20. Plano de Ação — Fortalecimento de Contexto e Sanitizador Nativo das 15 Ferramentas do Magent
+
+> **Autor:** Agente Arquiteto (modelo Pro/Opus). Plano EXECUTÁVEL para o Agente Executor.
+
+### Tópicos do Plano:
+
+1. [x] **Fase 1: Injeção de Diretivas Nativas de Ferramentas (`lisp/custom-magent.el`)**
+   - [x] Criada a constante `+carlos/magent-system-directives` em `lisp/custom-magent.el` com regras de uso estrito das 15 ferramentas nativas (caminhos absolutos obrigatórios, argumentos não-vazios, preferência por ferramentas nativas em vez de shell `bash`).
+
+2. [x] **Fase 2: Auto-Sanitizador de Caminhos e Validador de Argumentos em Elisp (`lisp/custom-magent.el`)**
+   - [x] Criado o conselho `+carlos/magent-resolve-path-advice` que expande automaticamente qualquer caminho relativo contra `default-directory` (ex: navegando em subpastas ou via `/set-workdir`).
+   - [x] Criados os conselhos `+carlos/magent-write-file-advice` e `+carlos/magent-edit-file-advice` validando argumentos obrigatórios (`content`, `old_text`) e retornando mensagens de erro instrutivas.
+
+3. [x] **Fase 3: Testes de Regressão ERT em `tests/magent-test.el`**
+   - [x] Adicionado o teste ERT `myemacs-magent-tool-sanitizers` em `tests/magent-test.el` validadas as resoluções de caminho.
+   - [x] 100% de aprovação na suíte `just test-all` (123 testes verdes).
+
 ## 0.19. Plano de Ação — Roteamento Inteligente com Chat Local Default, Saúde do Servidor e Observador de Latência
 
 > **Autor:** Agente Arquiteto (modelo Pro/Opus). Plano EXECUTÁVEL para o Agente Executor.

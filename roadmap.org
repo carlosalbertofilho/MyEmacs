@@ -11,6 +11,12 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-08 — Fortalecimento de Contexto e Auto-Sanitizador de Ferramentas Magent (`lisp/custom-magent.el`)
+   - **Auto-Expansão de Caminhos Relativos (`+carlos/magent-resolve-path-advice`):** Intercepta o resolvedor de recursos `magent-tools--resolve-path` e garante que qualquer caminho relativo enviado pelos LLMs (ex: `AGENTS.md` ou `Rank05/...`) seja expandido instantaneamente usando o `default-directory` da sessão. Elimina falhas de arquivo não encontrado quando o modelo navega em subdiretórios.
+   - **Validação Resiliente de Payloads (`+carlos/magent-write-file-advice` e `+carlos/magent-edit-file-advice`):** Intercepta as ferramentas de escrita e edição para impedir a execução com parâmetros nulos ou vazios (`content` ou `old_text`), retornando uma mensagem de erro instrutiva para o modelo se auto-corrigir no próximo turno.
+   - **Injeção de Diretivas de Ferramentas (`+carlos/magent-system-directives`):** Conjunto estrito de regras de ouro instruindo os LLMs a usar caminhos absolutos, priorizar ferramentas nativas (`grep`, `glob`, `read_file`) em vez de shell `bash`, e manter chamadas `bash` não-interativas.
+   - **Status:** 🏆 123/123 testes ERT aprovados (incluindo `myemacs-magent-tool-sanitizers`), sincronizado com `~/.config/emacs`.
+
 ** 2026-08-08 — Slash Commands no Chat, Boot Local-First, Quota Cascade & Latency Watchdog
    - **Slash Commands Nativos no Chat do Magent (`lisp/custom-magent.el`):**
      - `/set-workdir <caminho>` (`C-c M w`): Altera o diretório de trabalho base da sessão e o escopo do agent-shell.
