@@ -29,17 +29,29 @@ install:
 
 # ── Clean / Rebuild (build artifact hygiene) ─────────────────────────
 
-# Remove stale byte-compiled objects (.elc) and native-comp cache (eln-cache/) in the repo
+# Remove stale byte-compiled objects (.elc/.eln) and native-comp cache
+# (eln-cache/) in the repo. Verified: fails if any artifact survives.
 clean:
-    @rm -f lisp/*.elc lisp/*.eln
-    @rm -rf eln-cache
-    @echo "✅ Cleaned repo build artifacts (.elc + eln-cache)"
+    @target="$(pwd)"; \
+    test -d "$target/lisp" || { echo "❌ $target/lisp not found; aborting clean."; exit 1; }; \
+    rm -f "$target"/lisp/*.elc "$target"/lisp/*.eln; \
+    rm -rf "$target"/eln-cache; \
+    leftovers="$(ls "$target"/lisp/*.elc "$target"/lisp/*.eln 2>/dev/null)"; \
+    test -z "$leftovers" || { echo "❌ Stale artifacts remain after clean:"; echo "$leftovers"; exit 1; }; \
+    test ! -d "$target/eln-cache" || { echo "❌ eln-cache/ still present after clean"; exit 1; }; \
+    echo "✅ Cleaned repo build artifacts (.elc + .eln + eln-cache)"
 
-# Remove stale byte-compiled objects (.elc) and native-comp cache (eln-cache/) in {{prod_dir}}
+# Remove stale byte-compiled objects (.elc/.eln) and native-comp cache
+# (eln-cache/) in {{prod_dir}}. Verified: fails if any artifact survives.
 clean-prod:
-    @rm -f "{{prod_dir}}/lisp/"*.elc "{{prod_dir}}/lisp/"*.eln
-    @rm -rf "{{prod_dir}}/eln-cache"
-    @echo "✅ Cleaned prod build artifacts (.elc + eln-cache)"
+    @target="{{prod_dir}}"; target="${target%/}"; \
+    test -d "$target/lisp" || { echo "❌ $target/lisp not found; aborting clean-prod."; exit 1; }; \
+    rm -f "$target"/lisp/*.elc "$target"/lisp/*.eln; \
+    rm -rf "$target"/eln-cache; \
+    leftovers="$(ls "$target"/lisp/*.elc "$target"/lisp/*.eln 2>/dev/null)"; \
+    test -z "$leftovers" || { echo "❌ Stale artifacts remain after clean:"; echo "$leftovers"; exit 1; }; \
+    test ! -d "$target/eln-cache" || { echo "❌ eln-cache/ still present after clean"; exit 1; }; \
+    echo "✅ Cleaned prod build artifacts (.elc + .eln + eln-cache)"
 
 # Rebuild byte-compiled objects from source in the repo (clean + compile)
 rebuild: clean compile
@@ -62,24 +74,28 @@ check-prod:
       --eval '(message "Config loaded OK.")' && echo "✅ OK" || echo "❌ FAIL"
 
 # Byte-compile lisp directory in {{prod_dir}} (zero-warning gate, filtered output)
+# Guaranteed: real emacs exit code is propagated (not masked by the filter pipe).
 compile-prod:
-    @set -o pipefail
-    @emacs --init-directory "{{prod_dir}}" --batch -l init.el \
+    @output="$(emacs --init-directory "{{prod_dir}}" --batch -l init.el \
       --eval '(setq byte-compile-error-on-warn t)' \
-      --eval '(byte-recompile-directory (expand-file-name "lisp" user-emacs-directory) 0)' 2>&1 \
-      | rg -i 'error|warning|failed|done' \
-      | rg -v 'Optimization failure|Unknown type: plist|epa-file|Unknown type jupyter'
+      --eval '(byte-recompile-directory (expand-file-name "lisp" user-emacs-directory) 0)' 2>&1)"; \
+    status=$?; \
+    echo "$output" | rg -i 'error|warning|failed|done' \
+      | rg -v 'Optimization failure|Unknown type: plist|epa-file|Unknown type jupyter' || true; \
+    exit "$status"
 
 # Nota: o repo pode ter builds elpaca parciais (ex.: falta tempel); o gate
 # autoritativo pós-sync é o `compile-prod`.
 # Byte-compile lisp directory in the repo (zero-warning gate, filtered output)
+# Guaranteed: real emacs exit code is propagated (not masked by the filter pipe).
 compile: compile-modules
-    @set -o pipefail
-    @emacs --init-directory "$(pwd)" --batch -l init.el \
+    @output="$(emacs --init-directory "$(pwd)" --batch -l init.el \
       --eval '(setq byte-compile-error-on-warn t)' \
-      --eval '(byte-recompile-directory (expand-file-name "lisp" user-emacs-directory) 0)' 2>&1 \
-      | rg -i 'error|warning|failed|done' \
-      | rg -v 'Optimization failure|Unknown type: plist|epa-file|Unknown type jupyter'
+      --eval '(byte-recompile-directory (expand-file-name "lisp" user-emacs-directory) 0)' 2>&1)"; \
+    status=$?; \
+    echo "$output" | rg -i 'error|warning|failed|done' \
+      | rg -v 'Optimization failure|Unknown type: plist|epa-file|Unknown type jupyter' || true; \
+    exit "$status"
 
 # Build native C/C++ modules (vterm-module, tree-sitter grammars)
 compile-modules:
