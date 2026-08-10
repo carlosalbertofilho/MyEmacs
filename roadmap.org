@@ -133,7 +133,7 @@ entenderem o estado atual do projeto e decisões tomadas.
    - **FinOps Token & Cost Tracker (`custom-ai.el`):** Criada a função `+carlos/gptel-track-usage` e atada ao hook pós-resposta `gptel-post-response-functions`. Ela lê de forma assíncrona a variável buffer-local `gptel--token-usage` e grava os tokens de entrada, saída, cached e custo aproximado em formato de tabela Org em `docs/ai-usage-tracker.org`.
    - **Auto-Mapeamento de Skills por Projeto (`custom-magent.el`):** O diretório de busca de skills do Magent foi configurado para dinamicamente descobrir a raiz do projeto Git ativo utilizando a API `project-current`, mapeando a pasta `magent/skills/` (unificada e limpa) por repositório de forma automática.
    - **Clonagem de Bibliotecas de Referência de IA:** Efetuada a clonagem de `awesome-cursorrules` (regras comunitárias), `awesome-mcp-servers` e `awesome-mcp` na pasta `~/Projects/Github` para análise e futuro reaproveitamento de skills.
-   - **Catálogo de Regras do awesome-cursorrules (Plano 0.14):** Mapeamento, categorização e catalogação de 257 regras clonadas sob formato colapsável em `TODO.md` agrupadas por foco.
+   - **Catálogo de Regras do awesome-cursorrules (Plano 0.14):** Mapeamento, categorização e catalogação de 257 regras clonadas sob formato colapsável em `roadmap.org` (Apêndice A) agrupadas por foco.
    - **Script de Conversão de Skills (`bin/skill-convert`):** Criado script em Python 3 puro que realiza a varredura e conversão de skills do OpenCode/Gemini para o padrão do Magent (`type: instruction`, `capability: true`) via backend local de IA. Implementado e validado com sucesso.
    - **Conversão RAG de Skills para Org-Mode (`docs/`):** Efetuada a conversão e sanitização de todas as 8 skills locais para arquivos `.org` RAG padronizados em `docs/`.
    - **Ponte de Servidor MCP (`bin/mcp-bridge`):** Criado script em Python 3 para conectar o Magent de forma CLI-driven a servidores MCP locais (como o `StitchMCP` de prototipagem da Google) usando comunicação JSON-RPC sobre stdio com timeouts robustos.
@@ -663,22 +663,22 @@ Criar cache de referência para que agentes possam:
 
 * Próximos Passos
 
-** Correções de Bugs (prioridade alta)
-1. Remover keybinding conflitante =C-c h=
-2. Corrigir dirvish ícones e layout
-3. Consolidar blocos dirvish
-4. Remover TRAMP duplicado
-5. Fix eglot prog-mode hook
+** Correções de Bugs (prioridade alta) — ✅ TODOS RESOLVIDOS (2026-08-09)
+1. ~~Remover keybinding conflitante =C-c h=~~ ✅ resolvido (consult-history movido para `C-c /`)
+2. ~~Corrigir dirvish ícones e layout~~ ✅ resolvido (`dirvish-nerd-icons-height 0.85`, layout `(1 0.11 0.55)`)
+3. ~~Consolidar blocos dirvish~~ ✅ resolvido (consolidado em `:config`)
+4. ~~Remover TRAMP duplicado~~ ✅ resolvido (apenas `custom-files.el`)
+5. ~~Fix eglot prog-mode hook~~ ✅ resolvido (hooks por-mode)
 
-** Melhorias (prioridade média)
-6. Guardar emojis org-modern-priority
+** Melhorias (prioridade média) — ✅ RESOLVIDAS (2026-08-09)
+6. ~~Guardar emojis org-modern-priority~~ ✅ resolvido (alternativas de texto)
 7. ~~Guardar superchat llm.el dependency~~ ✅ removido — superchat não é mais carregado (código morto eliminado em 2026-08-06)
 8. ~~Guardar gptel-integrations require~~ ✅ removido — bloco mcp/superchat eliminado em 2026-08-06
-9. Habilitar bindings comentados
-10. Remover eshell duplicado
+9. ~~Habilitar bindings comentados~~ ✅ resolvido (binds comentados removidos em 2026-08-06)
+10. ~~Remover eshell duplicado~~ ✅ resolvido (consolidado em `custom-term.el`)
 
-** Auditoria e Qualidade Elisp (prioridade ALTA — TODO §0.27, planejado 2026-08-09)
-- Auditar `custom-ai.el` concluída; plano de execução no TODO §0.27:
+** Auditoria e Qualidade Elisp — ✅ CONCLUÍDA (TODO §0.27, 2026-08-09)
+- Auditoria de `custom-ai.el` executada e implementada (ver entrada 2026-08-09 na Linha do Tempo):
   - Fix B1 (watchdog buffer errado) e B2 (`magent-analyze-agent-smith` host-blind)
   - Wire `+carlos/magent-log-context` via `magent-log-add-sink` + teste ERT
   - Consolidar hostname `"agnes"` em helper único; unificar path do tracker FinOps
@@ -686,13 +686,301 @@ Criar cache de referência para que agentes possam:
   - Cache do ping local (TTL 10s)
   - Ativar `lisp/custom-dev.el` (REPL IELM + ERT + debug IA, prefixo `C-c D`)
   - Verificação da suíte com baseline antes/depois
+  - Resultado: 146 testes, 0 falhas, 7 skipped (5 rede + 2 ambientais)
 
 ** Features (backlog)
-11. Adicionar fontes ao Nix
-12. Configurar Victor Mono com ligatures
-13. Refinar dashboard com tipografia
-14. Fase 4 — Cutoff final
+11. ~~Adicionar fontes ao Nix~~ ✅ concluído — Space Grotesk + Inter + Victor Mono instalados via Nix (2026-08-06)
+12. ~~Configurar Victor Mono com ligatures~~ ✅ concluído (2026-08-06)
+13. ~~Refinar dashboard com tipografia~~ ✅ concluído (títulos Space Grotesk, listagens Inter, 2026-08-06)
+14. ~~Fase 4 — Cutoff final~~ ⏸️ DECIDIDO (2026-08-09): manter modelo espelho — `~/.config/emacs` continua clone sincronizado via `just sync`; NÃO converter em symlink. Script `bin/cutoff-migration.sh` permanece disponível se a decisão mudar.
 15. agent-shell como subagente do Magent (em análise, futuro) — usar agent-shell standalone invocado pelo magent para features de agentes externos (diff-at-point RET, activity grouping, MCP nativo, frontier models p/ refactors pesados). Magent já usa agent-shell como frontend ACP in-process, mas o adapter não emite eventos diffs/locations estruturados. Preservar FinOps + sanitização + keybindings C-c A*. Registrado no TODO.md §3 item 7 (2026-08-09).
+
+* Apêndice A — Catálogo de Regras do awesome-cursorrules (Plano 0.14)
+
+Catálogo de 257 regras clonadas de `~/Projetos/Github/awesome-cursorrules`, organizadas
+por foco (migrado do TODO.md §0.14 em 2026-08-09). Apenas 9 foram convertidas para
+skills do Magent (Fase 1.2): `cpp-programming-guidelines`, `clean-code`,
+`python-fastapi-scalable-api`, `pytorch-scikit-learn`, `python-312-fastapi-best-practices`,
+`javascript-typescript-code-quality`, `nextjs-typescript-tailwind`,
+`git-conventional-commit-messages`, `anti-overengineering`.
+
+** Frontend (React, Next.js, Vue, Svelte, Angular, HTMX, Tailwind) — 91 regras
+
+- `angular-novo-elements-cursorrules-prompt-file.mdc`
+- `angular-typescript-cursorrules-prompt-file.mdc`
+- `astro-typescript-cursorrules-prompt-file.mdc`
+- `cloudflare-workers-hono-angular-saas-cursorrules-prompt-file.mdc`
+- `cursor-ai-react-typescript-shadcn-ui-cursorrules-p.mdc`
+- `cursorrules-cursor-ai-nextjs-14-tailwind-seo-setup.mdc`
+- `html-tailwind-css-javascript-cursorrules-prompt-fi.mdc`
+- `htmx-basic-cursorrules-prompt-file.mdc`
+- `htmx-django-cursorrules-prompt-file.mdc`
+- `htmx-flask-cursorrules-prompt-file.mdc`
+- `htmx-go-basic-cursorrules-prompt-file.mdc`
+- `htmx-go-fiber-cursorrules-prompt-file.mdc`
+- `javascript-astro-tailwind-css-cursorrules-prompt-f.mdc`
+- `landing-page-image-quality-cursorrules-prompt-file.mdc`
+- `nextjs-app-router-cursorrules-prompt-file.mdc`
+- `nextjs-material-ui-tailwind-css-cursorrules-prompt.mdc`
+- `nextjs-react-tailwind-cursorrules-prompt-file.mdc`
+- `nextjs-react-typescript-cursorrules-prompt-file.mdc`
+- `nextjs-seo-dev-cursorrules-prompt-file.mdc`
+- `nextjs-supabase-shadcn-pwa-cursorrules-prompt-file.mdc`
+- `nextjs-supabase-todo-app-cursorrules-prompt-file.mdc`
+- `nextjs-tailwind-typescript-apps-cursorrules-prompt.mdc`
+- `nextjs-tanstack-query-cursorrules-prompt-file.mdc`
+- `nextjs-tanstack-query.mdc`
+- `nextjs-typescript-app-cursorrules-prompt-file.mdc`
+- `nextjs-typescript-cursorrules-prompt-file.mdc`
+- `nextjs-typescript-tailwind-cursorrules-prompt-file.mdc`
+- `nextjs-vercel-supabase-cursorrules-prompt-file.mdc`
+- `nextjs-vercel-typescript-cursorrules-prompt-file.mdc`
+- `nextjs.mdc`
+- `nextjs15-react19-vercelai-tailwind-cursorrules-prompt-file.mdc`
+- `nextjs15-supabase-cursorrules-prompt-file.mdc`
+- `nodejs-mongodb-jwt-express-react-cursorrules-promp.mdc`
+- `qwik-basic-cursorrules-prompt-file.mdc`
+- `qwik-tailwind-cursorrules-prompt-file.mdc`
+- `react-chakra-ui-cursorrules-prompt-file.mdc`
+- `react-components-creation-cursorrules-prompt-file.mdc`
+- `react-formengine-ai-form-builder-cursorrules-prompt-file.mdc`
+- `react-graphql-apollo-client-cursorrules-prompt-file.mdc`
+- `react-mobx-cursorrules-prompt-file.mdc`
+- `react-native-expo-cursorrules-prompt-file.mdc`
+- `react-native-expo-router-typescript-windows-cursorrules-prompt-file.mdc`
+- `react-nextjs-ui-development-cursorrules-prompt-fil.mdc`
+- `react-query-cursorrules-prompt-file.mdc`
+- `react-redux-typescript-cursorrules-prompt-file.mdc`
+- `react-router-v7.mdc`
+- `react-styled-components-cursorrules-prompt-file.mdc`
+- `react-tanstack-router-query-cursorrules-prompt-file.mdc`
+- `react-tanstack-router-query.mdc`
+- `react-typescript-nextjs-nodejs-cursorrules-prompt-.mdc`
+- `react-typescript-symfony-cursorrules-prompt-file.mdc`
+- `react-zustand-cursorrules-prompt-file.mdc`
+- `react.mdc`
+- `semiotic-react-dataviz-cursorrules-prompt-file.mdc`
+- `solidity-react-blockchain-apps-cursorrules-prompt-.mdc`
+- `solidjs-basic-cursorrules-prompt-file.mdc`
+- `solidjs-tailwind-cursorrules-prompt-file.mdc`
+- `solidjs-typescript-cursorrules-prompt-file.mdc`
+- `svelte-5-vs-svelte-4-cursorrules-prompt-file.mdc`
+- `svelte.mdc`
+- `sveltekit-restful-api-tailwind-css-cursorrules-pro.mdc`
+- `sveltekit-tailwindcss-typescript-cursorrules-promp.mdc`
+- `sveltekit-typescript-guide-cursorrules-prompt-file.mdc`
+- `tailwind-css-nextjs-guide-cursorrules-prompt-file.mdc`
+- `tailwind-react-firebase-cursorrules-prompt-file.mdc`
+- `tailwind-shadcn-ui-integration-cursorrules-prompt-.mdc`
+- `tailwind.mdc`
+- `tanstack-router-react-cursorrules-prompt-file.mdc`
+- `tauri-svelte-typescript-guide-cursorrules-prompt-f.mdc`
+- `toss-style-design-system.mdc`
+- `typescript-nextjs-cursorrules-prompt-file.mdc`
+- `typescript-nextjs-react-cursorrules-prompt-file.mdc`
+- `typescript-nextjs-react-tailwind-supabase-cursorru.mdc`
+- `typescript-nextjs-supabase-cursorrules-prompt-file.mdc`
+- `typescript-nodejs-nextjs-ai-cursorrules-prompt-fil.mdc`
+- `typescript-nodejs-nextjs-app-cursorrules-prompt-fi.mdc`
+- `typescript-nodejs-nextjs-react-ui-css-cursorrules-.mdc`
+- `typescript-nodejs-react-vite-cursorrules-prompt-fi.mdc`
+- `typescript-react-cursorrules-prompt-file.mdc`
+- `typescript-react-nextjs-cloudflare-cursorrules-pro.mdc`
+- `typescript-react-nextui-supabase-cursorrules-promp.mdc`
+- `typescript-shadcn-ui-nextjs-cursorrules-prompt-fil.mdc`
+- `typescript-vite-tailwind-cursorrules-prompt-file.mdc`
+- `typescript-vuejs-cursorrules-prompt-file.mdc`
+- `typescript-zod-tailwind-nextjs-cursorrules-prompt-.mdc`
+- `vue-3-nuxt-3-development-cursorrules-prompt-file.mdc`
+- `vue-3-nuxt-3-typescript-cursorrules-prompt-file.mdc`
+- `vue-claude-stack.mdc`
+- `vue-pinia-cursorrules-prompt-file.mdc`
+- `vue.mdc`
+- `vue3-composition-api-cursorrules-prompt-file.mdc`
+
+** Linguagens & Ambientes Core (C/C++, Go, Rust, TypeScript, Node) — 30 regras
+
+- `beefreeSDK-nocode-content-editor-cursorrules-prompt-file.mdc`
+- `chrome-extension-dev-js-typescript-cursorrules-pro.mdc`
+- `cpp-programming-guidelines-cursorrules-prompt-file.mdc`
+- `cpp.mdc`
+- `deno-integration-techniques-cursorrules-prompt-fil.mdc`
+- `dragonruby-best-practices-cursorrules-prompt-file.mdc`
+- `elixir-engineer-guidelines-cursorrules-prompt-file.mdc`
+- `elixir-phoenix-docker-setup-cursorrules-prompt-fil.mdc`
+- `es-module-nodejs-guidelines-cursorrules-prompt-fil.mdc`
+- `fortran.mdc`
+- `go-backend-scalability-cursorrules-prompt-file.mdc`
+- `go-servemux-rest-api-cursorrules-prompt-file.mdc`
+- `go-temporal-dsl-prompt-file.mdc`
+- `go.mdc`
+- `google-adk.mdc`
+- `hol-hedera-typescript-cursorrules-prompt-file.mdc`
+- `javascript-typescript-code-quality-cursorrules-pro.mdc`
+- `node-express.mdc`
+- `nodejs-mongodb-cursorrules-prompt-file-tutorial.mdc`
+- `r-cursorrules-prompt-file-best-practices.mdc`
+- `rust-general.mdc`
+- `rust.mdc`
+- `scala-kafka-cursorrules-prompt-file.mdc`
+- `typescript-axios-cursorrules-prompt-file.mdc`
+- `typescript-clasp-cursorrules-prompt-file.mdc`
+- `typescript-code-convention-cursorrules-prompt-file.mdc`
+- `typescript-llm-tech-stack-cursorrules-prompt-file.mdc`
+- `typescript-nestjs-best-practices-cursorrules-promp.mdc`
+- `typescript.mdc`
+- `vscode-extension-dev-typescript-cursorrules-prompt-file.mdc`
+
+** Python, IA, Machine Learning & Data Science — 25 regras
+
+- `automl-hyperparameter-optimization.mdc`
+- `blender-python-addon.mdc`
+- `fastapi-production-architecture-cursorrules-prompt-file.mdc`
+- `fastapi.mdc`
+- `linux-nvidia-cuda-python-cursorrules-prompt-file.mdc`
+- `pandas-scikit-learn-guide-cursorrules-prompt-file.mdc`
+- `pyqt6-eeg-processing-cursorrules-prompt-file.mdc`
+- `pyspark-etl-best-practices-cursorrules-prompt-file.mdc`
+- `python--typescript-guide-cursorrules-prompt-file.mdc`
+- `python-312-fastapi-best-practices-cursorrules-prom.mdc`
+- `python-containerization-cursorrules-prompt-file.mdc`
+- `python-cursorrules-prompt-file-best-practices.mdc`
+- `python-developer-cursorrules-prompt-file.mdc`
+- `python-django-best-practices-cursorrules-prompt-fi.mdc`
+- `python-fastapi-best-practices-cursorrules-prompt-f.mdc`
+- `python-fastapi-cursorrules-prompt-file.mdc`
+- `python-fastapi-scalable-api-cursorrules-prompt-fil.mdc`
+- `python-flask-json-guide-cursorrules-prompt-file.mdc`
+- `python-github-setup-cursorrules-prompt-file.mdc`
+- `python-llm-ml-workflow-cursorrules-prompt-file.mdc`
+- `python-projects-guide-cursorrules-prompt-file.mdc`
+- `python.mdc`
+- `pytorch-scikit-learn-cursorrules-prompt-file.mdc`
+- `temporal-python-cursorrules.mdc`
+- `tensorflow-deep-learning.mdc`
+
+** Mobile (Flutter, Android, React Native) — 6 regras
+
+- `android-jetpack-compose-cursorrules-prompt-file.mdc`
+- `flutter-app-expert-cursorrules-prompt-file.mdc`
+- `flutter-development-guidelines-cursorrules-prompt-file.mdc`
+- `flutter-riverpod-cursorrules-prompt-file.mdc`
+- `nativescript-cursorrules-prompt-file.mdc`
+- `nativescript.mdc`
+
+** Banco de Dados, Cloud, DevOps & Smart Contracts — 17 regras
+
+- `convex-cursorrules-prompt-file.mdc`
+- `database.mdc`
+- `docker.mdc`
+- `knative-istio-typesense-gpu-cursorrules-prompt-fil.mdc`
+- `kubernetes-mkdocs-documentation-cursorrules-prompt.mdc`
+- `netlify-official-cursorrules-prompt-file.mdc`
+- `optimize-rell-blockchain-code-cursorrules-prompt-f.mdc`
+- `postgresql.mdc`
+- `snowflake-cortex-ai-cursorrules-prompt-file.mdc`
+- `snowflake-data-engineering-cursorrules-prompt-file.mdc`
+- `snowflake-snowpark-dbt-cursorrules-prompt-file.mdc`
+- `solana-wallet-aware.mdc`
+- `solidity-foundry-cursorrules-prompt-file.mdc`
+- `solidity-hardhat-cursorrules-prompt-file.mdc`
+- `vercel-deployment-cursorrules-prompt-file.mdc`
+- `vercel-deployment.mdc`
+- `xian-smart-contracts-cursor-rules-prompt-file.mdc`
+
+** QA, Testes, Commits & Padrões de Qualidade — 28 regras
+
+- `anti-overengineering.mdc`
+- `anti-sycophancy-code-discipline-cursorrules-prompt-file.mdc`
+- `clean-code.mdc`
+- `code-style-consistency-cursorrules-prompt-file.mdc`
+- `codequality.mdc`
+- `cypress-accessibility-testing-cursorrules-prompt-file.mdc`
+- `cypress-api-testing-cursorrules-prompt-file.mdc`
+- `cypress-defect-tracking-cursorrules-prompt-file.mdc`
+- `cypress-e2e-testing-cursorrules-prompt-file.mdc`
+- `cypress-integration-testing-cursorrules-prompt-file.mdc`
+- `gherkin-style-testing-cursorrules-prompt-file.mdc`
+- `git-conventional-commit-messages.mdc`
+- `gitflow.mdc`
+- `jest-unit-testing-cursorrules-prompt-file.mdc`
+- `optimize-dry-solid-principles-cursorrules-prompt-f.mdc`
+- `playwright-accessibility-testing-cursorrules-prompt-file.mdc`
+- `playwright-api-testing-cursorrules-prompt-file.mdc`
+- `playwright-defect-tracking-cursorrules-prompt-file.mdc`
+- `playwright-e2e-testing-cursorrules-prompt-file.mdc`
+- `playwright-integration-testing-cursorrules-prompt-file.mdc`
+- `pr-review-cursorrules-prompt-file.mdc`
+- `pr-template-cursorrules-prompt-file.mdc`
+- `qa-bug-report-cursorrules-prompt-file.mdc`
+- `readme-best-practices-cursorrules-prompt-file.mdc`
+- `testrail-test-case-cursorrules-prompt-file.mdc`
+- `typescript-expo-jest-detox-cursorrules-prompt-file.mdc`
+- `vitest-unit-testing-cursorrules-prompt-file.mdc`
+- `xray-test-case-cursorrules-prompt-file.mdc`
+
+** Outros / Jogos / CMS / Específicos — 60 regras
+
+- `ai-agent-specialist.mdc`
+- `alpha-skills-quant-factor-research.mdc`
+- `ankra-cli.mdc`
+- `ascii-simulation-game-cursorrules-prompt-file.mdc`
+- `aspnet-abp-cursorrules-prompt-file.mdc`
+- `beefreeSDK.mdc`
+- `cloudflare-email-telegram-cursorrules-prompt-file.mdc`
+- `code-guidelines-cursorrules-prompt-file.mdc`
+- `code-pair-interviews.mdc`
+- `cursor-rules-pack-v2-cursorrules-prompt-file.mdc`
+- `cursorrules-cursor-ai-wordpress-draft-macos-prompt.mdc`
+- `drupal-11-cursorrules-prompt-file.mdc`
+- `embedded-stm32-hal.mdc`
+- `engineering-ticket-template-cursorrules-prompt-file.mdc`
+- `gamemaker-gml.mdc`
+- `github-code-quality-cursorrules-prompt-file.mdc`
+- `github-cursorrules-prompt-file-instructions.mdc`
+- `graphical-apps-development-cursorrules-prompt-file.mdc`
+- `harmony-arkts.mdc`
+- `helium-mcp-cursorrules-prompt-file.mdc`
+- `how-to-documentation-cursorrules-prompt-file.mdc`
+- `java-general-purpose-cursorrules-prompt-file.mdc`
+- `java-springboot-jpa-cursorrules-prompt-file.mdc`
+- `javascript-chrome-apis-cursorrules-prompt-file.mdc`
+- `kotlin-ktor-development-cursorrules-prompt-file.mdc`
+- `kotlin-springboot-best-practices-cursorrules-prompt-file.mdc`
+- `kubestellar-console.mdc`
+- `laravel-php-83-cursorrules-prompt-file.mdc`
+- `laravel-tall-stack-best-practices-cursorrules-prom.mdc`
+- `manifest-yaml-cursorrules-prompt-file.mdc`
+- `medusa-cursorrules.mdc`
+- `medusa.mdc`
+- `momen-cursurrules-prompt-file.mdc`
+- `nestjs-anti-hallucination-cursorrules-prompt-file.mdc`
+- `network-troubleshoot.mdc`
+- `next-type-llm.mdc`
+- `plasticode-telegram-api-cursorrules-prompt-file.mdc`
+- `project-epic-template-cursorrules-prompt-file.mdc`
+- `py-fast-api.mdc`
+- `rails-cursorrules-prompt-file.mdc`
+- `ros-ros2.mdc`
+- `rtl-right-to-left-i18n-cursorrules-prompt-file.mdc`
+- `salesforce-apex-cursorrules-prompt-file.mdc`
+- `security-devsecops-ssdls-appsec.mdc`
+- `shopify-theme-dev-liquid.mdc`
+- `swift-uikit-cursorrules-prompt-file.mdc`
+- `swiftui-guidelines-cursorrules-prompt-file.mdc`
+- `tanstack-query-v5-cursorrules-prompt-file.mdc`
+- `tanstack-query.mdc`
+- `tanstack-router.mdc`
+- `tanstack-start-cursorrules-prompt-file.mdc`
+- `tanstack-start.mdc`
+- `tokrepo-agent-discovery-cursorrules-prompt-file.mdc`
+- `typo3cms-extension-cursorrules-prompt-file.mdc`
+- `uikit-guidelines-cursorrules-prompt-file.mdc`
+- `unity-cursor-ai-c-cursorrules-prompt-file.mdc`
+- `web-app-optimization-cursorrules-prompt-file.mdc`
+- `webassembly-z80-cellular-automata-cursorrules-prom.mdc`
+- `wordpress-claude-stack.mdc`
+- `wordpress-php-guzzle-gutenberg-cursorrules-prompt-.mdc`
 
 * Referências
 
