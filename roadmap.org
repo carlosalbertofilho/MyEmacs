@@ -11,6 +11,29 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-10 — [CONCLUÍDO] Fix: Magent com tool call DSML no system prompt (resposta vazia)
+   - **Bug:** `Magent> analise o repositorio atual...` não retornou resposta com o
+     backend local Qwen3.5-9B-MLX-4bit. Diagnóstico (ledger
+     `session-20260809-230412.json` + logs do servidor): sob contexto pesado
+     (11.2K tokens, 15 tools), o modelo emitiu a tool call em formato textual
+     Claude/Anthropic (`<tool_call><function=read_file><parameter=path>...`)
+     como *reasoning*, em vez de tool_calls nativo JSON. O parser do magent
+     (`magent-llm-gptel--parse-dsml-tool-calls`, magent-llm-gptel.el:363) só
+     reconhece DSML (`<tool_calls>/<invoke name=...>/<parameter name=...>`),
+     então a tool call foi ignorada, `read_file` nunca executou e o turn
+     completou com conteúdo vazio.
+   - **Fix:** diretriz nº 6 em `+carlos/magent-system-directives` ensinando o
+     formato DSML exato (e proibindo `<tool_call>/<function=>/<parameter=>`),
+     injetada no system message via advice `:filter-return` em
+     `magent-agent--compose-system-message`.
+   - **Detalhe do advice:** primeiro commit usou `:around`, que passa a função
+     original como 1º argumento (quebrando `concat` no runtime) → corrigido para
+     `:filter-return`, que recebe o valor de retorno da função composta.
+   - **Validação:** reprodução batch com o mesmo contexto + diretriz gerou
+     tool_call nativo correto (`read_file` → `AGENTS.md`); `just test-all` →
+     **150 testes, 0 falhas, 7 skipped**; integração confirma diretriz no system
+     message composto. Pendente: validação em sessão real multi-turn (TODO §1).
+
 ** 2026-08-09 — [CONCLUÍDO] Política de Limpeza de Artefatos de Build (`just clean`/`rebuild`)
    - **Motivação:** objetos de build antigos (`.elc`, `eln-cache/`) causam erros
      (`void-function`, `void-variable`, comportamento divergente) quando o fonte

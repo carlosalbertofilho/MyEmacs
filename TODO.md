@@ -8,6 +8,7 @@
 ## 1. Pendências de Investigação (Bugs)
 
 - [ ] **Testar config completa em GUI** (não batch) para verificar compilação do `vterm-module`.
+- [ ] **Validar fix DSML do Magent em sessão real** (2026-08-10): o Qwen3.5-9B emitiu tool call em formato Claude-XML (`<tool_call><function=>`) que o magent ignora → resposta vazia. Fix aplicado (diretriz DSML no system prompt via `:filter-return`); reprodução batch gerou tool_call nativo correto, mas falta confirmar numa sessão real de vários turns.
 - [ ] Investigar por que `consult` e `nerd-icons` não foram encontrados no MELPA durante `just check` (se persistente nas primeiras instalações do usuário).
 - [ ] Verificar se pacotes estão em rebuild no MELPA ou se foram removidos/renomeados.
 
@@ -34,6 +35,7 @@
 - **Fase 4 — Cutoff (Doom → Vanilla final):** **manter modelo espelho** — `~/.config/emacs` continua clone sincronizado via `just sync`; NÃO converter em symlink (decisão 2026-08-09). Script `bin/cutoff-migration.sh` permanece disponível se a decisão mudar.
 - **agy/copilot no Emacs (exceção a "CLIs no terminal"):** mantidos como exceção consciente — `+carlos/agy-prompt` (`C-c A g`) e `+carlos/copilot-explain-region` (`C-c A c`) (AGENTS.md §0, 2026-08-09).
 - **Limpeza de artefatos de build:** política criada (2026-08-09) — `just clean`/`clean-prod` (`.elc`/`.eln` + `eln-cache/`) e `just rebuild`/`rebuild-prod`. Rebuild completo em repo e prod + `just test-all` OK (146 testes, 0 falhas). Ver AGENTS.md "Política de Limpeza de Artefatos de Build" e roadmap 2026-08-09.
+- **Formato de tool call do Magent (DSML):** adicionada diretriz nº 6 em `+carlos/magent-system-directives` ensinando o formato textual parseável (`<tool_calls>`/`<invoke name=...>`/`<parameter name=...>`), injetada no system message via advice `:filter-return` em `magent-agent--compose-system-message`. Motivo: Qwen3.5-9B sob contexto pesado emitiu `<tool_call>/<function=>` (Claude-XML) como reasoning, que o parser do magent ignora (2026-08-10). Testes: `myemacs-magent-dsml-*` (150 testes, 0 falhas).
 
 ---
 > Para o histórico cronológico detalhado de conquistas e decisões arquiteturais, consulte o [roadmap.org](roadmap.org).
