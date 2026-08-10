@@ -15,6 +15,7 @@
 ;;
 ;; Variáveis de ambiente:
 ;;   MAGENT_SIM_MODEL   modelo a usar (default: o default local do host)
+;;   MAGENT_SIM_BACKEND backend gptel a usar (default: o local do host)
 ;;   MAGENT_SIM_TIMEOUT segundos de espera (default: 240)
 ;;   MAGENT_SIM_PROMPT  texto do prompt (default: análise do diretório)
 ;;
@@ -77,17 +78,25 @@
        (timeout (or (and (getenv "MAGENT_SIM_TIMEOUT")
                          (string-to-number (getenv "MAGENT_SIM_TIMEOUT")))
                     240))
-       (sim-model (getenv "MAGENT_SIM_MODEL")))
+       (sim-model (getenv "MAGENT_SIM_MODEL"))
+       (sim-backend (getenv "MAGENT_SIM_BACKEND")))
   (setq magent-batch--timeout timeout)
   (require 'gptel)
   (require 'magent)
   (require 'magent-agent-shell)
-  (when (and sim-model (gptel-get-backend "MLX Local"))
-    (setq gptel-backend (gptel-get-backend "MLX Local")
-          gptel-model (intern sim-model))
-    (when (boundp '+carlos/gptel-agent-backend)
-      (setq +carlos/gptel-agent-backend "MLX Local"
-            +carlos/gptel-agent-model (intern sim-model))))
+  (let ((backend-name (or sim-backend
+                          (and (fboundp '+carlos/ai-local-backend)
+                               (car (+carlos/ai-local-backend))))))
+    (when backend-name
+      (if sim-model
+          (progn
+            (setq gptel-backend (gptel-get-backend backend-name)
+                  gptel-model (intern sim-model))
+            (when (boundp '+carlos/gptel-agent-backend)
+              (setq +carlos/gptel-agent-backend backend-name
+                    +carlos/gptel-agent-model (intern sim-model))))
+        (setq gptel-backend (gptel-get-backend backend-name)
+              gptel-model (cdr (+carlos/ai-local-backend))))))
   (unless gptel-backend
     (setq gptel-backend (or (gptel-get-backend "OpenAI")
                             (gptel-get-backend "Gemini")

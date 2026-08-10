@@ -120,14 +120,18 @@
               "gemma-4-31b-it"
               "antigravity-preview-05-2026"))
 
-  ;; ── Backend: Ollama Local (OpenAI-compatible endpoint com suporte a Tool Calling) ──
-  (gptel-make-openai "Ollama Local"
+  ;; ── Backend: Ollama Local (endpoint nativo /api/chat) ─────────────
+  ;; NOTA: usar gptel-make-ollama (não gptel-make-openai) — o endpoint
+  ;; OpenAI-compat /v1/chat/completions IGNORA options.num_ctx (sempre
+  ;; 4096), quebrando o magent com prompts >4096 tokens. O endpoint
+  ;; nativo /api/chat honra `:options (:num_ctx 16384)`.
+  (gptel-make-ollama "Ollama Local"
     :host "localhost:11434"
     :protocol "http"
-    :endpoint "/v1/chat/completions"
     :stream t
     :request-params '(:options (:num_ctx 16384))
-    :models '("qwen2.5-coder:3b"
+    :models '("gemma4:e2b"
+              "qwen2.5-coder:3b"
               "qwen2.5-coder:1.5b"
               "deepseek-r1:1.5b"
               "mistral"))
