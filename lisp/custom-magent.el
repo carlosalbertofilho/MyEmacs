@@ -87,8 +87,19 @@
 2. NON-EMPTY PARAMETERS: Do not call write_file or edit_file with empty or missing args.
 3. NATIVE TOOLS FIRST: Prefer 'read_file', 'grep' (ripgrep), and 'glob' over shell commands.
 4. NON-INTERACTIVE SHELL: Avoid interactive shells; git commits must include '-m \"message\"'.
-5. SUBAGENT LIFECYCLE: When using 'spawn_agent', call 'wait_agent(job_id)' to get results."
+5. SUBAGENT LIFECYCLE: When using 'spawn_agent', call 'wait_agent(job_id)' to get results.
+6. TOOL CALL FORMAT: Always request tool use through the native structured function-calling mechanism. Never emit a tool call as free-form XML text. If you must encode a tool call in text (some backends only support textual tool calls), use EXACTLY this DSML envelope, with nothing else between the tags:
+<tool_calls>
+<invoke name=\"read_file\">
+<parameter name=\"path\">/absolute/path/to/file</parameter>
+</invoke>
+</tool_calls>
+Do NOT use '<tool_call>', '<function=...>', or '<parameter=...>' forms; the runtime only parses the '<tool_calls>'/'<invoke name=...>'/'<parameter name=...>' syntax shown above."
   "Instruções estritas de uso de ferramentas para os modelos do Magent.")
+
+(defun +carlos/magent-inject-system-directives (composed &rest _)
+  "Append Magent system directives to the COMPOSED system message."
+  (concat composed "\n\n" +carlos/magent-system-directives))
 
 (defun +carlos/magent-resolve-path-advice (orig-fun path)
   "Expande PATH para absoluto com ORIG-FUN usando `default-directory'."
@@ -114,6 +125,10 @@
   (advice-add 'magent-tools--resolve-path :around #'+carlos/magent-resolve-path-advice)
   (advice-add 'magent-tools--write-file :around #'+carlos/magent-write-file-advice)
   (advice-add 'magent-tools--edit-file :around #'+carlos/magent-edit-file-advice))
+
+(with-eval-after-load 'magent-agent
+  (advice-add 'magent-agent--compose-system-message
+              :around #'+carlos/magent-inject-system-directives))
 
 ;; ── Slash Commands & Directory Context Scope ──────────────────────
 (defvar +carlos/magent-extra-directories nil

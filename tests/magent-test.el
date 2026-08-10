@@ -95,5 +95,34 @@ e, quando chamado, o buffer *magent-log* recebe a linha."
         (goto-char (point-max))
         (should (search-backward "teste-sink" start t))))))
 
+(ert-deftest myemacs-magent-dsml-directive-content ()
+  "A diretriz DSML ensina o formato textual parseável pelo magent:
+<tool_calls>/<invoke name=...>/<parameter name=...> — nunca <tool_call>
+singular, <function=...> ou <parameter=...> (formato Claude que o parser
+ignora, deixando o turn vazio)."
+  (should (string-match-p "<tool_calls>" +carlos/magent-system-directives))
+  (should (string-match-p "<invoke name=\"read_file\">"
+                          +carlos/magent-system-directives))
+  (should (string-match-p "<parameter name=\"path\">"
+                          +carlos/magent-system-directives))
+  (should (string-match-p "Do NOT use" +carlos/magent-system-directives))
+  (should (string-match-p "<tool_call>'" +carlos/magent-system-directives)))
+
+(ert-deftest myemacs-magent-inject-directives ()
+  "O advice +carlos/magent-inject-system-directives preserva o system message
+composto e anexa as diretrizes CRITICAL MAGENT TOOL DIRECTIVES."
+  (should (fboundp '+carlos/magent-inject-system-directives))
+  (let ((out (funcall #'+carlos/magent-inject-system-directives "BASE")))
+    (should (string-prefix-p "BASE" out))
+    (should (string-match-p "CRITICAL MAGENT TOOL DIRECTIVES" out))
+    (should (string-match-p "<tool_calls>" out))))
+
+(ert-deftest myemacs-magent-inject-advice-active ()
+  "O advice :around está instalado em magent-agent--compose-system-message."
+  (skip-unless (fboundp 'magent-agent--compose-system-message))
+  (should (advice-member-p
+           #'+carlos/magent-inject-system-directives
+           'magent-agent--compose-system-message)))
+
 (provide 'magent-test)
 ;;; magent-test.el ends here
