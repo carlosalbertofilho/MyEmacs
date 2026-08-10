@@ -26,8 +26,12 @@
            (native-comp-available-p))
   ;; Number of parallel compilation jobs (use all CPU cores)
   (setq native-comp-async-jobs-number (num-processors))
-  ;; Defer compilation until first load (oat = on-the-fly)
-  (setq native-comp-deferred-compilation t)
+  ;; DESATIVAR load-time native-comp dos nossos lisp/custom-*.el (default é t
+  ;; no Emacs 30). O subprocesso async compila a partir do SOURCE sem o macro
+  ;; `elpaca`, gerando .eln com `(elpaca vertico)` como funcall →
+  ;; void-variable vertico no boot seguinte. Pacotes continuam nativizados via
+  ;; package-native-compile; custom-*.el ficam só em byte-code (.elc).
+  (setq native-comp-deferred-compilation nil)
   ;; Compile packages natively on install (not just byte-compile)
   (setq package-native-compile t))
 
