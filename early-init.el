@@ -35,6 +35,18 @@
   ;; Compile packages natively on install (not just byte-compile)
   (setq package-native-compile t))
 
+;; ── Bidi & Long-line display performance ───────────────────────────
+;; Prevents Emacs 100% CPU lockups (in bidi_find_bracket_pairs C code) when
+;; long strings/plists with brackets are printed to the echo area/minibuffer.
+(setq-default bidi-paragraph-direction 'left-to-right)
+(setq bidi-inhibit-bpa t)
+
+;; Limit object serialization depth/length in messages and error backtraces
+(setq print-length 200
+      print-level 20
+      eval-expression-print-length 200
+      eval-expression-print-level 20)
+
 ;; ── Silence startup noise ───────────────────────────────────────────
 (setq inhibit-startup-echo-area-message (user-login-name))
 (setq inhibit-splash-screen t)

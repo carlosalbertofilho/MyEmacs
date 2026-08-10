@@ -30,7 +30,7 @@
 ;; desativa o FSM customizado: `magent-llm-gptel-sample` então recebe o FSM
 ;; default do gptel (`gptel-make-fsm`).  DIAGNÓSTICO — manter apenas para testar
 ;; a hipótese; remover depois que a causa raiz for confirmada.
-(defvar +carlos/magent-disable-custom-fsm t
+(defvar +carlos/magent-disable-custom-fsm nil
   "Non-nil usa o FSM default do gptel em vez do FSM customizado do magent.")
 
 (defun +carlos/magent--fsm-override-a (orig &rest args)

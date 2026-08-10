@@ -792,23 +792,5 @@ dinâmico. O caminho do projeto é informado ao agente no prompt."
       (magent-start (format "Analise o projeto em %s e explique o que voce entendeu"
                             target-dir)))))
 
-(defun +carlos/magent-log-context (request response)
-  "Log REQUEST and RESPONSE strings to *magent-log* buffer for debugging."
-  (let ((log-buf (get-buffer-create "*magent-log*")))
-    (with-current-buffer log-buf
-      (let ((inhibit-read-only t))
-        (goto-char (point-max))
-        (insert (format "\n--- Magent Log (%s) ---\nRequest:\n%s\n\nResponse:\n%s\n" (format-time-string "%Y-%m-%d %H:%M:%S") request response))))))
-
-(defun +carlos/magent-log-sink (text level)
-  "Sink do magent-log: grava TEXT (nível LEVEL) no buffer `*magent-log*'.
-Adapta o contrato `(request response)' de `+carlos/magent-log-context'
-para o contrato `(text level)' de `magent-log-add-sink'."
-  (+carlos/magent-log-context text (format "[%s]" level)))
-
-(with-eval-after-load 'magent-log
-  (when (fboundp 'magent-log-add-sink)
-    (magent-log-add-sink #'+carlos/magent-log-sink)))
-
 (provide 'custom-ai)
 ;;; custom-ai.el ends here

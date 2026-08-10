@@ -29,6 +29,10 @@
 (setq-default tab-width 4)
 (setq delete-by-moving-to-trash t)
 
+;; Bidi & display reordering performance (desativa bidi/BPA para evitar travamentos de CPU)
+(setq-default bidi-paragraph-direction 'left-to-right)
+(setq bidi-inhibit-bpa t)
+
 ;; Kill ring
 (setq kill-ring-max 200)
 
