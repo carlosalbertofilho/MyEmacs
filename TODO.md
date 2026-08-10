@@ -25,13 +25,29 @@ Ordem deliberada dos planos de ação — trabalhar nesta sequência:
    (flycheck/lsp/snippet), depois driver do buffer vivo. Depende do §1d
    (contexto sob controle antes de adicionar mais tools).
 
-## 1. Pendências de Investigação (Bugs)
+## 1. Pendências de Investigação e Diagnóstico (Bugs Resolvidos)
+
+- [x] **Travamento de CPU (100% CPU em `bidi_find_bracket_pairs` / `resize_mini_window`) (2026-08-10, RESOLVIDO):**
+  - **Sintoma:** O daemon do Emacs travava em 100% CPU e o `emacsclient` deixava de responder quando o Magent/GPTel logava mensagens longas contendo o plist de ferramentas com parênteses/colchetes desbalanceados no echo area/minibuffer.
+  - **Causa Raiz:** O motor de redisplay C do Emacs acionava o algoritmo BPA (`bidi_find_bracket_pairs`) e a varredura do minibuffer (`resize_mini_window`) para calcular a altura da mensagem do echo area a cada ciclo de `sit-for`/timers (`wait_reading_process_output`), entrando em complexidade quadrática em C.
+  - **Solução:** Aplicado `(setq bidi-inhibit-bpa t)`, `(setq-default bidi-paragraph-direction 'left-to-right)`, `(setq resize-mini-windows nil)` e `(setq max-mini-window-height 1)` em `early-init.el` e `custom-core.el`, além de limitar a profundidade de serialização Lisp com `print-length 200` e `print-level 20`.
+
+- [x] **Timeout de 120s no Gemini Tool Calling (Simbolo vs String) (2026-08-10, RESOLVIDO):**
+  - **Sintoma:** Requisições ao Gemini no Magent terminavam em `Error: Request timed out after 120 seconds` mesmo após receber `HTTP/2 200`.
+  - **Causa Raiz:** O `gptel-gemini` retornava os nomes das ferramentas em `:tool-use` como símbolos Lisp (`'glob`, `'read_file`), fazendo `(equal (gptel-tool-name ts) name)` falhar ao comparar string vs símbolo (`(equal "glob" 'glob) -> nil`), definindo `tool-spec = nil` e impedindo a execução da ferramenta.
+  - **Solução:** Criado a advice `+carlos/magent-sanitize-tool-use-name-a` em `lisp/custom-magent.el` que executa `(magent-llm-gptel--sanitize-info info)` antes da busca da `tool-spec`, convertendo símbolos para strings. Adicionado o teste `myemacs-magent-sanitize-tool-use-symbol-to-string` em `tests/magent-test.el`.
+
+- [x] **Clobbering do `gptel-agent-dirs` antes do carregamento (2026-08-10, RESOLVIDO):**
+  - **Causa Raiz:** `+carlos/gptel-agent-add-project-dirs` executava `(unless (boundp 'gptel-agent-dirs) (setq gptel-agent-dirs nil))` antes do `gptel-agent` ser carregado, sobrescrevendo a lista padrão de agentes do pacote.
+  - **Solução:** Adicionado `(require 'gptel-agent nil t)` antes de adicionar o diretório do projeto atual.
+
+- [x] **Inversão de prioridade no Eglot para Python (2026-08-10, RESOLVIDO):**
+  - **Solução:** Reordenado em `custom-lang.el` para que `basedpyright` seja adicionado por último a `eglot-server-programs`, garantindo que fique no topo da lista e seja o servidor principal do `python-ts-mode`.
+
+- [x] **Ativação incorreta do `corfu-popupinfo-mode` (2026-08-10, RESOLVIDO):**
+  - **Solução:** Corrigido de `setq` para a chamada de função `(corfu-popupinfo-mode 1)` em `custom-completion.el`.
 
 - [ ] **epdfinfo Nix aborta ao ser spawnado pelo Emacs no macOS (2026-08-10):** o binário `epdfinfo` derivado do nixpkgs (`emacsPackagesFor (emacs.override { withMailutils = false; })` no MyMachine `emacs.nix`) funciona no shell mas aborta (`Abort trap: 6`; stderr: `libc++abi: ... std::__1::system_error: mutex lock failed: Invalid argument`) quando o Emacs o spawna via `call-process`/`start-process` — problema clássico de `fork()`+glib com binários Nix no macOS. Fatos: `call-process-shell-command` funciona (RET=0); wrapper shebang `#!/bin/sh` sem exec também aborta; wrapper com `&`+`wait` funciona em one-shot mas perde o stdin do servidor (render do pdf-tools falha com "server quit unexpectedly"). **Decisão:** adiar; próximos passos quando abordar: (1) testar wrapper C compilado que faz `fork`+`exec` próprio; (2) avaliar `advice` em `pdf-info-process-assert-running`/`pdf-info-check-epdfinfo` para spawnar via shell; (3) ou buildar `epdfinfo` com poppler do Homebrew em vez do Nix.
-- [ ] **Testar config completa em GUI** (não batch) para verificar compilação do `vterm-module`.
-- [ ] **Timeout de 120s no magent em sessão real** (2026-08-10): sessão com contexto pesado (AGENTS.md ~22KB ≈ 7K tokens + skills + transcript) terminou em `Error: Request timed out after 120 seconds` — é o default `magent-request-timeout 120` (`magent-config.el:119`, dispara quando nenhum evento do provider sai em 120s). Não é bug da FSM; decidir: subir o timeout (ex.: 300s) via `:custom`, trocar para `Qwen3-14B-4bit` (mais rápido por token) e/ou reduzir o contexto (AGENTS.md menor, skills mais enxutas). Nota: o mesmo 9B emitiu `find | head -50` de novo no transcript (diretriz 7 não seguiu), ficou `pending` aguardando permissão.
-- [ ] Investigar por que `consult` e `nerd-icons` não foram encontrados no MELPA durante `just check` (se persistente nas primeiras instalações do usuário).
-- [ ] Verificar se pacotes estão em rebuild no MELPA ou se foram removidos/renomeados.
 
 ## 1b. Plano de Ação — 6 falhas do `just test` no repo (jinx-mod ausente)
 

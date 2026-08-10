@@ -11,6 +11,23 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-10 — [CONCLUÍDO] Auditoria Rigorosa de Performance, Redisplay e Gemini Tool Calling
+   - **Diagnóstico:** Análise de causa-raiz identificou dois gargalos independentes no fluxo do Magent e na exibição Lisp:
+     1. *Redisplay / BPA lockup:* Mensagens longas com plists de ferramentas/closures geravam strings de 5MB em 1 linha. O motor C do Emacs (`src/bidi.c`) executava o algoritmo BPA (`bidi_find_bracket_pairs`) e `resize_mini_window` com O(N²) a cada 0.1s de `sit-for`/timers, travando o thread principal a 100% CPU.
+     2. *Gemini tool-name symbol mismatch:* O `gptel-gemini` retornava nomes de ferramenta como símbolos Lisp (`'glob`, `'read_file`). A busca `(equal (gptel-tool-name ts) name)` comparava string contra símbolo (`(equal "glob" 'glob) -> nil`), definindo `tool-spec = nil` e travando a execução da ferramenta até expirar os 120s.
+   - **Fix (Redisplay & Performance):**
+     - `early-init.el` & `custom-core.el`: adicionado `(setq bidi-inhibit-bpa t)`, `(setq-default bidi-paragraph-direction 'left-to-right)`, `(setq resize-mini-windows nil)` e `(setq max-mini-window-height 1)`.
+     - Definidos limites `print-length 200` e `print-level 20` para evitar serializações gigantes em Lisp.
+   - **Fix (Magent / Gemini):**
+     - `lisp/custom-magent.el`: criada a advice `+carlos/magent-sanitize-tool-use-name-a` em `magent-llm-gptel--handle-tool-use`, garantindo que `:name` seja convertido para string via `magent-json-safe-name`.
+     - Removido o sink duplicado `+carlos/magent-log-sink` em `lisp/custom-ai.el`.
+   - **Fixes de Arquitetura & Qualidade:**
+     - `custom-ai.el`: corrigido `+carlos/gptel-agent-add-project-dirs` com `(require 'gptel-agent nil t)` para evitar clobbering de `gptel-agent-dirs`.
+     - `custom-lang.el`: reordenado Eglot server programs para Python (`basedpyright` primário, `ruff` secundário).
+     - `custom-completion.el`: ativado `corfu-popupinfo-mode` via função `(corfu-popupinfo-mode 1)`.
+     - `custom-ui.el`: restringido regex de `display-buffer-alist` de `magit.*` para `magit-process`.
+   - **Validação:** 165 testes ERT passando (`just check-all`), sync em produção (`just sync`), rebuild do prod (`just rebuild-prod`), daemon responsivo com `emacsclient` instantâneo (0.01s).
+
 ** 2026-08-10 — [CONCLUÍDO] org-noter: pacotes opcionais nov+djvu e boot limpo
    - **Problema:** warnings persistentes no boot (`just check-prod`):
      `'nov' package not found` / `'djvu' package not found` com
