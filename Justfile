@@ -1,32 +1,56 @@
 # Justfile for MyEmacs (Vanilla Emacs Configuration)
 
+# ── Default ──────────────────────────────────────────────────────────
+
+# List available recipes
 default:
     @just --list
 
-# ── Development ──────────────────────────────────────────────────────
+# ── Variables ────────────────────────────────────────────────────────
 
-# Launch Emacs with this config
+# Authoritative test/deploy environment (full elpaca builds; the repo may have
+# stale gptel autoloads). Override with EMACS_TEST_DIR, e.g.:
+#   just test EMACS_TEST_DIR="$(pwd)"
+prod_dir := `echo "${EMACS_TEST_DIR:-$HOME/.config/emacs}"`
+
+# ── Launch / Install ─────────────────────────────────────────────────
+
+# Launch Emacs with this config (dev, repo directory)
 run:
     emacs --init-directory "$(pwd)"
+
+# Launch Emacs in production ({{prod_dir}})
+test-run:
+    emacs --init-directory "{{prod_dir}}"
 
 # Install/refresh packages (non-interactive)
 install:
     emacs --init-directory "$(pwd)" --batch -l init.el --eval '(message "Packages installed.")'
 
-# ── Quality Checks (Lint + Compile) ─────────────────────────────────
+# ── Checks (boot + lint) ─────────────────────────────────────────────
 
-# Build native C/C++ modules (vterm-module, tree-sitter grammars)
-compile-modules:
-	emacs --init-directory "$(pwd)" --batch -l init.el \
-	  --eval '(setq vterm-always-compile-module t)' \
-	  --eval '(require '\''vterm nil t)' \
-	  --eval '(when (require '\''treesit-auto nil t) (let ((treesit-auto-install t)) (ignore-errors (treesit-auto-install-all))))'
+# Quick config load test (dev, no linting)
+check:
+    emacs --init-directory "$(pwd)" --batch -l init.el \
+      --eval '(message "Config loaded OK.")' && echo "✅ OK" || echo "❌ FAIL"
 
-# Byte-compile lisp directory and native modules
-compile: compile-modules
+# Quick config load test (production, post-sync verification)
+check-prod:
+    emacs --init-directory "{{prod_dir}}" --batch -l init.el \
+      --eval '(message "Config loaded OK.")' && echo "✅ OK" || echo "❌ FAIL"
+
+# Byte-compile lisp directory, treating warnings as errors
+compile:
     emacs --init-directory "$(pwd)" --batch -l init.el \
       --eval '(setq byte-compile-error-on-warn t)' \
       --eval '(byte-recompile-directory (expand-file-name "lisp" user-emacs-directory) 0)'
+
+# Build native C/C++ modules (vterm-module, tree-sitter grammars)
+compile-modules:
+    emacs --init-directory "$(pwd)" --batch -l init.el \
+      --eval '(setq vterm-always-compile-module t)' \
+      --eval '(require '\''vterm nil t)' \
+      --eval '(when (require '\''treesit-auto nil t) (let ((treesit-auto-install t)) (ignore-errors (treesit-auto-install-all))))'
 
 # Checkdoc: validates docstring conventions (Emacs Lisp standards)
 checkdoc:
@@ -34,71 +58,57 @@ checkdoc:
       --eval '(setq checkdoc-verbose t)' \
       --eval '(let ((errors 0)) (dolist (f (directory-files "lisp" t "\\.el$")) (condition-case nil (checkdoc-file f) (error (setq errors (1+ errors))))) (if (> errors 0) (error "checkdoc: %d files with issues" errors) (message "checkdoc: OK")))'
 
-# Quick config load test (no linting)
-check:
-    emacs --init-directory "$(pwd)" --batch -l init.el \
-      --eval '(message "Config loaded OK.")' && echo "✅ OK" || echo "❌ FAIL"
-
-# Full lint suite: compile + checkdoc
+# Lint: byte-compile + checkdoc
 lint: compile checkdoc
-    @echo "✅ All lint checks passed"
-
-# Enhanced check: loads + full lint (CI-friendly)
-check-all: check test-all
-    @echo "✅✅ Full check passed"
+    @echo "✅ Lint passed"
 
 # ── Tests (ERT suite) ────────────────────────────────────────────────
 
-# Authoritative test environment (full elpaca builds; repo may have stale gptel)
-EMACS_TEST_DIR := `echo "${EMACS_TEST_DIR:-$HOME/.config/emacs}"`
-
 # Run full ERT suite in batch (exit non-zero on failure)
-test-batch:
-    emacs --init-directory "{{EMACS_TEST_DIR}}" --batch -l init.el \
+test:
+    emacs --init-directory "{{prod_dir}}" --batch -l init.el \
       -l tests/load-tests.el \
       --eval '(ert-run-tests-batch-and-exit t)'
 
+# Alias of `test` (kept for compatibility with documented commands)
+test-batch: test
+
 # AI-only tests (offline asserts; network skipped without EMACS_TEST_NETWORK)
 test-ai:
-    emacs --init-directory "{{EMACS_TEST_DIR}}" --batch -l init.el \
+    emacs --init-directory "{{prod_dir}}" --batch -l init.el \
       -l tests/load-tests.el \
       --eval '(ert-run-tests-batch-and-exit "myemacs-ai")'
 
 # Live network tests: real requests to every gptel backend (opt-in)
 test-network:
-    EMACS_TEST_NETWORK=1 just test-batch
+    EMACS_TEST_NETWORK=1 just test
 
 # Tests + lint (CI-friendly)
-test-all: compile checkdoc test-batch
+test-all: lint test
     @echo "✅✅ All tests passed"
 
 # Run tests and generate local AI triage summary if there are errors
 triage:
     @just check-all 2>&1 | python3 bin/log-triage
 
-# ── Sync & Deploy ────────────────────────────────────────────────────
+# ── Sync / Deploy / CI ───────────────────────────────────────────────
 
-# Sync to test/production directory (~/.config/emacs)
+# Sync to production ({{prod_dir}}) via git: fetch + hard reset to origin/main
 sync:
-    @echo "📦 Syncing to ~/.config/emacs..."
-    @mkdir -p ~/.config/emacs/lisp ~/.config/emacs/tests ~/.config/emacs/site-lisp ~/.config/emacs/docs ~/.config/emacs/bin
-    @rsync -a --delete lisp/ ~/.config/emacs/lisp/
-    @rsync -a --delete tests/ ~/.config/emacs/tests/
-    @rsync -a --delete site-lisp/ ~/.config/emacs/site-lisp/
-    @rsync -a --delete docs/ ~/.config/emacs/docs/
-    @rsync -a --delete bin/ ~/.config/emacs/bin/
-    @cp init.el early-init.el Justfile AGENTS.md README.org TODO.md roadmap.org ~/.config/emacs/ 2>/dev/null || true
-    @find ~/.config/emacs -name "*.elc" -type f -delete
-    @echo "✅ Sync complete"
+    @echo "📦 Syncing {{prod_dir}} to origin/main..."
+    @test -d "{{prod_dir}}/.git" || { echo "❌ {{prod_dir}} is not a git clone. Run: git clone git@github.com:carlosalbertofilho/MyEmacs.git {{prod_dir}}"; exit 1; }
+    @git -C "{{prod_dir}}" fetch origin
+    @git -C "{{prod_dir}}" reset --hard origin/main
+    @echo "✅ Sync complete (prod at $(git -C "{{prod_dir}}" rev-parse --short HEAD))"
 
-# Test in sync directory
-test:
-    emacs --init-directory ~/.config/emacs
+# Full battery: boot check (dev) + lint + ERT suite
+check-all: check test-all
+    @echo "✅✅ Full check passed"
 
-# Full workflow: lint -> commit -> push -> sync -> test
+# Full workflow: check-all -> commit -> push -> sync -> verify prod boot
 deploy MSG:
     @echo "🚀 Deploying: {{MSG}}"
-    just check-all && git add -A && git commit -m "{{MSG}}" && git push && just sync && just test
+    just check-all && git add -A && git commit -m "{{MSG}}" && git push && just sync && just check-prod
 
 # CI target: runs everything needed for CI pipeline
 ci: check-all
@@ -107,4 +117,3 @@ ci: check-all
 # Execute full Doom -> Vanilla migration (backup, copy repo to ~/.config/emacs, clean caches)
 promote:
     python3 bin/promote-migration.py
-

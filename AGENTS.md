@@ -2,7 +2,7 @@
 
 > **Purpose:** Authoritative guide for AI agents working on this Emacs configuration project.
 > **Project:** Vanilla Emacs migration from Doom Emacs using Emacs Bedrock template.
-> **Workflow:** Work in `~/Projects/Github/MyEmacs` → commit/push → sync to `~/.config/emacs` → test.
+> **Workflow:** Work in `~/Projects/Github/MyEmacs` → commit/push → `just sync` → test.
 
 ---
 
@@ -12,13 +12,49 @@
 # In ~/Projects/Github/MyEmacs (this repo)
 git add -A && git commit -m "feat: description" && git push
 
-# In ~/.config/emacs (official environment)
-git stash && git pull && git stash pop
+# In ~/.config/emacs (official environment) — via Justfile (não usar git stash/pull manual)
+just sync                # fetch + reset --hard origin/main (deixa o prod espelhando o remote)
 
-# Test
-emacs --init-directory ~/.config/emacs
-# or use Justfile: just run
+# Teste o ambiente oficial
+just test-run            # Emacs interativo no prod
+just check-prod          # boot batch no prod (verificação pós-sync)
 ```
+
+---
+
+## Justfile Commands
+
+Todo o fluxo de dev/teste/sync é orquestrado pelo `Justfile`. **Prefira `just`
+a comandos manuais.** O diretório-alvo de teste/sync é `~/.config/emacs`
+(override via `EMACS_TEST_DIR`).
+
+| Recipe | O que faz | Quando usar |
+|--------|-----------|-------------|
+| `just run` | Abre o Emacs com a config do repo (dev) | Desenvolver/depurar neste diretório |
+| `just test-run` | Abre o Emacs no prod (`~/.config/emacs`) | Verificar interativamente o ambiente oficial |
+| `just install` | Instala/atualiza pacotes (batch) | Primeira vez ou após trocar de máquina |
+| `just check` | Boot rápido da config do repo (smoke) | Smoke test no dev |
+| `just check-prod` | Boot rápido da config do prod (smoke) | Smoke test pós-sync |
+| `just compile` | Byte-compila `lisp/` (warnings = erro) | Portão de compilação |
+| `just checkdoc` | Valida docstrings | Portão de documentação |
+| `just lint` | `compile` + `checkdoc` | Portão rápido |
+| `just test` | Suíte ERT completa em batch (canônico) | Suíte de regressão |
+| `just test-batch` | Alias de `test` (compatibilidade) | Comandos documentados antigos |
+| `just test-ai` | Testes de IA (offline; rede fica skipped) | Regressão de IA |
+| `just test-network` | Testes de rede ao vivo (opt-in) | Validar backends reais |
+| `just test-all` | `lint` + `test` | Portão completo |
+| `just check-all` | `check` + `test-all` | Bateria completa antes de commit |
+| `just triage` | `check-all` + resumo IA dos erros | Investigar falhas na suíte |
+| `just sync` | `fetch` + `reset --hard origin/main` no prod | Publicar alterações no prod |
+| `just deploy "msg"` | `check-all` → commit → push → `sync` → `check-prod` | Deploy em um comando |
+| `just ci` | `check-all` | Pipeline de CI |
+| `just promote` | Migração Doom→Vanilla (legado) | Raramente |
+
+**`just sync` é destrutivo por design:** faz hard reset do prod para
+`origin/main`, descartando quaisquer modificações locais em arquivos trackeados
+(presume-se que sejam redundantes com o que já foi commitado). Arquivos de
+runtime não-trackeados (`elpaca/`, `tree-sitter/`, `agent/`, `bookmarks`,
+`magent/sessions/`, `recentf`, etc.) **não são tocados**.
 
 ---
 
@@ -232,16 +268,19 @@ elpaca completos); o repo pode ter builds parciais (ex.: falta
 
 ```bash
 # Suíte completa (structural + offline AI), exit != 0 em falha
-just test-all          # = compile + checkdoc + test-batch
+just test-all          # = lint (compile + checkdoc) + test (suíte ERT)
+
+# Suíte ERT completa em batch (canônico; `test-batch` é alias)
+just test
 
 # Apenas testes de IA (offline; rede fica skipped)
 just test-ai
 
 # Testes de REDE ao vivo (requer EMACS_TEST_NETWORK=1 — opt-in)
-EMACS_TEST_NETWORK=1 just test-batch
+EMACS_TEST_NETWORK=1 just test
 
 # Roda contra outro diretório (ex.: repo)
-just test-batch EMACS_TEST_DIR="$(pwd)"
+just test EMACS_TEST_DIR="$(pwd)"
 ```
 
 ### Como adicionar um teste
@@ -307,7 +346,7 @@ All package APIs are documented in `docs/`. Reference these files before making 
 ### After Making Changes
 
 1. Run `just test-all` (compile + checkdoc + ERT suite) to verify config loads and no regressions
-2. Sincronizar obrigatoriamente as alterações com a pasta `~/.config/emacs` e executar o teste com o comando `emacs --init-directory ~/.config/emacs` (ambiente oficial de testes do usuário)
+2. Sincronizar obrigatoriamente as alterações com a pasta `~/.config/emacs` via `just sync` e executar o boot no ambiente oficial de testes do usuário com `just check-prod` (equivale a `emacs --init-directory ~/.config/emacs`)
 3. Update `TODO.md` with the change
 4. Update `roadmap.org` with the action taken
 
@@ -398,10 +437,9 @@ just check
 just compile
 
 # Launch Emacs
-just run
-# or
-emacs --init-directory ~/.config/emacs
+just run          # dev (repo)
+just test-run     # prod (~/.config/emacs)
 
-# Batch test
-emacs --init-directory ~/.config/emacs --batch -l init.el --eval '(message "OK")'
+# Boot batch no ambiente oficial (pós-sync)
+just check-prod
 ```

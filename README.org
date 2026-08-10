@@ -135,11 +135,13 @@ Depois configurar em =custom-org.el=:
 | =just check= | Verifica carregamento rápido de configuração |
 | =just check-all= | Executa check + compile + checkdoc + suíte ERT |
 | =just triage= | Executa os testes e aciona o Ollama local para triar e resumir erros em RAG |
-| =just sync= | Sincroniza alterações para ~/.config/emacs |
-| =just test= | Testa a inicialização em ~/.config/emacs |
-| =just test-all= | Executa compilação, checkdoc e suíte completa de 111 testes ERT |
+| =just sync= | Sincroniza ~/.config/emacs para origin/main via git (fetch + hard reset) |
+| =just test= | Executa a suíte ERT completa em batch (equivalente a =test-batch=) |
+| =just test-run= | Abre o MyEmacs em ~/.config/emacs (interativo) |
+| =just test-all= | Executa compilação, checkdoc e suíte completa de testes ERT |
+| =just check-prod= | Verifica o boot da configuração em ~/.config/emacs (batch) |
 | =just promote= | Executa o script de migração definitiva Doom Emacs → Vanilla MyEmacs |
-| =just deploy "msg"= | Check-all, commit, push, sync e test |
+| =just deploy "msg"= | Check-all, commit, push, sync e check-prod |
 
 * Recursos Recentes de Dev, IA & UX
 

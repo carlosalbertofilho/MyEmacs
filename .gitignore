@@ -15,6 +15,11 @@ places
 \#*\#
 .\#*
 
+# Runtime state (~/.config/emacs production only)
+bookmarks
+agent/
+magent/sessions/
+
 # OS
 .DS_Store
 Thumbs.db
