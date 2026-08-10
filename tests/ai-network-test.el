@@ -60,7 +60,7 @@ Retorna não-nil se a resposta contiver \"PONG\". Timeout de 90s."
   :tags '(ai network)
   (skip-unless (getenv "EMACS_TEST_NETWORK"))
   (should (myemacs-ai--request-pong
-           "MLX Local" "mlx-community/Qwen3.5-9B-MLX-4bit")))
+           "MLX Local" "mlx-community/gemma-4-e2b-it-4bit")))
 
 (provide 'ai-network-test)
 ;;; ai-network-test.el ends here

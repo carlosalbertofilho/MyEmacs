@@ -115,8 +115,9 @@ maiores são ignorados. Constantes dos tags: =--dsml-tool-calls-open/close=.
 
 * Modos de falha observados (modelos locais) — 2026-08-10
 
-Diagnosticados em sessões reais + reprodução batch contra
-=mlx-community/Qwen3.5-9B-MLX-4bit= (servidor MLX 127.0.0.1:8081):
+Diagnosticados em sessões reais + reprodução batch contra o servidor MLX
+(127.0.0.1:8081). Modelo ativo por padrão: =mlx-community/gemma-4-e2b-it-4bit=
+(trocado de =Qwen3.5-9B-MLX-4bit= em 2026-08-10 — ver benchmark abaixo):
 
 1. **Tool call no reasoning (mais grave):** sob contexto pesado (~11.2K
    tokens, 15 tools, AGENTS.md de 22KB) o modelo emite a chamada como
@@ -128,6 +129,24 @@ Diagnosticados em sessões reais + reprodução batch contra
 3. **14B timeout:** DeepSeek-R1-Distill-Qwen-14B-4bit não respondeu em
    ~150s (servidor MLX lento; pode precisar de carga do modelo + timeout
    maior).
+
+**Benchmark de modelos locais (2026-08-10, agnes M2, mesmo prompt do
+magent, `tok/s` medido via streaming):**
+
+| Modelo | tok/s | ttft | total | content | reasoning |
+|--------|-------|------|-------|---------|-----------|
+| gemma-4-e2b-it-4bit | 31.4 | 3.2s | 11.2s | 296c | 1103c |
+| Qwen3.5-9B-MLX-4bit (antigo default) | 15.9 | 1.1s | 15.9s | 459c | 648c |
+| Qwen2.5-7B-Instruct-4bit | 15.1 | 4.1s | 16.9s | 923c | 0c |
+| Qwen3-14B-4bit | 8.1 | 7.1s | 37.8s | 266c | 1187c |
+| DeepSeek-R1-Distill-Qwen-14B-4bit | 3.7 | 25.9s | 41.0s | 325c | 347c |
+
+Teste real via magent (batch + `*magent-log*`): gemma completou o turn em
+**30.3s** com reasoning estruturado e resposta correta; Qwen2.5-7B (sem
+reasoning) levou **99.5s** e tentou `read` num diretório (tool FAILED,
+"Is a directory"). Decisão: **gemma-4-e2b-it-4bit** virou o default local
+(=+carlos/ai-local-backend=, custom-ai.el) — mais rápido e com reasoning
+bem formado (ferramenta natural para a FSM recuperar calls do thinking).
 
 Mitigações aplicadas (2026-08-10, commits 9a729b7/b35e9ed/8c78f8f):
 

@@ -134,7 +134,7 @@
 
   ;; ── Backend: MLX Local (5 modelos validados, M2/24GB) ────────────
   ;; Servidor roda em 127.0.0.1:8081 via launchd (mlx_lm.server)
-  ;; Modelo ativo por padrão: mlx-community/Qwen3-14B-4bit
+  ;; Modelo ativo por padrão: mlx-community/gemma-4-e2b-it-4bit
   (gptel-make-openai "MLX Local"
     :host "127.0.0.1:8081"
     :protocol "http"
@@ -350,7 +350,7 @@ Sem advice: chama `+carlos/gptel-agent-add-project-dirs' diretamente."
   "Retorna cons (NOME-BACKEND . MODELO) do backend local para o host atual.
 MLX Local em hosts contendo \"agnes\", Ollama Local nos demais."
   (if (string-match-p "agnes" (system-name))
-      (cons "MLX Local" 'mlx-community/Qwen3.5-9B-MLX-4bit)
+      (cons "MLX Local" 'mlx-community/gemma-4-e2b-it-4bit)
     (cons "Ollama Local" 'qwen2.5-coder:3b)))
 
 ;; ── Network Timeouts for Local LLMs ─────────────────────────────────
@@ -409,7 +409,7 @@ agnes). Também configura o backend/modelo de correção gramatical."
                 +carlos/gptel-quick-local-model model
                 +carlos/gptel-grammar-backend "MLX Local"
                 +carlos/gptel-grammar-model model)
-          (message "Emacs AI: Configurado para Chat Local MLX (%s) com Qwen 3.5 9B" hostname))))
+          (message "Emacs AI: Configurado para Chat Local MLX (%s) com Gemma 4 e2b" hostname))))
 
      ;; --- HOST: qualquer outro (fallback) -> Ollama Local ---
      ;; Inclui aa102-006l (EliteDesk NixOS) e qualquer máquina sem MLX.

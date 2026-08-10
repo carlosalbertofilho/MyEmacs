@@ -93,13 +93,13 @@
           (cl-letf (((symbol-function 'system-name) (lambda () "agnes.local")))
             (+carlos/gptel-setup-defaults-by-host)
             (should (equal "MLX Local" (gptel-backend-name gptel-backend)))
-            (should (eq 'mlx-community/Qwen3.5-9B-MLX-4bit gptel-model))
+            (should (eq 'mlx-community/gemma-4-e2b-it-4bit gptel-model))
             (should (equal "MLX Local" +carlos/gptel-agent-backend))
-            (should (eq 'mlx-community/Qwen3.5-9B-MLX-4bit +carlos/gptel-agent-model))
+            (should (eq 'mlx-community/gemma-4-e2b-it-4bit +carlos/gptel-agent-model))
             (should (equal "MLX Local" +carlos/gptel-quick-local-backend))
-            (should (eq 'mlx-community/Qwen3.5-9B-MLX-4bit +carlos/gptel-quick-local-model))
+            (should (eq 'mlx-community/gemma-4-e2b-it-4bit +carlos/gptel-quick-local-model))
             (should (equal "MLX Local" +carlos/gptel-grammar-backend))
-            (should (eq 'mlx-community/Qwen3.5-9B-MLX-4bit +carlos/gptel-grammar-model)))
+            (should (eq 'mlx-community/gemma-4-e2b-it-4bit +carlos/gptel-grammar-model)))
 
           ;; 2. Testar host: aa102-006l (EliteDesk - Ollama Local Default)
           (cl-letf (((symbol-function 'system-name) (lambda () "aa102-006l")))
@@ -158,7 +158,7 @@
               (+carlos/gptel-dynamic-router-advice "Resuma o conteudo do link acima por favor" :buffer buf)
               ;; Pode ser Local (se online) ou Gemini Flash
               (should (member (gptel-backend-name gptel-backend) '("Ollama Local" "MLX Local" "Gemini")))
-              (should (memq gptel-model '(qwen2.5-coder:3b mlx-community/Qwen3.5-9B-MLX-4bit gemini-2.5-flash))))
+              (should (memq gptel-model '(qwen2.5-coder:3b mlx-community/gemma-4-e2b-it-4bit gemini-2.5-flash))))
             (kill-buffer buf))
 
           ;; 3. Testar Roteamento de Código (prog-mode -> Local ou OpenCode Zen free)
@@ -169,7 +169,7 @@
                     gptel-model nil)
               (+carlos/gptel-dynamic-router-advice "Escreva uma funcao" :buffer buf)
               (should (member (gptel-backend-name gptel-backend) '("Ollama Local" "MLX Local" "OpenCode Zen")))
-              (should (memq gptel-model '(qwen2.5-coder:3b mlx-community/Qwen3.5-9B-MLX-4bit north-mini-code-free big-pickle))))
+              (should (memq gptel-model '(qwen2.5-coder:3b mlx-community/gemma-4-e2b-it-4bit north-mini-code-free big-pickle))))
             (kill-buffer buf)))
 )
       (setq gptel-backend old-backend

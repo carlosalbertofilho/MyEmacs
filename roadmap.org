@@ -11,6 +11,29 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-10 — [CONCLUÍDO] Default local MLX: troca para gemma-4-e2b-it-4bit
+   - **Motivação:** o Qwen3.5-9B (default) era lento (15.9 tok/s) e propenso a
+     tool calls no reasoning sob contexto pesado. Benchmark dos 5 modelos MLX
+     locais (agnes M2/24GB, servidor 127.0.0.1:8081) via streaming com o mesmo
+     prompt do magent:
+     - gemma-4-e2b-it-4bit: **31.4 tok/s** (ttft 3.2s, total 11.2s) — 2x mais
+       rápido, reasoning estruturado (1103c);
+     - Qwen2.5-7B-Instruct-4bit: 15.1 tok/s, **sem reasoning (0c)** — content
+       direto;
+     - Qwen3-14B-4bit: 8.1 tok/s (reasoning consome tudo, content tardio);
+     - DeepSeek-R1-Distill-Qwen-14B-4bit: 3.7 tok/s, ttft 25.9s.
+   - **Teste real via magent (batch + escuta do `*magent-log*`):** mesmo prompt
+     ("Analise o diretório do projeto atual..."). gemma completou o turn em
+     **30.3s** (reasoning longo + resposta correta apontando MyEmacs, sem
+     tool call, sem travamento); Qwen2.5-7B levou **99.5s** e tentou `read`
+     num diretório (tool FAILED "Is a directory").
+   - **Decisão:** gemma-4-e2b-it-4bit virou o default em
+     `+carlos/ai-local-backend` (custom-ai.el:353). Reasoning bem formado é
+     matéria-prima para a FSM (THINK/DECIDE) recuperar tool calls do thinking;
+     velocidade 2x reduz os timeouts de `magent-request-timeout`.
+   - **Validação:** testes `myemacs-ai-host-detection` atualizados para o novo
+     default; suíte completa pendente (`just test-all`).
+
 ** 2026-08-10 — [CONCLUÍDO] Fix: sink do magent-log grava em buffer read-only
    - **Bug (sessão real):** 107 erros `magent-log sink error: Buffer is read-only:
      #<buffer *magent-log*>` spammaram o buffer durante o teste real. Causa:
