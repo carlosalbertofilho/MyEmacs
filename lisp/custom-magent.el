@@ -128,7 +128,7 @@ Do NOT use '<tool_call>', '<function=...>', or '<parameter=...>' forms; the runt
 
 (with-eval-after-load 'magent-agent
   (advice-add 'magent-agent--compose-system-message
-              :around #'+carlos/magent-inject-system-directives))
+              :filter-return #'+carlos/magent-inject-system-directives))
 
 ;; ── Slash Commands & Directory Context Scope ──────────────────────
 (defvar +carlos/magent-extra-directories nil

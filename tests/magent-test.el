@@ -118,11 +118,23 @@ composto e anexa as diretrizes CRITICAL MAGENT TOOL DIRECTIVES."
     (should (string-match-p "<tool_calls>" out))))
 
 (ert-deftest myemacs-magent-inject-advice-active ()
-  "O advice :around está instalado em magent-agent--compose-system-message."
+  "O advice :filter-return está instalado em
+magent-agent--compose-system-message."
   (skip-unless (fboundp 'magent-agent--compose-system-message))
   (should (advice-member-p
            #'+carlos/magent-inject-system-directives
            'magent-agent--compose-system-message)))
+
+(ert-deftest myemacs-magent-composed-system-has-dsml ()
+  "O system message composto por magent-agent--compose-system-message
+inclui a diretriz DSML após o advice :filter-return."
+  (skip-unless (fboundp 'magent-agent--compose-system-message))
+  (let* ((out (magent-agent--compose-system-message
+               "GLOBAL" "ROLE" "/tmp" nil nil nil)))
+    (should (stringp out))
+    (should (string-match-p "<tool_calls>" out))
+    (should (string-match-p "CRITICAL MAGENT TOOL DIRECTIVES" out))
+    (should (string-match-p "Do NOT use '<tool_call>'" out))))
 
 (provide 'magent-test)
 ;;; magent-test.el ends here
