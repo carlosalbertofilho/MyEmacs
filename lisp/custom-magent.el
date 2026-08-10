@@ -73,7 +73,8 @@ padrão de tool-use e done)."
 ;; Esta advice sanitiza `info` ANTES de extrair `:tool-use`, convertendo símbolos
 ;; para strings.
 (defun +carlos/magent-sanitize-tool-use-name-a (orig-fn state fsm)
-  "Garante que os nomes de ferramentas em `:tool-use' sejam strings antes de buscar tool-spec."
+  "Garante que os nomes em `:tool-use' sejam strings.
+Evita falha em `equal' com símbolos e previne o timeout de 120s no Gemini."
   (when-let* ((info (and (fboundp 'gptel-fsm-info) (gptel-fsm-info fsm))))
     (when (fboundp 'magent-llm-gptel--sanitize-info)
       (magent-llm-gptel--sanitize-info info)))
