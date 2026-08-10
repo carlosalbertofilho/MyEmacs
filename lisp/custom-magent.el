@@ -10,6 +10,7 @@
 
 (defvar gptel-backend-list)
 (defvar magent-skill-directories)
+(defvar magent-enable-logging)
 (declare-function magent-start "magent-agent-shell")
 (declare-function magent-agent-shell-interrupt "magent-agent-shell")
 (declare-function magent-agent-shell-prompt-region "magent-agent-shell")
@@ -23,6 +24,22 @@
 (declare-function magent-llm-gptel--pending-tool-use-p "magent-llm-gptel")
 (declare-function magent-llm-gptel--continue-with-user-message "magent-llm-gptel")
 (declare-function magent-llm-tool-call-event "magent-llm")
+
+;; ── Diagnóstico: Desativar magent-log ──────────────────────────────
+(defvar +carlos/magent-disable-logging t
+  "Non-nil desativa completamente o magent-log para evitar chamadas de log/message.")
+
+(defun +carlos/magent-log-override-a (orig format-string &rest args)
+  "Ignora `magent-log` quando `+carlos/magent-disable-logging' é non-nil."
+  (unless +carlos/magent-disable-logging
+    (apply orig format-string args)))
+
+(with-eval-after-load 'magent-log
+  (when (fboundp 'magent-log)
+    (advice-add 'magent-log :around #'+carlos/magent-log-override-a)))
+
+;; Desativa variaveis internas de log do magent
+(setq magent-enable-logging nil)
 
 ;; ── Diagnóstico: FSM customizado ──────────────────────────────────
 ;; O FSM customizado do magent (`magent-llm-gptel--make-sampling-fsm`) trava
