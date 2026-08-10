@@ -132,6 +132,7 @@ Depois configurar em =custom-org.el=:
 | =just run= | Abre o MyEmacs Vanilla |
 | =just install= | Instala/atualiza pacotes |
 | =just compile= | Compila módulos nativos (vterm, tree-sitter) + arquivos .el → .elc |
+| =just compile-prod= | Byte-compila lisp/ do prod (~/.config/emacs) com saída filtrada |
 | =just check= | Verifica carregamento rápido de configuração |
 | =just check-all= | Executa check + compile + checkdoc + suíte ERT |
 | =just triage= | Executa os testes e aciona o Ollama local para triar e resumir erros em RAG |

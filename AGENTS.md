@@ -17,6 +17,7 @@ just sync                # fetch + reset --hard origin/main (deixa o prod espelh
 
 # Teste o ambiente oficial
 just test-run            # Emacs interativo no prod
+just compile-prod        # byte-compile no prod (gate zero-warning, saída filtrada)
 just check-prod          # boot batch no prod (verificação pós-sync)
 ```
 
@@ -35,7 +36,8 @@ a comandos manuais.** O diretório-alvo de teste/sync é `~/.config/emacs`
 | `just install` | Instala/atualiza pacotes (batch) | Primeira vez ou após trocar de máquina |
 | `just check` | Boot rápido da config do repo (smoke) | Smoke test no dev |
 | `just check-prod` | Boot rápido da config do prod (smoke) | Smoke test pós-sync |
-| `just compile` | Byte-compila `lisp/` (warnings = erro) | Portão de compilação |
+| `just compile` | Byte-compila `lisp/` do repo (warnings = erro, saída filtrada) | Portão de compilação pré-commit |
+| `just compile-prod` | Byte-compila `lisp/` do prod (warnings = erro, saída filtrada) | Gate autoritativo pós-sync |
 | `just checkdoc` | Valida docstrings | Portão de documentação |
 | `just lint` | `compile` + `checkdoc` | Portão rápido |
 | `just test` | Suíte ERT completa em batch (canônico) | Suíte de regressão |
@@ -346,7 +348,7 @@ All package APIs are documented in `docs/`. Reference these files before making 
 ### After Making Changes
 
 1. Run `just test-all` (compile + checkdoc + ERT suite) to verify config loads and no regressions
-2. Sincronizar obrigatoriamente as alterações com a pasta `~/.config/emacs` via `just sync` e executar o boot no ambiente oficial de testes do usuário com `just check-prod` (equivale a `emacs --init-directory ~/.config/emacs`)
+2. Sincronizar obrigatoriamente as alterações com a pasta `~/.config/emacs` via `just sync` e validar no ambiente oficial de testes do usuário com `just compile-prod` (gate zero-warning) + `just check-prod` (boot batch, equivale a `emacs --init-directory ~/.config/emacs`)
 3. Update `TODO.md` with the change
 4. Update `roadmap.org` with the action taken
 

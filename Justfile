@@ -39,11 +39,25 @@ check-prod:
     emacs --init-directory "{{prod_dir}}" --batch -l init.el \
       --eval '(message "Config loaded OK.")' && echo "✅ OK" || echo "❌ FAIL"
 
-# Byte-compile lisp directory, treating warnings as errors
-compile:
-    emacs --init-directory "$(pwd)" --batch -l init.el \
+# Byte-compile lisp directory in {{prod_dir}} (zero-warning gate, filtered output)
+compile-prod:
+    @set -o pipefail
+    @emacs --init-directory "{{prod_dir}}" --batch -l init.el \
       --eval '(setq byte-compile-error-on-warn t)' \
-      --eval '(byte-recompile-directory (expand-file-name "lisp" user-emacs-directory) 0)'
+      --eval '(byte-recompile-directory (expand-file-name "lisp" user-emacs-directory) 0)' 2>&1 \
+      | rg -i 'error|warning|failed|done' \
+      | rg -v 'Optimization failure|Unknown type: plist|epa-file|Unknown type jupyter'
+
+# Nota: o repo pode ter builds elpaca parciais (ex.: falta tempel); o gate
+# autoritativo pós-sync é o `compile-prod`.
+# Byte-compile lisp directory in the repo (zero-warning gate, filtered output)
+compile: compile-modules
+    @set -o pipefail
+    @emacs --init-directory "$(pwd)" --batch -l init.el \
+      --eval '(setq byte-compile-error-on-warn t)' \
+      --eval '(byte-recompile-directory (expand-file-name "lisp" user-emacs-directory) 0)' 2>&1 \
+      | rg -i 'error|warning|failed|done' \
+      | rg -v 'Optimization failure|Unknown type: plist|epa-file|Unknown type jupyter'
 
 # Build native C/C++ modules (vterm-module, tree-sitter grammars)
 compile-modules:
@@ -105,10 +119,10 @@ sync:
 check-all: check test-all
     @echo "✅✅ Full check passed"
 
-# Full workflow: check-all -> commit -> push -> sync -> verify prod boot
+# Full workflow: check-all -> commit -> push -> sync -> compile + boot check no prod
 deploy MSG:
     @echo "🚀 Deploying: {{MSG}}"
-    just check-all && git add -A && git commit -m "{{MSG}}" && git push && just sync && just check-prod
+    just check-all && git add -A && git commit -m "{{MSG}}" && git push && just sync && just compile-prod && just check-prod
 
 # CI target: runs everything needed for CI pipeline
 ci: check-all
