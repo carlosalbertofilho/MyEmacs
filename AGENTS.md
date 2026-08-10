@@ -36,6 +36,10 @@ a comandos manuais.** O diretório-alvo de teste/sync é `~/.config/emacs`
 | `just install` | Instala/atualiza pacotes (batch) | Primeira vez ou após trocar de máquina |
 | `just check` | Boot rápido da config do repo (smoke) | Smoke test no dev |
 | `just check-prod` | Boot rápido da config do prod (smoke) | Smoke test pós-sync |
+| `just clean` | Remove `.elc`/`.eln` stale + `eln-cache/` do repo | Artefatos de build antigos causando erro |
+| `just clean-prod` | Remove `.elc`/`.eln` stale + `eln-cache/` do prod | Idem no ambiente oficial |
+| `just rebuild` | `clean` + `compile` no repo (recompila tudo) | Rebuild limpo do dev |
+| `just rebuild-prod` | `clean-prod` + `compile-prod` (recompila tudo) | Rebuild limpo do prod |
 | `just compile` | Byte-compila `lisp/` do repo (warnings = erro, saída filtrada) | Portão de compilação pré-commit |
 | `just compile-prod` | Byte-compila `lisp/` do prod (warnings = erro, saída filtrada) | Gate autoritativo pós-sync |
 | `just checkdoc` | Valida docstrings | Portão de documentação |
@@ -57,6 +61,28 @@ a comandos manuais.** O diretório-alvo de teste/sync é `~/.config/emacs`
 (presume-se que sejam redundantes com o que já foi commitado). Arquivos de
 runtime não-trackeados (`elpaca/`, `tree-sitter/`, `agent/`, `bookmarks`,
 `magent/sessions/`, `recentf`, etc.) **não são tocados**.
+
+---
+
+## Política de Limpeza de Artefatos de Build
+
+Artefatos de build antigos (`.elc`, `eln-cache/`) podem causar erros
+(`void-function`, `void-variable`, comportamento divergente) quando o fonte
+`.el` muda mas o objeto compilado stale permanece. Política:
+
+- **Sempre preferir `.el` mais novo que `.elc`:** `load-prefer-newer-source t`
+  já está em `early-init.el`; em caso de dúvida, limpe e recompile.
+- **Suspeitar de artefato stale quando:** erro que some após `just rebuild-prod`
+  + `just check-prod`, ou warning de `load` de `.elc` antigo no boot.
+- **Ao mudar um `lisp/custom-*.el`:** rode `just rebuild` (repo) antes do
+  commit para garantir que o `.elc` local não esconda o fonte novo.
+- **Pós-sync no prod:** `just rebuild-prod` (limpa + recompila) antes de
+  `just check-prod` quando houver indício de build stale.
+- **Escopo:** limpa apenas `.elc`/`.eln` e `eln-cache/` (rápido, sem rede).
+  Para limpeza total (`tree-sitter/`, `vterm-module.so`, reinstall elpaca) use
+  `just clean-prod` manualmente + `just compile-modules` + `just install`.
+- **`eln-cache/` é regenerável** a partir dos `.el`/`.elc` — nunca é preciso
+  manter manualmente; pode ser apagado a qualquer momento.
 
 ---
 

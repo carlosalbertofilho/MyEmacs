@@ -27,6 +27,28 @@ test-run:
 install:
     emacs --init-directory "$(pwd)" --batch -l init.el --eval '(message "Packages installed.")'
 
+# ── Clean / Rebuild (build artifact hygiene) ─────────────────────────
+
+# Remove stale byte-compiled objects (.elc) and native-comp cache (eln-cache/) in the repo
+clean:
+    @rm -f lisp/*.elc lisp/*.eln
+    @rm -rf eln-cache
+    @echo "✅ Cleaned repo build artifacts (.elc + eln-cache)"
+
+# Remove stale byte-compiled objects (.elc) and native-comp cache (eln-cache/) in {{prod_dir}}
+clean-prod:
+    @rm -f "{{prod_dir}}/lisp/"*.elc "{{prod_dir}}/lisp/"*.eln
+    @rm -rf "{{prod_dir}}/eln-cache"
+    @echo "✅ Cleaned prod build artifacts (.elc + eln-cache)"
+
+# Rebuild byte-compiled objects from source in the repo (clean + compile)
+rebuild: clean compile
+    @echo "✅ Rebuilt (repo)"
+
+# Rebuild byte-compiled objects from source in {{prod_dir}} (clean-prod + compile-prod)
+rebuild-prod: clean-prod compile-prod
+    @echo "✅ Rebuilt (prod)"
+
 # ── Checks (boot + lint) ─────────────────────────────────────────────
 
 # Quick config load test (dev, no linting)
