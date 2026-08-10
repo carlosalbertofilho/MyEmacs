@@ -11,6 +11,28 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-10 — [CONCLUÍDO] org-noter: pacotes opcionais nov+djvu e boot limpo
+   - **Problema:** warnings persistentes no boot (`just check-prod`):
+     `'nov' package not found` / `'djvu' package not found` com
+     `ATTENTION: org-noter-nov/org-noter-djvu needs the package ...`. Causa-raiz:
+     `org-noter.el` carrega no boot (o `:after org` é ignorado com
+     `use-package-expand-minimally t`) e require `org-noter-nov`/`org-noter-djvu`
+     conforme o default de `org-noter-supported-modes`.
+   - **Fix (MyEmacs `lisp/custom-org.el`):** instalados `nov` (MELPA,
+     `:mode "\\.epub\\'"`) e `djvu` (GNU ELPA) via Elpaca; fixado
+     `org-noter-supported-modes '(doc-view-mode pdf-view-mode nov-mode djvu-read-mode)`
+     em `:custom` (expande em `:init`, antes do load do org-noter).
+   - **Fix (Nix, MyMachine `home/carlosfilho/emacs.nix`):** adicionados
+     `djvulibre` (djvused/ddjvu/djvm) e `djview` ao `home.packages` — fontes dos
+     binários que o `djvu.el` exige. Validado com `nix flake check`.
+   - **Testes:** `myemacs-org-nov-installed`, `myemacs-org-djvu-installed`,
+     `myemacs-org-noter-supported-modes-full`,
+     `myemacs-org-noter-no-missing-module-warnings` (tests/org-test.el).
+   - **Validação:** `just test-all` (159 testes) + `just compile` zero-warning +
+     sync prod + `just check-prod` sem warnings nov/djvu. Warning
+     `jupyter-kernel-client` (native-comp, upstream) documentado como benigno —
+     já filtrado no gate `just compile-prod`.
+
 ** 2026-08-10 — [CONCLUÍDO] Default local MLX: troca para gemma-4-e2b-it-4bit
    - **Motivação:** o Qwen3.5-9B (default) era lento (15.9 tok/s) e propenso a
      tool calls no reasoning sob contexto pesado. Benchmark dos 5 modelos MLX

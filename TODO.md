@@ -369,6 +369,234 @@ orquestração). **NÃO aplicar agora:** faseamento discutido; decidir escopo re
 (`just compile-prod`/`just check-prod`). Atualizar `docs/magent-reference.org`
 (seção "Driver do Emacs") e `roadmap.org`.
 
+## 1f. Plano de Ação — Pacotes opcionais ausentes do org-noter (nov/djvu) + ruído de boot
+
+**Objetivo (2026-08-10):** eliminar os warnings persistentes de pacotes ausentes
+no boot do prod (`just check-prod`):
+
+- `'nov' package not found / ATTENTION: org-noter-nov needs the package 'nov'`
+- `'djvu' package not found / ATTENTION: org-noter-djvu needs the package 'djvu'`
+
+Suporte **completo** a EPUB (`nov`) e DJVU (`djvu`), com os binários DjVuLibre
+providos pelo **Nix do MyMachine**. O warning `Unknown type jupyter-kernel-client`
+é upstream/benigno e fica **documentado, sem código** (já é filtrado no gate
+`just compile-prod`).
+
+**Verificação (2026-08-10):**
+- Suíte ERT (`just test-all`): **159 testes, 151 pass, 8 skipped (esperados), 0 falhas**.
+  Os skips: 3 norminette/42 (binários ausentes, ambiente 42 só) + 5 AI de rede
+  (`EMACS_TEST_NETWORK` opt-in). Não há erro persistente na suíte — os "erros"
+  são ruído de boot.
+- Causa-raiz dos warnings: `org-noter.el` carrega no boot (o `:after org` é
+  ignorado com `use-package-expand-minimally t`) e, no top-level, require
+  `org-noter-nov`/`org-noter-djvu` conforme o default de
+  `org-noter-supported-modes` = `'(doc-view-mode pdf-view-mode nov-mode djvu-read-mode)`
+  (org-noter-core.el:58). Como `nov`/`djvu` não estão instalados, cada require
+  imprime `package not found` + `ATTENTION`.
+- Receitas Elpaca confirmadas nos caches (`elpaca/cache/`):
+  - `nov` → MELPA: `(nov :fetcher git :url "https://depp.brause.cc/nov.el.git")` — precisa só de `unzip` (presente) + libxml2 (Emacs 29+).
+  - `djvu` → GNU ELPA: `emacsmirror/gnu_elpa` branch `externals/djvu`. Requer os binários `djvused/djview/ddjvu/djvm` — **ausentes** (`command -v` negativo); a fonte desses binários é o Nix.
+- **Decisão do usuário (2026-08-10, revisada):** instalar `nov` **e** `djvu` via
+  Elpaca e **adicionar DjVuLibre ao Nix do MyMachine** — nada de dependência morta.
+- **Pull prévio (feito 2026-08-10):** MyEmacs e MyMachine em sync com `origin/main`
+  (`866cb12` e `main` sem divergência).
+
+---
+
+**Ação 0 — Nix: DjVuLibre no MyMachine (`MyMachine/home/carlosfilho/emacs.nix`):**
+
+No bloco `home.packages`, junto às deps de PDF/visualização, adicionar:
+
+```nix
+# djvu.el (org-noter) — tools DjVuLibre (djvused, ddjvu, djvm)
+djvulibre
+# Viewer GUI do DjVu (djview) — djvu.el assume `djview' no PATH
+djview
+```
+
+- `djvulibre` fornece `djvused`, `ddjvu`, `djvm` (núcleo que o `djvu.el` exige);
+  `djview` é o viewer GUI que `djvu.el` também referencia (`executable-find "djview"`).
+- Fluxo: editar → `git commit`/`push` no MyMachine → `home-manager switch`
+  (ou rebuild do flake) → validar com `command -v djvused ddjvu djvm djview`.
+
+**Ação 1 — Instalar `nov` e `djvu` (`lisp/custom-org.el`):**
+
+```elisp
+(use-package nov
+  :ensure t
+  :mode "\\.epub\\'")
+
+(use-package djvu
+  :ensure t)
+```
+
+- `nov`: recipe MELPA resolvida pelo Elpaca; `:mode` associa `.epub` → `nov-mode`
+  (setup padrão do pacote). `unzip` e libxml2 já presentes.
+- `djvu`: recipe GNU ELPA resolvida pelo Elpaca. Sem `:mode` próprio (o pacote
+  define o auto-mode-alist para `.djvu` internamente via `djvu.el`).
+
+**Ação 2 — Garantir `org-noter-supported-modes` completo (`lisp/custom-org.el`):**
+
+```elisp
+(use-package org-noter
+  :ensure t
+  :after org
+  :custom
+  (org-noter-supported-modes '(doc-view-mode pdf-view-mode nov-mode djvu-read-mode))
+  :config
+  (setq org-noter-notes-search-path '("~/org/notes")))
+```
+
+`:custom` expande para `customize-set-variable` em `:init` (antes do load), então o
+top-level de `org-noter.el` já enxerga a lista com `nov-mode`/`djvu-read-mode` e
+require os módulos sem warning — agora com os pacotes presentes. A declaração
+explícita também protege contra futuras mudanças do default upstream. Regra
+AGENTS.md respeitada: `:custom`, não `setq` em opção de pacote.
+
+**Ação 3 — Warning `jupyter-kernel-client` (upstream, NÃO alterar código):**
+`Warning: Optimization failure for cl-typep ... (error "Unknown type jupyter-kernel-client")`
+é fallback do otimizador nativo no pacote jupyter (`cl-typep` referencia a
+`defclass` de `jupyter-kernel-client` sem o tipo visível no ponto de compilação) —
+**benigno**: o código roda no caminho não-otimizado. Já filtrado no gate
+`just compile-prod` (`rg -v 'Unknown type jupyter'`). Aparece 1x por boot após
+`just rebuild-prod` (eln-cache limpo). Opção futura se incomodar: fix upstream
+(ordering da `defclass`) ou pin de versão mais nova — fora do escopo desta rodada.
+
+**Testes (`tests/org-test.el`):**
+- `myemacs-org-nov-installed` — `(should (or (featurep 'nov) (locate-library "nov")))`: garante que nov instalou e está no load-path.
+- `myemacs-org-djvu-installed` — `(should (or (featurep 'djvu) (locate-library "djvu")))`: idem para djvu.
+- `myemacs-org-noter-supported-modes-full` — `org-noter-supported-modes` contém `nov-mode` **e** `djvu-read-mode`.
+- `myemacs-org-noter-no-missing-module-warnings` — varrer `*Messages*` do boot e garantir ausência de `"package not found"`/`"needs the package"`.
+
+**Docs:**
+- `docs/org-ecosystem.org` — tabela de pacotes (adicionar `nov` e `djvu`); seção org-noter (modos suportados + dependências opcionais); ajustar troubleshooting se houver menção.
+- `docs/package-management.org` — package list: adicionar `nov` e `djvu`.
+- `docs/term-stack.org`/`docs/ui-stack.org` — nada (fora do escopo).
+- `roadmap.org` — linha do tempo 2026-08-10.
+- `TODO.md` §3 Decisões: registrar "nov+djvu via Elpaca; DjVuLibre via Nix do MyMachine (`djvulibre`+`djview` em `emacs.nix`)".
+
+**Gate:**
+- Nix: `home-manager switch` no MyMachine + `command -v djvused ddjvu djvm djview`.
+- `just test-all` (repo) — sem novas falhas (159 testes, 0 fail, 8 skipped).
+- `just compile` zero-warning.
+- Commit/push → `just sync` → `just rebuild-prod` → `just compile-prod` (zero-warning) → `just check-prod` **sem** os warnings `nov`/`djvu`.
+- Re-rodar a suíte no prod (`just test` autoritativo) com os 4 testes novos passando.
+
+**Dependência de ordem:** os binários DjVuLibre (Ação 0) precisam estar no PATH
+antes de validar o `djvu.el` em runtime; o Elpaca (Ação 1) e o boot (Ação 2) só
+precisam do elisp, então `just check-prod` passa mesmo sem o switch do Nix.
+
+**Regras do Executor:** padrões do AGENTS.md (prefixo `+carlos/` só para funções
+próprias — aqui não é necessário; `:custom` em vez de `setq`; `:ensure t` para
+externos). **NÃO aplicar agora:** este é o plano; o Executor aplica quando acionado.
+
+## 1g. Plano de Ação — Elpaca 0.2.0 não ativa pacotes instalados (boot travado + suíte batch quebrada)
+
+**Diagnóstico (2026-08-10, sessão com `emacs --daemon` + `just check-all`):**
+
+O `just check-all` expôs duas falhas e a inspeção da sessão viva revelou a causa-raiz
+única: **a ativação do Elpaca 0.2.0 (6530ffa) não completa para pacotes já no disco**,
+tanto em `--batch` quanto no daemon interativo. Evidências:
+
+1. **Batch (`just test` em `~/.config/emacs`):** `Error (use-package): Cannot load
+   treesit-auto/reformatter/flycheck/apheleia` → `require(custom-42)` →
+   `require(flycheck nil nil)` → `file-missing`. O build de `flycheck` EXISTE em
+   `elpaca/builds/` mas não está no `load-path`.
+2. **Daemon (`emacs --daemon`, boot 09:47):** init congela em `(require 'custom-42)`
+   (init.el:158). O `(elpaca-wait)` de custom-42.el:28 **nunca retorna**. Estado
+   verificado via `emacsclient`: `custom-lang/org/files = t`; `custom-42/ai/dev/jinx/
+   magent/git/dashboard = nil`; `gptel/magit = nil`; `featurep 'flycheck = nil`,
+   `fboundp 'flycheck-mode = nil`, `global-flycheck-mode = nil` (build no disco, não
+   ativado); `elpaca--queues` com filas não processadas (org/files/completion/UI).
+3. **Função órfã no keymap:** `+carlos/ai-rag-ingest` (custom-ai.el:668, interativa)
+   está **void** no daemon porque `custom-ai` nunca carregou; keymap `C-c r` já o
+   referencia → `*Messages*` com `Wrong type argument: commandp, +carlos/ai-rag-ingest`
+   (o teste `myemacs-boot-no-lisp-errors` varreria isso se o boot terminasse).
+4. **Sintomas históricos = mesma causa:** "vertico estava instalando antes" e o
+   `void-variable vertico` do boot interativo anterior (a fila fica presa instalando/
+   ativando e lê o símbolo antes da ativação).
+5. **Mecânica do `elpaca-wait`:** elpaca.el:1539 → `elpaca-process-queues` + loop
+   `(sit-for elpaca-wait-interval)`. Em `--batch`, `sit-for` retorna imediatamente sem
+   despachar I/O de subprocessos → qualquer passo da fila que dependa de subprocesso
+   (status git / autoloads / nativo-comp) **não progride**; no daemon a fila fica
+   estagnada indefinidamente.
+
+**Hipótese principal:** o padrão `(use-package X :ensure t :demand t)` + `(elpaca-wait)`
+top-level não é o mecanismo bloqueante confiável no Elpaca 0.2.0. O manual
+(`elpaca/sources/elpaca/doc/manual.md` §use-package) documenta a forma canônica:
+
+```elisp
+(use-package general :ensure (:wait t) :demand t)
+```
+
+O `:wait t` no `:ensure` faz a fila processar **síncrono antes de continuar o init**.
+O `(elpaca-wait)` top-level só espera as filas atuais e depende do event loop para
+avançar. **Fix previsto:** migrar os pontos de dependência dura para `:ensure (:wait t)`
+e remover os `(elpaca-wait)` top-level, mantendo `:demand t`.
+
+**Fase 1 — Isolar a causa (antes de editar):**
+1. Reproduzir batch mínimo no prod e instrumentar: boot com `--eval` que imprima o
+   status/estado da ordem `flycheck` dentro do `elpaca-wait` (ex.: `elpaca--process-queue`
+   + `elpaca--process` em `flycheck`) para confirmar onde a fila estagna.
+2. Confirmar se `sit-for` é o bloqueio em batch: rodar o mesmo boot com
+   `(advice-add 'sit-for :around (lambda (f &rest a) (accept-process-output nil 0.05) (apply f a)))`
+   ou equivalente — se `just check-prod` passar, o diagnóstico fecha.
+3. Verificar se é regressão do 0.2.0 (git log 6530ffa) ou comportamento sempre assim.
+
+**Fase 2 — Migrar padrão `:ensure (:wait t)` (fix principal):**
+- `custom-lang.el:24` `treesit-auto` → `:ensure (:wait t)` (mantém `:demand t`).
+- `custom-lang.el:89` `reformatter` → `:ensure (:wait t)`, **remover** `(elpaca-wait)`
+  da linha 92.
+- `custom-lang.el:146` `flycheck` → `:ensure (:wait t)`, **remover** `(elpaca-wait)`
+  da linha 152.
+- `custom-lang.el:171` `apheleia` → avaliar `:demand` e alinhar.
+- `custom-42.el:13` `flycheck` (`:ensure nil :demand t`) → manter `:ensure nil` (evita
+  duplicação na fila), remover o `(elpaca-wait)` de custom-42.el:28 **apenas se** o
+  `:ensure (:wait t)` do custom-lang garantir a ativação antes do
+  `(require 'custom-norminette)` — senão manter o wait e ajustar para a forma
+  documentada.
+- Rever demais `:demand t` sem wait (ex.: `dirvish` em custom-files, `gptel`/`magent`
+  em custom-ai/custom-magent) e alinhar ao mesmo padrão.
+
+**Fase 3 — Validação batch (portões):**
+- `just check-prod` (boot), `just compile-prod` (zero-warning), `just test`
+  (suíte ERT autoritativa) no prod — todos verdes.
+- `just check-all` no repo.
+- Se `sit-for` em batch continuar bloqueando mesmo com `:wait t`: adicionar helper de
+  boot para batch no init.el (ex.: forçar `elpaca-process-queues` síncrono com
+  `accept-process-output` antes do `require` de módulos que dependem de pacotes).
+
+**Fase 4 — P2: free variables no compile do repo (custom-ai.el:618 `gptel--token-usage`,
+`custom-magent.el:329` `magent-skill-directories`):**
+- Se a Fase 3 destravar a ativação no repo (builds parciais), o compile passa a ver o
+  pacote no load-path e o warning some (é sintoma do P1 no repo).
+- Caso contrário: forward declaration pelada `(defvar gptel--token-usage)` + guarda
+  `(unless (boundp 'gptel--token-usage) (setq gptel--token-usage nil))` antes do uso
+  (AGENTS.md — Emacs 30: NUNCA `(defvar X nil)` em variável de pacote).
+
+**Fase 5 — P3: `Wrong type argument: commandp, +carlos/ai-rag-ingest` no `*Messages*`:**
+- É consequência do P1 (config não terminou de carregar). Após o fix, reiniciar o
+  daemon e validar: `featurep 'custom-ai/custom-magent/custom-git/custom-dashboard = t`,
+  `(commandp '+carlos/ai-rag-ingest) = t`, `C-c r` e `C-c A*` funcionais, `*Messages*`
+  limpo (coberto por `myemacs-boot-no-lisp-errors` e `myemacs-kbd-no-collisions`).
+
+**Fase 6 — Regressão:**
+- Novo teste ERT se necessário (ex.: `myemacs-elpaca-demand-activation` que verifica
+  `featurep 'flycheck` e `fboundp 'flycheck-mode` após boot).
+- Reboot limpo do daemon do usuário (o atual está congelado no meio do init).
+
+**Critérios de aceitação:**
+- `just check-all` verde no repo E no prod (compile zero-warning, checkdoc OK, ERT OK).
+- Daemon com todos os features carregados (custom-42/ai/dev/jinx/magent/git/dashboard)
+  e `gptel`/`magit` ativos; `*Messages*` sem `Cannot load`/`Wrong type argument`.
+- `just test` autoritativo (prod) sem erros de load.
+- `C-c r` → `+carlos/ai-rag-ingest` com `commandp` t.
+
+**Regras do Executor:** padrões do AGENTS.md (`:custom` em vez de `setq`; guardas
+`(unless (boundp ...))`; NÃO pré-declare defcustom com nil; `just rebuild-prod` +
+`just check-prod` pós-sync quando houver `.elc` stale). **NÃO aplicar agora:** este é o
+plano; o Executor aplica quando acionado. Ordem de execução recomendada: Fase 1 → 2 → 3 → 5 → 6; Fase 4 sob demanda.
+
 ## 2. Backlog (Planejamento Futuro, Ordenado por Dificuldade)
 
 1. [ ] **Etapa de teste da stack de IA** (Fase 4 da revisão da stack — diagnóstico 1–3 concluído em 2026-08-06/07, ver roadmap).
@@ -388,6 +616,7 @@ orquestração). **NÃO aplicar agora:** faseamento discutido; decidir escopo re
 
 ## 3. Decisões Registradas
 
+- **org-noter nov+djvu (2026-08-10, §1f):** instalados `nov` (MELPA, EPUB) e `djvu` (GNU ELPA) via Elpaca; `org-noter-supported-modes` fixado em `:custom` com os 4 modos (doc-view/pdf-view/nov/djvu); binários DjVuLibre providos pelo Nix do MyMachine (`djvulibre` + `djview` em `home/carlosfilho/emacs.nix`). Elimina os warnings `package not found`/`ATTENTION` do boot sem dependência morta.
 - **SuperChat (item 2 do antigo backlog):** removido — código morto eliminado em 2026-08-06 (não testar visual).
 - **Fase 4 — Cutoff (Doom → Vanilla final):** **manter modelo espelho** — `~/.config/emacs` continua clone sincronizado via `just sync`; NÃO converter em symlink (decisão 2026-08-09). Script `bin/cutoff-migration.sh` permanece disponível se a decisão mudar.
 - **agy/copilot no Emacs (exceção a "CLIs no terminal"):** mantidos como exceção consciente — `+carlos/agy-prompt` (`C-c A g`) e `+carlos/copilot-explain-region` (`C-c A c`) (AGENTS.md §0, 2026-08-09).

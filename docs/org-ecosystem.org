@@ -46,6 +46,8 @@ workflow using Denote, which sits on top of this Org ecosystem.
 | jupyter         | Fredrik Bergroth  | Jupyter kernel integration for Org     | MELPA        |
 | pdf-tools       | Vedang Manerikar  | PDF viewing and annotation             | MELPA        |
 | org-noter       | Miguel Ruiz       | Synced PDF annotation with Org notes   | MELPA        |
+| nov             | Jose A. Ortega Ruiz | EPUB reader mode (org-noter dep)     | MELPA        |
+| djvu            | Roland Winkler    | DjVu view/edit via djvused (org-noter dep) | GNU ELPA |
 | markdown-mermaid| Multiple          | Mermaid rendering in Markdown mode     | MELPA        |
 
 * Installation & Configuration
@@ -571,8 +573,19 @@ clicking a PDF location inserts a note at that position.
 ** Configuration
 
 #+begin_src elisp
+;; EPUB reader (org-noter dep) — auto-mode para .epub
+(use-package nov
+  :ensure t
+  :mode "\\.epub\\'")
+
+;; DjVu view/edit (org-noter dep) — binários DjVuLibre no Nix (MyMachine)
+(use-package djvu
+  :ensure t)
+
 (use-package org-noter
   :after org
+  :custom
+  (org-noter-supported-modes '(doc-view-mode pdf-view-mode nov-mode djvu-read-mode))
   :config
   (setq org-noter-notes-search-path '("~/org/notes")))
 #+end_src
@@ -702,6 +715,19 @@ graph LR
   or use =:after org= for dependent packages
 - **Severity:** Medium — affects code execution in Org
 
+** P8: org-noter "package not found" for nov/djvu no boot
+
+- **Symptom:** boot log mostra `'nov' package not found` e `'djvu' package not
+  found` com `ATTENTION: org-noter-nov/org-noter-djvu needs the package ...`
+- **Cause:** `org-noter.el` carrega no boot (o `:after org` é ignorado com
+  `use-package-expand-minimally t`) e require `org-noter-nov`/`org-noter-djvu`
+  conforme `org-noter-supported-modes`; se `nov`/`djvu` não estão instalados,
+  cada require imprime o warning
+- **Fix:** instalar `nov` (MELPA) e `djvu` (GNU ELPA) via Elpaca e fixar
+  `org-noter-supported-modes` em `:custom` com os 4 modos; binários DjVuLibre
+  via Nix (`djvulibre` + `djview` no MyMachine)
+- **Severity:** Low — ruído de boot; pacotes ausentes deixam EPUB/DJVU sem modo
+
 * Quick Reference Tables
 
 ** Package Quick Reference
@@ -715,6 +741,8 @@ graph LR
 | jupyter          | none        | none                | After org      |
 | pdf-tools        | none        | =pdf-view-mode=     | Independent    |
 | org-noter        | none        | =org-mode=          | After org      |
+| nov              | none        | =nov-mode=          | Independent    |
+| djvu             | none        | =djvu-read-mode=    | Independent    |
 | markdown-mermaid | none        | =markdown-mode=     | Independent    |
 
 ** External Dependencies
@@ -725,6 +753,8 @@ graph LR
 | =poppler=  | pdf-tools      | =brew install poppler= (macOS)        |
 | =pkg-config=| pdf-tools     | =brew install pkg-config= (macOS)     |
 | =jupyter=  | jupyter (pkg)  | =pip install jupyter=                 |
+| =djvused/ddjvu/djvm/djview= | djvu (org-noter) | =djvulibre= + =djview= (Nix, MyMachine home/carlosfilho/emacs.nix) |
+| =unzip=    | nov (org-noter) | já presente (dirvish previews)        |
 
 ** File Type Associations
 
@@ -732,6 +762,8 @@ graph LR
 |----------------+----------------+------------------------------|
 | =.org=         | =org-mode=     | org-modern, org-noter        |
 | =.pdf=         | =pdf-view-mode=| pdf-tools, org-noter         |
+| =.epub=        | =nov-mode=     | nov, org-noter               |
+| =.djvu=        | =djvu-read-mode=| djvu, org-noter             |
 | =.md=          | =markdown-mode=| markdown-mermaid             |
 
 * Sample Configurations

@@ -188,6 +188,8 @@ All external packages managed by Elpaca:
 | jupyter | jupyter/emacs-jupyter | Jupyter integration |
 | pdf-tools | vedang/pdf-tools | PDF viewer |
 | org-noter | org-noter | PDF annotation |
+| nov | nov.el | EPUB reader (org-noter dep) |
+| djvu | GNU ELPA (emacsmirror/gnu_elpa) | DjVu view/edit (org-noter dep) |
 | org-modern | minad/org-modern | Org visual styling |
 | markdown-mode | jrblevin/markdown-mode | Markdown mode |
 | edit-indirect | nicferrier/edit-indirect | Indirect buffer editing |

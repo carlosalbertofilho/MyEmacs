@@ -83,10 +83,23 @@
     :config
     (setq doc-view-resolution 300)))
 
+;; ── nov: leitura de EPUB (dependência opcional do org-noter) ──────
+(use-package nov
+  :ensure t
+  :mode "\\.epub\\'")
+
+;; ── djvu: leitura/edição de DjVu (dependência opcional do org-noter) ─
+;; Binários DjVuLibre (djvused/ddjvu/djvm/djview) providos pelo Nix do
+;; MyMachine (home/carlosfilho/emacs.nix).
+(use-package djvu
+  :ensure t)
+
 ;; ── org-noter (opcional, leitura de PDF com notas) ─────────────────
 (use-package org-noter
   :ensure t
   :after org
+  :custom
+  (org-noter-supported-modes '(doc-view-mode pdf-view-mode nov-mode djvu-read-mode))
   :config
   (setq org-noter-notes-search-path '("~/org/notes")))
 
