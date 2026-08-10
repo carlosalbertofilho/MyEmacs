@@ -24,6 +24,29 @@
 (declare-function magent-llm-gptel--continue-with-user-message "magent-llm-gptel")
 (declare-function magent-llm-tool-call-event "magent-llm")
 
+;; ── Diagnóstico: FSM customizado ──────────────────────────────────
+;; O FSM customizado do magent (`magent-llm-gptel--make-sampling-fsm`) trava
+;; o daemon em busy-wait (CPU ~80%, timeout de 120s não dispara).  Este toggle
+;; desativa o FSM customizado: `magent-llm-gptel-sample` então recebe o FSM
+;; default do gptel (`gptel-make-fsm`).  DIAGNÓSTICO — manter apenas para testar
+;; a hipótese; remover depois que a causa raiz for confirmada.
+(defvar +carlos/magent-disable-custom-fsm nil
+  "Non-nil usa o FSM default do gptel em vez do FSM customizado do magent.")
+
+(with-eval-after-load 'magent-llm-gptel
+  (when (fboundp 'magent-llm-gptel--make-sampling-fsm)
+    (advice-add 'magent-llm-gptel--make-sampling-fsm :around
+                #'+carlos/magent--fsm-override-a)))
+
+(defun +carlos/magent--fsm-override-a (orig &rest args)
+  "ORIG (magent-llm-gptel--make-sampling-fsm) ou FSM default do gptel.
+Quando `+carlos/magent-disable-custom-fsm' é non-nil, ignora ORIG/ARGS e
+retorna `(gptel-make-fsm)', deixando o gptel cuidar de tudo (handlers
+padrão de tool-use e done)."
+  (if +carlos/magent-disable-custom-fsm
+      (gptel-make-fsm)
+    (apply orig args)))
+
 (defun +carlos/magent-start ()
   "Garante o carregamento do Magent e inicia a sessão agent-shell."
   (interactive)
