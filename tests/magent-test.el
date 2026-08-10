@@ -271,7 +271,7 @@ senão o backend Gemini rejeita o function_declarations com
                                :key (lambda (arg) (plist-get arg :name))
                                :test #'equal)))
     (should (plist-member job-ids-arg :items))
-    (should (equal (plist-get job-ids-arg :items) '(:type string)))))
+    (should (equal (plist-get job-ids-arg :items) '(:type "string")))))
 
 (provide 'magent-test)
 ;;; magent-test.el ends here

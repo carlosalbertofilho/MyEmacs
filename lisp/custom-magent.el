@@ -94,7 +94,9 @@
 ;; (erro "properties[job_ids].items: missing field" — quebra TODA chamada
 ;; Gemini com as tools do Magent). Aplicamos o `:items' via setf na struct
 ;; gptel-tool após o load (fix do side do config; o source pinado do magent
-;; não deve ser editado).
+;; não deve ser editado). O `:items' deve ser `(:type "string")' — string,
+;; não símbolo — pois o json-serialize nativo do Emacs 30 rejeita símbolos
+;; (erro "wrong-type-argument json-value-p string" na serialização das tools).
 (with-eval-after-load 'magent-tools
   (when (and (boundp 'magent-tools--wait-agent-tool)
              (fboundp 'gptel-tool-args))
@@ -102,9 +104,9 @@
       (setf (gptel-tool-args tool)
             (mapcar (lambda (arg)
                       (if (and (stringp (plist-get arg :name))
-                               (equal (plist-get arg :name) "job_ids")
-                               (not (plist-member arg :items)))
-                          (plist-put (copy-sequence arg) :items '(:type string))
+                               (equal (plist-get arg :name) "job_ids"))
+                          (plist-put (copy-sequence arg)
+                                     :items '(:type "string"))
                         arg))
                     (gptel-tool-args tool))))))
 
