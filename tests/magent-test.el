@@ -83,13 +83,14 @@ o caminho ao agente no prompt enviado ao magent-start."
 
 (ert-deftest myemacs-magent-log-context ()
   "Fase 2: o sink +carlos/magent-log-sink deve estar registrado no magent-log
-e, quando chamado, o buffer *magent-log* recebe a linha."
+e, quando chamado, o buffer *magent-log* recebe a linha mesmo quando o buffer
+está read-only (modo magent-log-mode deriva de special-mode)."
   (skip-unless myemacs-magent-available)
   (let ((sink #'+carlos/magent-log-sink))
     ;; Sink registrado?
     (should (memq sink magent-log--sinks))
-    ;; Sink grava no buffer *magent-log*?
-    (with-current-buffer (get-buffer-create "*magent-log*")
+    ;; Sink grava no buffer *magent-log* mesmo read-only?
+    (with-current-buffer (magent-log-buffer)
       (let ((start (point-max)))
         (funcall sink "teste-sink" 'info)
         (goto-char (point-max))

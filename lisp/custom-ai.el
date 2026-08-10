@@ -800,8 +800,9 @@ dinâmico. O caminho do projeto é informado ao agente no prompt."
   "Log REQUEST and RESPONSE strings to *magent-log* buffer for debugging."
   (let ((log-buf (get-buffer-create "*magent-log*")))
     (with-current-buffer log-buf
-      (goto-char (point-max))
-      (insert (format "\n--- Magent Log (%s) ---\nRequest:\n%s\n\nResponse:\n%s\n" (format-time-string "%Y-%m-%d %H:%M:%S") request response)))))
+      (let ((inhibit-read-only t))
+        (goto-char (point-max))
+        (insert (format "\n--- Magent Log (%s) ---\nRequest:\n%s\n\nResponse:\n%s\n" (format-time-string "%Y-%m-%d %H:%M:%S") request response))))))
 
 (defun +carlos/magent-log-sink (text level)
   "Sink do magent-log: grava TEXT (nível LEVEL) no buffer `*magent-log*'.
