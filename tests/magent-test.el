@@ -259,5 +259,19 @@ magent-llm-gptel--emit-completed-or-textual-tool-calls."
            #'+carlos/magent-fsm-orchestrate-a
            'magent-llm-gptel--emit-completed-or-textual-tool-calls)))
 
+(ert-deftest myemacs-magent-wait-agent-schema-valid ()
+  "A tool `wait_agent' expõe `job_ids' (`:type array') com `:items',
+senão o backend Gemini rejeita o function_declarations com
+\"properties[job_ids].items: missing field\" e toda requisição falha."
+  (skip-unless (and myemacs-magent-available
+                    (boundp 'magent-tools--wait-agent-tool)
+                    (fboundp 'gptel-tool-args)))
+  (let* ((tool magent-tools--wait-agent-tool)
+         (job-ids-arg (cl-find "job_ids" (gptel-tool-args tool)
+                               :key (lambda (arg) (plist-get arg :name))
+                               :test #'equal)))
+    (should (plist-member job-ids-arg :items))
+    (should (equal (plist-get job-ids-arg :items) '(:type string)))))
+
 (provide 'magent-test)
 ;;; magent-test.el ends here

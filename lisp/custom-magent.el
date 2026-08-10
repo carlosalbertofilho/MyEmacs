@@ -87,6 +87,26 @@
     (when (fboundp 'magent-agent-shell-ensure-config)
       (magent-agent-shell-ensure-config))))
 
+;; ── Fix: schema da tool wait_agent para backends Gemini ──────────────
+;; O argspec `job_ids' do magent declara `:type array' sem `:items', e o
+;; gptel repassa o schema cru ao Gemini, que exige `items' em arrays
+;; (erro "properties[job_ids].items: missing field" — quebra TODA chamada
+;; Gemini com as tools do Magent). Aplicamos o `:items' via setf na struct
+;; gptel-tool após o load (fix do side do config; o source pinado do magent
+;; não deve ser editado).
+(with-eval-after-load 'magent-tools
+  (when (and (boundp 'magent-tools--wait-agent-tool)
+             (fboundp 'gptel-tool-args))
+    (let ((tool magent-tools--wait-agent-tool))
+      (setf (gptel-tool-args tool)
+            (mapcar (lambda (arg)
+                      (if (and (stringp (plist-get arg :name))
+                               (equal (plist-get arg :name) "job_ids")
+                               (not (plist-member arg :items)))
+                          (plist-put (copy-sequence arg) :items '(:type string))
+                        arg))
+                    (gptel-tool-args tool))))))
+
 ;; ── Tool Sanitization & Path Auto-Expansion ──────────────────────────
 (defconst +carlos/magent-system-directives
   "CRITICAL MAGENT TOOL DIRECTIVES:
