@@ -9,6 +9,7 @@
 ;;; Code:
 
 (defvar gptel-backend-list)
+(defvar magent-skill-directories)
 (declare-function magent-start "magent-agent-shell")
 (declare-function magent-agent-shell-interrupt "magent-agent-shell")
 (declare-function magent-agent-shell-prompt-region "magent-agent-shell")
