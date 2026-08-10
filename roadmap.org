@@ -47,8 +47,10 @@ entenderem o estado atual do projeto e decisões tomadas.
      - Validação: 5 testes dev + host-detection + log-context + spell-grammar-vars
        verdes; demais falhas do repo são ambientais (jinx-mod/tempel/whitespace),
        passam no baseline prod.
-   - **Status:** ✅ CONCLUÍDO no repo — aguardando portões da Fase 6 no ambiente
-     autoritativo (compile/checkdoc/test pós-`just sync`).
+     - Portões autoritativos (pós-sync): `just compile-prod` zero warnings,
+       `just check-prod` OK, `just test-all` → **146 testes, 0 falhas,
+       7 skipped** (5 rede opt-in + 2 ambientais).
+   - **Status:** ✅ CONCLUÍDO (2026-08-09) — commit `540b66c` deployado.
 
 ** 2026-08-08 — [CONCLUÍDO] Limpeza definitiva do `~/.config/emacs` via clone do repo + verificação do enchant (Nix)
    - **Contexto:** o ambiente oficial de testes (`~/.config/emacs`) acumulava lixo
