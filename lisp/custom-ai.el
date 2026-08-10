@@ -12,6 +12,11 @@
 
 ;;; Code:
 
+(defgroup +carlos/ai nil
+  "Grupo de customização para as preferências de IA do MyEmacs."
+  :group 'convenience
+  :prefix "+carlos/")
+
 ;; Forward declarations para o byte-compiler.
 ;; Emacs 30: `defvar' sem INITVALUE NÃO liga a variável (só marca special,
 ;; suprimindo warnings). Usamos a forma PELADA para gptel-directives e
@@ -714,7 +719,8 @@ O arquivo Org-mode gerado resultante será aberto no Emacs quando concluído."
 (defcustom +carlos/magent-agent-smith-dir
   "~/Projetos/42rio/CommonCore/Rank05/Agent_Smith"
   "Diretório do projeto Agent_Smith que o Magent deve analisar."
-  :type 'directory)
+  :type 'directory
+  :group '+carlos/ai)
 
 (defun +carlos/magent-analyze-agent-smith ()
   "Run Magent to analyze the Agent_Smith project using the local Ollama backend.

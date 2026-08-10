@@ -13,6 +13,7 @@
 (declare-function magent-agent-shell-interrupt "magent-agent-shell")
 (declare-function magent-agent-shell-prompt-region "magent-agent-shell")
 (declare-function magent-agent-shell-ensure-config "magent-agent-shell")
+(declare-function magent-tools--failed "magent-tools")
 
 (defun +carlos/magent-start ()
   "Garante o carregamento do Magent e inicia a sessão agent-shell."
@@ -89,7 +90,7 @@
   "Instruções estritas de uso de ferramentas para os modelos do Magent.")
 
 (defun +carlos/magent-resolve-path-advice (orig-fun path)
-  "Expande PATH relativo para absoluto usando `default-directory` antes de ORIG-FUN."
+  "Expande PATH para absoluto com ORIG-FUN usando `default-directory'."
   (if (and (stringp path)
            (not (string-empty-p path))
            (not (file-name-absolute-p path)))
@@ -97,13 +98,13 @@
     (funcall orig-fun path)))
 
 (defun +carlos/magent-write-file-advice (orig-fun callback path content)
-  "Valida se CONTENT não está vazio antes de executar ORIG-FUN."
+  "Valida CONTENT não vazio; chama ORIG-FUN com CALLBACK, PATH e CONTENT."
   (if (or (null content) (not (stringp content)) (string-empty-p (string-trim content)))
       (funcall callback (magent-tools--failed "Error: Required parameter 'content' is empty. Please retry providing full content."))
     (funcall orig-fun callback path content)))
 
 (defun +carlos/magent-edit-file-advice (orig-fun callback path old-text new-text)
-  "Valida se OLD-TEXT não está vazio antes de executar ORIG-FUN."
+  "Valida OLD-TEXT não vazio; chama ORIG-FUN com CALLBACK, PATH e NEW-TEXT."
   (if (or (null old-text) (not (stringp old-text)) (string-empty-p (string-trim old-text)))
       (funcall callback (magent-tools--failed "Error: Required parameter 'old_text' is empty. Please retry providing exact text to replace."))
     (funcall orig-fun callback path old-text new-text)))
