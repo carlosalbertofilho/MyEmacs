@@ -64,6 +64,26 @@ padrão de tool-use e done)."
     (advice-add 'magent-llm-gptel--make-sampling-fsm :around
                 #'+carlos/magent--fsm-override-a)))
 
+;; ── Fix para Gemini: Normalizar nomes de tool calls (símbolo -> string) ──
+;; O gptel-gemini retorna os nomes de ferramentas em `:tool-use` como símbolos
+;; Lisp (ex.: 'glob, 'read_file). `magent-llm-gptel--handle-tool-use` busca a
+;; tool-spec usando (equal (gptel-tool-name ts) name). Como (gptel-tool-name ts)
+;; é string ("glob"), (equal "glob" 'glob) retorna nil -> tool-spec fica nil,
+;; o Magent ignora a chamada da ferramenta e a requisição expira em 120s.
+;; Esta advice sanitiza `info` ANTES de extrair `:tool-use`, convertendo símbolos
+;; para strings.
+(defun +carlos/magent-sanitize-tool-use-name-a (orig-fn state fsm)
+  "Garante que os nomes de ferramentas em `:tool-use' sejam strings antes de buscar tool-spec."
+  (when-let* ((info (and (fboundp 'gptel-fsm-info) (gptel-fsm-info fsm))))
+    (when (fboundp 'magent-llm-gptel--sanitize-info)
+      (magent-llm-gptel--sanitize-info info)))
+  (funcall orig-fn state fsm))
+
+(with-eval-after-load 'magent-llm-gptel
+  (when (fboundp 'magent-llm-gptel--handle-tool-use)
+    (advice-add 'magent-llm-gptel--handle-tool-use
+                :around #'+carlos/magent-sanitize-tool-use-name-a)))
+
 (defun +carlos/magent-start ()
   "Garante o carregamento do Magent e inicia a sessão agent-shell."
   (interactive)

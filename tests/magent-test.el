@@ -85,7 +85,8 @@ o caminho ao agente no prompt enviado ao magent-start."
   "O sink padrao `magent-log--buffer-sink' grava no buffer *magent-log*
 mesmo quando o buffer esta em read-only (modo special-mode)."
   (skip-unless myemacs-magent-available)
-  (let ((sink #'magent-log--buffer-sink))
+  (let ((magent-enable-logging t)
+        (sink #'magent-log--buffer-sink))
     ;; Sink padrao registrado?
     (should (memq sink magent-log--sinks))
     ;; Sink grava no buffer *magent-log* mesmo read-only?
@@ -271,6 +272,17 @@ senão o backend Gemini rejeita o function_declarations com
                                :test #'equal)))
     (should (plist-member job-ids-arg :items))
     (should (equal (plist-get job-ids-arg :items) '(:type "string")))))
+
+(ert-deftest myemacs-magent-sanitize-tool-use-symbol-to-string ()
+  "A sanitização de info do gptel deve converter símbolos de nomes de ferramenta
+(ex.: 'read_file do gptel-gemini) em strings (\"read_file\"), permitindo a busca
+correta de tool-spec por `equal'."
+  (skip-unless (fboundp 'magent-llm-gptel--sanitize-info))
+  (let ((info (list :tool-use (list (list :name 'read_file :args '(:path "test.el"))))))
+    (magent-llm-gptel--sanitize-info info)
+    (let ((name (plist-get (car (plist-get info :tool-use)) :name)))
+      (should (stringp name))
+      (should (equal name "read_file")))))
 
 (provide 'magent-test)
 ;;; magent-test.el ends here
