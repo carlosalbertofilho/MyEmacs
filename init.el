@@ -157,6 +157,7 @@
 (require 'custom-org)
 (require 'custom-42)
 (require 'custom-ai)
+(require 'custom-dev)
 (require 'custom-jinx)
 (require 'custom-magent)
 (require 'custom-knowledge)

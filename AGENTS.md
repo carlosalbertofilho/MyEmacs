@@ -95,6 +95,15 @@ runtime não-trackeados (`elpaca/`, `tree-sitter/`, `agent/`, `bookmarks`,
 
 ## Elisp Coding Standards
 
+### 0. Exceções conscientes
+
+Decisões de produto do usuário que sobrepõem diretrizes genéricas (2026-08-09):
+
+- **agy/copilot no Emacs (exceção a "CLIs no terminal"):** manter
+  `+carlos/agy-prompt` (`C-c A g`) e `+carlos/copilot-explain-region`
+  (`C-c A c`) como atalhos convenientes, apesar da diretriz de usar CLIs fora
+  do Emacs. Não remover sem perguntar.
+
 ### 1. File Structure
 
 Every `custom-*.el` file MUST follow this template:

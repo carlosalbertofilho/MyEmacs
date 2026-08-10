@@ -14,6 +14,7 @@
 (declare-function magent-agent-shell-prompt-region "magent-agent-shell")
 (declare-function magent-agent-shell-ensure-config "magent-agent-shell")
 (declare-function magent-tools--failed "magent-tools")
+(declare-function +carlos/gptel-tracker-file "custom-ai")
 
 (defun +carlos/magent-start ()
   "Garante o carregamento do Magent e inicia a sessão agent-shell."
@@ -152,11 +153,7 @@
   "Gera e exibe o relatório FinOps com barra de cota."
   (interactive)
   (require 'custom-ai)
-  (let ((tracker-file (or (and (boundp '+carlos/gptel-tracker-file-override)
-                               +carlos/gptel-tracker-file-override)
-                            (expand-file-name "docs/ai-usage-tracker.org"
-                                              (or (and (project-current) (project-root (project-current)))
-                                                  "~/Projects/Github/MyEmacs")))))
+  (let ((tracker-file (+carlos/gptel-tracker-file)))
     (if (not (file-exists-p tracker-file))
         (message "Magent: Nenhum registro de consumo encontrado ainda em %s" tracker-file)
       (let ((usage-hash (make-hash-table :test 'equal))

@@ -41,6 +41,8 @@
 (defvar magent--current-session)
 (declare-function magent-session-agent "magent-session")
 (declare-function magent-agent-info-name "magent-agent-info")
+(declare-function magent-log-add-sink "magent-log")
+(declare-function magent-start "magent")
 (declare-function org-table-align "org-table")
 (defvar url-connection-timeout)
 (defvar url-queue-timeout)
@@ -67,12 +69,11 @@
 (use-package gptel
   :ensure t
   :demand t
+  :custom
+  (gptel-include-tool-results t)
+  (gptel-context-restrict-to-project-files nil)
+  (gptel-use-curl t)
   :config
-  ;; Incluir tool calls e resultados no buffer para visibilidade
-  (setq gptel-include-tool-results t)
-
-  ;; Permitir incluir qualquer pasta/arquivo no contexto (desativa restrição estrita por git ls-files)
-  (setq gptel-context-restrict-to-project-files nil)
 
   ;; ── Backend: OpenCode Zen (OpenAI-compatible) ─────────────────────
   ;; Host real: opencode.ai (zen.opencode.ai NÃO resolve — NXDOMAIN).
@@ -329,9 +330,7 @@ Sem advice: chama `+carlos/gptel-agent-add-project-dirs' diretamente."
                        (goto-char (point-max))
                        (insert string)))))))))
 
-;; Atalhos globais de integração CLI
-(global-set-key (kbd "C-c A g") #'+carlos/agy-prompt)
-(global-set-key (kbd "C-c A c") #'+carlos/copilot-explain-region)
+;; Atalhos globais de integração CLI movidos para custom-keybindings.el (I6)
 
 ;; Regras de exibição para os popups de CLI
 (add-to-list 'display-buffer-alist
@@ -346,104 +345,156 @@ Sem advice: chama `+carlos/gptel-agent-add-project-dirs' diretamente."
                (direction . bottom)
                (window-height . 0.4)))
 
+;; ── Host-aware local backend (single source of truth) ───────────────
+(defun +carlos/ai-local-backend ()
+  "Retorna cons (NOME-BACKEND . MODELO) do backend local para o host atual.
+MLX Local em hosts contendo \"agnes\", Ollama Local nos demais."
+  (if (string-match-p "agnes" (system-name))
+      (cons "MLX Local" 'mlx-community/Qwen3.5-9B-MLX-4bit)
+    (cons "Ollama Local" 'qwen2.5-coder:3b)))
+
 ;; ── Network Timeouts for Local LLMs ─────────────────────────────────
-(setq gptel-use-curl t)
 (setq url-connection-timeout 120)
 (setq url-queue-timeout 120)
 
+(defvar +carlos/local-ai-ping-cache nil
+  "Cons (timestamp . resultado) do último ping do servidor local.
+nil quando o resultado atual ainda não é válido ou nunca foi calculado.")
+
+(defvar +carlos/local-ai-ping-ttl-seconds 10
+  "TTL em segundos para o cache do ping do servidor local.")
+
 (defun +carlos/local-ai-server-ping-p ()
-  "Checa se o servidor de IA local (Ollama ou MLX) está ativo."
-  (condition-case nil
-      (let ((url-request-method "GET")
-            (url-show-status nil)
-            (hostname (system-name)))
-        (if (string-match-p "agnes" hostname)
-            (with-current-buffer (url-retrieve-synchronously "http://127.0.0.1:8081/v1/models" t t 2)
-              (goto-char (point-min))
-              (search-forward "200 OK" nil t))
-          (with-current-buffer (url-retrieve-synchronously "http://127.0.0.1:11434/api/tags" t t 2)
-            (goto-char (point-min))
-            (search-forward "200 OK" nil t))))
-    (error nil)))
+  "Checa se o servidor de IA local (MLX ou Ollama) está ativo.
+Resultado cacheado por `+carlos/local-ai-ping-ttl-seconds' para evitar
+~2s de latência a cada `gptel-request' quando o servidor está fora."
+  (let* ((now (float-time))
+         (age (and +carlos/local-ai-ping-cache
+                   (- now (car +carlos/local-ai-ping-cache)))))
+    (if (and age (< age +carlos/local-ai-ping-ttl-seconds))
+        (cdr +carlos/local-ai-ping-cache)
+      (let* ((backend-name (car (+carlos/ai-local-backend)))
+             (url (if (string-equal backend-name "MLX Local")
+                      "http://127.0.0.1:8081/v1/models"
+                    "http://127.0.0.1:11434/api/tags"))
+             (result
+              (condition-case nil
+                  (let ((url-request-method "GET")
+                        (url-show-status nil))
+                    (with-current-buffer (url-retrieve-synchronously url t t 2)
+                      (goto-char (point-min))
+                      (search-forward "200 OK" nil t)))
+                (error nil))))
+        (setq +carlos/local-ai-ping-cache (cons now result))
+        result))))
 
 (defun +carlos/gptel-setup-defaults-by-host ()
   "Aplica preferências de IA baseadas no hostname do sistema.
-Usa when-let* para evitar setar gptel-backend como nil caso o backend
-não esteja registrado (ex.: MLX não disponível em máquinas sem agnes)."
+Usa `+carlos/ai-local-backend' como fonte única do par backend/modelo
+local e `when-let*' para evitar setar gptel-backend como nil caso o
+backend não esteja registrado (ex.: MLX não disponível em máquinas sem
+agnes). Também configura o backend/modelo de correção gramatical."
   (interactive)
   (let ((hostname (system-name)))
     (cond
      ;; --- HOST: agnes (macOS M2) -> Local-first via MLX ---
      ((string-match-p "agnes" hostname)
-      (when-let* ((backend (gptel-get-backend "MLX Local")))
-        (setq gptel-backend backend
-              gptel-model (intern "mlx-community/Qwen3.5-9B-MLX-4bit")
-              +carlos/gptel-agent-backend "MLX Local"
-              +carlos/gptel-agent-model (intern "mlx-community/Qwen3.5-9B-MLX-4bit")
-              +carlos/gptel-quick-local-backend "MLX Local"
-              +carlos/gptel-quick-local-model (intern "mlx-community/Qwen3.5-9B-MLX-4bit"))
-        (message "Emacs AI: Configurado para Chat Local MLX (%s) com Qwen 3.5 9B" hostname)))
+      (when-let* ((local (gptel-get-backend (car (+carlos/ai-local-backend)))))
+        (let ((model (cdr (+carlos/ai-local-backend))))
+          (setq gptel-backend local
+                gptel-model model
+                +carlos/gptel-agent-backend "MLX Local"
+                +carlos/gptel-agent-model model
+                +carlos/gptel-quick-local-backend "MLX Local"
+                +carlos/gptel-quick-local-model model
+                +carlos/gptel-grammar-backend "MLX Local"
+                +carlos/gptel-grammar-model model)
+          (message "Emacs AI: Configurado para Chat Local MLX (%s) com Qwen 3.5 9B" hostname))))
 
      ;; --- HOST: qualquer outro (fallback) -> Ollama Local ---
      ;; Inclui aa102-006l (EliteDesk NixOS) e qualquer máquina sem MLX.
      (t
-      (when-let* ((backend (gptel-get-backend "Ollama Local")))
-        (setq gptel-backend backend
-              gptel-model (intern "qwen2.5-coder:3b")
-              +carlos/gptel-agent-backend "Ollama Local"
-              +carlos/gptel-agent-model (intern "qwen2.5-coder:3b")
-              +carlos/gptel-quick-local-backend "Ollama Local"
-              +carlos/gptel-quick-local-model (intern "qwen2.5-coder:3b"))
-        (message "Emacs AI: Configurado para Chat Local Ollama (%s) com Qwen 2.5 3B" hostname))))))
+      (when-let* ((local (gptel-get-backend (car (+carlos/ai-local-backend)))))
+        (let ((model (cdr (+carlos/ai-local-backend))))
+          (setq gptel-backend local
+                gptel-model model
+                +carlos/gptel-agent-backend "Ollama Local"
+                +carlos/gptel-agent-model model
+                +carlos/gptel-quick-local-backend "Ollama Local"
+                +carlos/gptel-quick-local-model model
+                +carlos/gptel-grammar-backend "Ollama Local"
+                +carlos/gptel-grammar-model 'mistral)
+          (message "Emacs AI: Configurado para Chat Local Ollama (%s) com Qwen 2.5 3B" hostname)))))))
 
 
 ;; ── Emergency Fallback & Latency Watchdog ───────────────────────────
-(defun +carlos/gptel-emergency-fallback ()
-  "Interrompe a chamada de IA ativa e altera o backend para a nuvem."
-  (interactive)
-  (require 'gptel)
-  ;; 1. Se houver processo ativo no buffer, mata-o
-  (when-let* ((proc (get-buffer-process (current-buffer))))
-    (delete-process proc)
-    (message "Chamada lenta interrompida."))
-  ;; 2. Altera o backend e modelo para Zen Claude (nuvem da assinatura)
-  (setq gptel-backend (gptel-get-backend "Zen Claude"))
-  (setq gptel-model 'claude-sonnet-5)
-  (setq-default gptel-backend (gptel-get-backend "Zen Claude")
-                gptel-model 'claude-sonnet-5)
-  (message "IA reconfigurada para a Nuvem: Zen Claude (claude-sonnet-5)")
-  ;; 3. Se for um buffer de chat do gptel, re-envia a requisição automaticamente
-  (when (bound-and-true-p gptel-mode)
-    (gptel-send)
-    (message "Re-enviando mensagem para a nuvem...")))
-
-;; Atalho para Emergency Fallback
-(global-set-key (kbd "C-c A f") #'+carlos/gptel-emergency-fallback)
-
 (defvar +carlos/gptel-latency-timeout-seconds 8
   "Limite de segundos antes de redirecionar automaticamente por latência.")
 
+(defvar +carlos/gptel-watchdog-backends
+  '("OpenCode Zen" "Ollama Local" "MLX Local" "Gemini")
+  "Backends monitorados pelo watchdog de latência.
+Inclui todos os backends que o roteador dinâmico pode escolher.")
+
+(defun +carlos/gptel-emergency-fallback (&optional buf)
+  "Interrompe a chamada de IA ativa e altera o backend para a nuvem.
+BUF é o buffer onde a requisição está ativa (default: `current-buffer')."
+  (interactive)
+  (require 'gptel)
+  (let ((target (or buf (current-buffer))))
+    (with-current-buffer target
+      ;; 1. Se houver processo ativo no buffer, mata-o
+      (when-let* ((proc (get-buffer-process (current-buffer))))
+        (delete-process proc)
+        (message "Chamada lenta interrompida."))
+      ;; 2. Altera o backend e modelo para Zen Claude (nuvem da assinatura)
+      (setq gptel-backend (gptel-get-backend "Zen Claude"))
+      (setq gptel-model 'claude-sonnet-5)
+      (setq-default gptel-backend (gptel-get-backend "Zen Claude")
+                    gptel-model 'claude-sonnet-5)
+      (message "IA reconfigurada para a Nuvem: Zen Claude (claude-sonnet-5)")
+      ;; 3. Se for um buffer de chat do gptel, re-envia a requisição automaticamente
+      (when (bound-and-true-p gptel-mode)
+        (gptel-send)
+        (message "Re-enviando mensagem para a nuvem...")))))
+
 (defun +carlos/gptel-latency-watchdog (_prompt &rest args)
-  "Monitora `_prompt' e ARGS aplicando fallback em caso de latência."
-  (let ((buf (or (plist-get args :buffer) (current-buffer))))
-    (run-with-timer
-     +carlos/gptel-latency-timeout-seconds nil
-     (lambda ()
-       (when (and (buffer-live-p buf)
-                  (get-buffer-process buf))
-         (with-current-buffer buf
+  "Monitora `_prompt' e ARGS aplicando fallback em caso de latência.
+Somente agenda o timer quando o backend do buffer alvo está em
+`+carlos/gptel-watchdog-backends' e a requisição NÃO é gerenciada pelo
+Magent (mesmo rationale do roteador: redirecionar para a nuvem quebra o
+tool calling local). O fallback age no buffer BUF correto via
+`+carlos/gptel-emergency-fallback'."
+  (let* ((buf (or (plist-get args :buffer) (current-buffer)))
+         (context (plist-get args :context)))
+    (when (and (buffer-live-p buf)
+               (not (+carlos/magent-managed-request-p buf context))
+               (with-current-buffer buf
+                 (let ((backend-name (condition-case nil
+                                         (if (and (boundp 'gptel-backend)
+                                                  gptel-backend
+                                                  (fboundp 'gptel-backend-name))
+                                             (gptel-backend-name gptel-backend)
+                                           "")
+                                       (error ""))))
+                   (member backend-name +carlos/gptel-watchdog-backends))))
+      (run-with-timer
+       +carlos/gptel-latency-timeout-seconds nil
+       (lambda ()
+         (when (and (buffer-live-p buf)
+                    (get-buffer-process buf))
            (let ((backend-name (condition-case nil
-                                   (if (and (boundp 'gptel-backend)
-                                            gptel-backend
-                                            (fboundp 'gptel-backend-name))
-                                       (gptel-backend-name gptel-backend)
-                                     "")
+                                   (with-current-buffer buf
+                                     (if (and (boundp 'gptel-backend)
+                                              gptel-backend
+                                              (fboundp 'gptel-backend-name))
+                                         (gptel-backend-name gptel-backend)
+                                       ""))
                                  (error ""))))
-             (when (or (string-equal backend-name "OpenCode Zen")
-                       (string-equal backend-name "Ollama Local"))
+             (when (member backend-name +carlos/gptel-watchdog-backends)
                (message "⚠️ Latência alta (%ds) em %s. Redirecionando para Zen Claude..."
                         +carlos/gptel-latency-timeout-seconds backend-name)
-               (+carlos/gptel-emergency-fallback)))))))))
+               (+carlos/gptel-emergency-fallback buf)))))))))
 
 ;; ── Dynamic Task/Backend Router ─────────────────────────────────────
 ;; Precedencia de custo (do mais barato ao mais caro):
@@ -475,10 +526,9 @@ Ignora requisições gerenciadas pelo Magent — ver
     (unless (+carlos/magent-managed-request-p target-buffer context)
       (let* ((prompt-text (or prompt ""))
              (local-online (+carlos/local-ai-server-ping-p))
-             (local-name (if (string-match-p "agnes" (system-name)) "MLX Local" "Ollama Local"))
-             (local-mdl  (if (string-match-p "agnes" (system-name))
-                             (intern "mlx-community/Qwen3.5-9B-MLX-4bit")
-                           (intern "qwen2.5-coder:3b"))))
+             (local-pair (+carlos/ai-local-backend))
+             (local-name (car local-pair))
+             (local-mdl  (cdr local-pair)))
         (when (buffer-live-p target-buffer)
           (with-current-buffer target-buffer
             (cond
@@ -496,11 +546,11 @@ Ignora requisições gerenciadas pelo Magent — ver
                               gptel-model 'claude-sonnet-5)
                   (message "Dynamic Route: Planejamento -> fallback Zen Claude (pago)"))))
 
-             ;; REGRA 2: Codificacao & Refatoracao (Magent / prog-mode)
+             ;; REGRA 2: Codificacao & Refatoracao (prog-mode)
              ;; -> Local -> OpenCode Zen free -> Big Pickle pago (ultimo recurso)
-             ((or (string-match-p "\\*Magent" (buffer-name))
-                  (derived-mode-p 'magent-mode)
-                  (derived-mode-p 'prog-mode))
+             ;; Nota: requisições do Magent já são excluídas acima via
+             ;; +carlos/magent-managed-request-p (I7).
+             ((derived-mode-p 'prog-mode)
               (cond
                ((and local-online (gptel-get-backend local-name))
                 (setq-local gptel-backend (gptel-get-backend local-name)
@@ -552,6 +602,17 @@ modelo não devolveu texto nem chamadas de ferramenta."
 (defvar +carlos/gptel-tracker-file-override nil
   "Se não-nil, substitui o caminho padrão do log de consumo.")
 
+(defun +carlos/gptel-tracker-file ()
+  "Caminho do arquivo de log de consumo FinOps.
+Respeita `+carlos/gptel-tracker-file-override'; senão usa
+`docs/ai-usage-tracker.org' na raiz do projeto atual (fallback: MyEmacs).
+Nota (I4): decidir com o usuário se o log deve ser sempre no repo MyEmacs
+ou por-projeto (comportamento atual)."
+  (or +carlos/gptel-tracker-file-override
+      (expand-file-name "docs/ai-usage-tracker.org"
+                        (or (and (project-current) (project-root (project-current)))
+                            "~/Projects/Github/MyEmacs"))))
+
 (defun +carlos/gptel-track-usage (_beg _end)
   "Hook executado após a resposta do gptel para registrar o consumo de tokens."
   (let* ((last-usage (car gptel--token-usage))
@@ -585,10 +646,7 @@ modelo não devolveu texto nem chamadas de ferramenta."
                       ((string-equal backend-name "Zen Claude") "$0.00 (Signature)")
                       ((string-equal backend-name "OpenCode Zen") "$0.00 (Signature)")
                       (t "$0.00 (Zero Cost)"))))
-         (tracker-file (or +carlos/gptel-tracker-file-override
-                           (expand-file-name "docs/ai-usage-tracker.org" 
-                                             (or (and (project-current) (project-root (project-current)))
-                                                 "~/Projects/Github/MyEmacs")))))
+         (tracker-file (+carlos/gptel-tracker-file)))
     (when (or (> input 0) (> output 0))
       (with-temp-buffer
         (if (and (file-exists-p tracker-file)
@@ -652,10 +710,7 @@ O arquivo Org-mode gerado resultante será aberto no Emacs quando concluído."
 (defun +carlos/magent-show-usage ()
   "Exibe o resumo de consumo de IA por agente em buffer Org."
   (interactive)
-  (let ((tracker-file (or +carlos/gptel-tracker-file-override
-                           (expand-file-name "docs/ai-usage-tracker.org" 
-                                             (or (and (project-current) (project-root (project-current)))
-                                                 "~/Projects/Github/MyEmacs")))))
+  (let ((tracker-file (+carlos/gptel-tracker-file)))
     (if (not (file-exists-p tracker-file))
         (message "Arquivo de rastreamento de consumo não encontrado: %s" tracker-file)
       (let ((usage-hash (make-hash-table :test 'equal))
@@ -723,20 +778,21 @@ O arquivo Org-mode gerado resultante será aberto no Emacs quando concluído."
   :group '+carlos/ai)
 
 (defun +carlos/magent-analyze-agent-smith ()
-  "Run Magent to analyze the Agent_Smith project using the local Ollama backend.
+  "Run Magent to analyze the Agent_Smith project using the local backend.
 Analisa o projeto em `+carlos/magent-agent-smith-dir' com o modelo local
-qwen2.5-coder:3b, contornando o roteador dinâmico. O caminho do projeto
-é informado ao agente no prompt."
+do host (via `+carlos/ai-local-backend'), contornando o roteador
+dinâmico. O caminho do projeto é informado ao agente no prompt."
   (interactive)
   (require 'magent)
-  (let ((target-dir (expand-file-name +carlos/magent-agent-smith-dir)))
+  (let* ((target-dir (expand-file-name +carlos/magent-agent-smith-dir))
+         (local-pair (+carlos/ai-local-backend))
+         (local-backend (car local-pair))
+         (local-model (cdr local-pair)))
     (unless (file-directory-p target-dir)
       (user-error "Diretório do projeto Agent_Smith não encontrado: %s" target-dir))
     (let ((default-directory target-dir)
-          (gptel-backend (gptel-get-backend "Ollama Local"))
-          (gptel-model "qwen2.5-coder:3b"))
-      (when (boundp 'gptel-dynamic-router)
-        (setq-local gptel-dynamic-router nil))
+          (gptel-backend (gptel-get-backend local-backend))
+          (gptel-model local-model))
       (magent-start (format "Analise o projeto em %s e explique o que voce entendeu"
                             target-dir)))))
 
@@ -746,6 +802,16 @@ qwen2.5-coder:3b, contornando o roteador dinâmico. O caminho do projeto
     (with-current-buffer log-buf
       (goto-char (point-max))
       (insert (format "\n--- Magent Log (%s) ---\nRequest:\n%s\n\nResponse:\n%s\n" (format-time-string "%Y-%m-%d %H:%M:%S") request response)))))
+
+(defun +carlos/magent-log-sink (text level)
+  "Sink do magent-log: grava TEXT (nível LEVEL) no buffer `*magent-log*'.
+Adapta o contrato `(request response)' de `+carlos/magent-log-context'
+para o contrato `(text level)' de `magent-log-add-sink'."
+  (+carlos/magent-log-context text (format "[%s]" level)))
+
+(with-eval-after-load 'magent-log
+  (when (fboundp 'magent-log-add-sink)
+    (magent-log-add-sink #'+carlos/magent-log-sink)))
 
 (provide 'custom-ai)
 ;;; custom-ai.el ends here

@@ -1,5 +1,145 @@
 # TODO — Planejamento Ativo e Backlog (MyEmacs)
 
+## 0.27. Plano de Ação — Auditoria `custom-ai.el`: Fix Bugs, Limpeza de Dead Code, Wire do `magent-log-context` + Migração para REPL/Qualidade Elisp Nativa (Prioridade Alta)
+
+> **Autor:** Agente Planejador (modelo Pro/Opus). Plano EXECUTÁVEL para o Agente Executor.
+>
+> **STATUS: ✅ IMPLEMENTADO (2026-08-09).** Todas as fases 1–5 aplicadas e
+> validadas; restam os portões da Fase 6 (compile/checkdoc/test no autoritativo
+> `~/.config/emacs` pós-sync). Decisões do usuário: **I8 manter** agy/copilot
+> como exceção consciente (AGENTS.md §0); **I4 manter** tracker por-projeto.
+> Notas: `C-c C-k` global foi substituído pelo prefixo `C-c D` (org-mode já usa
+> `C-c C-k`); testes ambientais (jinx-mod, tempel, whitespace) falham no repo
+> mas passam no baseline prod.
+
+### Contexto
+
+Auditoria de `lisp/custom-ai.el` (2026-08-09) encontrou: código morto, 2 bugs, 8
+inconsistências e 1 problema de performance. O usuário pediu prioridade para
+resolver, mantendo `+carlos/magent-log-context` (é útil — será wired e testado),
+incluindo uma **verificação da suíte de testes**, e **migrando o fluxo de
+qualidade de código elisp para o REPL do Emacs (IELM) e ferramentas internas**
+(`checkdoc`, `byte-compile` com `byte-compile-error-on-warn`, ERT) — em vez de
+depender só do `just` como wrapper. Este plano consolida a fase de testes ERT
+interativos (já prevista no plano 0.25).
+
+### Fase 1 — Fix de Bugs (`lisp/custom-ai.el`)
+
+- [x] **B1 (watchdog age no buffer errado):** `+carlos/gptel-latency-watchdog`
+      cria o timer capturando `buf`, mas `+carlos/gptel-emergency-fallback` usa
+      `(current-buffer)` — buffer errado quando o timer dispara. Fix: passar o
+      buffer alvo como arg: `(defun +carlos/gptel-emergency-fallback (&optional buf))`
+      e usar `(or buf (current-buffer))` em todos os usos (kill process +
+      `gptel-send`).
+- [x] **B2 (`+carlos/magent-analyze-agent-smith` host-blind):** hardcoda
+      `"Ollama Local"`/string `"qwen2.5-coder:3b"` — quebra em `agnes` (MLX).
+      Fix: usar `+carlos/ai-local-backend` (host-aware) e modelo como símbolo.
+
+### Fase 2 — Dead Code e Wire do `magent-log-context`
+
+- [x] **Remover dead code:** `(setq-local gptel-dynamic-router nil)` em
+      `+carlos/magent-analyze-agent-smith` (`gptel-dynamic-router` não existe —
+      o roteamento é via `advice-add` em `gptel-request`). Substituir o bloco
+      `(when (boundp 'gptel-dynamic-router) ...)` por guarda real: nada a
+      desativar, o `+carlos/magent-managed-request-p` já exclui requisições do
+      magent no roteador (verificável por teste).
+- [x] **Wire do `+carlos/magent-log-context`:** a função existe mas nunca é
+      chamada. Registrar como `magent-log-add-sink` (via
+      `with-eval-after-load 'magent-log`), adaptando a assinatura para
+      `(sink text level)` e delegando ao helper existente para gravar
+      `*magent-log*`. Mantém o contrato original `(request response)` como
+      função pública de log manual.
+- [x] **Teste do wire:** novo teste ERT `myemacs-magent-log-context` em
+      `tests/magent-test.el` — simula um sink call e verifica que o buffer
+      `*magent-log*` recebe a linha.
+
+### Fase 3 — Inconsistências (`lisp/custom-ai.el`)
+
+- [x] **I1 (watchdog × router):** ampliar os backends vigiados pelo watchdog de
+      `("OpenCode Zen" "Ollama Local")` para incluir `"Gemini"` e `"MLX Local"`
+      (todos os backends que o roteador pode escolher) e evitar `run-with-timer`
+      inútil quando o backend não é monitorado.
+- [x] **I2 (grammar host-blind):** `+carlos/gptel-setup-defaults-by-host` deve
+      atualizar também `+carlos/gptel-grammar-backend`/`-model` por host
+      (MLX em agnes, Ollama nos demais), mantendo `mistral` onde existir.
+- [x] **I3 (hostname hardcoded):** extrair helper `+carlos/ai-local-backend` que
+      retorna `(backend-name . model-symbol)` baseado em `system-name`; usar em
+      `+carlos/local-ai-server-ping-p`, `+carlos/gptel-setup-defaults-by-host`
+      e no roteador.
+- [x] **I4 (path do tracker duplicado):** extrair `+carlos/gptel-tracker-file`
+      usado por `+carlos/gptel-track-usage` e `+carlos/magent-show-usage`.
+      Decisão do usuário (2026-08-09): **manter por-projeto** (usa
+      `.gptel-usage/` no diretório do projeto quando existe, senão o repo
+      MyEmacs).
+- [x] **I5 (`setq` em defcustoms):** migrar `gptel-include-tool-results`,
+      `gptel-context-restrict-to-project-files` e `gptel-use-curl` para o
+      `:custom` do use-package (padrão do repo).
+- [x] **I6 (keybindings `C-c A` espalhados):** mover `C-c A g` (agy),
+      `C-c A c` (copilot), `C-c A f` (emergency) para `custom-keybindings.el`
+      com `declare-function`, mantendo os testes de colisão verdes.
+- [x] **I7 (REGRA 2 redundante):** remover os checks `\\*Magent`/`magent-mode`
+      do roteador (já excluídos por `+carlos/magent-managed-request-p`).
+- [x] **I8 (agy/copilot vs. decisão "CLIs no terminal"):** decisão do usuário
+      (2026-08-09): **manter** `+carlos/agy-prompt`/`+carlos/copilot-explain-region`
+      como exceção consciente — atalhos convenientes apesar da diretriz
+      "CLIs no terminal". Documentado em AGENTS.md.
+
+### Fase 4 — Performance
+
+- [x] **P1 (ping síncrono por requisição):** cachear o resultado de
+      `+carlos/local-ai-server-ping-p` por N segundos (ex.: 10s) com
+      `time-value`/`float-time` guard, evitando ~2s de latência a cada
+      `gptel-request` quando o servidor local está fora.
+
+### Fase 5 — Verificação da Suíte de Testes + Migração p/ REPL e Ferramentas Internas
+
+- [x] **Verificação da suíte (gate):** rodar `just check-all` completo no
+      ambiente autoritativo ANTES e DEPOIS das mudanças; registrar baseline de
+      contagem (pass/fail/skip) para detectar regressões silenciosas.
+- [x] **Ativar plano 0.25 (`lisp/custom-dev.el`):** implementar o módulo de
+      REPL nativo (IELM + `C-x C-e` inline + `+carlos/ert-run-buffer`/
+      `ert-run-test-at-point` + debug com IA via gptel), prefixo `C-c D`.
+      Referência de código: TODO.md §0.25.
+- [x] **Qualidade elisp via ferramentas internas:** adicionar ao fluxo de dev
+      interativo `M-x checkdoc-file`/`checkdoc-buffer` e `byte-compile-file`
+      com `byte-compile-error-on-warn t` por arquivo no REPL, e manter `just
+      checkdoc`/`just compile` como portões batch.
+- [x] **Testes do custom-dev:** `tests/dev-test.el` (`myemacs-dev-*`) validando
+      binds `C-c D*`, seleção por área e ausência de
+      colisão; incluir `C-c D*` na lista `critical-bindings` do
+      `myemacs-kbd-no-collisions`.
+
+### Fase 6 — Validação (portões)
+
+1. `just compile` (zero warnings — `byte-compile-error-on-warn t`).
+2. `just checkdoc` OK.
+3. `just test-batch EMACS_TEST_DIR="$(pwd)"` no repo e `just test-all` no
+   `~/.config/emacs` autoritativo (com env vars do jinx).
+4. `just sync` + boot interativo `emacs --init-directory ~/.config/emacs`:
+   testar `C-c D r`, `C-c D t` num `*-test.el`, `C-x C-e`, e o novo sink de log
+   do magent.
+
+### Critérios de aceite
+
+- Watchdog fallback age no buffer correto; `magent-analyze-agent-smith`
+  funciona em agnes e nos demais hosts; zero dead code da auditoria restante.
+- `+carlos/magent-log-context` wired via sink e coberto por teste ERT.
+- Roteador vira helper de host único; tracker path unificado; `setq`→`:custom`;
+  binds `C-c A` consolidados.
+- Suíte completa verde (baseline registrado na Fase 5) + novo `custom-dev.el`
+  funcional com REPL/ERT/debug-IA.
+- Zero warnings de boot (`myemacs-boot-no-custom-warnings`).
+
+### Riscos e mitigação
+
+- Mudar a assinatura do `+carlos/gptel-emergency-fallback` (B1) pode afetar o
+  bind `C-c A f` → manter interativo com arg opcional; teste de keybinding
+  cobre.
+- `magent-log-add-sink` é API do magent-log instalado (validar na fonte, regra
+  do AGENTS.md: não assumir).
+- Cache do ping (P1) pode mascarar servidor que subiu → TTL curto (10s) e
+  invalidação explícita no watchdog.
+
 ## 0.26. Plano de Ação — Limpeza Definitiva do `~/.config/emacs` via Clone do Repo + Verificação do Enchant (Concluído)
 
 > **Autor:** Agente Executor/Auditor. Aplicado e validado.
@@ -1586,19 +1726,27 @@ Fase 3 (skills/agentes) → Fase 5 (integração/docs) → Fase 7 (validação/r
 
 ## 3. Planejamento Futuro / Backlog (Ordenado por Dificuldade)
 
-1. [x] **Revisar stack de IA (gptel + gptel-agent)** (Dificuldade: Média — listar o que está implementado, diagnosticar integrações frágeis `superchat`/`mcp`/`gptel-integrations`, alinhar agentes com a política de multiagentes e decidir o estado-alvo)
+1. [ ] **Revisar stack de IA (gptel + gptel-agent)** (Dificuldade: Média — listar o que está implementado, diagnosticar integrações frágeis `superchat`/`mcp`/`gptel-integrations`, alinhar agentes com a política de multiagentes e decidir o estado-alvo)
     - Etapas:
       1. [x] Listar o que está implementado (backends, agentes, gptel-org, personas, display rules) — feito parcialmente, ver resumo da conversa
       2. [x] Diagnosticar gaps e integrações frágeis (`superchat`/`llm.el`, `mcp`, código morto `+carlos/gptel-agent-project-dirs`, `~/.agents/gptel/` vazio)
       3. [x] Decidir estado-alvo e aplicar ajustes (remover código morto, ativar/remover superchat+mcp, definir agentes por projeto)
       4. [ ] **Etapa de teste da stack de IA:** validar em `~/.config/emacs-vanilla` cada entrada — `C-c i` (gptel chat), `C-c I` (+carlos/gptel-agent-run), `C-c C-g` / commit IA, `C-c A a`/`C-c A o` (eshell agy/opencode), gptel-org num `.org`, e troca de backend/modelo no buffer — conferindo erro de API, modelo válido e resposta streaming
-2. [ ] **Testar SuperChat com fontes instaladas** (Dificuldade: Muito Baixa - Validação visual)
+2. [ ] **Testar SuperChat com fontes instaladas** (Dificuldade: Muito Baixa - Validação visual) — ⚠️ possível código morto, revisar junto do plano 0.27 I8
 3. [x] **Substituir o dashboard customizado atual por `dashboard.el`** (Dificuldade: Baixa - Concluído!)
-3. [x] **Configurar Victor Mono com ligatures** (Dificuldade: Média/Alta - Concluído!)
-4. [x] **Substituir o dashboard customizado atual por `dashboard.el`** (Dificuldade: Baixa - Concluído!)
-5. [x] **Configurar Victor Mono com ligatures** (Dificuldade: Média/Alta - Concluído!)
-6. [x] **Refinar o dashboard com a tipografia nova instalada** (Dificuldade: Média/Alta - Concluído!)
-7. [ ] **Fase 4 — Cutoff (Doom → Vanilla final)** (Dificuldade: Alta - Script `bin/cutoff-migration.sh` pronto, pendente execução pelo usuário)
+4. [x] **Configurar Victor Mono com ligatures** (Dificuldade: Média/Alta - Concluído!)
+5. [x] **Refinar o dashboard com a tipografia nova instalada** (Dificuldade: Média/Alta - Concluído!)
+6. [ ] **Fase 4 — Cutoff (Doom → Vanilla final)** (Dificuldade: Alta - Script `bin/cutoff-migration.sh` pronto, pendente execução pelo usuário)
+7. [ ] **agent-shell como subagente do Magent** (Dificuldade: Alta - em análise, NÃO é prioridade agora)
+    - **Ideia:** em vez de o magent e o agent-shell standalone competirem, usar o agent-shell como **subagente invocado pelo magent** quando precisar de features específicas de agentes externos (Claude Code, Cursor, Aider): diff-at-point via RET (`agent-shell-diff-open-file`), activity grouping, MCP nativo, e modelos frontier para refactors pesados (Go + React/TS multi-arquivo).
+    - **Contexto técnico da análise (2026-08-09):** o magent **já usa** o agent-shell como frontend ACP in-process (`magent-agent-shell.el`), mas o adapter não emite eventos `diffs`/`locations` estruturados como os CLIs externos — logo `*Magent*` não tem a navegação de diff com RET nem o activity grouping de primeira classe. O que o setup atual entrega e deve ser preservado: FinOps (custo ~zero via roteador dinâmico + `+carlos/magent-show-usage`), sanitização de tools (`+carlos/magent-system-directives` + advice-add de path/args), keybindings `C-c A*`, e skills do projeto em `.magent/skills/`.
+    - **Etapas futuras (quando abordar):**
+      1. Avaliar o mecanismo de spawn de subagentes do magent (`spawn_agent`/`wait_agent` — diretiva 5 de `+carlos/magent-system-directives`) e a API de registro de agentes externos.
+      2. Definir contrato de passagem: magent delega ao agent-shell standalone um prompt de refactor/tarefa frontier e recebe o resultado (diff estruturado) de volta para revisão no buffer do magent.
+      3. Roteamento: subagente external apenas quando o roteador dinâmico identificar tarefa "architect"/refactor pesado; manter local/free para o resto.
+      4. Estender o FinOps tracker (`+carlos/gptel-track-usage`) para registrar chamadas do agente externo.
+      5. Testes ERT (prefixo `myemacs-agent-shell-*`) + docs em `docs/magent-reference.org`.
+    - **Registro (não abordar agora):** ideia guardada; decidir escopo de verdade quando o fluxo diário exigir modelos frontier para migração multi-arquivo.
 
 ---
 > Para o histórico cronológico detalhado de conquistas e decisões arquiteturais do projeto, consulte o [roadmap.org](file:///Users/carlosfilho/Projects/Github/MyEmacs/roadmap.org).
@@ -1642,9 +1790,9 @@ Fase 3 (skills/agentes) → Fase 5 (integração/docs) → Fase 7 (validação/r
 3. **Ocultar Cursor da Sidebar:**
    - Configurar `dirvish-hide-cursor` para `t`, resultando em um visual mais próximo a uma "árvore de arquivos" (file tree) típica.
 
-## 0.7. Plano de Ação — Integração Makefile Executor (semelhante ao Justl)
+## 0.7. Plano de Ação — Integração Makefile Executor (semelhante ao Justl) (Concluído)
 
-> **Autor:** Agente Planejador/Arquiteto (modelo Pro/Opus). Plano EXECUTÁVEL para o Agente Executor (aplicar) e para o Agente Auditor (validar). **NÃO foi aplicado nada ainda.**
+> **Autor:** Agente Planejador/Arquiteto (modelo Pro/Opus). **Status 2026-08-09: aplicado** — `makefile-executor` configurado em `custom-git.el` (binds `C-c m`/`C-c M` via wrappers `+carlos/makefile-executor-*`); testes no `tests/dev-env-test.el`; consultar histórico de commits.
 
 ### 1. Instalação e Configuração do `makefile-executor`
 
@@ -1702,9 +1850,9 @@ Fase 3 (skills/agentes) → Fase 5 (integração/docs) → Fase 7 (validação/r
 2. Adicionar o teste `myemacs-dev-makefile-executor-keybindings`.
 3. Após aplicar, garantir execução dos testes, `just compile` para check de warnings (zero admitidos), e `just checkdoc`.
 
-## 0.8. Plano de Ação — Visualização Avançada de Código (indent-bars + rainbow-delimiters + hl-line + whitespace-mode)
+## 0.8. Plano de Ação — Visualização Avançada de Código (indent-bars + rainbow-delimiters + hl-line + whitespace-mode) (Concluído)
 
-> **Autor:** Agente Planejador/Arquiteto (modelo Pro/Opus). Plano EXECUTÁVEL para o Agente Executor (aplicar) e para o Agente Auditor (validar). **NÃO foi aplicado nada ainda.**
+> **Autor:** Agente Planejador/Arquiteto (modelo Pro/Opus). **Status 2026-08-09: aplicado** — `indent-bars`, `rainbow-delimiters`, `hl-line` e `whitespace` configurados em `custom-ui.el` (seção "Code visualization", prog-mode hooks) com testes em `tests/dev-env-test.el`.
 
 ### 1. `indent-bars` (Guias de Indentação Modernas com Tree-Sitter)
 
@@ -1801,36 +1949,9 @@ Fase 3 (skills/agentes) → Fase 5 (integração/docs) → Fase 7 (validação/r
   (should (memq 'whitespace-mode prog-mode-hook))
   (should (equal whitespace-style '(face trailing tabs tab-mark))))
 ```
-## Plan: Fix `myemacs-ai-host-detection` test failure
+## Plan: Fix `myemacs-ai-host-detection` test failure — ✅ RESOLVIDO (2026-08-07)
 
-- **Goal:** Ensure the test passes by using symbols for model identifiers.
-- **Steps:**
-  1. Open `lisp/custom-ai.el` and change the definition of `+carlos/gptel-quick-local-model` from a string to a symbol:
-     ```elisp
-     (defvar +carlos/gptel-quick-local-model 'qwen2.5-coder:3b
-       "Modelo usado para tarefas locais rápidas como docstrings e testes.")
-     ```
-  2. Ensure `+carlos/gptel-quick-local-backend` is also a symbol if used in comparisons.
-  3. In `+carlos/gptel-setup-defaults-by-host` (function defined later in the file), replace any `setq` that assigns a string to `gptel-model` with a quoted symbol, e.g.:
-     ```elisp
-     (setq gptel-model 'qwen2.5-coder:3b)
-     ```
-  4. Run the full test suite:
-     ```bash
-     just test-all
-     ```
-     Verify that `myemacs-ai-host-detection` now passes.
-  5. Run `just compile` and `just checkdoc` to confirm no new warnings.
-  6. Commit and push:
-     ```bash
-     git add lisp/custom-ai.el TODO.md tests/ai-test.el
-     git commit -m "fix(ai): use symbols for model identifiers in host detection"
-     git push
-     ```
-  7. Sync to the official Emacs config and run a quick sanity check:
-     ```bash
-     just sync
-     just run
-     ```
-
-*Status:* Planned – awaiting execution.
+> **Status:** obsoleto — o bug já foi resolvido na auditoria de 2026-08-07
+> (AGENTS.md §Known Bugs: `void-variable +carlos/gptel-quick-local-backend`).
+> O teste `myemacs-ai-host-detection` (tests/ai-test.el:80) usa mock unitário
+> de `system-name` via `cl-letf` e passa. Mantido apenas como registro histórico.

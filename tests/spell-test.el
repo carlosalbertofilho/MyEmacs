@@ -45,10 +45,14 @@
   (should (eq (key-binding (kbd "C-c c g")) #'+carlos/grammar-correct-region)))
 
 (ert-deftest myemacs-spell-grammar-vars ()
+  "Backend/modelo de grammar são configurados por host (I2): devem
+apontar para o mesmo backend local resolvido por +carlos/ai-local-backend."
   (skip-unless (and myemacs-spell-jinx-available (boundp '+carlos/gptel-grammar-model)))
   (should (boundp '+carlos/gptel-grammar-backend))
   (should (boundp '+carlos/gptel-grammar-model))
-  (should (string= +carlos/gptel-grammar-backend "Ollama Local")))
+  (let* ((local-pair (+carlos/ai-local-backend))
+         (local-backend (car local-pair)))
+    (should (string= +carlos/gptel-grammar-backend local-backend))))
 
 (ert-deftest myemacs-spell-grammar-json-extraction ()
   (skip-unless (fboundp '+carlos/--grammar-extract-corrected))

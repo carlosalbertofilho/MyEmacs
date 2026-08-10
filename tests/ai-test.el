@@ -84,7 +84,9 @@
         (old-agent-backend +carlos/gptel-agent-backend)
         (old-agent-model +carlos/gptel-agent-model)
         (old-quick-backend +carlos/gptel-quick-local-backend)
-        (old-quick-model +carlos/gptel-quick-local-model))
+        (old-quick-model +carlos/gptel-quick-local-model)
+        (old-grammar-backend +carlos/gptel-grammar-backend)
+        (old-grammar-model +carlos/gptel-grammar-model))
     (unwind-protect
         (progn
           ;; 1. Testar host: agnes (macOS M2)
@@ -95,7 +97,9 @@
             (should (equal "MLX Local" +carlos/gptel-agent-backend))
             (should (eq 'mlx-community/Qwen3.5-9B-MLX-4bit +carlos/gptel-agent-model))
             (should (equal "MLX Local" +carlos/gptel-quick-local-backend))
-            (should (eq 'mlx-community/Qwen3.5-9B-MLX-4bit +carlos/gptel-quick-local-model)))
+            (should (eq 'mlx-community/Qwen3.5-9B-MLX-4bit +carlos/gptel-quick-local-model))
+            (should (equal "MLX Local" +carlos/gptel-grammar-backend))
+            (should (eq 'mlx-community/Qwen3.5-9B-MLX-4bit +carlos/gptel-grammar-model)))
 
           ;; 2. Testar host: aa102-006l (EliteDesk - Ollama Local Default)
           (cl-letf (((symbol-function 'system-name) (lambda () "aa102-006l")))
@@ -105,7 +109,9 @@
             (should (equal "Ollama Local" +carlos/gptel-agent-backend))
             (should (eq 'qwen2.5-coder:3b +carlos/gptel-agent-model))
             (should (equal "Ollama Local" +carlos/gptel-quick-local-backend))
-            (should (eq 'qwen2.5-coder:3b +carlos/gptel-quick-local-model)))
+            (should (eq 'qwen2.5-coder:3b +carlos/gptel-quick-local-model))
+            (should (equal "Ollama Local" +carlos/gptel-grammar-backend))
+            (should (eq 'mistral +carlos/gptel-grammar-model)))
 
           ;; 3. Testar host fallback (outros -> Ollama Local Default)
           (cl-letf (((symbol-function 'system-name) (lambda () "unknown-host")))
@@ -113,7 +119,9 @@
             (should (equal "Ollama Local" (gptel-backend-name gptel-backend)))
             (should (eq 'qwen2.5-coder:3b gptel-model))
             (should (equal "Ollama Local" +carlos/gptel-quick-local-backend))
-            (should (eq 'qwen2.5-coder:3b +carlos/gptel-quick-local-model))))
+            (should (eq 'qwen2.5-coder:3b +carlos/gptel-quick-local-model))
+            (should (equal "Ollama Local" +carlos/gptel-grammar-backend))
+            (should (eq 'mistral +carlos/gptel-grammar-model))))
       
       ;; Garantir a restauração dos estados originais de backend/modelo após o teste
       (setq gptel-backend old-backend
@@ -121,7 +129,9 @@
             +carlos/gptel-agent-backend old-agent-backend
             +carlos/gptel-agent-model old-agent-model
             +carlos/gptel-quick-local-backend old-quick-backend
-            +carlos/gptel-quick-local-model old-quick-model))))
+            +carlos/gptel-quick-local-model old-quick-model
+            +carlos/gptel-grammar-backend old-grammar-backend
+            +carlos/gptel-grammar-model old-grammar-model))))
 
 (ert-deftest myemacs-ai-dynamic-router ()
   "Valida se o roteamento dinâmico de IA escolhe os modelos/backends certos por contexto."
@@ -151,9 +161,10 @@
               (should (memq gptel-model '(qwen2.5-coder:3b mlx-community/Qwen3.5-9B-MLX-4bit gemini-2.5-flash))))
             (kill-buffer buf))
 
-          ;; 3. Testar Roteamento de Código (Magent -> Local ou OpenCode Zen free)
+          ;; 3. Testar Roteamento de Código (prog-mode -> Local ou OpenCode Zen free)
           (let ((buf (get-buffer-create "*Magent-test*")))
             (with-current-buffer buf
+              (emacs-lisp-mode)
               (setq gptel-backend nil
                     gptel-model nil)
               (+carlos/gptel-dynamic-router-advice "Escreva uma funcao" :buffer buf)

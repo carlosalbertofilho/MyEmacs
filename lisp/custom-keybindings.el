@@ -20,6 +20,9 @@
 (declare-function +carlos/gptel-agent-run "custom-ai")
 (declare-function +carlos/ai-rag-ingest "custom-ai")
 (declare-function +carlos/magent-show-usage "custom-ai")
+(declare-function +carlos/agy-prompt "custom-ai")
+(declare-function +carlos/copilot-explain-region "custom-ai")
+(declare-function +carlos/gptel-emergency-fallback "custom-ai")
 (declare-function +carlos/gptel-generate-commit-message "custom-git")
 (declare-function denote-rename-file "denote")
 (declare-function denote-backlinks "denote")
@@ -58,6 +61,11 @@
 (global-set-key (kbd "C-c A m") #'+carlos/magent-start)
 (global-set-key (kbd "C-c A i") #'+carlos/magent-agent-shell-interrupt)
 (global-set-key (kbd "C-c A r") #'+carlos/magent-agent-shell-prompt-region)
+
+;; ── CLI Integrations (agy & copilot) ────────────────────────────────
+(global-set-key (kbd "C-c A g") #'+carlos/agy-prompt)
+(global-set-key (kbd "C-c A c") #'+carlos/copilot-explain-region)
+(global-set-key (kbd "C-c A f") #'+carlos/gptel-emergency-fallback)
 
 ;; ── 42 School ───────────────────────────────────────────────────────
 (global-set-key (kbd "C-c h")   #'stdheader)

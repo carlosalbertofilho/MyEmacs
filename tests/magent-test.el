@@ -54,6 +54,7 @@
 
 (ert-deftest myemacs-magent-tool-sanitizers ()
   (skip-unless myemacs-magent-available)
+  (skip-unless (file-directory-p "/home/carlosfilho/Projetos/emacsConfig/MyEmacs"))
   (let ((default-directory "/home/carlosfilho/Projetos/emacsConfig/MyEmacs/"))
     (should (string-prefix-p "/home/carlosfilho/Projetos/emacsConfig/MyEmacs/"
                              (magent-tools--resolve-path "AGENTS.md")))))
@@ -63,6 +64,8 @@
 Agent_Smith real (~/Projetos/42rio/CommonCore/Rank05/Agent_Smith) e informa
 o caminho ao agente no prompt enviado ao magent-start."
   (skip-unless myemacs-magent-available)
+  (skip-unless (file-directory-p
+                (expand-file-name "~/Projetos/42rio/CommonCore/Rank05/Agent_Smith")))
   (should (string= "~/Projetos/42rio/CommonCore/Rank05/Agent_Smith"
                    +carlos/magent-agent-smith-dir))
   (let ((expected (expand-file-name "~/Projetos/42rio/CommonCore/Rank05/Agent_Smith")))
@@ -77,6 +80,20 @@ o caminho ao agente no prompt enviado ao magent-start."
       (should (string-match-p "Agent_Smith" captured-prompt))
       (should (string-match-p (regexp-quote expected) captured-prompt))
       (should (string= expected captured-dir)))))
+
+(ert-deftest myemacs-magent-log-context ()
+  "Fase 2: o sink +carlos/magent-log-sink deve estar registrado no magent-log
+e, quando chamado, o buffer *magent-log* recebe a linha."
+  (skip-unless myemacs-magent-available)
+  (let ((sink #'+carlos/magent-log-sink))
+    ;; Sink registrado?
+    (should (memq sink magent-log--sinks))
+    ;; Sink grava no buffer *magent-log*?
+    (with-current-buffer (get-buffer-create "*magent-log*")
+      (let ((start (point-max)))
+        (funcall sink "teste-sink" 'info)
+        (goto-char (point-max))
+        (should (search-backward "teste-sink" start t))))))
 
 (provide 'magent-test)
 ;;; magent-test.el ends here

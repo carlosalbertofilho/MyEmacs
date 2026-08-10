@@ -11,6 +11,45 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-09 — [CONCLUÍDO] Auditoria `custom-ai.el` + Migração p/ REPL/Qualidade Elisp Nativa (TODO §0.27)
+   - **Auditoria realizada (2026-08-09):** `lisp/custom-ai.el` (751 linhas) auditado
+     encontrando: código morto (`+carlos/magent-log-context` nunca chamado — será
+     mantido e wired via sink; `setq-local gptel-dynamic-router` em função que não
+     existe), 2 bugs (watchdog age no buffer errado; `magent-analyze-agent-smith`
+     host-blind hardcoda Ollama), 8 inconsistências (watchdog×router, grammar
+     host-blind, hostname `"agnes"` hardcoded 3x, path do tracker duplicado,
+     `setq` em defcustoms, binds `C-c A` espalhados, REGRA 2 redundante,
+     agy/copilot vs. "CLIs no terminal") e 1 perf (ping síncrono por requisição).
+   - **Plano 0.27 registrado no TODO.md** com 6 fases (fix bugs → dead code/wire
+     do log → inconsistências → perf → verificação da suíte + REPL/ferramentas
+     internas → validação). Prioridade ALTA.
+   - **Migração de fluxo:** usar IELM/`C-x C-e`/`M-x checkdoc-file`/`byte-compile`
+     (`byte-compile-error-on-warn t`) como loop de qualidade interativo, ativando
+     o `lisp/custom-dev.el` do plano 0.25; suíte ERT com verificação de baseline.
+   - **Execução (2026-08-09):**
+     - B1: `+carlos/gptel-emergency-fallback` agora recebe `&optional buf` (kill
+       process + re-send no buffer correto); watchdog só agenda timer p/ backends
+       monitorados (`OpenCode Zen`, `Ollama Local`, `MLX Local`, `Gemini`) e pula
+       requisições do Magent.
+     - B2: `+carlos/magent-analyze-agent-smith` usa o helper host-aware
+       `+carlos/ai-local-backend`; dead code do `gptel-dynamic-router` removido.
+     - I1–I8: watchdog×router unificados, grammar por host (MLX em agnes), helper
+       `+carlos/ai-local-backend` (fonte única do par backend/modelo), tracker
+       por-projeto (decisão do usuário), `setq`→`:custom` (3 defcustoms gptel),
+       binds `C-c A g/c/f` movidos p/ `custom-keybindings.el` (exceção consciente
+       agy/copilot documentada no AGENTS.md §0), REGRA 2 só `prog-mode`.
+     - P1: ping cacheado por TTL 10s (`+carlos/local-ai-ping-cache`).
+     - Wire do log: `+carlos/magent-log-sink (text level)` registrado via
+       `magent-log-add-sink`; teste `myemacs-magent-log-context`.
+     - Fase 5: `lisp/custom-dev.el` criado (prefixo `C-c D`: REPL/ERT runner/debug
+       com IA) + `tests/dev-test.el`; binds `C-c D*` na lista crítica de colisões.
+       `C-c C-k` global substituído por `C-c D` (org-mode já usa `C-c C-k`).
+     - Validação: 5 testes dev + host-detection + log-context + spell-grammar-vars
+       verdes; demais falhas do repo são ambientais (jinx-mod/tempel/whitespace),
+       passam no baseline prod.
+   - **Status:** ✅ CONCLUÍDO no repo — aguardando portões da Fase 6 no ambiente
+     autoritativo (compile/checkdoc/test pós-`just sync`).
+
 ** 2026-08-08 — [CONCLUÍDO] Limpeza definitiva do `~/.config/emacs` via clone do repo + verificação do enchant (Nix)
    - **Contexto:** o ambiente oficial de testes (`~/.config/emacs`) acumulava lixo
      residual da migração Doom→Vanilla (`.doom/`, `.local/`, `modules/`, `static/`,
@@ -636,11 +675,22 @@ Criar cache de referência para que agentes possam:
 9. Habilitar bindings comentados
 10. Remover eshell duplicado
 
+** Auditoria e Qualidade Elisp (prioridade ALTA — TODO §0.27, planejado 2026-08-09)
+- Auditar `custom-ai.el` concluída; plano de execução no TODO §0.27:
+  - Fix B1 (watchdog buffer errado) e B2 (`magent-analyze-agent-smith` host-blind)
+  - Wire `+carlos/magent-log-context` via `magent-log-add-sink` + teste ERT
+  - Consolidar hostname `"agnes"` em helper único; unificar path do tracker FinOps
+  - `setq`→`:custom`; consolidar binds `C-c A`; REGRA 2 do roteador simplificada
+  - Cache do ping local (TTL 10s)
+  - Ativar `lisp/custom-dev.el` (REPL IELM + ERT + debug IA, prefixo `C-c D`)
+  - Verificação da suíte com baseline antes/depois
+
 ** Features (backlog)
 11. Adicionar fontes ao Nix
 12. Configurar Victor Mono com ligatures
 13. Refinar dashboard com tipografia
 14. Fase 4 — Cutoff final
+15. agent-shell como subagente do Magent (em análise, futuro) — usar agent-shell standalone invocado pelo magent para features de agentes externos (diff-at-point RET, activity grouping, MCP nativo, frontier models p/ refactors pesados). Magent já usa agent-shell como frontend ACP in-process, mas o adapter não emite eventos diffs/locations estruturados. Preservar FinOps + sanitização + keybindings C-c A*. Registrado no TODO.md §3 item 7 (2026-08-09).
 
 * Referências
 
