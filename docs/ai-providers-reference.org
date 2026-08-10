@@ -1,7 +1,7 @@
 #+TITLE: Referência de Provedores de IA - MyEmacs
 #+DESCRIPTION: Detalhamento de limites, quotas, privacidade e modelos disponíveis no Google AI Studio (Free Tier) e OpenCode Zen (Assinatura).
 #+CREATED: 2026-08-07
-#+LAST_MODIFIED: 2026-08-07
+#+LAST_MODIFIED: 2026-08-10
 #+FILETAGS: :RAG:AI:DOCS:
 
 * Visão Geral
@@ -58,7 +58,6 @@ Estes modelos são oferecidos no backend da assinatura e estão disponíveis no 
 | =claude-opus-5= | Anthropic | Agente principal, SWE-Bench, refatorações complexas |
 | =claude-sonnet-5= | Anthropic | Chat rápido de programação, geração de testes |
 | =claude-fable-5= | Anthropic | Raciocínio narrativo e documentação estendida |
-| =big-pickle= | OpenCode Custom | Otimizado para engenharia de software complexa |
 | =gpt-5.6-sol= / =gpt-5.6-terra= | OpenAI | Modelos de última geração para arquitetura |
 | =gpt-5.3-codex= | OpenAI | Codificação estruturada e lógica de sistemas |
 | =gpt-5.2-codex= | OpenAI | Geração rápida de código e snippets |
@@ -69,15 +68,55 @@ Estes modelos são oferecidos no backend da assinatura e estão disponíveis no 
 
 ** Modelos Gratuitos (Free Tier no OpenCode Zen)
 Modelos de tráfego fallback com custo zero absoluto no OpenCode:
-- =deepseek-v4-flash-free=
-- =north-mini-code-free=
-- =mimo-v2.5-free=
-- =ling-3.0-flash-free=
-- =ling-3.0-tiny-free=
-- =nemotron-3-ultra-free=
-- =laguna-s-2.1-free=
-- =longcat-2.0-free=
+
+| ID do Modelo | Custo por 1M tokens (In/Out) |
+|--------------+------------------------------|
+| =big-pickle= | Free / Free (roteamento de código) |
+| =deepseek-v4-flash-free= | Free / Free |
+| =north-mini-code-free= | Free / Free (código) |
+| =mimo-v2.5-free= | Free / Free (geral) |
+| =laguna-s-2.1-free= | Free / Free |
+| =ling-3.0-tiny-free= | Free / Free |
+| =longcat-2.0-free= | Free / Free |
+| =nemotron-3-ultra-free= | Free / Free |
+
+** Preços de Referência (Pay-as-you-go, por 1M tokens)
+Fonte: https://opencode.ai/zen/v1/models (2026-08-10).
+
+| Modelo | Entrada | Saída | Cache leitura |
+|--------+---------+-------+---------------|
+| =gemini-3.6-flash= | $1.50 | $7.50 | $0.15 |
+| =gemini-3.5-flash= | $1.50 | $9.00 | $0.15 |
+| =gemini-3.5-flash-lite= | $0.30 | $2.50 | $0.03 |
+| =gemini-3.1-pro= | $2.00 (≤200K) / $4.00 (>200K) | $12.00 / $18.00 | $0.20 / $0.40 |
+| =gemini-3-flash= | $0.50 | $3.00 | $0.05 |
+| =deepseek-v4-pro= | $1.74 | $3.48 | $0.145 |
+| =deepseek-v4-flash= | $0.14 | $0.28 | $0.028 |
+| =kimi-k2.7-code= | $0.95 | $4.00 | $0.19 |
+| =qwen3.7-plus= | $0.40 | $1.60 | $0.04 |
+| =qwen3.6-plus= | $0.50 | $3.00 | $0.05 |
+| =glm-5.2= | $1.40 | $4.40 | $0.26 |
+| =minimax-m3= | $0.30 | $1.20 | $0.06 |
 
 ** Endpoint de Coleta / URL de Consulta
 Para consultar os modelos ativos e novos releases da sua assinatura de forma dinâmica:
 =https://opencode.ai/zen/v1/models= (Requer cabeçalhos =Authorization: Bearer <OPENCODE_ZEN_API_KEY>= ou =api-key=)
+
+* 3. Estratégia de Roteamento (a partir de 2026-08-10)
+
+O agente local (Ollama/MLX) provou-se impraticável para dirigir o FSM do
+Magent em CPU (aa102-006l: ~5min/turn) e ficou apenas como *fallback
+final* do roteador dinâmico. A cascata de custo agora é:
+
+1. *Gemini free tier* (=gemini-3.5-flash=) — nuvem gratuita via
+   =GEMINI_API_KEY= (Google AI Studio), cota generosa (15 RPM / 1500 RPD).
+2. *OpenCode Zen free* (=big-pickle= primeiro, depois =*-free=) — custo
+   zero dentro da assinatura.
+3. *Local* (MLX no agnes / Ollama nos demais) — apenas quando nuvem
+   indisponível.
+
+| Regra | 1ª escolha | 2ª escolha | 3ª escolha | Fallback final |
+|-------+------------+------------+------------+----------------|
+| Planejamento | Gemini free (gemini-3.5-flash) | Zen Claude (pago) | — | — |
+| Código | Gemini free (gemini-3.5-flash) | big-pickle (free) | north-mini-code-free (free) | Local |
+| Geral | Gemini free (gemini-3.5-flash) | big-pickle (free) | mimo-v2.5-free (free) | Local |

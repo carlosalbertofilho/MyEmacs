@@ -33,6 +33,25 @@ entenderem o estado atual do projeto e decisões tomadas.
      `jupyter-kernel-client` (native-comp, upstream) documentado como benigno —
      já filtrado no gate `just compile-prod`.
 
+** 2026-08-10 — [CONCLUÍDO] Roteamento IA: Gemini free tier como 1ª escolha
+   - **Problema:** modelos locais (MLX/Ollama) são impraticáveis em CPU
+     (~5min/turn, validado no §1c); chat/quick-tasks/grammar dependiam de
+     backend local.
+   - **Fix (MyEmacs):** nova cascata de roteamento — **Gemini free tier**
+     (`gemini-3.5-flash`) como 1ª escolha em todos os hosts → OpenCode Zen
+     free (`big-pickle` primeiro, depois `*-free`) → Local apenas como
+     fallback final. `+carlos/gptel-setup-defaults-by-host` reescrito (chat
+     default Gemini; agente/Magent segue Zen Claude, assinatura).
+     Defaults `quick-local`/`grammar` e commit IA (custom-git.el) agora
+     apontam para Gemini free tier.
+   - **Backend OpenCode Zen:** lista de free models atualizada
+     (`laguna-s-2.1-free`, `ling-3.0-tiny-free`, `longcat-2.0-free`,
+     `nemotron-3-ultra-free`; removido `ling-3.0-flash-free`).
+   - **Testes:** `myemacs-ai-host-detection`, `myemacs-ai-dynamic-router`
+     (3 regras), `myemacs-spell-grammar-vars` e schema-passthrough
+     atualizados para a nova cascata; ai-network-test usa
+     `gemini-3.5-flash`.
+
 ** 2026-08-10 — [CONCLUÍDO] Default local MLX: troca para gemma-4-e2b-it-4bit
    - **Motivação:** o Qwen3.5-9B (default) era lento (15.9 tok/s) e propenso a
      tool calls no reasoning sob contexto pesado. Benchmark dos 5 modelos MLX

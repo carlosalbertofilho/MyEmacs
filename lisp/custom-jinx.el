@@ -35,14 +35,15 @@
   (define-key jinx-mode-map (kbd "M-$")   #'jinx-correct)
   (define-key jinx-mode-map (kbd "C-M-$") #'jinx-languages))
 
-;; ── +carlos/grammar-correct-region (IA local, in-place) ─────────────
-;; Usa gptel com backend local (Ollama Local) e modelo mistral para
-;; correção profunda de ortografia/gramática. O texto corrigido substitui
-;; a região no buffer de origem (in-place).
+;; ── +carlos/grammar-correct-region (IA, in-place) ───────────────────
+;; Usa gptel com o backend/modelo de grammar (Gemini free tier por
+;; padrão; local como fallback) para correção profunda de
+;; ortografia/gramática. O texto corrigido substitui a região no buffer
+;; de origem (in-place).
 (defun +carlos/grammar-correct-region (beg end)
-  "Corrige gramática e ortografia da região BEG..END com IA local.
+  "Corrige gramática e ortografia da região BEG..END com IA.
 Usa o backend `+carlos/gptel-grammar-backend' e o modelo
-`+carlos/gptel-grammar-model' (Ollama Local / mistral). O resultado
+`+carlos/gptel-grammar-model' (Gemini free tier por padrão). O resultado
 substitui a região no buffer original."
   (interactive "r")
   (let* ((text (buffer-substring-no-properties beg end))

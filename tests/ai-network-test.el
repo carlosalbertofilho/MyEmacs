@@ -49,7 +49,7 @@ Retorna não-nil se a resposta contiver \"PONG\". Timeout de 90s."
 (ert-deftest myemacs-ai-network-gemini ()
   :tags '(ai network)
   (skip-unless (getenv "EMACS_TEST_NETWORK"))
-  (should (myemacs-ai--request-pong "Gemini" "gemini-2.5-flash")))
+  (should (myemacs-ai--request-pong "Gemini" "gemini-3.5-flash")))
 
 (ert-deftest myemacs-ai-network-ollama ()
   :tags '(ai network)

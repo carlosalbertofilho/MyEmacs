@@ -7,6 +7,11 @@
 
 ## 0. Prioridade de Execução (2026-08-10)
 
+> **Roteamento de IA (2026-08-10, concluído):** Gemini free tier
+> (`gemini-3.5-flash`) passou a ser a 1ª escolha de chat/quick/grammar em
+> todos os hosts, com OpenCode Zen free (`big-pickle`/`*-free`) como 2ª e
+> Local (MLX/Ollama) apenas como fallback final — ver roadmap.org.
+
 Ordem deliberada dos planos de ação — trabalhar nesta sequência:
 
 1. **Verificação de Modelos Locais** (§1c) — benchmark com os scripts salvos

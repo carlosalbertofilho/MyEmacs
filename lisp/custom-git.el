@@ -8,6 +8,8 @@
 ;; Forward declarations for byte-compiler
 (declare-function vc-git-root "vc-git")
 (declare-function +carlos/gptel-request "custom-ai")
+(defvar +carlos/gptel-quick-local-backend)
+(defvar +carlos/gptel-quick-local-model)
 (declare-function makefile-executor-execute-project-target "makefile-executor")
 (declare-function makefile-executor-execute-last "makefile-executor")
 (declare-function makefile-executor-mode "makefile-executor")
@@ -92,7 +94,7 @@ Copia a mensagem gerada para o `kill-ring'."
         (+carlos/gptel-request
          (format "Generate a concise, conventional commit message (type: scope: subject) for this diff:\n\n```\n%s\n```\n\nRules:\n%s"
                  diff rules)
-         "Ollama Local" 'qwen2.5-coder:1.5b
+         +carlos/gptel-quick-local-backend +carlos/gptel-quick-local-model
          :system "You are an expert at writing conventional commits."
          :callback
          (lambda (response _info)
@@ -114,7 +116,7 @@ Funciona em buffers `git-commit-mode' ou `magit-commit-mode'."
       (let ((commit-buf (current-buffer)))
         (+carlos/gptel-request
          (format "Generate a concise, conventional commit message (type: scope: subject) for this diff:\n\n```\n%s\n```" diff)
-         "Ollama Local" 'qwen2.5-coder:1.5b
+         +carlos/gptel-quick-local-backend +carlos/gptel-quick-local-model
          :system "You are an expert at writing conventional commits."
          :callback
          (lambda (response _info)

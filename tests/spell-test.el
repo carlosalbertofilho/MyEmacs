@@ -45,14 +45,13 @@
   (should (eq (key-binding (kbd "C-c c g")) #'+carlos/grammar-correct-region)))
 
 (ert-deftest myemacs-spell-grammar-vars ()
-  "Backend/modelo de grammar são configurados por host (I2): devem
-apontar para o mesmo backend local resolvido por +carlos/ai-local-backend."
+  "Backend/modelo de grammar usam o Gemini free tier (nuvem) por padrão
+desde que o agente local virou impraticável em CPU (I2/2026-08-10)."
   (skip-unless (and myemacs-spell-jinx-available (boundp '+carlos/gptel-grammar-model)))
   (should (boundp '+carlos/gptel-grammar-backend))
   (should (boundp '+carlos/gptel-grammar-model))
-  (let* ((local-pair (+carlos/ai-local-backend))
-         (local-backend (car local-pair)))
-    (should (string= +carlos/gptel-grammar-backend local-backend))))
+  (should (string= +carlos/gptel-grammar-backend "Gemini"))
+  (should (eq +carlos/gptel-grammar-model 'gemini-3.5-flash)))
 
 (ert-deftest myemacs-spell-grammar-json-extraction ()
   (skip-unless (fboundp '+carlos/--grammar-extract-corrected))
@@ -85,7 +84,8 @@ um `:response_format' reintroduzido faria `apply' sinalizar erro, falhando."
             (ignore callback buffer position context dry-run stream
                    in-place system transforms fsm)
             (setq captured schema))
-          (+carlos/gptel-request "teste" "Ollama Local" 'mistral
+          (+carlos/gptel-request "teste" +carlos/gptel-grammar-backend
+                                 +carlos/gptel-grammar-model
                                  :buffer "*gptel-grammar-test*"
                                  :schema '(:type object
                                            :properties (:corrected (:type string))))

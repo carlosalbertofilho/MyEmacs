@@ -89,39 +89,20 @@
         (old-grammar-model +carlos/gptel-grammar-model))
     (unwind-protect
         (progn
-          ;; 1. Testar host: agnes (macOS M2)
-          (cl-letf (((symbol-function 'system-name) (lambda () "agnes.local")))
-            (+carlos/gptel-setup-defaults-by-host)
-            (should (equal "MLX Local" (gptel-backend-name gptel-backend)))
-            (should (eq 'mlx-community/gemma-4-e2b-it-4bit gptel-model))
-            (should (equal "MLX Local" +carlos/gptel-agent-backend))
-            (should (eq 'mlx-community/gemma-4-e2b-it-4bit +carlos/gptel-agent-model))
-            (should (equal "MLX Local" +carlos/gptel-quick-local-backend))
-            (should (eq 'mlx-community/gemma-4-e2b-it-4bit +carlos/gptel-quick-local-model))
-            (should (equal "MLX Local" +carlos/gptel-grammar-backend))
-            (should (eq 'mlx-community/gemma-4-e2b-it-4bit +carlos/gptel-grammar-model)))
-
-          ;; 2. Testar host: aa102-006l (EliteDesk - Ollama Local Default)
-          (cl-letf (((symbol-function 'system-name) (lambda () "aa102-006l")))
-            (+carlos/gptel-setup-defaults-by-host)
-            (should (equal "Ollama Local" (gptel-backend-name gptel-backend)))
-            (should (eq 'qwen2.5-coder:3b gptel-model))
-            (should (equal "Ollama Local" +carlos/gptel-agent-backend))
-            (should (eq 'qwen2.5-coder:3b +carlos/gptel-agent-model))
-            (should (equal "Ollama Local" +carlos/gptel-quick-local-backend))
-            (should (eq 'qwen2.5-coder:3b +carlos/gptel-quick-local-model))
-            (should (equal "Ollama Local" +carlos/gptel-grammar-backend))
-            (should (eq 'mistral +carlos/gptel-grammar-model)))
-
-          ;; 3. Testar host fallback (outros -> Ollama Local Default)
-          (cl-letf (((symbol-function 'system-name) (lambda () "unknown-host")))
-            (+carlos/gptel-setup-defaults-by-host)
-            (should (equal "Ollama Local" (gptel-backend-name gptel-backend)))
-            (should (eq 'qwen2.5-coder:3b gptel-model))
-            (should (equal "Ollama Local" +carlos/gptel-quick-local-backend))
-            (should (eq 'qwen2.5-coder:3b +carlos/gptel-quick-local-model))
-            (should (equal "Ollama Local" +carlos/gptel-grammar-backend))
-            (should (eq 'mistral +carlos/gptel-grammar-model))))
+          ;; Todos os hosts: default de chat = Gemini free tier
+          ;; (gemini-3.5-flash). Agente = Zen Claude (assinatura).
+          ;; Local (MLX/Ollama) ficou como fallback final do roteador.
+          (dolist (hostname '("agnes.local" "aa102-006l" "unknown-host"))
+            (cl-letf (((symbol-function 'system-name) (lambda () hostname)))
+              (+carlos/gptel-setup-defaults-by-host)
+              (should (equal "Gemini" (gptel-backend-name gptel-backend)))
+              (should (eq 'gemini-3.5-flash gptel-model))
+              (should (equal "Zen Claude" +carlos/gptel-agent-backend))
+              (should (eq 'claude-sonnet-5 +carlos/gptel-agent-model))
+              (should (equal "Gemini" +carlos/gptel-quick-local-backend))
+              (should (eq 'gemini-3.5-flash +carlos/gptel-quick-local-model))
+              (should (equal "Gemini" +carlos/gptel-grammar-backend))
+              (should (eq 'gemini-3.5-flash +carlos/gptel-grammar-model)))))
       
       ;; Garantir a restauração dos estados originais de backend/modelo após o teste
       (setq gptel-backend old-backend
@@ -134,46 +115,46 @@
             +carlos/gptel-grammar-model old-grammar-model))))
 
 (ert-deftest myemacs-ai-dynamic-router ()
-  "Valida se o roteamento dinâmico de IA escolhe os modelos/backends certos por contexto."
+  "Valida se o roteamento dinâmico de IA escolhe os modelos/backends certos por contexto.
+Nova cascata (local impraticável em CPU): Gemini free tier -> big-pickle
+(free) -> free Zen -> Local (apenas fallback final)."
   :tags '(ai)
   (let ((old-backend gptel-backend)
         (old-model gptel-model))
     (unwind-protect
         (progn
-          ;; 1. Testar Roteamento de Planejamento (/plan -> Gemini Pro free tier)
+          ;; 1. Testar Roteamento de Planejamento (/plan -> Gemini free tier)
           (let ((buf (get-buffer-create "*gptel-plan*")))
             (with-current-buffer buf
               (setq gptel-backend nil
                     gptel-model nil)
               (+carlos/gptel-dynamic-router-advice "Monte um planejamento" :buffer buf)
               (should (equal "Gemini" (gptel-backend-name gptel-backend)))
-              (should (eq 'gemini-2.5-pro gptel-model)))
+              (should (eq 'gemini-3.5-flash gptel-model)))
             (kill-buffer buf))
 
-          ;; 2. Testar Roteamento de Prompt Geral (Local offline -> Gemini Flash)
+          ;; 2. Testar Roteamento de Prompt Geral -> Gemini free tier
           (let ((buf (get-buffer-create "*test-general*")))
             (with-current-buffer buf
               (setq gptel-backend nil
                     gptel-model nil)
               (+carlos/gptel-dynamic-router-advice "Resuma o conteudo do link acima por favor" :buffer buf)
-              ;; Pode ser Local (se online) ou Gemini Flash
-              (should (member (gptel-backend-name gptel-backend) '("Ollama Local" "MLX Local" "Gemini")))
-              (should (memq gptel-model '(qwen2.5-coder:3b mlx-community/gemma-4-e2b-it-4bit gemini-2.5-flash))))
+              (should (equal "Gemini" (gptel-backend-name gptel-backend)))
+              (should (eq 'gemini-3.5-flash gptel-model)))
             (kill-buffer buf))
 
-          ;; 3. Testar Roteamento de Código (prog-mode -> Local ou OpenCode Zen free)
+          ;; 3. Testar Roteamento de Código (prog-mode -> Gemini free tier)
           (let ((buf (get-buffer-create "*Magent-test*")))
             (with-current-buffer buf
               (emacs-lisp-mode)
               (setq gptel-backend nil
                     gptel-model nil)
               (+carlos/gptel-dynamic-router-advice "Escreva uma funcao" :buffer buf)
-              (should (member (gptel-backend-name gptel-backend) '("Ollama Local" "MLX Local" "OpenCode Zen")))
-              (should (memq gptel-model '(qwen2.5-coder:3b mlx-community/gemma-4-e2b-it-4bit north-mini-code-free big-pickle))))
+              (should (equal "Gemini" (gptel-backend-name gptel-backend)))
+              (should (eq 'gemini-3.5-flash gptel-model)))
             (kill-buffer buf)))
-)
       (setq gptel-backend old-backend
-            gptel-model old-model)))
+            gptel-model old-model))))
 
 (ert-deftest myemacs-ai-dynamic-router-skips-magent ()
   "Valida que o roteador dinâmico NÃO sobrescreve requisições gerenciadas

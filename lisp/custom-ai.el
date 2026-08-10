@@ -53,16 +53,18 @@
 (defvar +carlos/gptel-agent-model 'claude-sonnet-5
   "Modelo padrão para sessões de agente.")
 
-(defvar +carlos/gptel-quick-local-backend "Ollama Local"
-  "Backend usado para tarefas locais rápidas como docstrings e testes.")
+(defvar +carlos/gptel-quick-local-backend "Gemini"
+  "Backend usado para tarefas rápidas como docstrings e testes.
+Prefere o Gemini free tier (nuvem) em vez de modelos locais — o
+roteamento para backends locais fica apenas como fallback final.")
 
-(defvar +carlos/gptel-quick-local-model 'qwen2.5-coder:3b
-  "Modelo usado para tarefas locais rápidas como docstrings e testes.")
+(defvar +carlos/gptel-quick-local-model 'gemini-3.5-flash
+  "Modelo usado para tarefas rápidas como docstrings e testes.")
 
-(defvar +carlos/gptel-grammar-backend "Ollama Local"
+(defvar +carlos/gptel-grammar-backend "Gemini"
   "Backend usado para correção gramatical/ortográfica profunda.")
 
-(defvar +carlos/gptel-grammar-model 'mistral
+(defvar +carlos/gptel-grammar-model 'gemini-3.5-flash
   "Modelo usado para correção gramatical/ortográfica profunda.")
 
 ;; ── gptel core ──────────────────────────────────────────────────────
@@ -90,10 +92,14 @@
               "deepseek-v4-pro"
               "qwen3.6-plus"
               "kimi-k2.7-code"
+              ;; Modelos 100% gratuitos (Free Tier no OpenCode Zen)
               "deepseek-v4-flash-free"
               "north-mini-code-free"
               "mimo-v2.5-free"
-              "ling-3.0-flash-free"))
+              "laguna-s-2.1-free"
+              "ling-3.0-tiny-free"
+              "longcat-2.0-free"
+              "nemotron-3-ultra-free"))
 
   ;; ── Backend: Zen Claude (Anthropic-compatible) ────────────────────
   (gptel-make-anthropic "Zen Claude"
@@ -150,8 +156,11 @@
               "mlx-community/Qwen3-14B-4bit"))
 
   ;; ── Set default backend and model globally (host-based detection) ─
-  (setq-default gptel-backend (gptel-get-backend "Zen Claude"))
-  (setq-default gptel-model 'claude-sonnet-5)
+  ;; Chat padrão: Gemini free tier (gemini-3.5-flash) — o agente local
+  ;; ficou impraticável em CPU; local agora é apenas fallback final do
+  ;; roteador dinâmico.
+  (setq-default gptel-backend (gptel-get-backend "Gemini"))
+  (setq-default gptel-model 'gemini-3.5-flash)
   (when (fboundp '+carlos/gptel-setup-defaults-by-host)
     (+carlos/gptel-setup-defaults-by-host)))
 
@@ -394,41 +403,24 @@ Resultado cacheado por `+carlos/local-ai-ping-ttl-seconds' para evitar
 
 (defun +carlos/gptel-setup-defaults-by-host ()
   "Aplica preferências de IA baseadas no hostname do sistema.
-Usa `+carlos/ai-local-backend' como fonte única do par backend/modelo
-local e `when-let*' para evitar setar gptel-backend como nil caso o
-backend não esteja registrado (ex.: MLX não disponível em máquinas sem
-agnes). Também configura o backend/modelo de correção gramatical."
+Chat padrão em TODOS os hosts: Gemini free tier (`gemini-3.5-flash').
+Agente (Magent/gptel-agent): Zen Claude (claude-sonnet-5, assinatura).
+Backends locais (MLX/Ollama) permanecem registrados e são usados apenas
+como fallback final pelo roteador dinâmico, não como default de chat.
+`when-let*' evita setar gptel-backend como nil caso o backend Gemini
+não esteja registrado (ex.: falha na instalação do gptel)."
   (interactive)
   (let ((hostname (system-name)))
-    (cond
-     ;; --- HOST: agnes (macOS M2) -> Local-first via MLX ---
-     ((string-match-p "agnes" hostname)
-      (when-let* ((local (gptel-get-backend (car (+carlos/ai-local-backend)))))
-        (let ((model (cdr (+carlos/ai-local-backend))))
-          (setq gptel-backend local
-                gptel-model model
-                +carlos/gptel-agent-backend "MLX Local"
-                +carlos/gptel-agent-model model
-                +carlos/gptel-quick-local-backend "MLX Local"
-                +carlos/gptel-quick-local-model model
-                +carlos/gptel-grammar-backend "MLX Local"
-                +carlos/gptel-grammar-model model)
-          (message "Emacs AI: Configurado para Chat Local MLX (%s) com Gemma 4 e2b" hostname))))
-
-     ;; --- HOST: qualquer outro (fallback) -> Ollama Local ---
-     ;; Inclui aa102-006l (EliteDesk NixOS) e qualquer máquina sem MLX.
-     (t
-      (when-let* ((local (gptel-get-backend (car (+carlos/ai-local-backend)))))
-        (let ((model (cdr (+carlos/ai-local-backend))))
-          (setq gptel-backend local
-                gptel-model model
-                +carlos/gptel-agent-backend "Ollama Local"
-                +carlos/gptel-agent-model model
-                +carlos/gptel-quick-local-backend "Ollama Local"
-                +carlos/gptel-quick-local-model model
-                +carlos/gptel-grammar-backend "Ollama Local"
-                +carlos/gptel-grammar-model 'mistral)
-          (message "Emacs AI: Configurado para Chat Local Ollama (%s) com Qwen 2.5 3B" hostname)))))))
+    (when-let* ((gemini (gptel-get-backend "Gemini")))
+      (setq gptel-backend gemini
+            gptel-model 'gemini-3.5-flash
+            +carlos/gptel-agent-backend "Zen Claude"
+            +carlos/gptel-agent-model 'claude-sonnet-5
+            +carlos/gptel-quick-local-backend "Gemini"
+            +carlos/gptel-quick-local-model 'gemini-3.5-flash
+            +carlos/gptel-grammar-backend "Gemini"
+            +carlos/gptel-grammar-model 'gemini-3.5-flash)
+      (message "Emacs AI: Chat Gemini free tier (gemini-3.5-flash) em %s — local só como fallback final" hostname))))
 
 
 ;; ── Emergency Fallback & Latency Watchdog ───────────────────────────
@@ -502,12 +494,14 @@ tool calling local). O fallback age no buffer BUF correto via
 
 ;; ── Dynamic Task/Backend Router ─────────────────────────────────────
 ;; Precedencia de custo (do mais barato ao mais caro):
-;;   Local (GPU/CPU gratis) > Gemini free tier > OpenCode Zen free > Pago (Big Pickle / Zen Claude)
+;;   Gemini free tier (nuvem, generoso) > OpenCode Zen free (big-pickle
+;;   e modelos *-free, custo zero na assinatura) > Local (CPU/GPU gratis,
+;;   impraticável em CPU — apenas fallback final)
 ;;
 ;; Regras:
-;;   PLANEJAMENTO  -> Gemini Pro (free tier) -> Zen Claude pago (fallback)
-;;   CODIGO        -> Local -> OpenCode Zen free -> Big Pickle pago (fallback)
-;;   GERAL         -> Local -> Gemini Flash (free tier) -> OpenCode Zen free (fallback)
+;;   PLANEJAMENTO  -> Gemini free tier (gemini-3.5-flash) -> Zen Claude pago (fallback)
+;;   CODIGO        -> Gemini free -> big-pickle -> north-mini-code-free -> Local (fallback)
+;;   GERAL         -> Gemini free -> big-pickle -> mimo-v2.5-free -> Local (fallback)
 
 (defun +carlos/magent-managed-request-p (buffer context)
   "Non-nil quando o gptel-request para BUFFER com CONTEXT é gerenciado pelo Magent.
@@ -522,9 +516,9 @@ mistral local em `+carlos/gptel-grammar-model'."
 
 (defun +carlos/gptel-dynamic-router-advice (prompt &rest args)
   "Roteador dinamico de IA para PROMPT com ARGS com cascata estrita de cotas.
-Prioridade: Local > Gemini free > OpenCode Zen free > Pago.
-Ignora requisições gerenciadas pelo Magent — ver
-`+carlos/magent-managed-request-p'."
+Prioridade: Gemini free tier > OpenCode Zen free (big-pickle / *-free)
+> Local (fallback final, impraticável em CPU). Ignora requisições
+gerenciadas pelo Magent — ver `+carlos/magent-managed-request-p'."
   (let* ((target-buffer (or (plist-get args :buffer) (current-buffer)))
          (context (plist-get args :context)))
     (unless (+carlos/magent-managed-request-p target-buffer context)
@@ -537,58 +531,56 @@ Ignora requisições gerenciadas pelo Magent — ver
           (with-current-buffer target-buffer
             (cond
              ;; REGRA 1: Planejamento / Arquitetura / Analise
-             ;; -> Gemini Pro (cota free generosa) -> Zen Claude pago so como fallback
+             ;; -> Gemini free tier (gemini-3.5-flash) -> Zen Claude pago como fallback
              ((or (string-match-p "\\*gptel-plan" (buffer-name))
                   (string-match-p "planejamento\\|arquitetura\\|/plan\\|analis" prompt-text))
               (if-let ((backend (gptel-get-backend "Gemini")))
                   (progn
                     (setq-local gptel-backend backend
-                                gptel-model 'gemini-2.5-pro)
-                    (message "Dynamic Route: Planejamento roteado para Gemini Pro (free tier)"))
+                                gptel-model 'gemini-3.5-flash)
+                    (message "Dynamic Route: Planejamento roteado para Gemini free tier (gemini-3.5-flash)"))
                 (when-let ((backend (gptel-get-backend "Zen Claude")))
                   (setq-local gptel-backend backend
                               gptel-model 'claude-sonnet-5)
                   (message "Dynamic Route: Planejamento -> fallback Zen Claude (pago)"))))
 
              ;; REGRA 2: Codificacao & Refatoracao (prog-mode)
-             ;; -> Local -> OpenCode Zen free -> Big Pickle pago (ultimo recurso)
+             ;; -> Gemini free tier -> big-pickle (free) -> north-mini-code-free (free) -> Local (fallback)
              ;; Nota: requisições do Magent já são excluídas acima via
              ;; +carlos/magent-managed-request-p (I7).
              ((derived-mode-p 'prog-mode)
               (cond
-               ((and local-online (gptel-get-backend local-name))
-                (setq-local gptel-backend (gptel-get-backend local-name)
-                            gptel-model local-mdl)
-                (message "Dynamic Route: Codigo -> Local ativo (%s)" local-name))
-               ((gptel-get-backend "OpenCode Zen")
-                (setq-local gptel-backend (gptel-get-backend "OpenCode Zen")
-                            gptel-model 'north-mini-code-free)
-                (message "Dynamic Route: Codigo -> OpenCode Zen free (north-mini-code-free)"))
-               (t
-                (when-let ((backend (gptel-get-backend "OpenCode Zen")))
-                  (setq-local gptel-backend backend
-                              gptel-model 'big-pickle)
-                  (message "Dynamic Route: Codigo -> fallback Big Pickle (pago)")))))
-
-             ;; REGRA 3: Conversas gerais, resumos, perguntas
-             ;; -> Local -> Gemini Flash (free tier) -> OpenCode Zen free (fallback)
-             (t
-              (cond
-               ((and local-online (gptel-get-backend local-name))
-                (setq-local gptel-backend (gptel-get-backend local-name)
-                            gptel-model local-mdl)
-                (message "Dynamic Route: Geral -> Local ativo (%s)" local-name))
                ((gptel-get-backend "Gemini")
                 (setq-local gptel-backend (gptel-get-backend "Gemini")
-                            gptel-model 'gemini-2.5-flash)
-                (message "Dynamic Route: Geral -> Gemini Flash (free tier)"))
-               (t
-                (when-let ((backend (gptel-get-backend "OpenCode Zen")))
-                  (setq-local gptel-backend backend
-                              gptel-model 'mimo-v2.5-free)
-                  (message "Dynamic Route: Geral -> fallback OpenCode Zen free (mimo-v2.5-free)")))))))))
+                            gptel-model 'gemini-3.5-flash)
+                (message "Dynamic Route: Codigo -> Gemini free tier (gemini-3.5-flash)"))
+               ((gptel-get-backend "OpenCode Zen")
+                (setq-local gptel-backend (gptel-get-backend "OpenCode Zen")
+                            gptel-model 'big-pickle)
+                (message "Dynamic Route: Codigo -> OpenCode Zen free (big-pickle)"))
+               ((and local-online (gptel-get-backend local-name))
+                (setq-local gptel-backend (gptel-get-backend local-name)
+                            gptel-model local-mdl)
+                (message "Dynamic Route: Codigo -> Local ativo (%s) [fallback]" local-name))))
+
+             ;; REGRA 3: Conversas gerais, resumos, perguntas
+             ;; -> Gemini free tier -> big-pickle (free) -> mimo-v2.5-free (free) -> Local (fallback)
+             (t
+              (cond
+               ((gptel-get-backend "Gemini")
+                (setq-local gptel-backend (gptel-get-backend "Gemini")
+                            gptel-model 'gemini-3.5-flash)
+                (message "Dynamic Route: Geral -> Gemini free tier (gemini-3.5-flash)"))
+               ((gptel-get-backend "OpenCode Zen")
+                (setq-local gptel-backend (gptel-get-backend "OpenCode Zen")
+                            gptel-model 'big-pickle)
+                (message "Dynamic Route: Geral -> OpenCode Zen free (big-pickle)"))
+               ((and local-online (gptel-get-backend local-name))
+                (setq-local gptel-backend (gptel-get-backend local-name)
+                            gptel-model local-mdl)
+                (message "Dynamic Route: Geral -> Local ativo (%s) [fallback]" local-name)))))))
       ;; Ativa o observador de latencia para a requisicao
-      (apply #'+carlos/gptel-latency-watchdog prompt args))))
+      (apply #'+carlos/gptel-latency-watchdog prompt args)))))
 
 (advice-add 'gptel-request :before #'+carlos/gptel-dynamic-router-advice)
 
