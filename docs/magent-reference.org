@@ -63,6 +63,133 @@ Magent operates as an in-process agent framework:
 2. **Protocol Adapter:** =acp= (Agent Control Protocol) handles asynchronous agent loop communication.
 3. **Transport Layer:** Magent uses =gptel-request= under the hood to send LLM requests to any of the backends registered in =custom-ai.el= (Zen Claude, Zen OpenAI, Gemini, Ollama, MLX).
 
+* Streaming Pipeline (Content vs Reasoning) — conhecimento crítico
+
+O adapter de streaming é =magent-llm-gptel--callback= em
+=elpaca/builds/magent/magent-llm-gptel.el:756=. Ele classifica cada chunk do
+gptel em três vias — e essa distinção é a causa-raiz da maioria dos bugs de
+"agente que não responde":
+
+| Via | Handler | O que acontece | Tool call parseia? |
+|-----+---------+----------------+--------------------|
+| **Content** (=stringp response=) | linhas 760–770: acumula em =:text-chunks= e emite =magent-llm-text-delta-event=; no fim do turn emite =--emit-completed-or-textual-tool-calls= (linha 552) | Texto da resposta final | **SIM** — roda =magent-llm-gptel--parse-dsml-tool-calls= (linha 363) |
+| **Reasoning** (=(cons 'reasoning text)=) | linhas 776–793: acumula em =:reasoning-chunks= e emite =magent-llm-reasoning-delta-event= | Raciocínio "pensando alto" do modelo | **NUNCA** — vai direto ao delta-event, sem parser |
+| **Tool-call nativo** (=(cons 'tool-call ...)=) | linhas 794–806: normaliza e emite =magent-llm-tool-call-event= | Chamada de função nativa JSON | n/a (já é nativo) |
+
+**Regra de ouro:** *uma tool call escrita no stream de reasoning é
+silenciosamente descartada — o magent só executa tool calls vindas do content
+(DSML) ou do canal nativo `tool-call`.* O terminal do turn ainda dispara
+(linha 807 =eq response t= → =--emit-completed-or-textual-tool-calls=), mas
+com o text vazio → resposta vazia. Por isso modelos "pensadores" (Qwen3.5,
+DeepSeek-R1) que decidem chamar ferramenta durante o thinking geram turns
+mortos.
+
+O FSM de transporte do gptel é =magent-llm-gptel--make-sampling-fsm=
+(linha 736): ~INIT→WAIT→TYPE→(TOOL|DONE)~, com pausa em tool calls e resume
+explícito do contexto.
+
+* Formato DSML (textual) — o único formato textual parseado
+
+=magent-llm-gptel--parse-dsml-tool-calls= (linha 363) reconhece **apenas** o
+envelope textual do Anthropic:
+
+#+BEGIN_SRC xml
+<tool_calls>
+<invoke name="read_file">
+<parameter name="path">/abs/path</parameter>
+</invoke>
+</tool_calls>
+#+END_SRC
+
+NÃO reconhece (foram vistos em logs reais de modelos pequenos sob contexto
+pesado):
+
+- =<tool_call><function=read_file><parameter=path>...= (formato Claude-XML
+  "legacy" que Qwen3.5-9B às vezes emite);
+- envelopes sem espaço após =<invoke= (o parser procura ~"<invoke "~ exato,
+  linha 396);
+- tags fora de =<tool_calls>=...=</tool_calls>=.
+
+O parse tem limite =magent-llm-gptel--textual-tool-call-max-length=; blocos
+maiores são ignorados. Constantes dos tags: =--dsml-tool-calls-open/close=.
+
+* Modos de falha observados (modelos locais) — 2026-08-10
+
+Diagnosticados em sessões reais + reprodução batch contra
+=mlx-community/Qwen3.5-9B-MLX-4bit= (servidor MLX 127.0.0.1:8081):
+
+1. **Tool call no reasoning (mais grave):** sob contexto pesado (~11.2K
+   tokens, 15 tools, AGENTS.md de 22KB) o modelo emite a chamada como
+   Claude-XML dentro do thinking → reasoning nunca executa → turn vazio.
+2. **SIGPIPE (exit 141):** comando ~find ... | head -50~ — quando o head
+   fecha o pipe, o produtor é morto com SIGPIPE; o magent reporta o tool
+   result como ~status: failed~, o que entra no histórico e acelera a
+   degradação do modelo local (ele "aprende" do erro do próprio turn).
+3. **14B timeout:** DeepSeek-R1-Distill-Qwen-14B-4bit não respondeu em
+   ~150s (servidor MLX lento; pode precisar de carga do modelo + timeout
+   maior).
+
+Mitigações aplicadas (2026-08-10, commits 9a729b7/b35e9ed/8c78f8f):
+
+- Diretriz 6 em =+carlos/magent-system-directives=: ensina o DSML exato,
+  proíbe =<tool_call>/<function=>/<parameter=>, e agora proíbe explicitamente
+  tool calls em reasoning/thinking (exige nativas na resposta final).
+- Diretriz 7 (nova): evitar =find | head= → usar =find -maxdepth N= ou
+  =rg --max-count= para não gerar SIGPIPE/exit 141.
+- Injeção via advice ~:filter-return~ em
+  =magent-agent--compose-system-message= (=+carlos/magent-inject-system-directives=,
+  custom-magent.el).
+- Reprodução batch com a diretriz reforçada: 3/3 tool_calls nativos (mas a
+  abordagem por prompt é probabilística — não é uma garantia).
+
+* Máquina de Estados (FSM) para bailizar o modelo — proposta de design
+
+O pedido original era "controlar logits" — **inviável** pela API
+compatível-OpenAI do MLX (chat/completions não expõe logits; exigiria hook
+no servidor llama.cpp/MLX). O equivalente viável e recomendado é uma **FSM
+de orquestração em Elisp** no nível do adapter, que não controla logits mas
+**controla a decisão de turno do agente**:
+
+**Estado 1 — THINK (acumulando reasoning):** interceptar o canal reasoning
+(que hoje descarta tudo) e acumular chunks em buffer próprio.
+
+**Estado 2 — DECIDE (reasoning-end):** no fim do reasoning, rodar sobre o
+buffer:
+1. =magent-llm-gptel--parse-dsml-tool-calls= (reutiliza o parser nativo);
+2. um parser auxiliar do formato Claude-XML =<tool_call><function=...
+   <parameter=name>...= (regex simples, ~5 linhas);
+3. se encontrar tool call: emiti-la como =magent-llm-tool-call-event= real
+   (mesmo caminho do canal nativo, linhas 794–806) e **suprimir** o bloco
+   DSML do reasoning exibido (para não duplicar); se não encontrar, seguir
+   para o terminal normal.
+
+**Estado 3 — RETRY (turn vazio):** se o turn terminou com content vazio E o
+THINK não produziu tool call, re-disparar o request com instrução de
+forçagem nativa ("You MUST emit the tool call as a native function call in
+the final response") — 1 retry máximo, senão reporta erro legível.
+
+Onde interceptar (pontos de extensão exatos em =magent-llm-gptel.el=):
+
+- Reasoning: linhas 776–793 (=eq (car response) 'reasoning=) — hoje só
+  acumula e emite delta. Inserir acumulação extra + hook no reasoning-end
+  (linha 777, =(cdr response) t=).
+- Terminal vazio: linha 807–813 — o =--emit-completed-or-textual-tool-calls=
+  com =--final-text= vazio; é aqui que o RETRY decidiria.
+- Eventos de tool call já existem: =magent-llm-tool-call-event= /
+  =magent-llm-tool-call-batch-end-event= (linhas 799–806) — o THINK→DECIDE
+  reusaria esses mesmos emissores.
+
+Vantagens: corrige a causa-raiz (tool call no reasoning hoje é descartada),
+reutiliza parser nativo, funciona para qualquer backend (MLX/Ollama/remote),
+zero toque no servidor. Desvantagens: mexe em internals do pacote (advices
+sobre funções privadas =magent-llm-gptel--*=), risco de duplicação de tool
+calls (content também emitiu), e precisa de testes ERT simulando o
+streaming via fake =gptel-request=.
+
+Alternativa mais barata (menos robusta): RETRY apenas, sem extração do
+reasoning — se o turn vazio for detectado, re-solicitar com forçagem nativa
+(e um hint do que o modelo pretendia chamar, extraído do reasoning).
+
 * Entry Points & Keybindings
 
 Magent provides 3 main interactive entry points bound in =custom-keybindings.el=:

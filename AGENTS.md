@@ -356,7 +356,7 @@ All package APIs are documented in `docs/`. Reference these files before making 
 |---------|----------|------------|
 | Dirvish | `docs/dirvish-reference.org` | Attributes, extensions, quick-access, peek, vc, subtree |
 | GPTel | `docs/gptel-reference.org` | Backends, gptel-request, gptel-agent, gptel-org, tools |
-| Magent | `docs/magent-reference.org` | Native agent, 15 tools, agent-shell, permissions, skills |
+| Magent | `docs/magent-reference.org` | Native agent, 15 tools, agent-shell, permissions, skills, **streaming pipeline (content vs reasoning), formato DSML, modos de falha (tool call no reasoning, SIGPIPE 141), proposta de FSM de orquestração** |
 | Completion | `docs/completion-stack.org` | Vertico, consult, corfu, marginalia, orderless, embark, tempel |
 | Magit | `docs/magit-reference.org` | Status, staging, commit, push/pull, log |
 | Denote | `docs/denote-reference.org` | Notes, silos, links, backlinks, keywords |
