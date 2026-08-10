@@ -29,9 +29,11 @@
 (setq-default tab-width 4)
 (setq delete-by-moving-to-trash t)
 
-;; Bidi & display reordering performance (desativa bidi/BPA para evitar travamentos de CPU)
+;; Bidi & display reordering performance (desativa bidi/BPA e resize do minibuffer para evitar travamentos de CPU)
 (setq-default bidi-paragraph-direction 'left-to-right)
 (setq bidi-inhibit-bpa t)
+(setq resize-mini-windows nil)
+(setq max-mini-window-height 1)
 
 ;; Kill ring
 (setq kill-ring-max 200)

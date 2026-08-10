@@ -36,10 +36,12 @@
   (setq package-native-compile t))
 
 ;; ── Bidi & Long-line display performance ───────────────────────────
-;; Prevents Emacs 100% CPU lockups (in bidi_find_bracket_pairs C code) when
-;; long strings/plists with brackets are printed to the echo area/minibuffer.
+;; Prevents Emacs 100% CPU lockups (in bidi_find_bracket_pairs & resize_mini_window) when
+;; long strings/plists are printed to the echo area/minibuffer.
 (setq-default bidi-paragraph-direction 'left-to-right)
 (setq bidi-inhibit-bpa t)
+(setq resize-mini-windows nil)
+(setq max-mini-window-height 1)
 
 ;; Limit object serialization depth/length in messages and error backtraces
 (setq print-length 200
