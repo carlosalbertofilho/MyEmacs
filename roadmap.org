@@ -11,6 +11,21 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-10 — [CONCLUÍDO] Fix: sink do magent-log grava em buffer read-only
+   - **Bug (sessão real):** 107 erros `magent-log sink error: Buffer is read-only:
+     #<buffer *magent-log*>` spammaram o buffer durante o teste real. Causa:
+     `magent-log-mode` deriva de `special-mode` (magent-log.el:50), então
+     `*magent-log*` é **read-only**; o sink nativo
+     (`magent-log--buffer-sink`, magent-log.el:81–89) usa `(inhibit-read-only t)`,
+     mas o nosso `+carlos/magent-log-context` (lisp/custom-ai.el:799) fazia o
+     insert sem isso.
+   - **Fix (`464e196`):** insert envolto em `(let ((inhibit-read-only t)) ...)`.
+     Teste `myemacs-magent-log-context` atualizado para abrir o buffer via
+     `magent-log-buffer` (aplica o modo read-only) e garantir que o sink grava
+     mesmo assim.
+   - **Validação:** prod autoritativo `just test-all` — 159 testes, 152 OK, 0
+     falhas, 7 skipped; `just rebuild-prod` + `just check-prod` limpos.
+
 ** 2026-08-10 — [CONCLUÍDO] Fix: Magent com tool call DSML no system prompt (resposta vazia)
    - **Bug:** `Magent> analise o repositorio atual...` não retornou resposta com o
      backend local Qwen3.5-9B-MLX-4bit. Diagnóstico (ledger
@@ -74,6 +89,15 @@ entenderem o estado atual do projeto e decisões tomadas.
      orchestrate-delegates, orchestrate-recover, retry-counter, advice-installed);
      suíte repo 159 testes com 6 falhas **pré-existentes** (builds parciais do
      repo). Pendente: sessão real multi-turn (TODO §1).
+   - **Sessão real (2026-08-10):** transcript
+     `.agent-shell/transcripts/2026-08-10-02-34-17.md` confirma a FSM em ação —
+     o Qwen3.5-9B escreveu `<tool_call><function=bash>` e
+     `<tool_call><function=read_file>` dentro do Thinking e **ambos foram
+     recuperados e executados** ("Tool Call [completed]"), provando o DECIDE em
+     produção. A sessão terminou em `Error: Request timed out after 120 seconds`
+     — default `magent-request-timeout 120` (nenhum evento do provider por 120s
+     num turn de reasoning longo), não bug da FSM (TODO §1 pendente de decisão:
+     aumentar timeout, Qwen3-14B-4bit e/ou reduzir contexto AGENTS.md).
 
 ** 2026-08-10 — [CONCLUÍDO] Reforço do fix DSML: tool call no reasoning nunca executa + SIGPIPE
    - **Bug (sessão real `session-20260810-002134.json`):** mesmo com a diretriz 6,
