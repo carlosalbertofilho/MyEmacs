@@ -15,6 +15,13 @@
 (declare-function magent-agent-shell-ensure-config "magent-agent-shell")
 (declare-function magent-tools--failed "magent-tools")
 (declare-function +carlos/gptel-tracker-file "custom-ai")
+(declare-function magent-llm-gptel--parse-dsml-tool-calls "magent-llm-gptel")
+(declare-function magent-llm-gptel--prepare-textual-continuation "magent-llm-gptel")
+(declare-function magent-llm-gptel--emit-tool-call-batch "magent-llm-gptel")
+(declare-function magent-llm-gptel--metadata "magent-llm-gptel")
+(declare-function magent-llm-gptel--pending-tool-use-p "magent-llm-gptel")
+(declare-function magent-llm-gptel--continue-with-user-message "magent-llm-gptel")
+(declare-function magent-llm-tool-call-event "magent-llm")
 
 (defun +carlos/magent-start ()
   "Garante o carregamento do Magent e inicia a sessão agent-shell."
@@ -130,6 +137,172 @@ Do NOT use '<tool_call>', '<function=...>', or '<parameter=...>' forms; the runt
 (with-eval-after-load 'magent-agent
   (advice-add 'magent-agent--compose-system-message
               :filter-return #'+carlos/magent-inject-system-directives))
+
+;; ── FSM de Orquestração (THINK/DECIDE/RETRY) ──────────────────────
+;; Bailiza o comportamento do modelo local: intercepta o terminal do turn
+;; (magent-llm-gptel--emit-completed-or-textual-tool-calls, o ponto único por
+;; onde passa todo turn vazio) e recupera tool calls que o modelo escreveu no
+;; stream de reasoning — que o magent NUNCA parseia. Ver
+;; docs/magent-reference.org "Máquina de Estados (FSM) para bailizar o modelo".
+(defvar +carlos/magent-fsm-enabled t
+  "Habilita/desabilita a FSM de orquestração do Magent (THINK/DECIDE/RETRY).")
+(defvar +carlos/magent-fsm-max-retries 1
+  "Número máximo de retries quando o turn termina vazio sem tool call.")
+(defvar +carlos/magent-fsm-retry-message
+  "Your previous response contained no text and no tool call. You MUST now either answer directly in plain text, or request a tool using the native function-calling mechanism. The tool call MUST appear in the final response text — never inside thinking/reasoning blocks."
+  "Mensagem injetada no RETRY state quando o turn terminou vazio.")
+
+(defun +carlos/magent--fsm-reasoning-text (state)
+  "Retorna o texto completo do reasoning acumulado em STATE.
+Reasoning chunks são armazenados invertidos em `:reasoning-chunks'."
+  (let ((chunks (gethash :reasoning-chunks state)))
+    (apply #'concat (nreverse (copy-sequence chunks)))))
+
+(defun +carlos/magent--fsm-parse-claude-xml-params (inner)
+  "Parseia blocos <parameter=KEY>VALUE</parameter> de INNER num plist.
+Formato emitido por Qwen3.5-9B (Claude-XML legado): <parameter=path>..."
+  (let ((args nil)
+        (pos 0))
+    (while (< pos (length inner))
+      (let ((p-start (string-search "<parameter=" inner pos)))
+        (if (null p-start)
+            (setq pos (length inner))
+          (let ((name-end (string-search ">" inner p-start)))
+            (if (null name-end)
+                (setq pos (length inner))
+              (let* ((name (substring inner
+                                      (+ p-start (length "<parameter="))
+                                      name-end))
+                     (v-start (1+ name-end))
+                     (v-end (string-search "</parameter>" inner v-start)))
+                (if (null v-end)
+                    (setq pos (length inner))
+                  (setq pos (+ v-end (length "</parameter>"))
+                        args (plist-put args
+                                        (intern (concat ":" name))
+                                        (string-trim
+                                         (substring inner v-start v-end)))))))))))
+    args))
+
+(defun +carlos/magent--fsm-parse-claude-xml-tool-calls (text &optional metadata)
+  "Parse tool-calls em formato Claude-XML legado de TEXT.
+Formato que o Qwen3.5-9B emite sob contexto pesado:
+  <tool_call><function=NAME><parameter=KEY>VALUE</parameter>
+  </function></tool_call>
+Retorna uma lista de eventos normalizados (mesma estrutura do parser DSML)
+ou nil.  METADATA opcional acompanha os eventos emitidos.  O `:source'
+textual-dsml faz o loop normalizar args pelo schema."
+  (when (string-search "<tool_call>" text)
+    (let (events (pos 0) (index 0))
+      (while (string-search "<tool_call>" text pos)
+        (let ((block-start (string-search "<tool_call>" text pos)))
+          (let ((block-end (string-search "</tool_call>" text block-start)))
+            (if (null block-end)
+                (setq pos (length text))
+              (let* ((raw-text (substring text block-start block-end))
+                     (fn-start (string-search "<function=" raw-text))
+                     (fn-name-end (and fn-start
+                                       (string-search ">" raw-text fn-start))))
+                (if (not (and fn-start fn-name-end))
+                    (setq pos (length text))
+                  (let* ((name (substring raw-text
+                                          (+ fn-start (length "<function="))
+                                          fn-name-end))
+                         (inner-start (1+ fn-name-end))
+                         (inner-end (string-search "</function>"
+                                                   raw-text inner-start))
+                         (inner (and inner-end
+                                     (substring raw-text inner-start inner-end)))
+                         (args (+carlos/magent--fsm-parse-claude-xml-params inner)))
+                    (when (and inner-end args)
+                      (cl-incf index)
+                      (let* ((id (format
+                                  "textual-claude-xml-%d-%s"
+                                  index
+                                  (substring (secure-hash 'sha1 raw-text)
+                                             0 10)))
+                             (raw-call (list :id id
+                                             :name name
+                                             :args args
+                                             :source 'textual-dsml)))
+                        (push (magent-llm-tool-call-event
+                               id name args raw-call metadata)
+                              events)))
+                    (setq pos (+ block-end (length "</tool_call>"))))))))))
+      (nreverse events))))
+
+(defun +carlos/magent--fsm-parse-reasoning-tool-calls (state info)
+  "Extract tool-calls from the reasoning accumulated in STATE.
+Roda primeiro o parser DSML nativo do magent; se não achar, tenta o parser
+Claude-XML legado.  INFO carrega os metadados da resposta.  Retorna lista de
+eventos normalizados ou nil."
+  (let* ((reasoning (+carlos/magent--fsm-reasoning-text state))
+         (metadata (magent-llm-gptel--metadata info)))
+    (when (and reasoning (not (string-empty-p reasoning)))
+      (or (when (fboundp 'magent-llm-gptel--parse-dsml-tool-calls)
+            (magent-llm-gptel--parse-dsml-tool-calls reasoning metadata))
+          (+carlos/magent--fsm-parse-claude-xml-tool-calls reasoning metadata)))))
+
+(defun +carlos/magent--fsm-emit-recovered-events (request state info events fsm)
+  "Emit EVENTS recuperados do reasoning como tool-calls reais.
+Reusa o mesmo maquinário do caminho textual-DSML nativo (continuation do
+gptel + batch-end), devolvendo o símbolo de status esperado pelo caller.
+REQUEST/STATE/INFO/FSM são repassados ao maquinário de emissão.
+Cada EVENTS é emitido como tool call real (semântica imperativa)."
+  (let ((continuation
+         (when (fboundp 'magent-llm-gptel--prepare-textual-continuation)
+           (magent-llm-gptel--prepare-textual-continuation
+            fsm state info events))))
+    (when (fboundp 'magent-llm-gptel--emit-tool-call-batch)
+      (magent-llm-gptel--emit-tool-call-batch
+       request state events
+       (append (magent-llm-gptel--metadata info) '(:source textual-dsml))
+       continuation))
+    (if continuation 'tool-call-paused 'tool-call)))
+
+(defun +carlos/magent--fsm-retry-empty-turn (_request _info state fsm)
+  "RETRY state: re-dispara a requisição com mensagem de forçagem nativa.
+Injeta uma mensagem de usuário e continua o FSM do gptel (mesmo mecanismo do
+recovery textual).  Limita a `+carlos/magent-fsm-max-retries' via contador no
+STATE.  Retorna `completed-paused' (não mata o buffer) ou nil se já retried."
+  (let ((retries (or (gethash :carlos-magent-fsm-retries state) 0)))
+    (if (>= retries +carlos/magent-fsm-max-retries)
+        nil
+      (puthash :carlos-magent-fsm-retries (1+ retries) state)
+      (when (fboundp 'magent-llm-gptel--continue-with-user-message)
+        (magent-llm-gptel--continue-with-user-message
+         fsm state
+         (list :role "user"
+               :content +carlos/magent-fsm-retry-message)))
+      'completed-paused)))
+
+(defun +carlos/magent-fsm-orchestrate-a
+    (orig-fn request state info text &optional fsm)
+  "FSM de orquestração sobre o terminal do turn do Magent.
+THINK: o reasoning já é acumulado pelo magent em `:reasoning-chunks'.
+DECIDE: se o content chegou vazio (tool-call do modelo ficou no reasoning),
+parseia o reasoning (DSML nativo + Claude-XML) e emite os eventos reais.
+RETRY: sem tool call recuperável, re-dispara com forçagem nativa (1x).
+REQUEST/STATE/INFO/TEXT/FSM são os argumentos da função original; ORIG-FN é a
+função original (chamada quando não há intervenção da FSM)."
+  (if (or (not +carlos/magent-fsm-enabled)
+          (not (string-empty-p (or text "")))
+          (and (fboundp 'magent-llm-gptel--pending-tool-use-p)
+               (magent-llm-gptel--pending-tool-use-p info)))
+      (funcall orig-fn request state info text fsm)
+    (let ((events (+carlos/magent--fsm-parse-reasoning-tool-calls state info)))
+      (cond
+       (events
+        (+carlos/magent--fsm-emit-recovered-events
+         request state info events fsm))
+       ((+carlos/magent--fsm-retry-empty-turn request state info fsm))
+       (t (funcall orig-fn request state info text fsm))))))
+
+(with-eval-after-load 'magent-llm-gptel
+  (unless (advice-member-p #'+carlos/magent-fsm-orchestrate-a
+                           'magent-llm-gptel--emit-completed-or-textual-tool-calls)
+    (advice-add 'magent-llm-gptel--emit-completed-or-textual-tool-calls
+                :around #'+carlos/magent-fsm-orchestrate-a)))
 
 ;; ── Slash Commands & Directory Context Scope ──────────────────────
 (defvar +carlos/magent-extra-directories nil
