@@ -59,14 +59,16 @@
 ;; ── pdf-tools ───────────────────────────────────────────────────────
 ;; macOS: o configure nao detecta `getline' (ac_cv_func_getline=no) e o
 ;; gcc do Nix nao enxerga o SDK, entao `pdf-tools-install' nao consegue
-;; rebuildar. O binario epdfinfo e compilado manualmente uma vez em
-;; build/server/ (com HAVE_GETLINE + flags do SDK) e apontamos para ele
-;; para que o check passe e o rebuild nunca seja disparado.
+;; rebuildar. Em vez de compilar a mao, o MyMachine (Nix) provê o binario
+;; `epdfinfo' (mesmo commit do elpaca, patch de getline do nixpkgs) no PATH
+;; via home.packages. Aqui priorizamos `executable-find "epdfinfo"' e
+;; deixamos o fallback manual (build/server/epdfinfo) para ambientes sem Nix.
 (use-package pdf-tools
   :ensure t
   :config
-  (let ((bin (expand-file-name "build/server/epdfinfo" pdf-tools-directory)))
-    (when (file-executable-p bin)
+  (let ((bin (or (executable-find "epdfinfo")
+                 (expand-file-name "build/server/epdfinfo" pdf-tools-directory))))
+    (when (and bin (file-executable-p bin))
       (setq pdf-info-epdfinfo-program bin)))
   (unless noninteractive
     (pdf-tools-install :no-query))

@@ -148,6 +148,54 @@ reasoning) levou **99.5s** e tentou `read` num diretório (tool FAILED,
 (=+carlos/ai-local-backend=, custom-ai.el) — mais rápido e com reasoning
 bem formado (ferramenta natural para a FSM recuperar calls do thinking).
 
+**Scripts de avaliação (salvos no repo, 2026-08-10):**
+
+- =bin/magent-batch-test.el= — reprodução batch do turn do magent sem GUI:
+  envia o prompt via =magent-agent-shell-send-prompt= e drena o `*magent-log*`
+  até o shell ficar idle ou dar timeout. Permite comparar modelos de forma
+  fiel (usando a FSM real) antes de trocar o default. Uso:
+
+  #+begin_src sh
+  MAGENT_SIM_MODEL=mlx-community/Qwen3-14B-4bit \
+    emacs --init-directory ~/.config/emacs --batch \
+    -l ~/.config/emacs/init.el -l ~/.config/emacs/bin/magent-batch-test.el
+  #+end_src
+
+  Variáveis: =MAGENT_SIM_MODEL=, =MAGENT_SIM_TIMEOUT= (default 240),
+  =MAGENT_SIM_PROMPT=.
+
+- =bin/bench-local-models.py= — benchmark streaming de tok/s, ttft e volume
+  content/reasoning para MLX (default 127.0.0.1:8081) e Ollama
+  (=--ollama=, host aa102-006l:11434). O prompt default é o mesmo do
+  magent-batch-test.el para comparabilidade:
+
+  #+begin_src sh
+  python3 bin/bench-local-models.py                      # MLX (agnes)
+  python3 bin/bench-local-models.py --ollama --models qwen3:0.6b qwen2.5-coder:3b
+  #+end_src
+
+**Recomendações de modelos locais (2026-08-10):**
+
+- **14B está descartado para uso contínuo:** Qwen3-14B-4bit (8.1 tok/s) e
+  DeepSeek-R1-Distill-Qwen-14B-4bit (3.7 tok/s, ttft 25.9s) são lentos demais
+  para tool calling interativa — o timeout do magent vira problema real. O
+  sweet-spot da máquina agnes (M2, 16GB) é o **3B–9B em 4bit**.
+- **Default atual (recomendado):** =mlx-community/gemma-4-e2b-it-4bit= —
+  melhor relação tok/s (31.4) + reasoning estruturado; vencedor no teste real
+  via magent.
+- **Alternativa de maior raciocínio:** =mlx-community/Qwen3-14B-4bit= pode
+  ser usado para tarefas off-line/não interativas (análise de impacto), onde
+  37.8s de latência é aceitável.
+- **Alternativa compacta (host aa102-006l / Ollama):** =qwen2.5-coder:3b=
+  (já registrado em custom-ai.el) e =qwen3:0.6b= para smoke tests de baixo
+  custo. Antes de adotar um modelo no Ollama, rode
+  =bin/bench-local-models.py --ollama= e o magent-batch-test para validar a
+  FSM real (Ollama e MLX têm tokenizers/APIs de reasoning diferentes).
+- **Critério de troca de default:** um novo modelo só vira default se (a)
+  >20 tok/s no MLX; (b) reasoning estruturado presente (coluna
+  =reasoning= do benchmark); (c) turn completo <60s no magent-batch-test;
+  (d) zero tool-call no reasoning em 3/3 runs.
+
 Mitigações aplicadas (2026-08-10, commits 9a729b7/b35e9ed/8c78f8f):
 
 - Diretriz 6 em =+carlos/magent-system-directives=: ensina o DSML exato,

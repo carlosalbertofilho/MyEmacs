@@ -140,8 +140,29 @@ entenderem o estado atual do projeto e decisões tomadas.
      2. Nova diretriz 7: evitar SIGPIPE — `find -maxdepth N`/`rg --max-count`
         em vez de `find ... | head`.
    - **Validação:** reprodução batch com o cenário pesado (AGENTS.md + 9 tools +
-     histórico com exit 141) + diretriz nova → **3/3 tool_calls nativos**. Testes
-     ERT: `myemacs-magent-directives-reasoning-ban`, `myemacs-magent-directives-sigpipe`.
+      histórico com exit 141) + diretriz nova → **3/3 tool_calls nativos**. Testes
+      ERT: `myemacs-magent-directives-reasoning-ban`, `myemacs-magent-directives-sigpipe`.
+
+** 2026-08-10 — [CONCLUÍDO] Scripts de avaliação de modelos locais salvos no repo
+   - **Contexto:** benchmark de 5 modelos locais (ver entrada do default
+     gemma-4-e2b-it-4bit) feito com scripts ad-hoc; avaliação de substitutos dos
+     14B no host aa102-006l (Ollama) exigia ferramentas persistentes.
+   - **Entregas:**
+     1. `bin/magent-batch-test.el` — reprodução batch do turn do magent sem GUI:
+        envia prompt via `magent-agent-shell-send-prompt` e drena `*magent-log*`
+        até o shell ficar idle ou timeout. Env vars: `MAGENT_SIM_MODEL`,
+        `MAGENT_SIM_TIMEOUT` (240), `MAGENT_SIM_PROMPT`.
+     2. `bin/bench-local-models.py` — benchmark streaming (tok/s, ttft, volume
+        content/reasoning) para MLX (127.0.0.1:8081, default) e Ollama
+        (`--ollama`, aa102-006l:11434). Prompt default idêntico ao do
+        magent-batch-test para comparabilidade.
+   - **Recomendações registradas em `docs/magent-reference.org`:** 14B descartado
+     para uso contínuo (3.7–8 tok/s, ttft 25.9s); sweet-spot da agnes M2 é
+     3B–9B 4bit; critério de troca de default (tok/s ≥ 20, reasoning
+     estruturado, turn < 60s no magent-batch-test, zero tool-call no reasoning).
+   - **Teste real do magent-batch-test vs benchmark:** gemma 31.4 tok/s → turn
+     30.3s (FSM real); Qwen2.5-7B 15.1 tok/s → 99.5s + tool FAILED. Confirma que
+     tok/s não basta — validar sempre via FSM real.
      Pendente: confirmação em sessão real multi-turn (TODO §1).
 
 ** 2026-08-09 — [CONCLUÍDO] Política de Limpeza de Artefatos de Build (`just clean`/`rebuild`)
