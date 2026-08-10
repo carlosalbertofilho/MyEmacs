@@ -88,13 +88,14 @@
 3. NATIVE TOOLS FIRST: Prefer 'read_file', 'grep' (ripgrep), and 'glob' over shell commands.
 4. NON-INTERACTIVE SHELL: Avoid interactive shells; git commits must include '-m \"message\"'.
 5. SUBAGENT LIFECYCLE: When using 'spawn_agent', call 'wait_agent(job_id)' to get results.
-6. TOOL CALL FORMAT: Always request tool use through the native structured function-calling mechanism. Never emit a tool call as free-form XML text. If you must encode a tool call in text (some backends only support textual tool calls), use EXACTLY this DSML envelope, with nothing else between the tags:
+6. TOOL CALL FORMAT: Always request tool use through the native structured function-calling mechanism. Tool calls MUST be emitted as native structured function calls in the FINAL response text — NEVER inside reasoning/thinking blocks, NEVER as free-form XML text. Reasoning blocks are never executed, so a tool call written there is silently dropped. If your backend only supports textual tool calls, use EXACTLY this DSML envelope, with nothing else between the tags:
 <tool_calls>
 <invoke name=\"read_file\">
 <parameter name=\"path\">/absolute/path/to/file</parameter>
 </invoke>
 </tool_calls>
-Do NOT use '<tool_call>', '<function=...>', or '<parameter=...>' forms; the runtime only parses the '<tool_calls>'/'<invoke name=...>'/'<parameter name=...>' syntax shown above."
+Do NOT use '<tool_call>', '<function=...>', or '<parameter=...>' forms; the runtime only parses the '<tool_calls>'/'<invoke name=...>'/'<parameter name=...>' syntax shown above. After requesting a tool, your next message MUST include the native tool call, not text about calling it.
+7. AVOID SIGPIPE (exit 141): Do not pipe long listings into 'head'/'tail' (e.g. 'find ... | head -50'). Closing the pipe kills the producer with SIGPIPE (exit 141), which the runtime reports as a FAILED tool result. Use 'find ... -maxdepth N' with explicit filters, or 'rg --max-count' instead."
   "Instruções estritas de uso de ferramentas para os modelos do Magent.")
 
 (defun +carlos/magent-inject-system-directives (composed &rest _)

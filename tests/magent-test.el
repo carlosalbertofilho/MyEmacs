@@ -108,6 +108,21 @@ ignora, deixando o turn vazio)."
   (should (string-match-p "Do NOT use" +carlos/magent-system-directives))
   (should (string-match-p "<tool_call>'" +carlos/magent-system-directives)))
 
+(ert-deftest myemacs-magent-directives-reasoning-ban ()
+  "A diretriz 6 proíbe tool calls dentro de reasoning/thinking blocks,
+porque o magent nunca executa reasoning (só parseia DSML do content)."
+  (should (string-match-p "NEVER inside reasoning/thinking blocks"
+                          +carlos/magent-system-directives))
+  (should (string-match-p "Reasoning blocks are never executed"
+                          +carlos/magent-system-directives)))
+
+(ert-deftest myemacs-magent-directives-sigpipe ()
+  "A diretriz 7 evita `find | head' (SIGPIPE, exit 141) que o magent
+reporta como tool FAILED e desestabiliza o modelo local."
+  (should (string-match-p "AVOID SIGPIPE" +carlos/magent-system-directives))
+  (should (string-match-p "exit 141" +carlos/magent-system-directives))
+  (should (string-match-p "head" +carlos/magent-system-directives)))
+
 (ert-deftest myemacs-magent-inject-directives ()
   "O advice +carlos/magent-inject-system-directives preserva o system message
 composto e anexa as diretrizes CRITICAL MAGENT TOOL DIRECTIVES."

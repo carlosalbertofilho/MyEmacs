@@ -34,6 +34,28 @@ entenderem o estado atual do projeto e decisões tomadas.
      **150 testes, 0 falhas, 7 skipped**; integração confirma diretriz no system
      message composto. Pendente: validação em sessão real multi-turn (TODO §1).
 
+** 2026-08-10 — [CONCLUÍDO] Reforço do fix DSML: tool call no reasoning nunca executa + SIGPIPE
+   - **Bug (sessão real `session-20260810-002134.json`):** mesmo com a diretriz 6,
+     o Qwen3.5-9B emitiu de novo tool call em formato Claude-XML
+     (`<tool_call><function=bash>`), agora no stream de **reasoning**. Diagnóstico:
+     o magent **só parseia DSML do content** (`magent-llm-gptel--emit-completed-or-textual-tool-calls`,
+     magent-llm-gptel.el:760–770); reasoning vai direto para
+     `magent-llm-reasoning-delta-event` (linhas 776–793) e **nunca executa** — um
+     tool call escrito lá é silenciosamente descartado.
+   - **Gatilho da degradação:** o turn anterior teve tool FAILED por `find | head -50`
+     → SIGPIPE (exit 141): o magent fecha o pipe, o produtor `find` é morto e o
+     resultado é marcado como FAILED, desestabilizando o modelo local.
+   - **Fix (2 reforços em `+carlos/magent-system-directives`):**
+     1. Diretriz 6 agora proíbe explicitamente tool calls em reasoning/thinking
+        blocks e exige chamadas nativas na resposta FINAL ("Reasoning blocks are
+        never executed, so a tool call written there is silently dropped").
+     2. Nova diretriz 7: evitar SIGPIPE — `find -maxdepth N`/`rg --max-count`
+        em vez de `find ... | head`.
+   - **Validação:** reprodução batch com o cenário pesado (AGENTS.md + 9 tools +
+     histórico com exit 141) + diretriz nova → **3/3 tool_calls nativos**. Testes
+     ERT: `myemacs-magent-directives-reasoning-ban`, `myemacs-magent-directives-sigpipe`.
+     Pendente: confirmação em sessão real multi-turn (TODO §1).
+
 ** 2026-08-09 — [CONCLUÍDO] Política de Limpeza de Artefatos de Build (`just clean`/`rebuild`)
    - **Motivação:** objetos de build antigos (`.elc`, `eln-cache/`) causam erros
      (`void-function`, `void-variable`, comportamento divergente) quando o fonte
