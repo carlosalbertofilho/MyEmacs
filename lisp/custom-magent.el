@@ -33,11 +33,6 @@
 (defvar +carlos/magent-disable-custom-fsm nil
   "Non-nil usa o FSM default do gptel em vez do FSM customizado do magent.")
 
-(with-eval-after-load 'magent-llm-gptel
-  (when (fboundp 'magent-llm-gptel--make-sampling-fsm)
-    (advice-add 'magent-llm-gptel--make-sampling-fsm :around
-                #'+carlos/magent--fsm-override-a)))
-
 (defun +carlos/magent--fsm-override-a (orig &rest args)
   "ORIG (magent-llm-gptel--make-sampling-fsm) ou FSM default do gptel.
 Quando `+carlos/magent-disable-custom-fsm' é non-nil, ignora ORIG/ARGS e
@@ -46,6 +41,11 @@ padrão de tool-use e done)."
   (if +carlos/magent-disable-custom-fsm
       (gptel-make-fsm)
     (apply orig args)))
+
+(with-eval-after-load 'magent-llm-gptel
+  (when (fboundp 'magent-llm-gptel--make-sampling-fsm)
+    (advice-add 'magent-llm-gptel--make-sampling-fsm :around
+                #'+carlos/magent--fsm-override-a)))
 
 (defun +carlos/magent-start ()
   "Garante o carregamento do Magent e inicia a sessão agent-shell."
