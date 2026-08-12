@@ -152,112 +152,23 @@ inclui a diretriz DSML após o advice :filter-return."
     (should (string-match-p "CRITICAL MAGENT TOOL DIRECTIVES" out))
     (should (string-match-p "Do NOT use '<tool_call>'" out))))
 
-(ert-deftest myemacs-magent-fsm-reasoning-text ()
-  "FSM THINK: reasoning chunks ficam invertidos em `:reasoning-chunks'
-(push no streaming) e `+carlos/magent--fsm-reasoning-text' reconstrói
-a ordem correta."
-  (let ((state (make-hash-table :test 'equal)))
-    (puthash :reasoning-chunks '("c" "b" "a") state)
-    (should (string= "abc"
-                     (+carlos/magent--fsm-reasoning-text state)))
-    (should (string= ""
-                     (+carlos/magent--fsm-reasoning-text
-                      (make-hash-table))))))
-
-(ert-deftest myemacs-magent-fsm-claude-xml-params ()
-  "FSM DECIDE: parser de parâmetros Claude-XML legado monta plist de args."
-  (let ((args (+carlos/magent--fsm-parse-claude-xml-params
-               (concat "<parameter=path>~/x.txt</parameter>"
-                       "<parameter=reason>teste</parameter>"))))
-    (should (plist-get args :path))
-    (should (string= "~/x.txt" (plist-get args :path)))
-    (should (string= "teste" (plist-get args :reason)))
-    (should-not (+carlos/magent--fsm-parse-claude-xml-params
-                 "sem parametros aqui"))))
-
-(ert-deftest myemacs-magent-fsm-claude-xml-tool-calls ()
-  "FSM DECIDE: parser de tool calls Claude-XML legado produz eventos
-normalizados (id, name, args com :source textual-dsml)."
-  (skip-unless (fboundp 'magent-llm-tool-call-event))
-  (let ((events (+carlos/magent--fsm-parse-claude-xml-tool-calls
-                 (concat "<tool_call><function=read_file>"
-                         "<parameter=path>AGENTS.md</parameter>"
-                         "</function></tool_call>"))))
-    (should (= 1 (length events)))
-    (let ((ev (car events)))
-      (should (string= "read_file" (magent-llm-event-name ev)))
-      (should (string= "AGENTS.md"
-                       (plist-get (magent-llm-event-arguments ev)
-                                  :path)))
-      (should (eq 'textual-dsml
-                  (plist-get (magent-llm-event-raw ev)
-                             :source)))))
-  (should-not (+carlos/magent--fsm-parse-claude-xml-tool-calls
-               "nenhum tool_call aqui")))
-
-(ert-deftest myemacs-magent-fsm-orchestrate-delegates ()
-  "FSM orquestra: quando o content não está vazio (turn normal), o advice
-delega para a função original sem intervir."
-  (let ((state (make-hash-table :test 'equal))
-        (calls 0))
-    (cl-letf (((symbol-function 'magent-llm-gptel--pending-tool-use-p)
-               (lambda (&rest _) nil)))
-      (let ((result (+carlos/magent-fsm-orchestrate-a
-                     (lambda (&rest _) (cl-incf calls) 'normal)
-                     :request state :info "texto do turn" nil)))
-        (should (eq result 'normal))
-        (should (= 1 calls))))))
-
-(ert-deftest myemacs-magent-fsm-orchestrate-recover ()
-  "FSM DECIDE: content vazio + tool call Claude-XML no reasoning →
-  o advice emite os eventos recuperados e devolve tool-call-paused."
-  (skip-unless (fboundp 'magent-llm-tool-call-event))
-  (let* ((state (make-hash-table :test 'equal))
-         (emitted nil))
-    (puthash :reasoning-chunks
-             (list "</function></tool_call>"
-                   "<parameter=path>AGENTS.md</parameter>"
-                   "<tool_call><function=read_file>")
-             state)
-    (cl-letf (((symbol-function 'magent-llm-gptel--pending-tool-use-p)
-               (lambda (&rest _) nil))
-              ((symbol-function 'magent-llm-gptel--metadata)
-               (lambda (&rest _) nil))
-              ((symbol-function 'magent-llm-gptel--prepare-textual-continuation)
-               (lambda (&rest _) 'continuation))
-              ((symbol-function 'magent-llm-gptel--emit-tool-call-batch)
-               (lambda (&rest args)
-                 (setq emitted (nth 2 args))
-                 'batch-end)))
-      (let ((result (+carlos/magent-fsm-orchestrate-a
-                     (lambda (&rest _) (error "não deve chamar orig"))
-                     :request state :info "" nil)))
-        (should (eq result 'tool-call-paused))
-        (should (= 1 (length emitted)))
-        (should (string= "read_file"
-                         (magent-llm-event-name (car emitted))))))))
-
-(ert-deftest myemacs-magent-fsm-retry-counter ()
-  "FSM RETRY: o contador `:carlos-magent-fsm-retries' limita o número de
-re-disparos a `+carlos/magent-fsm-max-retries'."
-  (let ((state (make-hash-table :test 'equal)))
-    (cl-letf (((symbol-function 'magent-llm-gptel--continue-with-user-message)
-               (lambda (&rest _) nil)))
-      (should (eq 'completed-paused
-                  (+carlos/magent--fsm-retry-empty-turn
-                   :request :info state :fsm)))
-      (should (eq (gethash :carlos-magent-fsm-retries state)
-                  +carlos/magent-fsm-max-retries))
-      (should-not (+carlos/magent--fsm-retry-empty-turn
-                   :request :info state :fsm)))))
-
-(ert-deftest myemacs-magent-fsm-advice-installed ()
-  "O advice da FSM está registrado no choke point
-magent-llm-gptel--emit-completed-or-textual-tool-calls."
+(ert-deftest myemacs-magent-no-custom-fsm-advice ()
+  "A FSM customizada de orquestração foi removida; proíbe advice no choke point."
   (skip-unless (fboundp 'magent-llm-gptel--emit-completed-or-textual-tool-calls))
-  (should (advice-member-p
-           #'+carlos/magent-fsm-orchestrate-a
-           'magent-llm-gptel--emit-completed-or-textual-tool-calls)))
+  (should-not (advice-member-p
+               '+carlos/magent-fsm-orchestrate-a
+               'magent-llm-gptel--emit-completed-or-textual-tool-calls)))
+
+(ert-deftest myemacs-magent-sanitize-parse-response-arity ()
+  "Garante que `magent-llm-gptel--sanitize-after-parse-response-a' aceite
+5 ou mais argumentos sem estourar Wrong number of arguments no Gemini streaming."
+  (skip-unless (fboundp 'magent-llm-gptel--sanitize-after-parse-response-a))
+  (let ((called nil))
+    (cl-letf (((symbol-function 'magent-llm-gptel--managed-info-p) (lambda (&rest _) nil)))
+      (magent-llm-gptel--sanitize-after-parse-response-a
+       (lambda (&rest args) (setq called args))
+       'fake-backend 'fake-response 'fake-info 'include 'extra-arg)
+      (should (= 5 (length called))))))
 
 (ert-deftest myemacs-magent-wait-agent-schema-valid ()
   "A tool `wait_agent' expõe `job_ids' (`:type array') com `:items',
