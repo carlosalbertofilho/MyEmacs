@@ -11,6 +11,17 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-12 — [CONCLUÍDO] Magent como Driver do Emacs (Fase C5: 3 Ferramentas Curadas) [Etapa C5]
+   - **Objetivo:** Transformar o Magent de "gerador de texto" para operador de ferramentas do Emacs (Tool Operator), implementando e catalogando ferramentas locais curadas de introspecção e navegação in-process.
+   - **Ações e Recursos:**
+     - `lisp/custom-magent.el`: Implementada a ferramenta `flycheck_errors` para listar erros do flycheck no buffer/projeto corrente em formato estruturado.
+     - `lisp/custom-magent.el`: Implementada a ferramenta `lsp_navigation` integrada ao Xref/Eglot para resolver definições e referências de símbolos, erradicando alucinações.
+     - `lisp/custom-magent.el`: Implementada a ferramenta `snippet_expand` integrada ao Tempel para listagem e inspeção de templates por major-mode.
+     - `lisp/custom-magent.el`: Criadas as especificações `gptel-make-tool` para as 3 ferramentas com assinaturas tipadas e descrições semânticas ricas.
+     - `lisp/custom-magent.el`: Registradas as novas ferramentas em `magent-tools-catalog` e ativadas em `magent-enable-tools`.
+     - `tests/magent-driver-test.el`: Criada nova suíte de testes unitários ERT (`myemacs-driver-*`) validando os handlers das ferramentas e sua presença no catálogo de permissões.
+   - **Validação:** 175/175 testes ERT aprovados (`just check-all`), gate de compilação limpo e verificação do boot.
+
 ** 2026-08-12 — [CONCLUÍDO] Gestão de Contexto Automática (Opção 4 Híbrida) [Etapa B4]
    - **Objetivo:** Automatizar completamente a gestão de contexto e a auto-compactação sem dependência de comandos manuais do usuário.
    - **Ações e Recursos:**

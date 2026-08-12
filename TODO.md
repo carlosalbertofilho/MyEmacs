@@ -41,7 +41,7 @@ inteiro colado.
 4. **Contexto sob controle (100% Automático)** (§1d) — Opção 4 Híbrida: cache de prefixo estável (zero-loss) + auto-compactação automática por threshold de 60% da janela do modelo em segundo plano.
 
 **Etapa C — A Ambição (5 → 6 → 7; depende da Etapa B):**
-5. **Fase A — Tools curadas** (§1e) — catálogo **enxuto** (3 tools):
+5. **Fase A — Tools curadas** (§1e — CONCLUÍDO 2026-08-12) — catálogo **enxuto** (3 tools):
    `flycheck_errors`, `lsp_navigation`, `snippet_expand`; saída estruturada e
    paginada (anti-pattern "lista tudo" — lição do vídeo gptel-tools/emacs-mcp).
 6. **Fase B — Driver do buffer vivo** (§1e) — `buffer_edit` + workflow
@@ -349,7 +349,7 @@ estável** o vídeo valida **Gemini** (cloud, já nossa 1ª escolha) e **Llama 3
 §1c: ao validar candidatos no Ollama, incluir Llama; manter gemma como default
 MLX (nossa FSM recupera tool calls do reasoning, validado em sessão real).
 
-### Fase A — Tools Emacs curadas (in-process, baixo risco)
+### Fase A — Tools Emacs curadas (in-process, baixo risco) [CONCLUÍDO 2026-08-12]
 
 **Arquivo:** `lisp/custom-magent.el` + `tests/magent-driver-test.el` (novo).
 
