@@ -248,13 +248,12 @@ Garante que o gptel esteja carregado antes de buscar o backend."
 
 (defun +carlos/gptel-agent-add-project-dirs ()
   "Adiciona `.agents/gptel/' do projeto atual a `gptel-agent-dirs'.
-Guarda contra `gptel-agent-dirs' void antes do gptel-agent carregar."
+Garante `gptel-agent' antes para não clobberar os agentes padrão."
+  (require 'gptel-agent nil t)
   (when-let* ((proj (project-current))
               (root (project-root proj))
               (dir (expand-file-name ".agents/gptel/" root))
               (file-directory-p dir))
-    (unless (boundp 'gptel-agent-dirs)
-      (setq gptel-agent-dirs nil))
     (add-to-list 'gptel-agent-dirs dir)))
 
 (defun +carlos/gptel-agent-run (&optional task)
