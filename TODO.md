@@ -5,25 +5,52 @@
 > apenas pendências ativas, backlog futuro e decisões registradas.
 > Revisão arquivamento: 2026-08-12.
 
-## 0. Prioridade de Execução (2026-08-10)
+## 0. Plano Diretor — Ambição e Pipeline de Execução (reorganizado 2026-08-12)
 
 > **Roteamento de IA (2026-08-10, concluído):** Gemini free tier
 > (`gemini-3.5-flash`) passou a ser a 1ª escolha de chat/quick/grammar em
 > todos os hosts, com OpenCode Zen free (`big-pickle`/`*-free`) como 2ª e
 > Local (MLX/Ollama) apenas como fallback final — ver roadmap.org.
 
-Ordem deliberada dos planos de ação — trabalhar nesta sequência:
+### A Ambição (north star)
 
-1. **Verificação de Modelos Locais** (§1c) — Fase 2 **concluída** (default já
-   trocado para `gemma-4-e2b-it-4bit`); **restam** Fase 1 (validar candidatos
-   3B–9B no Ollama com a FSM real) e Fase 3 (decidir o timeout de 120s) — ver
-   §1c. Base para tudo que vem depois.
-2. **Gestão de Contexto** (§1d) — cache (prefixo estável) + compactação
-   estruturada (cache + auto-compact por janela). Depende do §1c: modelos
-   diferentes têm janelas e limites de contexto diferentes.
-3. **Magent como Driver do Emacs** (§1e) — tools Emacs curadas
-   (flycheck/lsp/snippet), depois driver do buffer vivo. Depende do §1d
-   (contexto sob controle antes de adicionar mais tools).
+**Magent/gptel como driver do Emacs** (§1e): o agente **opera o editor** como um
+parceiro de pareamento em vez de cuspir código para revisão. Em vez de escrever
+uma função inteira, o modelo expande um **tempel snippet** e **preenche apenas
+as lacunas** — usando o buffer vivo, flycheck/LSP para validar e corrigir em
+loop, e xref para resolver símbolos reais (sem alucinar nomes).
+
+Exemplo concreto (alvo): "adiciona um helper para X" → `lsp_navigation` resolve
+o símbolo → `snippet_expand` insere o esqueleto em point → o modelo preenche só
+os campos → `flycheck_errors` valida → corrige até zero erros. Nada de bloco
+inteiro colado.
+
+### Pipeline de execução (do chão até a ambição)
+
+**Etapa A — Fundação (chão estável; itens paralelos, baixo risco):**
+1. **Fluxo de dev Elisp** (§1h) — gerador de testes ERT via IA, bloco REPL
+   `(when nil ...)`, prompts centralizados. Acelera todo o elisp novo que a
+   Etapa C exige (tools curadas testáveis no loop IA→REPL→ERT).
+2. **Robustez de infra** (§1g — decidir migrar `:ensure (:wait t)` ou arquivar;
+   §1b — guard de runtime do jinx, opcional) — quick-wins de
+   portabilidade/estabilidade; não bloqueiam a Etapa B.
+
+**Etapa B — Motor (modelo + contexto sob controle; 3 antes de 4):**
+3. **Modelo com tool-calling confiável** (§1c Fase 1 e 3) — o driver depende de
+   o modelo emitir tool calls estáveis (Fase 2 já concluída: gemma default no
+   MLX). Lição de campo: Gemini cloud e Llama local são os confiáveis; validar
+   candidatos 3B–9B no Ollama e decidir o timeout de 120s.
+4. **Contexto sob controle** (§1d) — cache de prefixo estável + compactação por
+   janela. As tools do driver (buffer, flycheck, LSP) adicionam carga de
+   contexto; sem isso o modelo pequeno degrada e o timeout de 120s volta.
+
+**Etapa C — A Ambição (5 → 6 → 7; depende da Etapa B):**
+5. **Fase A — Tools curadas** (§1e) — catálogo **enxuto** (3 tools):
+   `flycheck_errors`, `lsp_navigation`, `snippet_expand`; saída estruturada e
+   paginada (anti-pattern "lista tudo" — lição do vídeo gptel-tools/emacs-mcp).
+6. **Fase B — Driver do buffer vivo** (§1e) — `buffer_edit` + workflow
+   snippet → lacunas → flycheck → corrigir (o "preencher só as lacunas").
+7. **Fase C — Loop de auto-correção como skill/workflow** (§1e).
 
 ## 1. Pendências de Investigação e Diagnóstico (Bugs Resolvidos)
 
@@ -301,11 +328,16 @@ Atualizar `docs/magent-reference.org` (seção "Gestão de Contexto") e `roadmap
 
 ## 1e. Plano de Ação — Magent como Driver do Emacs (Tool Operator)
 
-**Ambição (2026-08-10):** transformar o magent de "gerador de texto" para
-**operador de ferramentas do Emacs** — o agente atua como parceiro de pareamento
-que *opera* as ferramentas locais (tempel, flycheck, LSP/eglot) em vez de cuspir
-blocos de texto para revisão. Registrado como planejamento após conversa com
-agente externo; validado contra o código real do magent embutido.
+**Ambição (north star, refinada 2026-08-12):** transformar o magent de "gerador
+de texto" para **operador de ferramentas do Emacs** — o agente atua como
+parceiro de pareamento que *opera* as ferramentas locais (tempel, flycheck,
+LSP/eglot) em vez de cuspir blocos de texto para revisão. Concretamente: ao
+invés de escrever uma função inteira, o modelo expande um **tempel snippet** e
+**preenche apenas as lacunas** em point/região do buffer vivo, validando com
+flycheck/LSP e corrigindo em loop (exemplo no §0 "A Ambição"). Registrado como
+planejamento após conversa com agente externo + vídeo "Emacs lisp and gptel:
+building custom llm tools to call emacs functions" (NapoleonWils0n, gptel-tools/
+emacs-mcp); validado contra o código real do magent embutido.
 
 **Correção crítica de arquitetura (vs. proposta original):** a ponte **NÃO é
 MCP**. O magent roda **in-process** com o Emacs (transporte `gptel-request` via
@@ -348,6 +380,12 @@ pelo LLM. Implica no §1e:
   "lista tudo" crua (`list-all-bindings` é anti-pattern, ref. §1d Fase 1);
 - a `:description` precisa ser tratada como prompt de seleção (já é padrão do
   catálogo magent).
+
+**Escolha de modelo (lição do vídeo, 2026-08-12):** para tool-calling **nativo e
+estável** o vídeo valida **Gemini** (cloud, já nossa 1ª escolha) e **Llama 3.1/3.2**
+(local) como confiáveis; Qwen-thinking/DeepSeek/Granite degradam. Isso reforça o
+§1c: ao validar candidatos no Ollama, incluir Llama; manter gemma como default
+MLX (nossa FSM recupera tool calls do reasoning, validado em sessão real).
 
 ### Fase A — Tools Emacs curadas (in-process, baixo risco)
 
@@ -525,6 +563,53 @@ e remover os `(elpaca-wait)` top-level, mantendo `:demand t`.
 `(unless (boundp ...))`; NÃO pré-declare defcustom com nil; `just rebuild-prod` +
 `just check-prod` pós-sync quando houver `.elc` stale). **NÃO aplicar agora:** este é o
 plano; o Executor aplica quando acionado. Ordem de execução recomendada: Fase 1 → 2 → 3 → 5 → 6; Fase 4 sob demanda.
+
+## 1h. Plano de Ação — Fluxo de Dev Elisp (IA → REPL → ERT) [Etapa A1]
+
+**Objetivo (2026-08-12):** consolidar o ciclo de desenvolvimento Elisp
+(IA → REPL → ERT) para acelerar o elisp novo que a Etapa C (§1e, tools curadas)
+exige. `lisp/custom-dev.el` já tem o esqueleto (IELM, ERT runners, debug via IA,
+prefixo `C-c D`); o plano adiciona o que falta e documenta o fluxo.
+
+**Já existe (não reconstruir):**
+- `+carlos/ert-run-buffer` / `+carlos/ert-run-test-at-point` (`C-c D t`/`C-c D T`),
+  `+carlos/ielm-open` (`C-c D r`), `+carlos/toggle-debug-on-error` (`C-c D d`),
+  `+carlos/debug-region-with-ai` (`C-c D a`); binds locais `C-c C-c`/`C-c C-t`
+  em `emacs-lisp-mode`.
+- Backend de IA para dev: `+carlos/gptel-quick-local-backend` → "Gemini" free
+  tier (`gemini-3.5-flash`).
+
+**Ação 1 — Gerador de testes ERT via IA (`+carlos/ert-generate-tests`, `C-c D e`):**
+- Seleciona a função (região ou defun sob o ponto) e envia ao gptel via
+  `+carlos/gptel-request` com prompt centralizado `+carlos/elisp-ert-prompt`:
+  gerar `ert-deftest` no padrão `myemacs-<area>-<desc>`, com edge cases
+  (`should`/`should-error`).
+- Insere num buffer `*gptel-tests*` para revisão (não grava no disco sozinho);
+  depois `C-c D t` roda a suíte do buffer.
+
+**Ação 2 — Bloco REPL `(when nil ...)` (`+carlos/insert-repl-block`, `C-c D b`):**
+- Insere `(when nil ...)` com a forma selecionada + comentário, para testar
+  inline com `C-x C-e` sem efeito colateral (nunca é avaliado no load real).
+
+**Ação 3 — Prompts centralizados (`defconst`):** `+carlos/elisp-ert-prompt` e
+`+carlos/elisp-repl-block-prompt` — textos testáveis e reutilizáveis (o
+`+carlos/debug-region-with-ai` também passa a usá-los).
+
+**Docs:** novo `docs/dev-workflow.org` (ciclo IA→REPL→ERT, tabela de binds,
+prompts); AGENTS.md — adicionar `custom-dev.el` na árvore + doc na tabela RAG.
+
+**Testes (`tests/dev-test.el`):** comandos existem (`+carlos/ert-generate-tests`,
+`+carlos/insert-repl-block`), binds `C-c D e`/`C-c D b`, prompts contêm as
+palavras-chave (`myemacs-`, `should-error`, `when nil`), sem colisão (portão
+`myemacs-kbd-no-collisions` — usa só o prefixo livre `C-c D`).
+
+**Gate:** `just test-all` + `just compile` zero-warning + sync prod
+(`just compile-prod`/`just check-prod`). Atualizar `docs/dev-workflow.org` e
+`roadmap.org`.
+
+**Regras do Executor:** padrões do AGENTS.md (prefixo `+carlos/`, guards
+`fboundp`/`require nil t`, `:custom` sem `setq`, `with-eval-after-load`).
+**NÃO aplicar agora:** este é o plano; o Executor aplica quando acionado.
 
 ## 2. Backlog (Planejamento Futuro, Ordenado por Dificuldade)
 
