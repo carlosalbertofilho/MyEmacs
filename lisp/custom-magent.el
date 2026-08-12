@@ -81,28 +81,22 @@ Evita falha em `equal' com símbolos e previne o timeout de 120s no Gemini."
   (apply orig-fn state fsm args))
 
 ;; ── Fix para Gemini Streaming: Aridade de `gptel--parse-response' ─────
-;; A advice original `magent-llm-gptel--sanitize-after-parse-response-a' do magent
+;; A função original `magent-llm-gptel--sanitize-after-parse-response-a' do magent
 ;; declarava apenas 4 argumentos `(orig-fn backend response info)`. No gptel-gemini,
 ;; `gptel--parse-response' aceita 5 argumentos (`include-text` opcional).
-;; Quando executado via `gptel-curl--parse-stream', a passagem do 5º argumento
-;; gerava `Wrong number of arguments: ..., 5`, que era capturado silenciosamente
-;; por `condition-case nil` em `gptel-curl--parse-stream`, fazendo o parser retornar
-;; `""` (string vazia) em todas as respostas streaming do Gemini.
-(defun +carlos/magent-sanitize-after-parse-response-a (orig-fn backend response info &rest args)
-  "Garante repasse do 5º argumento opcional em `gptel--parse-response'.
-Suporta `include-text' opcional no Gemini streaming."
-  (prog1 (apply orig-fn backend response info args)
-    (when (and (fboundp 'magent-llm-gptel--managed-info-p)
-               (magent-llm-gptel--managed-info-p info))
-      (magent-llm-gptel--sanitize-info info))))
-
+;; Redefinimos a função original com `&rest args` para que a chamada de
+;; `magent-llm-gptel--install-boundary-advice` não recoloque a versão de 4 argumentos.
 (with-eval-after-load 'magent-llm-gptel
+  (defun magent-llm-gptel--sanitize-after-parse-response-a
+      (orig-fn backend response info &rest args)
+    "Sanitize Magent-managed INFO after gptel parses a response (com &rest args para Gemini)."
+    (prog1 (apply orig-fn backend response info args)
+      (when (and (fboundp 'magent-llm-gptel--managed-info-p)
+                 (magent-llm-gptel--managed-info-p info))
+        (magent-llm-gptel--sanitize-info info))))
   (when (fboundp 'magent-llm-gptel--handle-tool-use)
     (advice-add 'magent-llm-gptel--handle-tool-use
-                :around #'+carlos/magent-sanitize-tool-use-name-a))
-  (when (fboundp 'gptel--parse-response)
-    (advice-remove 'gptel--parse-response 'magent-llm-gptel--sanitize-after-parse-response-a)
-    (advice-add 'gptel--parse-response :around #'+carlos/magent-sanitize-after-parse-response-a)))
+                :around #'+carlos/magent-sanitize-tool-use-name-a)))
 
 (defun +carlos/magent-start ()
   "Garante o carregamento do Magent e inicia a sessão agent-shell."
