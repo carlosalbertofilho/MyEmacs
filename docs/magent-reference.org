@@ -289,6 +289,48 @@ Magent includes 15 built-in tools for agent interactions:
 | ~recall_memory~ | Memory | Retrieve stored project memory entries |
 | ~save_memory~ | Memory | Persist memory entries for future sessions |
 
+* Magent Driver Tools (Fase A — Curated in-process tools) — adicionado 2026-08-12
+
+Estes são os utilitários de alto nível implementados para transformar o Magent em um operador de ferramentas e buffers ativos in-process (Tool Operator). Elas são registradas no `magent-tools-catalog` sob o escopo de segurança individual e podem ser estendidas no futuro:
+
+** 1. `flycheck_errors`
+- **Nome Técnico:** `flycheck_errors`
+- **Handler Elisp:** `+carlos/magent-tool-flycheck-errors`
+- **Descrição:** Varre o linter/checker ativo do Flycheck no buffer do caminho especificado em `:path` (ou no buffer atual se `:path` estiver vazio) e retorna um relatório estruturado contendo a lista completa de erros (linha, coluna, nível de severidade, checker responsável e mensagem de erro).
+- **Parâmetros:**
+  - `:path` (string, opcional): Caminho do arquivo ou buffer vivo para verificação.
+  - `:reason` (string, opcional): Razão ou finalidade de checar erros.
+- **Formato da Saída (plist):**
+  #+begin_src elisp
+  (:status "success" :buffer "nome" :file "/caminho/real.el" :total_errors 1 :errors ((:line 42 :column 12 :level "error" :message "void-function X" :checker "emacs-lisp")))
+  #+end_src
+
+** 2. `lsp_navigation`
+- **Nome Técnico:** `lsp_navigation`
+- **Handler Elisp:** `+carlos/magent-tool-lsp-navigation`
+- **Descrição:** Usa o backend Xref/Eglot (LSP) ativo no buffer atual para resolver a localização exata de definições ou referências de um símbolo, retornando o nome do arquivo, a linha de ocorrência e uma linha de resumo. É a ferramenta principal para o agente ler assinaturas e evitar a alucinação de nomes de variáveis/funções.
+- **Parâmetros:**
+  - `:symbol` (string, obrigatório): Nome do símbolo, função ou tipo que se deseja inspecionar.
+  - `:action` (string, opcional): `"definition"` (padrão) ou `"references"`.
+  - `:reason` (string, opcional): Finalidade da navegação.
+- **Formato da Saída (plist):**
+  #+begin_src elisp
+  (:status "success" :symbol "+carlos/gptel-cache-hit-rate" :action "definition" :total 1 :results ((:summary "defun +carlos/gptel-cache-hit-rate (input cached)" :file "/abs/path/lisp/custom-ai.el" :line 705)))
+  #+end_src
+
+** 3. `snippet_expand`
+- **Nome Técnico:** `snippet_expand`
+- **Handler Elisp:** `+carlos/magent-tool-snippet-expand`
+- **Descrição:** Permite interagir com os templates do Tempel instalados. Se nenhum parâmetro `:name` for enviado, retorna a lista completa de todos os nomes de snippets do Tempel registrados para o major-mode atual (ou do modo explicitado por `:mode`). Se `:name` for provido, extrai e retorna a representação estática da estrutura do template do snippet.
+- **Parâmetros:**
+  - `:name` (string, opcional): Nome do snippet do Tempel para inspecionar.
+  - `:mode` (string, opcional): Nome de um major-mode específico (ex: `"emacs-lisp-mode"`).
+  - `:reason` (string, opcional): Razão para expandir/inspecionar o snippet.
+- **Formato da Saída (plist):**
+  #+begin_src elisp
+  (:status "success" :name "deftest" :template "(ert-deftest name () \"desc\" ...)")
+  #+end_src
+
 * Permissions & Audit Logging
 
 ** Permission Rules
