@@ -402,6 +402,129 @@ NÃO replicar conteúdo lido que não tenha sido alterado."
   (when (fboundp 'magent-lifecycle-events-add-sink)
     (magent-lifecycle-events-add-sink #'+carlos/magent-auto-compact-check-and-run)))
 
+;; ── Ferramentas Curadas da Fase A (Magent Driver do Emacs) ───────────
+(declare-function flycheck-error-line "flycheck")
+(declare-function flycheck-error-column "flycheck")
+(declare-function flycheck-error-level "flycheck")
+(declare-function flycheck-error-message "flycheck")
+(declare-function flycheck-error-checker "flycheck")
+(declare-function xref-find-backend "xref")
+(declare-function xref-backend-definitions "xref")
+(declare-function xref-backend-references "xref")
+(declare-function xref-item-location "xref")
+(declare-function xref-item-summary "xref")
+(declare-function xref-location-group "xref")
+(declare-function xref-location-line "xref")
+(declare-function tempel--templates "tempel")
+(defvar flycheck-mode)
+(defvar flycheck-current-errors)
+
+(defun +carlos/magent-tool-flycheck-errors (args)
+  "Handler para a ferramenta `flycheck_errors`.
+Retorna erros do Flycheck no buffer ativo ou em ARGS :path."
+  (let* ((path (plist-get args :path))
+         (buf (if (and path (not (string-empty-p path)))
+                  (find-buffer-visiting (expand-file-name path))
+                (current-buffer))))
+    (if (not buf)
+        `(:status "error" :message ,(format "Buffer para '%s' não encontrado." (or path "current")))
+      (with-current-buffer buf
+        (if (and (boundp 'flycheck-mode) flycheck-mode)
+            (let ((errors (mapcar (lambda (err)
+                                    `(:line ,(flycheck-error-line err)
+                                      :column ,(flycheck-error-column err)
+                                      :level ,(symbol-name (flycheck-error-level err))
+                                      :message ,(flycheck-error-message err)
+                                      :checker ,(symbol-name (flycheck-error-checker err))))
+                                  (or (bound-and-true-p flycheck-current-errors) nil))))
+              `(:status "success"
+                :buffer ,(buffer-name buf)
+                :file ,(or (buffer-file-name buf) "none")
+                :total_errors ,(length errors)
+                :errors ,errors))
+          `(:status "info" :message "Flycheck-mode não está ativo no buffer." :total_errors 0 :errors []))))))
+
+(defun +carlos/magent-tool-lsp-navigation (args)
+  "Handler para a ferramenta `lsp_navigation`.
+Resolve definições ou referências de ARGS :symbol usando xref/Eglot."
+  (let* ((sym-str (plist-get args :symbol))
+         (action (or (plist-get args :action) "definition")))
+    (if (not (and sym-str (not (string-empty-p sym-str))))
+        `(:status "error" :message "Parâmetro :symbol é obrigatório.")
+      (condition-case err
+          (let ((xref-backend (and (fboundp 'xref-find-backend) (xref-find-backend))))
+            (if (not xref-backend)
+                `(:status "error" :message "Nenhum backend xref/LSP ativo no buffer atual.")
+              (let* ((xrefs (if (string= action "references")
+                                (xref-backend-references xref-backend sym-str)
+                              (xref-backend-definitions xref-backend sym-str)))
+                     (results (mapcar (lambda (x)
+                                        (let* ((loc (xref-item-location x))
+                                               (summary (xref-item-summary x))
+                                               (file (and (fboundp 'xref-location-group) (xref-location-group loc)))
+                                               (line (and (fboundp 'xref-location-line) (xref-location-line loc))))
+                                          `(:summary ,summary :file ,file :line ,line)))
+                                      xrefs)))
+                `(:status "success"
+                  :symbol ,sym-str
+                  :action ,action
+                  :total ,(length results)
+                  :results ,results))))
+        (error `(:status "error" :message ,(error-message-string err)))))))
+
+(defun +carlos/magent-tool-snippet-expand (args)
+  "Handler para a ferramenta `snippet_expand`.
+Retorna templates do Tempel ou a estrutura do snippet ARGS :name."
+  (let* ((name-str (plist-get args :name))
+         (mode-str (plist-get args :mode))
+         (target-mode (if mode-str (intern mode-str) major-mode)))
+    (if (not (require 'tempel nil t))
+        `(:status "error" :message "Pacote tempel não está disponível.")
+      (let ((templates (and (fboundp 'tempel--templates) (tempel--templates))))
+        (if (and name-str (not (string-empty-p name-str)))
+            (let ((found (assoc (intern name-str) templates)))
+              (if found
+                  `(:status "success"
+                    :name ,name-str
+                    :template ,(format "%S" (cdr found)))
+                `(:status "error" :message ,(format "Snippet '%s' não encontrado." name-str))))
+          (let ((names (mapcar (lambda (tmpl) (symbol-name (car tmpl))) templates)))
+            `(:status "success"
+              :mode ,(symbol-name target-mode)
+              :total ,(length names)
+              :snippets ,names)))))))
+
+(with-eval-after-load 'gptel
+  (when (fboundp 'gptel-make-tool)
+    (defvar +carlos/magent-tool-flycheck-errors
+      (gptel-make-tool
+       :name "flycheck_errors"
+       :description "Retrieve Flycheck errors and warnings for a file or live buffer in structured format (file, line, column, level, message, checker)."
+       :args '((:name "path" :type string :description "Optional file or buffer path")
+               (:name "reason" :type string :description "Reason for checking errors"))
+       :function #'+carlos/magent-tool-flycheck-errors
+       :category "magent"))
+
+    (defvar +carlos/magent-tool-lsp-navigation
+      (gptel-make-tool
+       :name "lsp_navigation"
+       :description "Resolve definition or reference locations for a symbol using Xref/Eglot to eliminate hallucinated names."
+       :args '((:name "symbol" :type string :description "Symbol or function name to resolve")
+               (:name "action" :type string :description "Either 'definition' or 'references'")
+               (:name "reason" :type string :description "Reason for navigation"))
+       :function #'+carlos/magent-tool-lsp-navigation
+       :category "magent"))
+
+    (defvar +carlos/magent-tool-snippet-expand
+      (gptel-make-tool
+       :name "snippet_expand"
+       :description "Inspect or expand a Tempel snippet template by name, or list available snippets for a major-mode."
+       :args '((:name "name" :type string :description "Optional snippet name to inspect")
+               (:name "mode" :type string :description "Optional major-mode name")
+               (:name "reason" :type string :description "Reason for snippet expansion"))
+       :function #'+carlos/magent-tool-snippet-expand
+       :category "magent"))))
+
 ;; ── Display rules ──────────────────────────────────────────────────
 (add-to-list 'display-buffer-alist
              '("\\*Magent"
