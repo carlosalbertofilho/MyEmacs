@@ -87,7 +87,8 @@ Evita falha em `equal' com símbolos e previne o timeout de 120s no Gemini."
 ;; por `condition-case nil` em `gptel-curl--parse-stream`, fazendo o parser retornar
 ;; `""` (string vazia) em todas as respostas streaming do Gemini.
 (defun +carlos/magent-sanitize-after-parse-response-a (orig-fn backend response info &rest args)
-  "Garante repasse do 5º argumento opcional (`include-text') em `gptel--parse-response'."
+  "Garante repasse do 5º argumento opcional em `gptel--parse-response'.
+Suporta `include-text' opcional no Gemini streaming."
   (prog1 (apply orig-fn backend response info args)
     (when (and (fboundp 'magent-llm-gptel--managed-info-p)
                (magent-llm-gptel--managed-info-p info))
