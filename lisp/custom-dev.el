@@ -103,7 +103,8 @@ avaliação ou salvamento."
 
 (defun +carlos/insert-repl-block ()
   "Insere ou envolve a região/expressão em um bloco `(when nil ...)`.
-Usado para teste manual inline com `C-x C-e' no REPL sem efeito colateral no load."
+Usado para teste manual inline com `C-x C-e' no REPL sem efeito colateral
+no carregamento."
   (interactive)
   (if (region-active-p)
       (let ((beg (region-beginning))
