@@ -136,9 +136,9 @@ roteamento para backends locais fica apenas como fallback final.")
     :protocol "http"
     :stream t
     :request-params '(:options (:num_ctx 16384))
-    :models '("gemma4:e2b"
-              "qwen2.5-coder:3b"
+    :models '("qwen2.5-coder:3b"
               "qwen2.5-coder:1.5b"
+              "gemma4:e2b"
               "deepseek-r1:1.5b"
               "mistral"))
 

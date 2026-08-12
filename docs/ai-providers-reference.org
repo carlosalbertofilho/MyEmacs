@@ -120,3 +120,34 @@ final* do roteador dinâmico. A cascata de custo agora é:
 | Planejamento | Gemini free (gemini-3.5-flash) | Zen Claude (pago) | — | — |
 | Código | Gemini free (gemini-3.5-flash) | big-pickle (free) | north-mini-code-free (free) | Local |
 | Geral | Gemini free (gemini-3.5-flash) | big-pickle (free) | mimo-v2.5-free (free) | Local |
+
+* 4. Tabela de Modelos Padrões e Roteamento de Hardware (Reorganização 2026-08-12)
+
+Hierarquia de modelos reorganizada em 3 Tiers baseados em **Propósito, Latência e Restrição de Hardware**:
+
+** Tier 1 — Nuvem (Produção, Chat Diário, FinOps Custo Zero)
+Foco: Alta velocidade (<1s TTFT), zero consumo de recursos locais, uso contínuo no Emacs (=C-c i=, =C-c A g=, Magent e Gramática).
+
+| Papel | Provedor / Backend | Modelo | Razão / Desempenho |
+|-------+--------------------+--------+--------------------|
+| *Default Global (1ª Escolha)* | =Gemini= | =gemini-3.5-flash= | Quota gratuita abundante, latência ultra baixa (<1s TTFT), excelente em PT-BR. |
+| *FinOps / Quick Fallback* | =OpenCode Zen= | =deepseek-v4-flash-free= / =big-pickle= | Gratuito, rápido para refactors médios. |
+| *Agentic Frontier (Arquitetura)* | =Zen Claude= | =claude-sonnet-5= | Agente para decisões estruturais e refactors multi-arquivo. |
+
+** Tier 2 — Local High-Performance (GPU Apple Silicon =agnes.local:8081= via MLX)
+Foco: Trabalho 100% offline no MacBook M2 com aceleração de GPU Metal (24GB VRAM).
+
+| Papel | Provedor / Backend | Modelo | Benchmark Real |
+|-------+--------------------+--------+----------------|
+| *Default MLX (1ª Escolha)* | =MLX Local= | =mlx-community/gemma-4-e2b-it-4bit= | 31.4 tok/s \| TTFT 3.20s \| Turno Magent 11s (Raciocínio excelente). |
+| *Fallback Técnico MLX* | =MLX Local= | =mlx-community/Qwen3.5-9B-MLX-4bit= | 15.9 tok/s \| TTFT 1.10s \| Turno Magent 16s. |
+
+** Tier 3 — Local Hardware-Friendly (CPU / Servidor =aa102-006l:11434= via Ollama)
+Foco: Servidores headless, máquinas sem GPU dedicada ou ambientes com restrição de memória.
+
+| Papel | Provedor / Backend | Modelo | Benchmark Real |
+|-------+--------------------+--------+----------------|
+| *Default CPU Ultra Leve* | =Ollama Local= | =qwen2.5-coder:1.5b= | 15.11 tok/s \| TTFT 4.56s \| Turno Magent 4s (Instantâneo e leve). |
+| *Default Coder Balanceado* | =Ollama Local= | =qwen2.5-coder:3b= | 9.20 tok/s \| TTFT 6.34s \| Turno Magent 7s (Precisão em Elisp/C/Python). |
+| *Raciocínio Leve (Reasoning)* | =Ollama Local= | =deepseek-r1:1.5b= | 16.82 tok/s \| TTFT 4.21s (Apenas análise conceitual). |
+
