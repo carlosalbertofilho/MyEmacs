@@ -72,7 +72,7 @@
 
 ;; ── Display buffer rules (drawer inferior centralizado) ────────────
 (add-to-list 'display-buffer-alist
-             '("\\*\\(compilation\\|eglot events\\|magit.*\\|vterm.*\\|eshell\\|gptel.*\\)\\*"
+             '("\\*\\(compilation\\|eglot events\\|magit-process\\|vterm.*\\|eshell\\|gptel.*\\)\\*"
                (display-buffer-in-direction)
                (direction . bottom)
                (window-height . 0.3)))
