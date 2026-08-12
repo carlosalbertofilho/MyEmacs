@@ -31,10 +31,11 @@ MLX_MODELS = [
 ]
 
 OLLAMA_MODELS = [
-    "qwen3:0.6b",
+    "gemma4:e2b",
+    "qwen2.5-coder:1.5b",
     "qwen2.5-coder:3b",
-    "llama3.2:3b",
-    "gemma3:4b",
+    "mistral:latest",
+    "deepseek-r1:1.5b",
 ]
 
 DEFAULT_PROMPT = (

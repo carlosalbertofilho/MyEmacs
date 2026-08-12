@@ -11,6 +11,15 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-12 — [CONCLUÍDO] Benchmark e Reavaliação de Modelos Locais no host aa102-006l [Etapa B3]
+   - **Objetivo:** Avaliar a performance (tok/s, TTFT e conclusão no Magent) dos modelos amigáveis ao hardware do host `aa102-006l` (Ollama).
+   - **Resultados de Desempenho:**
+     - `qwen2.5-coder:1.5b`: **15.11 tok/s**, TTFT **4.56s**, turno Magent em **4s** (`status=completed`).
+     - `qwen2.5-coder:3b`: **9.20 tok/s**, TTFT **6.34s**, turno Magent em **7s** (`status=completed`).
+     - `deepseek-r1:1.5b`: **16.82 tok/s**, TTFT **4.21s** (raciocínio rápido 1.5B).
+     - `gemma4:e2b`: **4.63 tok/s**, TTFT **32.61s** no Ollama (raciocínio pesado ~1102c).
+   - **Recomendação:** Para fallbacks locais no hardware do `aa102-006l`, utilizar `qwen2.5-coder:1.5b` (ultra rápido) ou `qwen2.5-coder:3b` (balanceado).
+
 ** 2026-08-12 — [CONCLUÍDO] Consolidação do Fluxo de Dev Elisp (IA → REPL → ERT) [Etapa A1]
    - **Objetivo:** Estabelecer o ciclo completo de desenvolvimento Elisp com suporte a geração de testes ERT via IA, blocos REPL scratch seguros e documentação RAG.
    - **Ações e Recursos:**

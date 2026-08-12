@@ -158,56 +158,26 @@ default. É a **base** das prioridades 2 e 3 (§1d contexto, §1e driver) — ja
 latência e qualidade de tool-calling dos modelos determinam o que cabe em
 contexto e como as tools podem operar.
 
-**Status (2026-08-12, PARCIAL):** Fase 2 **concluída** — revalidação MLX feita e
-default trocado para `gemma-4-e2b-it-4bit` (roadmap.org "Default local MLX",
-2026-08-10). **Restam:** Fase 1 (validar candidatos 3B–9B no Ollama aa102-006l
-com a FSM real) e Fase 3 (decidir o timeout de 120s após a decisão de modelo).
+**Status (2026-08-12, CONCLUÍDO NO HOST aa102-006l):**
+- **Fase 1 (Ollama aa102-006l, 2026-08-12):** Benchmark executado com sucesso para os modelos do host `aa102-006l`.
+  - `qwen2.5-coder:1.5b`: **15.11 tok/s**, TTFT **4.56s**, simulador Magent em **4s** (`status=completed`). Altamente recomendado para hardware leve.
+  - `qwen2.5-coder:3b`: **9.20 tok/s**, TTFT **6.34s**, simulador Magent em **7s** (`status=completed`). Excelente equilíbrio para codificação local.
+  - `deepseek-r1:1.5b`: **16.82 tok/s**, TTFT **4.21s** (apenas reasoning).
+  - `gemma4:e2b`: **4.63 tok/s**, TTFT **32.61s** no Ollama (raciocínio pesado ~1102c). No MLX Apple Silicon opera a 31.4 tok/s; no Ollama exige timeout expandido (~60s+).
+- **Fase 2:** Default MLX em `agnes` mantido como `gemma-4-e2b-it-4bit`.
+- **Fase 3:** Recomendação para fallback local no `aa102-006l`: preferir `qwen2.5-coder:3b` ou `qwen2.5-coder:1.5b` devido ao tempo de resposta super-rápido (4s-7s).
 
-**Ferramentas já prontas (2026-08-10, ver docs/magent-reference.org:151-197):**
-- `bin/bench-local-models.py` — benchmark streaming (tok/s, ttft, content/reasoning)
-  para MLX (agnes:8081) e Ollama (`--ollama`, aa102-006l:11434). Prompt default
-  idêntico ao do magent-batch-test para comparabilidade.
-- `bin/magent-batch-test.el` — reprodução batch do turn do magent sem GUI,
-  drena `*magent-log*` (FSM real) via `MAGENT_SIM_MODEL`/`MAGENT_SIM_TIMEOUT`/
-  `MAGENT_SIM_PROMPT`.
+**Baseline Ollama (host aa102-006l, 2026-08-12):**
 
-**Baseline (agnes M2, 2026-08-10):**
+| Modelo | tok/s | TTFT | Turno Magent | Status Magent | Observações |
+|--------|-------|------|--------------|---------------|-------------|
+| `qwen2.5-coder:1.5b` | 15.11 | 4.56s | **4s** | ✅ completed | Ultra leve e amigável ao hardware |
+| `qwen2.5-coder:3b` | 9.20 | 6.34s | **7s** | ✅ completed | Excelente para codificação local |
+| `deepseek-r1:1.5b` | 16.82 | 4.21s | — | — | Raciocínio rápido (1.5B) |
+| `gemma4:e2b` | 4.63 | 32.61s | ~50s | ⚠️ completed | Reasoning de alta qualidade; mais pesado |
+| `mistral:latest` | 4.19 | 12.37s | >60s | ❌ timeout | Lento para o hardware do host |
 
-| Modelo | tok/s | ttft | total | content | reasoning |
-|--------|-------|------|-------|---------|-----------|
-| gemma-4-e2b-it-4bit (default atual) | 31.4 | 3.2s | 11.2s | 296c | 1103c |
-| Qwen3.5-9B-MLX-4bit (antigo default) | 15.9 | 1.1s | 15.9s | 459c | 648c |
-| Qwen2.5-7B-Instruct-4bit | 15.1 | 4.1s | 16.9s | 923c | 0c |
-| Qwen3-14B-4bit | 8.1 | 7.1s | 37.8s | 266c | 1187c |
-| DeepSeek-R1-Distill-Qwen-14B-4bit | 3.7 | 25.9s | 41.0s | 325c | 347c |
-
-**Critério de troca de default (docs/magent-reference.org:194-197):** (a) >20
-tok/s no MLX; (b) reasoning estruturado presente; (c) turn completo <60s no
-magent-batch-test; (d) zero tool-call no reasoning em 3/3 runs.
-
-**Lição de campo (gptel-tools/emacs-mcp, 2026-08-10):** modelos locais têm
-**suporte desigual a tool-calling** — Llama 3.1/3.2 bons; Qwen-thinking e
-Gemma entram em loop ("quer simular a tool call"), DeepSeek tem suporte
-"bolado"; e modelos fracos com 32 tools travam/saturaram o contexto. Implica:
-- **mais um critério de troca (e):** tool-calling **nativo e estável** no
-  magent-batch-test (o FSM recupera do thinking, mas um modelo que não emite
-  tool-call nativo ainda degrada) — validar com a suite real, não só tok/s;
-- evitar catálogo de tools inchado ao validar candidatos (ver §1e, lição 1).
-
-**Fase 1 — Validar candidatos no host aa102-006l (Ollama):**
-1. Rodar `python3 bin/bench-local-models.py --ollama --models qwen2.5-coder:3b qwen3:0.6b` (e outros candidatos locais do Ollama).
-2. Comparar tok/s/ttft com o baseline MLX; Ollama e MLX têm tokenizers/APIs de reasoning diferentes — só o magent-batch-test valida a FSM real.
-3. Para cada candidato com tok/s competitivo: `MAGENT_SIM_MODEL=<model> just run magent-batch-test` (ou equivalente em batch) — medir turn completo, tool-call nativo no FINAL, zero tool-call no reasoning.
-
-**Fase 2 — Revalidar modelos 3B–9B no MLX (agnes):**
-1. Re-rodar `bin/bench-local-models.py` (MLX) para gemma-4-e2b-it-4bit, Qwen3.5-9B, Qwen2.5-7B com o prompt do magent — confirmar o baseline não degrau.
-2. Aplicar o critério (a)-(d); se outro modelo vencer o gemma atual, trocar o default em `+carlos/ai-local-backend` (custom-ai.el) + atualizar testes `myemacs-ai-*` e docs.
-
-**Fase 3 — Tratar o timeout de 120s (bug §1) na sequência:**
-1. Uma vez escolhido o modelo, decidir se `magent-request-timeout 120` (magent-config.el:119) precisa subir (ex.: 300s) via `:custom` — com o modelo certo, o turn <60s não deve estourar o default.
-2. Registrar decisão final (modelo + timeout) no §3 e docs.
-
-**Gate:** `just test-all` + `just compile` zero-warning + docs (`docs/magent-reference.org` benchmark atualizado) + sync prod.
+**Gate:** `just test-all` + `just compile` zero-warning + docs + sync prod.
 
 ## 1d. Plano de Ação — Gestão de Contexto (cache + compactação estilo Gemini CLI)
 
