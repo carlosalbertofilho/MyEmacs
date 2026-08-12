@@ -140,7 +140,7 @@ Funciona em buffers `git-commit-mode' ou `magit-commit-mode'."
 (with-eval-after-load 'magit-commit
   (when (fboundp 'transient-append-suffix)
     (transient-append-suffix 'magit-commit "c"
-      '("g" "IA Commit (Ollama Local)" +carlos/gptel-generate-commit-message))))
+      '("g" "IA Commit Message" +carlos/gptel-generate-commit-message))))
 
 (provide 'custom-git)
 ;;; custom-git.el ends here
