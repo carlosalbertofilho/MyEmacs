@@ -25,6 +25,27 @@
 (declare-function magent-llm-gptel--continue-with-user-message "magent-llm-gptel")
 (declare-function magent-llm-tool-call-event "magent-llm")
 
+;; ── Silenciar *Messages*: filtrar dumps longos (plist de tools / system prompt) ──
+;; O Emacs/gptel imprime ocasionalmente plists gigantes (lista de tools, system
+;; prompt do agente) via `message'. Suprimimos linhas > 400 chars no *Messages*
+;; mas mantemos ERROS (prefixo Error/Warning) sempre visíveis.
+(defvar +carlos/magent-message-max-len 400
+  "Comprimento máximo de mensagem permitido no *Messages*.
+  Mensagens mais longas são suprimidas (exceto erros).")
+
+(defun +carlos/magent-suppress-long-messages-a (orig-fn format-string &rest args)
+  "Suprime mensagens não-erro com mais de `+carlos/magent-message-max-len' chars."
+  (let* ((text (condition-case nil
+                   (apply #'format format-string args)
+                 (error format-string)))
+         (is-error (string-match-p "\\(?:Error\\|Warning\\|error\\|timeout\\|Stopped\\|Wrong type\\|DEBUG\\)" text)))
+    (if (and (not is-error)
+             (> (length text) +carlos/magent-message-max-len))
+        text  ;; retorna o texto mas não chama message (suprimido do *Messages*)
+      (apply orig-fn format-string args))))
+
+(advice-add 'message :around #'+carlos/magent-suppress-long-messages-a)
+
 ;; ── Diagnóstico: Desativar magent-log ──────────────────────────────
 (defvar +carlos/magent-disable-logging t
   "Non-nil desativa completamente o magent-log para evitar chamadas de log/message.")
@@ -132,7 +153,7 @@ Evita falha em `equal' com símbolos e previne o timeout de 120s no Gemini."
   (magent-default-agent "build")
   (magent-enable-audit-log t)
   (magent-project-instruction-file-names '("AGENTS.md"))
-  (magent-include-reasoning t)
+  (magent-include-reasoning nil)  ;; nil = sem thinkingConfig no Gemini (evita thoughtSignature que causa timeout)
   (magent-skill-directories
    (append (let ((new-dir (expand-file-name "magent/skills" user-emacs-directory))
                  (old-dir (expand-file-name "magent-skills" user-emacs-directory)))
