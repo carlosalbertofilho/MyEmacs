@@ -24,6 +24,7 @@
 (require 'dev-env-test)
 (require 'magent-test)
 (require 'local-ai-automation-test)
+(require 'context-test)
 
 (provide 'load-tests)
 ;;; load-tests.el ends here
