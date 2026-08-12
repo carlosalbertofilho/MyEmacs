@@ -11,6 +11,19 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-12 — [CONCLUÍDO] Resolução do Timeout de 120s do Magent & Remoção da FSM Customizada
+   - **Diagnóstico de Causa Raiz:**
+     1. *FSM Orchestrate Intercept & Suppress:* A advice customizada `+carlos/magent-fsm-orchestrate-a` (em `magent-llm-gptel--emit-completed-or-textual-tool-calls`) tentava capturar chamadas de ferramentas no reasoning de modelos locais. Quando o modelo (ex.: Gemini) emitia resposta com `text` vazio ou de encerramento sem tool call no reasoning, a FSM chamava `+carlos/magent--fsm-retry-empty-turn` e retornava `'completed-paused` sem chamar a função original `orig-fn`.
+     2. *Silenciamento do Evento Terminal:* Sem a execução da função original, a chamada `magent-llm-gptel--emit` com o evento `completed` nunca era enviada para o `magent-agent-loop`. O loop de eventos permanecia no estado `running` aguardando a finalização da requisição, ativando o timer de inatividade de 120s (`magent-request-timeout`), resultando no erro `Request timed out after 120 seconds`.
+     3. *Poluição do Buffer *Messages*:* O `gptel` e o `magent` exibiam no `*Messages*` o system prompt completo e o plist de ferramentas (>150KB por requisição), poluindo o diagnóstico do usuário e gerando sobrecarga.
+   - **Ações e Correções:**
+     - `lisp/custom-magent.el`: Removida completamente a FSM de orquestração (`+carlos/magent-fsm-orchestrate-a` e seus helpers `+carlos/magent--fsm-*`) e a advice de FSM de sampling (`+carlos/magent--fsm-override-a`).
+     - `lisp/custom-magent.el`: Definido `magent-include-reasoning nil` no `:custom` do `magent` para evitar o envio de `thinkingConfig: {includeThoughts: true}` na API do Gemini.
+     - `lisp/custom-magent.el`: Implementada a advice `+carlos/magent-suppress-long-messages-a` em `message` com limite `+carlos/magent-message-max-len 400`, mantendo apenas mensagens de erro e avisos críticos visíveis no `*Messages*`.
+   - **Validação:**
+     - Sintaxe e compilação validadas via `just compile` e `just compile-prod` com zero erros/warnings.
+     - Testado o ambiente oficial do usuário (`just check-prod` e daemon vivo).
+
 ** 2026-08-10 — [CONCLUÍDO] Auditoria Rigorosa de Performance, Redisplay e Gemini Tool Calling
    - **Diagnóstico:** Análise de causa-raiz identificou dois gargalos independentes no fluxo do Magent e na exibição Lisp:
      1. *Redisplay / BPA lockup:* Mensagens longas com plists de ferramentas/closures geravam strings de 5MB em 1 linha. O motor C do Emacs (`src/bidi.c`) executava o algoritmo BPA (`bidi_find_bracket_pairs`) e `resize_mini_window` com O(N²) a cada 0.1s de `sit-for`/timers, travando o thread principal a 100% CPU.

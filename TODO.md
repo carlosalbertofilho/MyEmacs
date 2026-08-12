@@ -54,6 +54,11 @@ inteiro colado.
 
 ## 1. Pendências de Investigação e Diagnóstico (Bugs Resolvidos)
 
+- [x] **Timeout de 120s no Magent com Gemini (`Request timed out after 120 seconds`) (2026-08-12, RESOLVIDO):**
+  - **Sintoma:** Requisições do Magent no Gemini via API expiravam em 120s com `Error: Request timed out after 120 seconds` e `Stop for unknown reason: error`.
+  - **Causa Raiz:** A advice de FSM `+carlos/magent-fsm-orchestrate-a` (em `magent-llm-gptel--emit-completed-or-textual-tool-calls`) interceptava respostas com `text` vazio. Ao executar `+carlos/magent--fsm-retry-empty-turn`, ela retornava o símbolo `'completed-paused` sem chamar a `orig-fn`. Com isso, a chamada nativa que emitia o evento `completed` para o `magent-agent-loop` nunca acontecia, e o timer de inatividade de 120s da malha do agente disparava. Além disso, `magent-include-reasoning t` ativava `thinkingConfig` no Gemini, enviando chunks de raciocínio não textuais.
+  - **Solução:** Removida a FSM customizada de orquestração (`+carlos/magent-fsm-orchestrate-a` e seus helpers `+carlos/magent--fsm-*`) de `lisp/custom-magent.el`. Definido `magent-include-reasoning nil` para backend Gemini. Adicionado o filtro `+carlos/magent-suppress-long-messages-a` em `message` para suprimir dumps de system prompt e plists (>400 chars) no `*Messages*`.
+
 - [x] **Travamento de CPU (100% CPU em `bidi_find_bracket_pairs` / `resize_mini_window`) (2026-08-10, RESOLVIDO):**
   - **Sintoma:** O daemon do Emacs travava em 100% CPU e o `emacsclient` deixava de responder quando o Magent/GPTel logava mensagens longas contendo o plist de ferramentas com parênteses/colchetes desbalanceados no echo area/minibuffer.
   - **Causa Raiz:** O motor de redisplay C do Emacs acionava o algoritmo BPA (`bidi_find_bracket_pairs`) e a varredura do minibuffer (`resize_mini_window`) para calcular a altura da mensagem do echo area a cada ciclo de `sit-for`/timers (`wait_reading_process_output`), entrando em complexidade quadrática em C.
