@@ -38,9 +38,7 @@ inteiro colado.
    o modelo emitir tool calls estáveis (Fase 2 já concluída: gemma default no
    MLX). Lição de campo: Gemini cloud e Llama local são os confiáveis; validar
    candidatos 3B–9B no Ollama e decidir o timeout de 120s.
-4. **Contexto sob controle** (§1d) — cache de prefixo estável + compactação por
-   janela. As tools do driver (buffer, flycheck, LSP) adicionam carga de
-   contexto; sem isso o modelo pequeno degrada e o timeout de 120s volta.
+4. **Contexto sob controle (100% Automático)** (§1d) — Opção 4 Híbrida: cache de prefixo estável (zero-loss) + auto-compactação automática por threshold de 60% da janela do modelo em segundo plano.
 
 **Etapa C — A Ambição (5 → 6 → 7; depende da Etapa B):**
 5. **Fase A — Tools curadas** (§1e) — catálogo **enxuto** (3 tools):
@@ -179,33 +177,13 @@ contexto e como as tools podem operar.
 
 **Gate:** `just test-all` + `just compile` zero-warning + docs + sync prod.
 
-## 1d. Plano de Ação — Gestão de Contexto (cache + compactação estilo Gemini CLI)
+## 1d. Plano de Ação — Gestão de Contexto Automática (Opção 4 Híbrida: Prefixo Estável + Auto-compactação 60%)
 
-**Objetivo (2026-08-10):** gerenciar o contexto enviado ao modelo — usando
-estratégias de **cache** (prefixo estável para custo/latência) e **compactação**
-(resumo estruturado) — **sem degradar a informação** que chega ao modelo.
-Referências: Context Caching da Gemini API (`ai.google.dev/gemini-api/docs/caching`),
-Context Compaction do gemini-cli (issue google-gemini/gemini-cli#494).
+**Decisão de Arquitetura (2026-08-12):** Selecionada a **Opção 4 (Estratégia Híbrida 100% Automática)** para eliminar a necessidade de execução manual de comandos. A gestão de contexto passa a ser totalmente autônoma.
 
-**Diagnóstico do estado atual (Magent embutido):**
-- **Já existe compactação manual:** `/compact` + agente `compaction`
-  (`magent-runtime-session-compact`, magent-runtime-api.el:597). Ao compactar,
-  um turno `:compaction t` marca um boundary e o histórico reenviado ao LLM
-  começa dele (`magent-session--turns-from-last-compaction`,
-  magent-session.el:1412-1420).
-- **Já existe system message estável:** reconstruído por turno mas com conteúdo
-  estável (global + role + contexto + AGENTS.md + skills + runtime-policy,
-  magent-agent.el:136-166) — candidato natural a cache de prefixo exato.
-- **Lacunas:** (1) **sem auto-compactação** por tamanho de janela; (2) prompt de
-  compactação genérico (`internal/session-compaction.org`) sem lista de
-  preservação estruturada — risco de perda de decisões; (3) **sem medição de
-  hit-rate de cache**; (4) contexto pesado degrada o modelo local pequeno
-  (problema do timeout de 120s, §1).
-- **Infra disponível para reuso:** o tracker já loga tokens `cached` por chamada
-  (`+carlos/gptel-track-usage`, custom-ai.el:616-666); eventos de ciclo de vida
-  do magent têm sistema de sinks registráveis (`magent-lifecycle-events-add-sink`,
-  evento `turn-end`, magent-lifecycle-events.el:74-109); modelos gptel carregam
-  `:context-window` no plist (leitura como gptel-transient.el:1300).
+**Estratégia Híbrida Automática:**
+1. **Cache de Prefixo Automático (Zero-Loss):** Isolamento de trechos dinâmicos (relógio/timestamp, status git mutável) no final da mensagem do usuário, mantendo o início da System Message (`AGENTS.md`, diretivas, skills, tools) 100% idêntico para acionar o Context Caching nativo da Gemini API / OpenCode Zen.
+2. **Auto-Compactação Inteligente por Threshold (60%):** Sink de lifecycle `turn-end` monitora o volume de tokens acumulados. Ao atingir `>= 60%` da janela do modelo ativo, dispara `magent-runtime-session-compact` automaticamente em segundo plano com instrução de preservação estruturada.
 
 ---
 
