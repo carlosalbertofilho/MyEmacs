@@ -3,7 +3,7 @@
 > **Histórico de planos concluídos (0.5–0.27):** todos implementados, validados e
 > arquivados no [roadmap.org](roadmap.org) (Linha do Tempo). Este arquivo mantém
 > apenas pendências ativas, backlog futuro e decisões registradas.
-> Revisão arquivamento: 2026-08-09.
+> Revisão arquivamento: 2026-08-12.
 
 ## 0. Prioridade de Execução (2026-08-10)
 
@@ -14,10 +14,10 @@
 
 Ordem deliberada dos planos de ação — trabalhar nesta sequência:
 
-1. **Verificação de Modelos Locais** (§1c) — benchmark com os scripts salvos
-   (`bin/bench-local-models.py` + `bin/magent-batch-test.el`), validar candidatos
-   3B–9B no MLX/Ollama com a FSM real e aplicar o critério de troca de default
-   (docs/magent-reference.org:194-197). Base para tudo que vem depois.
+1. **Verificação de Modelos Locais** (§1c) — Fase 2 **concluída** (default já
+   trocado para `gemma-4-e2b-it-4bit`); **restam** Fase 1 (validar candidatos
+   3B–9B no Ollama com a FSM real) e Fase 3 (decidir o timeout de 120s) — ver
+   §1c. Base para tudo que vem depois.
 2. **Gestão de Contexto** (§1d) — cache (prefixo estável) + compactação
    estruturada (cache + auto-compact por janela). Depende do §1c: modelos
    diferentes têm janelas e limites de contexto diferentes.
@@ -66,10 +66,15 @@ um buffer de `prog-mode`. Falhas afetadas:
 - `myemacs-dev-apheleia-inhibit-c-mode`
 - `myemacs-kbd-no-collisions`
 
-**Ação — tornar o hook do jinx resiliente a builds parciais (não é só mascarar):**
-melhora legítima de portabilidade (AGENTS.md: "Works anywhere"). O padrão de
-guarda para módulo nativo já é usado em `custom-term.el` (vterm) via
-`skip-unless` nos testes; aqui a guarda vai no hook de runtime.
+**Status (2026-08-12, ATUALIZADO):** o plano original (guard no hook de runtime)
+**não foi aplicado**. A mitigação efetiva foi **test-side**: `tests/spell-test.el`
+usa `skip-unless` quando o `jinx` não carrega (builds parciais do repo) — a suíte
+passa, mas o hook `prog-mode-hook → #'jinx-mode` (custom-jinx.el:32) segue direto
+e ainda pode errar em runtime num build parcial. **Decisão pendente:** manter como
+está (testes já cobrem) ou aplicar o guard runtime abaixo (opcional, portabilidade
+"Works anywhere"; o padrão `skip-unless` já é usado no vterm/custom-term.el).
+
+Caminho opcional (não aplicado, caso se decida pela guarda de runtime):
 
 1. Em `lisp/custom-jinx.el`, adicionar helper:
 
@@ -111,6 +116,11 @@ fluxo real do magent (tool-calling via FSM) e aplicar o critério de troca de
 default. É a **base** das prioridades 2 e 3 (§1d contexto, §1e driver) — janela,
 latência e qualidade de tool-calling dos modelos determinam o que cabe em
 contexto e como as tools podem operar.
+
+**Status (2026-08-12, PARCIAL):** Fase 2 **concluída** — revalidação MLX feita e
+default trocado para `gemma-4-e2b-it-4bit` (roadmap.org "Default local MLX",
+2026-08-10). **Restam:** Fase 1 (validar candidatos 3B–9B no Ollama aa102-006l
+com a FSM real) e Fase 3 (decidir o timeout de 120s após a decisão de modelo).
 
 **Ferramentas já prontas (2026-08-10, ver docs/magent-reference.org:151-197):**
 - `bin/bench-local-models.py` — benchmark streaming (tok/s, ttft, content/reasoning)
@@ -390,128 +400,26 @@ orquestração). **NÃO aplicar agora:** faseamento discutido; decidir escopo re
 (`just compile-prod`/`just check-prod`). Atualizar `docs/magent-reference.org`
 (seção "Driver do Emacs") e `roadmap.org`.
 
-## 1f. Plano de Ação — Pacotes opcionais ausentes do org-noter (nov/djvu) + ruído de boot
+## 1f. Plano de Ação — org-noter nov/djvu (CONCLUÍDO — arquivado)
 
-**Objetivo (2026-08-10):** eliminar os warnings persistentes de pacotes ausentes
-no boot do prod (`just check-prod`):
-
-- `'nov' package not found / ATTENTION: org-noter-nov needs the package 'nov'`
-- `'djvu' package not found / ATTENTION: org-noter-djvu needs the package 'djvu'`
-
-Suporte **completo** a EPUB (`nov`) e DJVU (`djvu`), com os binários DjVuLibre
-providos pelo **Nix do MyMachine**. O warning `Unknown type jupyter-kernel-client`
-é upstream/benigno e fica **documentado, sem código** (já é filtrado no gate
-`just compile-prod`).
-
-**Verificação (2026-08-10):**
-- Suíte ERT (`just test-all`): **159 testes, 151 pass, 8 skipped (esperados), 0 falhas**.
-  Os skips: 3 norminette/42 (binários ausentes, ambiente 42 só) + 5 AI de rede
-  (`EMACS_TEST_NETWORK` opt-in). Não há erro persistente na suíte — os "erros"
-  são ruído de boot.
-- Causa-raiz dos warnings: `org-noter.el` carrega no boot (o `:after org` é
-  ignorado com `use-package-expand-minimally t`) e, no top-level, require
-  `org-noter-nov`/`org-noter-djvu` conforme o default de
-  `org-noter-supported-modes` = `'(doc-view-mode pdf-view-mode nov-mode djvu-read-mode)`
-  (org-noter-core.el:58). Como `nov`/`djvu` não estão instalados, cada require
-  imprime `package not found` + `ATTENTION`.
-- Receitas Elpaca confirmadas nos caches (`elpaca/cache/`):
-  - `nov` → MELPA: `(nov :fetcher git :url "https://depp.brause.cc/nov.el.git")` — precisa só de `unzip` (presente) + libxml2 (Emacs 29+).
-  - `djvu` → GNU ELPA: `emacsmirror/gnu_elpa` branch `externals/djvu`. Requer os binários `djvused/djview/ddjvu/djvm` — **ausentes** (`command -v` negativo); a fonte desses binários é o Nix.
-- **Decisão do usuário (2026-08-10, revisada):** instalar `nov` **e** `djvu` via
-  Elpaca e **adicionar DjVuLibre ao Nix do MyMachine** — nada de dependência morta.
-- **Pull prévio (feito 2026-08-10):** MyEmacs e MyMachine em sync com `origin/main`
-  (`866cb12` e `main` sem divergência).
-
----
-
-**Ação 0 — Nix: DjVuLibre no MyMachine (`MyMachine/home/carlosfilho/emacs.nix`):**
-
-No bloco `home.packages`, junto às deps de PDF/visualização, adicionar:
-
-```nix
-# djvu.el (org-noter) — tools DjVuLibre (djvused, ddjvu, djvm)
-djvulibre
-# Viewer GUI do DjVu (djview) — djvu.el assume `djview' no PATH
-djview
-```
-
-- `djvulibre` fornece `djvused`, `ddjvu`, `djvm` (núcleo que o `djvu.el` exige);
-  `djview` é o viewer GUI que `djvu.el` também referencia (`executable-find "djview"`).
-- Fluxo: editar → `git commit`/`push` no MyMachine → `home-manager switch`
-  (ou rebuild do flake) → validar com `command -v djvused ddjvu djvm djview`.
-
-**Ação 1 — Instalar `nov` e `djvu` (`lisp/custom-org.el`):**
-
-```elisp
-(use-package nov
-  :ensure t
-  :mode "\\.epub\\'")
-
-(use-package djvu
-  :ensure t)
-```
-
-- `nov`: recipe MELPA resolvida pelo Elpaca; `:mode` associa `.epub` → `nov-mode`
-  (setup padrão do pacote). `unzip` e libxml2 já presentes.
-- `djvu`: recipe GNU ELPA resolvida pelo Elpaca. Sem `:mode` próprio (o pacote
-  define o auto-mode-alist para `.djvu` internamente via `djvu.el`).
-
-**Ação 2 — Garantir `org-noter-supported-modes` completo (`lisp/custom-org.el`):**
-
-```elisp
-(use-package org-noter
-  :ensure t
-  :after org
-  :custom
-  (org-noter-supported-modes '(doc-view-mode pdf-view-mode nov-mode djvu-read-mode))
-  :config
-  (setq org-noter-notes-search-path '("~/org/notes")))
-```
-
-`:custom` expande para `customize-set-variable` em `:init` (antes do load), então o
-top-level de `org-noter.el` já enxerga a lista com `nov-mode`/`djvu-read-mode` e
-require os módulos sem warning — agora com os pacotes presentes. A declaração
-explícita também protege contra futuras mudanças do default upstream. Regra
-AGENTS.md respeitada: `:custom`, não `setq` em opção de pacote.
-
-**Ação 3 — Warning `jupyter-kernel-client` (upstream, NÃO alterar código):**
-`Warning: Optimization failure for cl-typep ... (error "Unknown type jupyter-kernel-client")`
-é fallback do otimizador nativo no pacote jupyter (`cl-typep` referencia a
-`defclass` de `jupyter-kernel-client` sem o tipo visível no ponto de compilação) —
-**benigno**: o código roda no caminho não-otimizado. Já filtrado no gate
-`just compile-prod` (`rg -v 'Unknown type jupyter'`). Aparece 1x por boot após
-`just rebuild-prod` (eln-cache limpo). Opção futura se incomodar: fix upstream
-(ordering da `defclass`) ou pin de versão mais nova — fora do escopo desta rodada.
-
-**Testes (`tests/org-test.el`):**
-- `myemacs-org-nov-installed` — `(should (or (featurep 'nov) (locate-library "nov")))`: garante que nov instalou e está no load-path.
-- `myemacs-org-djvu-installed` — `(should (or (featurep 'djvu) (locate-library "djvu")))`: idem para djvu.
-- `myemacs-org-noter-supported-modes-full` — `org-noter-supported-modes` contém `nov-mode` **e** `djvu-read-mode`.
-- `myemacs-org-noter-no-missing-module-warnings` — varrer `*Messages*` do boot e garantir ausência de `"package not found"`/`"needs the package"`.
-
-**Docs:**
-- `docs/org-ecosystem.org` — tabela de pacotes (adicionar `nov` e `djvu`); seção org-noter (modos suportados + dependências opcionais); ajustar troubleshooting se houver menção.
-- `docs/package-management.org` — package list: adicionar `nov` e `djvu`.
-- `docs/term-stack.org`/`docs/ui-stack.org` — nada (fora do escopo).
-- `roadmap.org` — linha do tempo 2026-08-10.
-- `TODO.md` §3 Decisões: registrar "nov+djvu via Elpaca; DjVuLibre via Nix do MyMachine (`djvulibre`+`djview` em `emacs.nix`)".
-
-**Gate:**
-- Nix: `home-manager switch` no MyMachine + `command -v djvused ddjvu djvm djview`.
-- `just test-all` (repo) — sem novas falhas (159 testes, 0 fail, 8 skipped).
-- `just compile` zero-warning.
-- Commit/push → `just sync` → `just rebuild-prod` → `just compile-prod` (zero-warning) → `just check-prod` **sem** os warnings `nov`/`djvu`.
-- Re-rodar a suíte no prod (`just test` autoritativo) com os 4 testes novos passando.
-
-**Dependência de ordem:** os binários DjVuLibre (Ação 0) precisam estar no PATH
-antes de validar o `djvu.el` em runtime; o Elpaca (Ação 1) e o boot (Ação 2) só
-precisam do elisp, então `just check-prod` passa mesmo sem o switch do Nix.
-
-**Regras do Executor:** padrões do AGENTS.md (prefixo `+carlos/` só para funções
-próprias — aqui não é necessário; `:custom` em vez de `setq`; `:ensure t` para
-externos). **NÃO aplicar agora:** este é o plano; o Executor aplica quando acionado.
+> **Arquivado em 2026-08-12:** implementado e validado (ver roadmap.org
+> "org-noter: pacotes opcionais nov+djvu e boot limpo"). Código em
+> `lisp/custom-org.el` (`nov` MELPA `:mode "\\.epub\\'"`, `djvu` GNU ELPA,
+> `org-noter-supported-modes` com os 4 modos em `:custom`), testes em
+> `tests/org-test.el` (`myemacs-org-{nov-installed,djvu-installed,noter-supported-modes-full,noter-no-missing-module-warnings}`),
+> binários DjVuLibre no MyMachine (`djvulibre`+`djview` em `emacs.nix`,
+> commit `b8e8fb5`). Warning `jupyter-kernel-client` documentado como benigno.
+> Decisão registrada no §3.
 
 ## 1g. Plano de Ação — Elpaca 0.2.0 não ativa pacotes instalados (boot travado + suíte batch quebrada)
+
+**Status (2026-08-12, REVISAR):** o plano **não foi aplicado** — `custom-lang.el`/
+`custom-42.el` seguem com `:ensure t` + `(elpaca-wait)`. Porém o problema **não
+reaparece**: prod validado com 165 testes + daemon responsivo após
+`just rebuild-prod` (roadmap.org "Auditoria", 2026-08-10). **Hipótese:** o
+travamento era build stale, já mitigado pela política de limpeza de artefatos
+(`just rebuild`/`clean-prod`). **Decisão pendente:** manter o plano como migração
+futura de robustez (`:ensure (:wait t)`) ou arquivar como não-causa.
 
 **Diagnóstico (2026-08-10, sessão com `emacs --daemon` + `just check-all`):**
 
