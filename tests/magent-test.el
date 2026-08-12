@@ -162,6 +162,7 @@ inclui a diretriz DSML após o advice :filter-return."
 (ert-deftest myemacs-magent-sanitize-parse-response-arity ()
   "Garante que `magent-llm-gptel--sanitize-after-parse-response-a' aceite
 5 ou mais argumentos sem estourar Wrong number of arguments no Gemini streaming."
+  (require 'custom-magent nil t)
   (skip-unless (fboundp 'magent-llm-gptel--sanitize-after-parse-response-a))
   (let ((called nil))
     (cl-letf (((symbol-function 'magent-llm-gptel--managed-info-p) (lambda (&rest _) nil)))
