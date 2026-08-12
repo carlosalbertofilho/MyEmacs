@@ -23,6 +23,8 @@
 (declare-function magent-llm-gptel--metadata "magent-llm-gptel")
 (declare-function magent-llm-gptel--pending-tool-use-p "magent-llm-gptel")
 (declare-function magent-llm-gptel--continue-with-user-message "magent-llm-gptel")
+(declare-function magent-llm-gptel--managed-info-p "magent-llm-gptel")
+(declare-function magent-llm-gptel--sanitize-info "magent-llm-gptel")
 (declare-function magent-llm-tool-call-event "magent-llm")
 
 ;; ── Silenciar *Messages*: filtrar dumps longos (plist de tools / system prompt) ──
