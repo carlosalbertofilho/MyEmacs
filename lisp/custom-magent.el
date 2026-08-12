@@ -525,6 +525,21 @@ Retorna templates do Tempel ou a estrutura do snippet ARGS :name."
        :function #'+carlos/magent-tool-snippet-expand
        :category "magent"))))
 
+(with-eval-after-load 'magent-tools
+  (when (boundp 'magent-tools-catalog)
+    (add-to-list 'magent-tools-catalog
+                 `(:name "flycheck_errors" :tool ,+carlos/magent-tool-flycheck-errors :permission flycheck_errors))
+    (add-to-list 'magent-tools-catalog
+                 `(:name "lsp_navigation" :tool ,+carlos/magent-tool-lsp-navigation :permission lsp_navigation))
+    (add-to-list 'magent-tools-catalog
+                 `(:name "snippet_expand" :tool ,+carlos/magent-tool-snippet-expand :permission snippet_expand))))
+
+(with-eval-after-load 'magent-config
+  (when (boundp 'magent-enable-tools)
+    (add-to-list 'magent-enable-tools 'flycheck_errors)
+    (add-to-list 'magent-enable-tools 'lsp_navigation)
+    (add-to-list 'magent-enable-tools 'snippet_expand)))
+
 ;; ── Display rules ──────────────────────────────────────────────────
 (add-to-list 'display-buffer-alist
              '("\\*Magent"

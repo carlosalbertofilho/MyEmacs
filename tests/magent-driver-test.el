@@ -32,5 +32,12 @@
     (should (listp res))
     (should (plist-get res :status))))
 
+(ert-deftest myemacs-driver-tools-catalog-registered ()
+  "Garante que as 3 ferramentas curadas estão registradas no Magent."
+  (when (require 'magent-tools nil t)
+    (should (magent-tools-catalog-entry "flycheck_errors"))
+    (should (magent-tools-catalog-entry "lsp_navigation"))
+    (should (magent-tools-catalog-entry "snippet_expand"))))
+
 (provide 'magent-driver-test)
 ;;; magent-driver-test.el ends here
