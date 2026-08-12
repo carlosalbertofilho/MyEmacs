@@ -94,8 +94,9 @@
         corfu-auto-delay 0.1
         corfu-auto-prefix 2
         corfu-cycle t
-        corfu-popupinfo-delay '(0.2 . 0.1)
-        corfu-popupinfo-mode t))
+        corfu-popupinfo-delay '(0.2 . 0.1))
+  (when (fboundp 'corfu-popupinfo-mode)
+    (corfu-popupinfo-mode 1)))
 
 ;; Corfu minibuffer integration
 (defun +carlos/corfu-enable-in-minibuffer ()
