@@ -11,6 +11,16 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-12 — [CONCLUÍDO] Consolidação do Fluxo de Dev Elisp (IA → REPL → ERT) [Etapa A1]
+   - **Objetivo:** Estabelecer o ciclo completo de desenvolvimento Elisp com suporte a geração de testes ERT via IA, blocos REPL scratch seguros e documentação RAG.
+   - **Ações e Recursos:**
+     - `lisp/custom-dev.el`: Adicionados prompts `+carlos/elisp-ert-prompt` e `+carlos/elisp-debug-prompt`.
+     - `lisp/custom-dev.el`: Implementados `+carlos/ert-generate-tests` (`C-c D e` / `C-c C-e`) e `+carlos/insert-repl-block` (`C-c D b` / `C-c C-b`).
+     - `tests/dev-test.el`: Suíte ERT dedicada cobrindo comandos, prompts e keybindings.
+     - `docs/dev-workflow.org`: Documentação RAG com tabela de keybindings e fluxo de dev.
+     - `AGENTS.md`: Atualizada tabela RAG Cache.
+   - **Validação:** 165 testes ERT aprovados (`just check-all`), gate zero-warning e boot batch no prod.
+
 ** 2026-08-12 — [CONCLUÍDO] Resolução do Timeout de 120s e Resposta Vazia do Magent
    - **Diagnóstico de Causa Raiz:**
      1. *Incompatibilidade de Aridade em Streaming (`gptel--parse-response`):* A função `magent-llm-gptel--sanitize-after-parse-response-a` declarava apenas 4 argumentos (`orig-fn backend response info`). No `gptel-gemini.el`, `gptel--parse-response` aceita 5 argumentos (`include-text` opcional). Como `magent-llm-gptel-sample` executava `magent-llm-gptel--install-boundary-advice` a cada turno, o advice de 4 argumentos era continuamente reativado em volta de `gptel--parse-response`, gerando `Wrong number of arguments: ..., 5`. O parser `gptel-curl--parse-stream` capturava a exceção silenciosamente em `condition-case nil` e retornava `""` (string vazia) para todo o streaming.

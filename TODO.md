@@ -28,9 +28,7 @@ inteiro colado.
 ### Pipeline de execução (do chão até a ambição)
 
 **Etapa A — Fundação (chão estável; itens paralelos, baixo risco):**
-1. **Fluxo de dev Elisp** (§1h) — gerador de testes ERT via IA, bloco REPL
-   `(when nil ...)`, prompts centralizados. Acelera todo o elisp novo que a
-   Etapa C exige (tools curadas testáveis no loop IA→REPL→ERT).
+1. **Fluxo de dev Elisp** (§1h — CONCLUÍDO 2026-08-12) — gerador de testes ERT via IA (`C-c D e`), bloco REPL `(when nil ...)` (`C-c D b`), prompts centralizados e docs RAG (`docs/dev-workflow.org`).
 2. **Robustez de infra** (§1g — decidir migrar `:ensure (:wait t)` ou arquivar;
    §1b — guard de runtime do jinx, opcional) — quick-wins de
    portabilidade/estabilidade; não bloqueiam a Etapa B.
@@ -580,52 +578,21 @@ e remover os `(elpaca-wait)` top-level, mantendo `:demand t`.
 `just check-prod` pós-sync quando houver `.elc` stale). **NÃO aplicar agora:** este é o
 plano; o Executor aplica quando acionado. Ordem de execução recomendada: Fase 1 → 2 → 3 → 5 → 6; Fase 4 sob demanda.
 
-## 1h. Plano de Ação — Fluxo de Dev Elisp (IA → REPL → ERT) [Etapa A1]
+## 1h. Plano de Ação — Fluxo de Dev Elisp (IA → REPL → ERT) [CONCLUÍDO 2026-08-12]
 
-**Objetivo (2026-08-12):** consolidar o ciclo de desenvolvimento Elisp
-(IA → REPL → ERT) para acelerar o elisp novo que a Etapa C (§1e, tools curadas)
-exige. `lisp/custom-dev.el` já tem o esqueleto (IELM, ERT runners, debug via IA,
-prefixo `C-c D`); o plano adiciona o que falta e documenta o fluxo.
+**Objetivo (2026-08-12):** consolidar o ciclo de desenvolvimento Elisp (IA → REPL → ERT) para acelerar o desenvolvimento de código elisp testável.
 
-**Já existe (não reconstruir):**
-- `+carlos/ert-run-buffer` / `+carlos/ert-run-test-at-point` (`C-c D t`/`C-c D T`),
-  `+carlos/ielm-open` (`C-c D r`), `+carlos/toggle-debug-on-error` (`C-c D d`),
-  `+carlos/debug-region-with-ai` (`C-c D a`); binds locais `C-c C-c`/`C-c C-t`
-  em `emacs-lisp-mode`.
-- Backend de IA para dev: `+carlos/gptel-quick-local-backend` → "Gemini" free
-  tier (`gemini-3.5-flash`).
+**Ações Concluídas:**
+- `lisp/custom-dev.el`: Adicionados prompts centralizados `+carlos/elisp-ert-prompt` e `+carlos/elisp-debug-prompt`.
+- `lisp/custom-dev.el`: Implementado o gerador de testes ERT via IA `+carlos/ert-generate-tests` (bind `C-c D e` global e `C-c C-e` local).
+- `lisp/custom-dev.el`: Implementado o helper de bloco REPL `+carlos/insert-repl-block` (`(when nil ...)` scratch, bind `C-c D b` global e `C-c C-b` local).
+- `tests/dev-test.el`: Criada suíte ERT validando comandos, prompts, binds globais e locais, e o gerador de scratch.
+- `docs/dev-workflow.org`: Criado documento RAG com a tabela de atalhos e fluxo de dev.
+- `AGENTS.md`: Registrado `docs/dev-workflow.org` na tabela RAG Cache.
 
-**Ação 1 — Gerador de testes ERT via IA (`+carlos/ert-generate-tests`, `C-c D e`):**
-- Seleciona a função (região ou defun sob o ponto) e envia ao gptel via
-  `+carlos/gptel-request` com prompt centralizado `+carlos/elisp-ert-prompt`:
-  gerar `ert-deftest` no padrão `myemacs-<area>-<desc>`, com edge cases
-  (`should`/`should-error`).
-- Insere num buffer `*gptel-tests*` para revisão (não grava no disco sozinho);
-  depois `C-c D t` roda a suíte do buffer.
-
-**Ação 2 — Bloco REPL `(when nil ...)` (`+carlos/insert-repl-block`, `C-c D b`):**
-- Insere `(when nil ...)` com a forma selecionada + comentário, para testar
-  inline com `C-x C-e` sem efeito colateral (nunca é avaliado no load real).
-
-**Ação 3 — Prompts centralizados (`defconst`):** `+carlos/elisp-ert-prompt` e
-`+carlos/elisp-repl-block-prompt` — textos testáveis e reutilizáveis (o
-`+carlos/debug-region-with-ai` também passa a usá-los).
-
-**Docs:** novo `docs/dev-workflow.org` (ciclo IA→REPL→ERT, tabela de binds,
-prompts); AGENTS.md — adicionar `custom-dev.el` na árvore + doc na tabela RAG.
-
-**Testes (`tests/dev-test.el`):** comandos existem (`+carlos/ert-generate-tests`,
-`+carlos/insert-repl-block`), binds `C-c D e`/`C-c D b`, prompts contêm as
-palavras-chave (`myemacs-`, `should-error`, `when nil`), sem colisão (portão
-`myemacs-kbd-no-collisions` — usa só o prefixo livre `C-c D`).
-
-**Gate:** `just test-all` + `just compile` zero-warning + sync prod
-(`just compile-prod`/`just check-prod`). Atualizar `docs/dev-workflow.org` e
-`roadmap.org`.
-
-**Regras do Executor:** padrões do AGENTS.md (prefixo `+carlos/`, guards
-`fboundp`/`require nil t`, `:custom` sem `setq`, `with-eval-after-load`).
-**NÃO aplicar agora:** este é o plano; o Executor aplica quando acionado.
+**Validação:**
+- Suíte ERT executada via `just check-all`: **165/165 testes aprovados (0 falhas)**.
+- Gate zero-warning e boot de produção validados.
 
 ## 2. Backlog (Planejamento Futuro, Ordenado por Dificuldade)
 

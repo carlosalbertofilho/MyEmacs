@@ -366,6 +366,7 @@ All package APIs are documented in `docs/`. Reference these files before making 
 | Jinx/Spell | `docs/spell-stack.org` | jinx, libenchant, dicionários pt_BR/en_US, correção gramatical IA |
 | Doom Inspiration | `docs/doom-inspiration.org` | Doom Emacs configurations for Dirvish, Dired, Org aesthetics, fonts, and slides |
 | Testing Suite | `docs/testing-suite.org` | Testes ERT, detecção de colisões de teclas, portões de qualidade, warnings e erros de Lisp |
+| Dev Workflow | `docs/dev-workflow.org` | Ciclo IA → REPL → ERT, gerador de testes ERT (`C-c D e`), scratch blocks `(when nil ...)` (`C-c D b`) |
 | AI Providers | `docs/ai-providers-reference.org` | Detalhamento de quotas, modelos e segurança do Google AI Studio e OpenCode Zen |
 
 **ALWAYS read the relevant doc file before modifying a package's configuration.**

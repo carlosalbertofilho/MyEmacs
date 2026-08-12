@@ -17,7 +17,23 @@
 (defvar +carlos/gptel-quick-local-backend)
 (defvar +carlos/gptel-quick-local-model)
 
-;; ── ERT runners ─────────────────────────────────────────────────────
+;; ── Prompts centralizados para dev ──────────────────────────────────
+(defconst +carlos/elisp-ert-prompt
+  "Você é um especialista em Emacs Lisp e testes ERT. Gere uma suíte de testes ERT (`ert-deftest`) completa para a seguinte função/código Elisp.
+Regras obrigatórias:
+1. Nomeie os testes como `myemacs-<area>-<desc>` (ex.: `myemacs-dev-exemplo`).
+2. Inclua casos de sucesso (`should`) e casos de erro/borda (`should-error`).
+3. Use `cl-letf` para mocks quando necessário.
+4. Retorne APENAS o código Elisp puro executável, sem marcação de markdown extra.
+
+Código para testar:\n\n%s"
+  "Prompt centralizado para geração de testes ERT via IA.")
+
+(defconst +carlos/elisp-debug-prompt
+  "O REPL do Emacs estourou este erro/backtrace ao rodar um teste Elisp. Explique o estado de memória/escopo que causou o erro e apresente a correção direta:\n\n%s"
+  "Prompt centralizado para depuração de erros Elisp via IA.")
+
+;; ── ERT runners & IA generator ──────────────────────────────────────
 (defun +carlos/ert-selector-for-file (file)
   "Retorna o selector ERT para FILE (arquivo de teste `*-test.el')."
   (format "myemacs-%s-"
@@ -50,11 +66,56 @@ do ERT com cores (passou/falhou)."
         (ert test-name)
       (user-error "Não há `ert-deftest' antes do ponto"))))
 
-;; ── REPL ────────────────────────────────────────────────────────────
+(defun +carlos/ert-generate-tests ()
+  "Gera testes ERT via IA (gptel) para a região ou defun sob o ponto.
+O resultado é exibido no buffer `*gptel-tests*' para revisão antes de
+avaliação ou salvamento."
+  (interactive)
+  (let* ((beg (if (region-active-p) (region-beginning)
+                (save-excursion (beginning-of-defun) (point))))
+         (end (if (region-active-p) (region-end)
+                (save-excursion (end-of-defun) (point))))
+         (text (buffer-substring-no-properties beg end)))
+    (when (string-empty-p (string-trim text))
+      (user-error "Nenhum código Elisp selecionado para gerar testes"))
+    (message "Gerando testes ERT via IA...")
+    (when (require 'custom-ai nil t)
+      (+carlos/gptel-request
+       (format +carlos/elisp-ert-prompt text)
+       +carlos/gptel-quick-local-backend
+       +carlos/gptel-quick-local-model
+       :buffer "*gptel-tests*"
+       :callback (lambda (response _info)
+                   (when response
+                     (with-current-buffer (get-buffer-create "*gptel-tests*")
+                       (emacs-lisp-mode)
+                       (goto-char (point-max))
+                       (insert "\n;; ── Testes gerados via IA ──────────────────────────────\n"
+                               response "\n")
+                       (display-buffer (current-buffer)))
+                     (message "Testes ERT gerados no buffer *gptel-tests*")))))))
+
+;; ── REPL & Scratch Helpers ──────────────────────────────────────────
 (defun +carlos/ielm-open ()
   "Abre o IELM (REPL Elisp)."
   (interactive)
   (ielm))
+
+(defun +carlos/insert-repl-block ()
+  "Insere ou envolve a região/expressão em um bloco `(when nil ...)`.
+Usado para teste manual inline com `C-x C-e' no REPL sem efeito colateral no load."
+  (interactive)
+  (if (region-active-p)
+      (let ((beg (region-beginning))
+            (end (region-end)))
+        (goto-char end)
+        (insert "\n)")
+        (goto-char beg)
+        (insert "(when nil ;; REPL scratch\n  ")
+        (indent-region beg (point-max)))
+    (insert "(when nil ;; REPL scratch\n  )\n")
+    (forward-line -1)
+    (end-of-line)))
 
 (defun +carlos/toggle-debug-on-error ()
   "Alterna `debug-on-error' com feedback no minibuffer."
@@ -73,7 +134,7 @@ correção, seguindo o fluxo de depuração pós-erro do REPL."
          (text (buffer-substring-no-properties beg end)))
     (when (require 'custom-ai nil t)
       (+carlos/gptel-request
-       (format "O REPL do Emacs estourou este erro/backtrace ao rodar meu teste Elisp. Explique o estado de memória/escopo que causou e dê a correção:\n\n%s" text)
+       (format +carlos/elisp-debug-prompt text)
        +carlos/gptel-quick-local-backend
        +carlos/gptel-quick-local-model
        :buffer "*gptel-debug*"
@@ -87,13 +148,17 @@ correção, seguindo o fluxo de depuração pós-erro do REPL."
 (global-set-key (kbd "C-c D r") #'+carlos/ielm-open)            ; REPL dedicado
 (global-set-key (kbd "C-c D t") #'+carlos/ert-run-buffer)       ; roda testes do buffer
 (global-set-key (kbd "C-c D T") #'+carlos/ert-run-test-at-point); teste sob o ponto
+(global-set-key (kbd "C-c D e") #'+carlos/ert-generate-tests)   ; gera testes ERT via IA
+(global-set-key (kbd "C-c D b") #'+carlos/insert-repl-block)    ; insere bloco (when nil ...)
 (global-set-key (kbd "C-c D d") #'+carlos/toggle-debug-on-error); debug-on-error
 (global-set-key (kbd "C-c D a") #'+carlos/debug-region-with-ai) ; depura com IA
 
 ;; Binds locais do emacs-lisp-mode (sem poluir o global)
 (with-eval-after-load 'lisp-mode
   (define-key emacs-lisp-mode-map (kbd "C-c C-c") #'+carlos/ert-run-buffer)
-  (define-key emacs-lisp-mode-map (kbd "C-c C-t") #'+carlos/ert-run-test-at-point))
+  (define-key emacs-lisp-mode-map (kbd "C-c C-t") #'+carlos/ert-run-test-at-point)
+  (define-key emacs-lisp-mode-map (kbd "C-c C-e") #'+carlos/ert-generate-tests)
+  (define-key emacs-lisp-mode-map (kbd "C-c C-b") #'+carlos/insert-repl-block))
 
 (provide 'custom-dev)
 ;;; custom-dev.el ends here

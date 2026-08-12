@@ -1,0 +1,43 @@
+#+TITLE: Dev Workflow Reference — IA → REPL → ERT
+#+AUTHOR: Carlos Filho
+#+DATE: 2026-08-12
+#+OPTIONS: toc:2 num:t
+
+* Visão Geral
+
+Este documento descreve o fluxo de desenvolvimento interativo em Elisp no MyEmacs. O fluxo combina inspeção REPL síncrona no IELM, geração e depuração assistida por IA (gptel/Gemini), e validação rigorosa via suíte de testes ERT.
+
+* Ciclo de Desenvolvimento (IA → REPL → ERT)
+
+1. **REPL & Scratch Inline (`C-c D b` / `C-c D r`):**
+   - Use `C-c D b` (`+carlos/insert-repl-block`) para envolver expressões em `(when nil ...)` e avaliá-las inline com `C-x C-e` sem colaterais.
+   - Use `C-c D r` (`+carlos/ielm-open`) para abrir o IELM e inspecionar símbolos, hooks e estruturas dinâmicas em runtime.
+
+2. **Geração de Testes via IA (`C-c D e`):**
+   - Selecione uma função e pressione `C-c D e` (`+carlos/ert-generate-tests`).
+   - O gptel usa o prompt centralizado `+carlos/elisp-ert-prompt` para gerar testes no padrão `myemacs-<area>-<desc>` no buffer `*gptel-tests*`.
+
+3. **Validação ERT (`C-c D t` / `C-c D T`):**
+   - No arquivo de teste (`tests/<area>-test.el`), use `C-c D t` para executar a suíte do buffer.
+   - Coloque o cursor dentro de uma função `ert-deftest` e use `C-c D T` para rodar apenas aquele teste.
+
+4. **Depuração de Erros com IA (`C-c D a` / `C-c D d`):**
+   - Ative `debug-on-error` com `C-c D d`.
+   - Ao capturar um backtrace ou erro, selecione a região e pressione `C-c D a` (`+carlos/debug-region-with-ai`) para receber diagnóstico de escopo e estado de memória no buffer `*debug-ai*`.
+
+* Tabela de Keybindings
+
+| Atalho (Global) | Atalho (`emacs-lisp-mode`) | Comando | Descrição |
+|-----------------+----------------------------+---------+-----------|
+| ~C-c D r~       | —                          | ~+carlos/ielm-open~ | Abre o REPL IELM |
+| ~C-c D t~       | ~C-c C-c~                  | ~+carlos/ert-run-buffer~ | Roda testes ERT do buffer |
+| ~C-c D T~       | ~C-c C-t~                  | ~+carlos/ert-run-test-at-point~ | Roda teste ERT sob o ponto |
+| ~C-c D e~       | ~C-c C-e~                  | ~+carlos/ert-generate-tests~ | Gera testes ERT via IA |
+| ~C-c D b~       | ~C-c C-b~                  | ~+carlos/insert-repl-block~ | Insere bloco scratch ~(when nil ...)~ |
+| ~C-c D d~       | —                          | ~+carlos/toggle-debug-on-error~ | Alterna ~debug-on-error~ |
+| ~C-c D a~       | —                          | ~+carlos/debug-region-with-ai~ | Depura backtrace/região com IA |
+
+* Prompts Centralizados
+
+- ~+carlos/elisp-ert-prompt~: Solicita a geração de suíte ERT completa com naming ~myemacs-~, casos ~should~ e ~should-error~ e mocks com ~cl-letf~.
+- ~+carlos/elisp-debug-prompt~: Envia backtrace e código para análise de causa raiz de escopo e estado de memória.
