@@ -13,18 +13,20 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 ** 2026-08-12 — [CONCLUÍDO] Resolução do Timeout de 120s e Resposta Vazia do Magent
    - **Diagnóstico de Causa Raiz:**
-     1. *Incompatibilidade de Aridade em Streaming (`gptel--parse-response`):* A advice `magent-llm-gptel--sanitize-after-parse-response-a` declarava apenas 4 argumentos (`orig-fn backend response info`). No `gptel-gemini.el`, `gptel--parse-response` aceita 5 argumentos (`include-text` opcional). A chamada via `gptel-curl--parse-stream` repassava o 5º argumento, gerando `Wrong number of arguments: ..., 5`. Como `gptel-curl--parse-stream` envolve o parser em `condition-case nil`, a exceção era silenciada e a função retornava `""` (string vazia) em todas as respostas streaming do Gemini.
-     2. *FSM Orchestrate Intercept & Suppress:* A advice customizada `+carlos/magent-fsm-orchestrate-a` (em `magent-llm-gptel--emit-completed-or-textual-tool-calls`) interceptava respostas vazias e chamava `+carlos/magent--fsm-retry-empty-turn`, retornando `'completed-paused` sem invocar a `orig-fn`.
-     3. *Silenciamento do Evento Terminal:* Sem a execução da função original, a chamada `magent-llm-gptel--emit` com o evento `completed` nunca era enviada para o `magent-agent-loop`, acionando o timeout de 120s.
+     1. *Incompatibilidade de Aridade em Streaming (`gptel--parse-response`):* A função `magent-llm-gptel--sanitize-after-parse-response-a` declarava apenas 4 argumentos (`orig-fn backend response info`). No `gptel-gemini.el`, `gptel--parse-response` aceita 5 argumentos (`include-text` opcional). Como `magent-llm-gptel-sample` executava `magent-llm-gptel--install-boundary-advice` a cada turno, o advice de 4 argumentos era continuamente reativado em volta de `gptel--parse-response`, gerando `Wrong number of arguments: ..., 5`. O parser `gptel-curl--parse-stream` capturava a exceção silenciosamente em `condition-case nil` e retornava `""` (string vazia) para todo o streaming.
+     2. *FSM Orchestrate Intercept & Suppress:* A advice customizada `+carlos/magent-fsm-orchestrate-a` interceptava respostas vazias e chamava `+carlos/magent--fsm-retry-empty-turn`, retornando `'completed-paused` sem invocar a `orig-fn` nem emitir o evento terminal `completed`.
+     3. *Timeout de 120s:* Sem o evento terminal `completed`, o `magent-agent-loop` aguardava o fim da requisição até expirar o timer de inatividade (120s).
    - **Ações e Correções:**
-     - `lisp/custom-magent.el`: Criada a advice `+carlos/magent-sanitize-after-parse-response-a` com suporte a `&rest args` em `gptel--parse-response`.
+     - `lisp/custom-magent.el`: Redefinida diretamente a função `magent-llm-gptel--sanitize-after-parse-response-a` com `&rest args` no bloco `with-eval-after-load 'magent-llm-gptel`, garantindo compatibilidade permanente com Gemini.
      - `lisp/custom-magent.el`: Removida completamente a FSM de orquestração (`+carlos/magent-fsm-orchestrate-a` e seus helpers `+carlos/magent--fsm-*`).
      - `lisp/custom-magent.el`: Definido `magent-include-reasoning nil` no `:custom` do `magent` para backend Gemini.
      - `lisp/custom-magent.el`: Implementada a advice `+carlos/magent-suppress-long-messages-a` em `message` com limite `+carlos/magent-message-max-len 400`.
-   - **Validação:**
-     - Resposta streaming do Gemini validada com sucesso via `magent-llm-gptel-sample` (`"Olá! O streaming funciona! 🎬✨"`).
-     - Sintaxe e compilação validadas via `just compile` e `just compile-prod` com zero erros/warnings.
-     - Suíte ERT executada com `just check-all` (165/165 testes aprovados).
+     - `tests/magent-test.el`: Atualizada a suíte ERT para 160 testes (removidos testes da FSM legada e adicionado teste de aridade de `magent-llm-gptel--sanitize-after-parse-response-a`).
+   - **Validação & Savepoint:**
+     - Resposta streaming e interativa validada no buffer UI `Magent Agent @ MyEmacs`.
+     - Suíte ERT completa aprovada via `just check-all` (160/160 testes OK, 0 falhas).
+     - Compilação limpa via `just compile-prod` e `just check-prod` com 0 warnings.
+     - Tag git criada e enviada ao remote: `savepoint-magent-streaming-fix`.
 
 ** 2026-08-10 — [CONCLUÍDO] Auditoria Rigorosa de Performance, Redisplay e Gemini Tool Calling
    - **Diagnóstico:** Análise de causa-raiz identificou dois gargalos independentes no fluxo do Magent e na exibição Lisp:

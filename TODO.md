@@ -57,14 +57,18 @@ inteiro colado.
 - [x] **Timeout de 120s e Resposta Vazia no Magent com Gemini (`Request timed out after 120 seconds` / Resposta Vazia) (2026-08-12, RESOLVIDO):**
   - **Sintoma:** Requisições do Magent no Gemini expiravam em 120s ou retornavam texto vazio instantaneamente sem nenhuma saída no `Magent Agent`.
   - **Causas Raiz:**
-    1. *Aridade em `gptel--parse-response` (Resposta Vazia):* A advice `magent-llm-gptel--sanitize-after-parse-response-a` declarava 4 argumentos `(orig-fn backend response info)`. No `gptel-gemini`, `gptel--parse-response` passa 5 argumentos (`include-text` opcional). A passagem do 5º argumento gerava um erro `Wrong number of arguments: ..., 5`, capturado silenciosamente por `condition-case nil` em `gptel-curl--parse-stream`, fazendo o parser de stream retornar `""` (string vazia) em todas as respostas streaming do Gemini.
-    2. *FSM Orchestrate Intercept (Timeout de 120s):* A advice de FSM `+carlos/magent-fsm-orchestrate-a` interceptava respostas vazias e chamava `+carlos/magent--fsm-retry-empty-turn`, retornando `'completed-paused` sem chamar a função original. Sem o evento `completed` para o `magent-agent-loop`, o timer de inatividade de 120s da malha do agente expirava.
-    3. *Reasoning `thinkingConfig` (Interferência):* `magent-include-reasoning t` ativava `thinkingConfig` no Gemini, enviando blocos de raciocínio parsed como `cons` cells.
-  - **Solução:**
-    - Criada em `lisp/custom-magent.el` a advice `+carlos/magent-sanitize-after-parse-response-a` aceitando `&rest args` (`(apply orig-fn backend response info args)`), permitindo o fluxo correto do streaming no Gemini.
-    - Removida a FSM customizada de orquestração (`+carlos/magent-fsm-orchestrate-a` e seus helpers `+carlos/magent--fsm-*`).
-    - Definido `magent-include-reasoning nil` para Gemini.
-    - Implementado `+carlos/magent-suppress-long-messages-a` para silenciar dumps (>400 chars) no buffer `*Messages*`.
+    1. *Aridade em `gptel--parse-response` (Resposta Vazia):* A advice `magent-llm-gptel--sanitize-after-parse-response-a` do pacote magent declarava apenas 4 argumentos `(orig-fn backend response info)`. No `gptel-gemini`, `gptel--parse-response` passa 5 argumentos (`include-text` opcional). A passagem do 5º argumento gerava um erro `Wrong number of arguments: ..., 5`, capturado silenciosamente por `condition-case nil` em `gptel-curl--parse-stream`, fazendo o parser de stream retornar `""` (string vazia) em todas as respostas streaming do Gemini.
+    2. *Reinstalação do Advice pelo `magent-llm-gptel-sample`:* A função `magent-llm-gptel--install-boundary-advice` rodava a cada turno e reinstalava a versão original de 4 argumentos caso a função embutida não fosse redefinida com `&rest args`.
+    3. *FSM Orchestrate Intercept & Suppress:* A advice customizada `+carlos/magent-fsm-orchestrate-a` interceptava respostas vazias e chamava `+carlos/magent--fsm-retry-empty-turn`, retornando `'completed-paused` sem invocar a `orig-fn` nem emitir eventos terminais.
+  - **Ações e Correções:**
+    - `lisp/custom-magent.el`: Redefinida a função `magent-llm-gptel--sanitize-after-parse-response-a` com `&rest args` em `with-eval-after-load 'magent-llm-gptel`, garantindo repasse de 5+ argumentos no Gemini.
+    - `lisp/custom-magent.el`: Removida completamente a FSM de orquestração (`+carlos/magent-fsm-orchestrate-a` e seus helpers `+carlos/magent--fsm-*`).
+    - `lisp/custom-magent.el`: Definido `magent-include-reasoning nil` no `:custom` do `magent` para backend Gemini.
+    - `tests/magent-test.el`: Atualizada a suíte ERT para 160 testes (removidos testes da FSM legada e adicionado teste de aridade).
+  - **Validação & Savepoint:**
+    - Resposta streaming e interativa do Magent no buffer UI validada com sucesso pelo usuário.
+    - Suíte ERT executada com `just check-all` (160/160 testes aprovados, 0 falhas).
+    - Tag git criada: `savepoint-magent-streaming-fix`.
 
 - [x] **Travamento de CPU (100% CPU em `bidi_find_bracket_pairs` / `resize_mini_window`) (2026-08-10, RESOLVIDO):**
   - **Sintoma:** O daemon do Emacs travava em 100% CPU e o `emacsclient` deixava de responder quando o Magent/GPTel logava mensagens longas contendo o plist de ferramentas com parênteses/colchetes desbalanceados no echo area/minibuffer.
