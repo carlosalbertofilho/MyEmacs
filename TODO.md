@@ -54,10 +54,17 @@ inteiro colado.
 
 ## 1. Pendências de Investigação e Diagnóstico (Bugs Resolvidos)
 
-- [x] **Timeout de 120s no Magent com Gemini (`Request timed out after 120 seconds`) (2026-08-12, RESOLVIDO):**
-  - **Sintoma:** Requisições do Magent no Gemini via API expiravam em 120s com `Error: Request timed out after 120 seconds` e `Stop for unknown reason: error`.
-  - **Causa Raiz:** A advice de FSM `+carlos/magent-fsm-orchestrate-a` (em `magent-llm-gptel--emit-completed-or-textual-tool-calls`) interceptava respostas com `text` vazio. Ao executar `+carlos/magent--fsm-retry-empty-turn`, ela retornava o símbolo `'completed-paused` sem chamar a `orig-fn`. Com isso, a chamada nativa que emitia o evento `completed` para o `magent-agent-loop` nunca acontecia, e o timer de inatividade de 120s da malha do agente disparava. Além disso, `magent-include-reasoning t` ativava `thinkingConfig` no Gemini, enviando chunks de raciocínio não textuais.
-  - **Solução:** Removida a FSM customizada de orquestração (`+carlos/magent-fsm-orchestrate-a` e seus helpers `+carlos/magent--fsm-*`) de `lisp/custom-magent.el`. Definido `magent-include-reasoning nil` para backend Gemini. Adicionado o filtro `+carlos/magent-suppress-long-messages-a` em `message` para suprimir dumps de system prompt e plists (>400 chars) no `*Messages*`.
+- [x] **Timeout de 120s e Resposta Vazia no Magent com Gemini (`Request timed out after 120 seconds` / Resposta Vazia) (2026-08-12, RESOLVIDO):**
+  - **Sintoma:** Requisições do Magent no Gemini expiravam em 120s ou retornavam texto vazio instantaneamente sem nenhuma saída no `Magent Agent`.
+  - **Causas Raiz:**
+    1. *Aridade em `gptel--parse-response` (Resposta Vazia):* A advice `magent-llm-gptel--sanitize-after-parse-response-a` declarava 4 argumentos `(orig-fn backend response info)`. No `gptel-gemini`, `gptel--parse-response` passa 5 argumentos (`include-text` opcional). A passagem do 5º argumento gerava um erro `Wrong number of arguments: ..., 5`, capturado silenciosamente por `condition-case nil` em `gptel-curl--parse-stream`, fazendo o parser de stream retornar `""` (string vazia) em todas as respostas streaming do Gemini.
+    2. *FSM Orchestrate Intercept (Timeout de 120s):* A advice de FSM `+carlos/magent-fsm-orchestrate-a` interceptava respostas vazias e chamava `+carlos/magent--fsm-retry-empty-turn`, retornando `'completed-paused` sem chamar a função original. Sem o evento `completed` para o `magent-agent-loop`, o timer de inatividade de 120s da malha do agente expirava.
+    3. *Reasoning `thinkingConfig` (Interferência):* `magent-include-reasoning t` ativava `thinkingConfig` no Gemini, enviando blocos de raciocínio parsed como `cons` cells.
+  - **Solução:**
+    - Criada em `lisp/custom-magent.el` a advice `+carlos/magent-sanitize-after-parse-response-a` aceitando `&rest args` (`(apply orig-fn backend response info args)`), permitindo o fluxo correto do streaming no Gemini.
+    - Removida a FSM customizada de orquestração (`+carlos/magent-fsm-orchestrate-a` e seus helpers `+carlos/magent--fsm-*`).
+    - Definido `magent-include-reasoning nil` para Gemini.
+    - Implementado `+carlos/magent-suppress-long-messages-a` para silenciar dumps (>400 chars) no buffer `*Messages*`.
 
 - [x] **Travamento de CPU (100% CPU em `bidi_find_bracket_pairs` / `resize_mini_window`) (2026-08-10, RESOLVIDO):**
   - **Sintoma:** O daemon do Emacs travava em 100% CPU e o `emacsclient` deixava de responder quando o Magent/GPTel logava mensagens longas contendo o plist de ferramentas com parênteses/colchetes desbalanceados no echo area/minibuffer.
