@@ -11,6 +11,15 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-12 — [CONCLUÍDO] Gestão de Contexto Automática (Opção 4 Híbrida) [Etapa B4]
+   - **Objetivo:** Automatizar completamente a gestão de contexto e a auto-compactação sem dependência de comandos manuais do usuário.
+   - **Ações e Recursos:**
+     - `lisp/custom-ai.el`: Implementado helper `+carlos/gptel-cache-hit-rate` e coluna de Cache Hit % no dashboard de uso.
+     - `lisp/custom-magent.el`: Implementado o motor de auto-compactação automática por threshold (`+carlos/magent-context-compact-ratio` 60%) via sink de `turn-end`.
+     - `lisp/custom-magent.el`: Adicionada instrução de preservação estruturada `+carlos/magent-preservation-instruction` e atalho `C-c A c`.
+     - `tests/context-test.el`: Criada a suíte ERT para validação de cache hit-rate, janela de contexto e keybinding.
+   - **Validação:** 170/170 testes ERT aprovados (`just check-all`), gate zero-warning e boot batch no prod.
+
 ** 2026-08-12 — [CONCLUÍDO] Benchmark e Reavaliação de Modelos Locais no host aa102-006l [Etapa B3]
    - **Objetivo:** Avaliar a performance (tok/s, TTFT e conclusão no Magent) dos modelos amigáveis ao hardware do host `aa102-006l` (Ollama).
    - **Resultados de Desempenho:**

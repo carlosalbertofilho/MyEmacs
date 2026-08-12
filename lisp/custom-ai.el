@@ -702,6 +702,13 @@ O arquivo Org-mode gerado resultante será aberto no Emacs quando concluído."
                  (message "Ingestão concluída. Veja o buffer *rag-ingest* para detalhes.")
                  (pop-to-buffer (process-buffer proc)))))))))))
 
+(defun +carlos/gptel-cache-hit-rate (input cached)
+  "Calcula a porcentagem de cache hit-rate: `cached / (input + cached)`."
+  (let ((total (+ (or input 0) (or cached 0))))
+    (if (> total 0)
+        (* (/ (float (or cached 0)) (float total)) 100.0)
+      0.0)))
+
 (defun +carlos/magent-show-usage ()
   "Exibe o resumo de consumo de IA por agente em buffer Org."
   (interactive)
@@ -750,15 +757,19 @@ O arquivo Org-mode gerado resultante será aberto no Emacs quando concluído."
             (insert "#+TITLE: Resumo de Consumo de IA por Agente (Magent)\n")
             (insert "#+AUTHOR: Carlos Filho\n")
             (insert "#+DATE: " (format-time-string "%Y-%m-%d %H:%M:%S") "\n\n")
-            (insert "| Agent | Input Tokens | Output Tokens | Cached Tokens | Est. Cost |\n")
-            (insert "|-------+--------------+---------------+---------------+-----------|\n")
+            (insert "| Agent | Input Tokens | Output Tokens | Cached Tokens | Cache Hit % | Est. Cost |\n")
+            (insert "|-------+--------------+---------------+---------------+-------------+-----------|\n")
             (maphash (lambda (agent data)
-                       (insert (format "| %s | %d | %d | %d | $%0.4f |\n"
-                                       agent (nth 0 data) (nth 1 data) (nth 2 data) (nth 3 data))))
+                       (let* ((inp (nth 0 data))
+                              (cch (nth 2 data))
+                              (hit-pct (+carlos/gptel-cache-hit-rate inp cch)))
+                         (insert (format "| %s | %d | %d | %d | %0.1f%% | $%0.4f |\n"
+                                         agent inp (nth 1 data) cch hit-pct (nth 3 data)))))
                      usage-hash)
-            (insert "|-------+--------------+---------------+---------------+-----------|\n")
-            (insert (format "| Total Geral | %d | %d | %d | $%0.4f |\n"
-                            total-input total-output total-cached total-cost))
+            (insert "|-------+--------------+---------------+---------------+-------------+-----------|\n")
+            (let ((overall-hit (+carlos/gptel-cache-hit-rate total-input total-cached)))
+              (insert (format "| Total Geral | %d | %d | %d | %0.1f%% | $%0.4f |\n"
+                              total-input total-output total-cached overall-hit total-cost)))
             (goto-char (point-min))
             (when (search-forward "|" nil t)
               (org-table-align))
