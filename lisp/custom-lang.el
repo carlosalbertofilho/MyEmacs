@@ -72,12 +72,12 @@
         python-shell-interpreter-args "-i --simple-prompt --no-color-info"))
 
 (with-eval-after-load 'eglot
-  ;; basedpyright como servidor principal
+  ;; ruff para linting
   (add-to-list 'eglot-server-programs
-               '(python-ts-mode python-mode . ("basedpyright" "--stdio")))
-  ;; ruff como add-on para linting/format
+               '((python-ts-mode python-mode) . ("ruff" "server")))
+  ;; basedpyright como servidor principal (adicionado depois para ficar na frente)
   (add-to-list 'eglot-server-programs
-               '((python-ts-mode python-mode) . ("ruff" "server"))))
+               '((python-ts-mode python-mode) . ("basedpyright" "--stdio"))))
 
 ;; ── C / C++ (42 School) ─────────────────────────────────────────────
 ;; clangd is detected automatically by eglot.
