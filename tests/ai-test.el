@@ -244,7 +244,7 @@ pelo Magent (buffer ` *magent-llm-gptel-request*` ou contexto
             (with-current-buffer buf
               (goto-char (point-min))
               (should (search-forward "#+TITLE: Resumo de Consumo de IA por Agente (Magent)" nil t))
-              (should (re-search-forward "|\\s-*Agent\\s-*|\\s-*Input Tokens\\s-*|\\s-*Output Tokens\\s-*|\\s-*Cached Tokens\\s-*|\\s-*Est\\. Cost\\s-*|" nil t))
+              (should (re-search-forward "|\\s-*Agent\\s-*|\\s-*Input Tokens\\s-*|\\s-*Output Tokens\\s-*|\\s-*Cached Tokens\\s-*|\\s-*Cache Hit %\\s-*|\\s-*Est\\. Cost\\s-*|" nil t))
               ;; Agent A deve ter 300 input, 150 output, 30 cached, e $0.0032
               (should (re-search-forward "|\\s-*Agent A\\s-*|\\s-*300\\s-*|\\s-*150\\s-*|\\s-*30\\s-*|\\s-*\\$0\\.0032\\s-*|" nil t))
               ;; No Agent (gptel) deve ter 1000 input, 500 output, 0 cached, e $0.0002
