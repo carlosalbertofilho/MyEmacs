@@ -26,6 +26,10 @@
 (declare-function magent-llm-gptel--managed-info-p "magent-llm-gptel")
 (declare-function magent-llm-gptel--sanitize-info "magent-llm-gptel")
 (declare-function magent-llm-tool-call-event "magent-llm")
+(declare-function magent-agent-info-name "magent-agent-info")
+(declare-function magent-request-context-backend "magent-runtime")
+(declare-function magent-request-context-model "magent-runtime")
+(declare-function magent-agent-process "magent-agent")
 
 ;; ── Silenciar *Messages*: filtrar dumps longos (plist de tools / system prompt) ──
 ;; O Emacs/gptel imprime ocasionalmente plists gigantes (lista de tools, system
@@ -485,7 +489,8 @@ ORIG-FN é o handler original; RESPONSE é o chunk de streaming do gptel."
 </invoke>
 </tool_calls>
 Do NOT use '<tool_call>', '<function=...>', or '<parameter=...>' forms; the runtime only parses the '<tool_calls>'/'<invoke name=...>'/'<parameter name=...>' syntax shown above. After requesting a tool, your next message MUST include the native tool call, not text about calling it.
-7. AVOID SIGPIPE (exit 141): Do not pipe long listings into 'head'/'tail' (e.g. 'find ... | head -50'). Closing the pipe kills the producer with SIGPIPE (exit 141), which the runtime reports as a FAILED tool result. Use 'find ... -maxdepth N' with explicit filters, or 'rg --max-count' instead."
+ 7. AVOID SIGPIPE (exit 141): Do not pipe long listings into 'head'/'tail' (e.g. 'find ... | head -50'). Closing the pipe kills the producer with SIGPIPE (exit 141), which the runtime reports as a FAILED tool result. Use 'find ... -maxdepth N' with explicit filters, or 'rg --max-count' instead.
+8. SUBAGENT DELEGATION: You are the ORCHESTRATOR — keep your context window lean. For codebase exploration, file analysis, or multi-step research tasks, ALWAYS delegate: call 'spawn_agent' with agent='explore' (codebase search/analysis) or 'general' (broader multi-step work), giving the subagent a precise task and absolute paths, then call 'wait_agent' and synthesize a CONCISE summary of the subagent's findings in your reply — do not paste the full transcript into your turn. Subagents run on a stronger cloud model with a larger context window."
   "Instruções estritas de uso de ferramentas para os modelos do Magent.")
 
 (defun +carlos/magent-inject-system-directives (composed &rest _)
@@ -519,7 +524,9 @@ Do NOT use '<tool_call>', '<function=...>', or '<parameter=...>' forms; the runt
 
 (with-eval-after-load 'magent-agent
   (advice-add 'magent-agent--compose-system-message
-              :filter-return #'+carlos/magent-inject-system-directives))
+              :filter-return #'+carlos/magent-inject-system-directives)
+  (advice-add 'magent-agent-process
+              :around #'+carlos/magent-subagent-apply-profile))
 
 ;; ── Slash Commands & Directory Context Scope ──────────────────────
 (defvar +carlos/magent-extra-directories nil
@@ -867,6 +874,53 @@ Retorna templates do Tempel, a estrutura do snippet ARGS
     (add-to-list 'magent-enable-tools 'flycheck_errors)
     (add-to-list 'magent-enable-tools 'lsp_navigation)
     (add-to-list 'magent-enable-tools 'snippet_expand)))
+
+;; ── ETAPA 4: Perfis de Subagente (spawn_agent → modelo forte na nuvem) ───────
+;; O pacote Magent faz o subagente HERDAR o backend/modelo do pai e a herança
+;; vence o override do agente (`(or inherited-backend gptel-backend)' em
+;; magent-agent.el). Para que o orquestrador leve (local) delegue a modelos
+;; fortes, sobrescrevemos o `request-state' do filho — o 11º argumento de
+;; `magent-agent-process' — com o perfil declarado por agente.
+
+(defcustom +carlos/magent-subagent-profiles
+  '(("explore"  :backend "Gemini" :model "gemini-3.1-pro-preview")
+    ("general"  :backend "Gemini" :model "gemini-3.1-pro-preview"))
+  "Perfis de backend/modelo dos subagentes do Magent (spawn_agent).
+Alist de (AGENT-NAME . (:backend B :model M)).  O advice
+`+carlos/magent-subagent-apply-profile' aplica o perfil no request-state do
+filho, contornando a herança pai→filho do pacote.  Agentes fora desta lista —
+ex.: o orquestrador — não são alterados."
+  :type '(alist :key-type string
+                :value-type (plist :key-type symbol :value-type string))
+  :group 'magent)
+
+(defun +carlos/magent-subagent-profile (agent-name)
+  "Retorna o plist (:backend B :model M) de AGENT-NAME, ou nil se sem perfil."
+  (cdr (assoc agent-name +carlos/magent-subagent-profiles)))
+
+(defun +carlos/magent-subagent-apply-profile
+    (orig-fn user-prompt &optional callback agent-info skill-names event-context
+             request-context capability-resolution text-callback request-live-p
+             request-state)
+  "Força o modelo do subagente conforme `+carlos/magent-subagent-profiles'.
+ORIG-FN é `magent-agent-process'; USER-PROMPT e demais argumentos são
+repassados intactos.  O pacote copia backend/modelo do request-state do pai
+para o filho e a herança vence o override do agente; este advice faz `setf'
+no REQUEST-STATE do filho para o perfil declarado antes de ORIG-FN processar
+o request."
+  (when (and agent-info request-state)
+    (when-let* ((profile (+carlos/magent-subagent-profile
+                          (magent-agent-info-name agent-info)))
+                (backend-name (plist-get profile :backend))
+                (backend-obj (and (stringp backend-name)
+                                  (fboundp 'gptel-get-backend)
+                                  (gptel-get-backend backend-name))))
+      (setf (magent-request-context-backend request-state) backend-obj
+            (magent-request-context-model request-state)
+            (intern (plist-get profile :model)))))
+  (apply orig-fn user-prompt callback agent-info skill-names event-context
+         request-context capability-resolution text-callback request-live-p
+         request-state))
 
 ;; ── Display rules ──────────────────────────────────────────────────
 (add-to-list 'display-buffer-alist

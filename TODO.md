@@ -187,6 +187,9 @@ sessão `session-20260813-153757.json` (projeto Agent_Smith, host agnes).
 
 ## 5. Plano de Ação — Subagentes com Modelo Forte (perfis por agente) (2026-08-13)
 
+> **STATUS: IMPLEMENTADO.** Items abaixo concluídos em `lisp/custom-magent.el`,
+> cobertura ERT em `tests/magent-fsm-test.el` (GRUPO 10).
+
 ### Objetivos:
 Orquestrador = modelo leve local (no `agnes`: `mlx-community/gemma-4-e2b-it-4bit`,
 MLX, janela pequena) que **só planeja, delega e sintetiza**. Subagentes

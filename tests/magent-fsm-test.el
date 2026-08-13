@@ -394,5 +394,73 @@
     (should (string-match-p "absolute path" d))
     (should (string-match-p "do not receive the parent's attachments" d))))
 
+;; ── GRUPO 10: Subagentes com Modelo Forte (perfis por agente) ─────────────
+;; O pacote herda backend/modelo do pai e a herança vence o override do agente
+;; (`(or inherited-backend gptel-backend)'). O advice
+;; `+carlos/magent-subagent-apply-profile' força o perfil declarado em
+;; `+carlos/magent-subagent-profiles' no request-state do filho.
+
+(ert-deftest myemacs-magent-subagent-profiles-defaults ()
+  "Os perfis padrão mapeiam explore/general para o modelo forte da nuvem."
+  (skip-unless (boundp '+carlos/magent-subagent-profiles))
+  (let ((explore (cdr (assoc "explore" +carlos/magent-subagent-profiles)))
+        (general (cdr (assoc "general" +carlos/magent-subagent-profiles))))
+    (should (equal (plist-get explore :backend) "Gemini"))
+    (should (equal (plist-get explore :model) "gemini-3.1-pro-preview"))
+    (should (equal (plist-get general :backend) "Gemini"))
+    (should (equal (plist-get general :model) "gemini-3.1-pro-preview"))))
+
+(ert-deftest myemacs-magent-subagent-profile-resolver ()
+  "O resolvedor devolve o perfil de agente conhecido e nil para desconhecido."
+  (skip-unless (boundp '+carlos/magent-subagent-profiles))
+  (should (fboundp '+carlos/magent-subagent-profile))
+  (should (plist-get (+carlos/magent-subagent-profile "explore") :model))
+  (should (null (+carlos/magent-subagent-profile "orchestrator-not-delegating"))))
+
+(ert-deftest myemacs-magent-subagent-apply-profile-known-agent ()
+  "Advice aplica o perfil (backend/modelo forte) no request-state de agente com perfil."
+  (skip-unless (fboundp '+carlos/magent-subagent-apply-profile))
+  (skip-unless (and (fboundp 'magent-request-context-create)
+                    (fboundp 'gptel-get-backend)))
+  (let* ((rc (magent-request-context-create :model 'gemma-local :backend 'local))
+         (agent (and (fboundp 'magent-agent-info-create)
+                     (magent-agent-info-create :name "explore" :mode 'subagent)))
+         (called nil)
+         (orig (lambda (&rest _) (setq called t))))
+    (funcall #'+carlos/magent-subagent-apply-profile
+             orig "prompt" nil agent nil nil nil nil nil nil rc)
+    (should called)
+    (should (eq (magent-request-context-backend rc) (gptel-get-backend "Gemini")))
+    (should (eq (magent-request-context-model rc) 'gemini-3.1-pro-preview))))
+
+(ert-deftest myemacs-magent-subagent-apply-profile-unknown-agent ()
+  "Advice não altera o request-state de agentes sem perfil (ex.: orquestrador)."
+  (skip-unless (fboundp '+carlos/magent-subagent-apply-profile))
+  (skip-unless (fboundp 'magent-request-context-create))
+  (let* ((rc (magent-request-context-create :model 'gemma-local :backend 'local))
+         (agent (and (fboundp 'magent-agent-info-create)
+                     (magent-agent-info-create :name "build" :mode 'primary)))
+         (orig (lambda (&rest _) t)))
+    (funcall #'+carlos/magent-subagent-apply-profile
+             orig "prompt" nil agent nil nil nil nil nil nil rc)
+    (should (eq (magent-request-context-backend rc) 'local))
+    (should (eq (magent-request-context-model rc) 'gemma-local))))
+
+(ert-deftest myemacs-magent-subagent-advice-installed ()
+  "O advice de perfis de subagente está instalado em magent-agent-process."
+  (skip-unless (fboundp 'magent-agent-process))
+  (should (advice-member-p #'+carlos/magent-subagent-apply-profile
+                           'magent-agent-process)))
+
+(ert-deftest myemacs-magent-directives-enforce-subagent-delegation ()
+  "As diretivas devem instruir o orquestrador a delegar exploração/análise."
+  (skip-unless myemacs-fsm-available)
+  (skip-unless (boundp '+carlos/magent-system-directives))
+  (let ((d +carlos/magent-system-directives))
+    (should (string-match-p "SUBAGENT DELEGATION" d))
+    (should (string-match-p "ORCHESTRATOR" d))
+    (should (string-match-p "spawn_agent" d))
+    (should (string-match-p "stronger cloud model" d))))
+
 (provide 'magent-fsm-test)
 ;;; magent-fsm-test.el ends here

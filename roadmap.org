@@ -26,6 +26,16 @@ entenderem o estado atual do projeto e decisões tomadas.
    - **Proteção do lsp_navigation:** Modificado o handler `+carlos/magent-tool-lsp-navigation` para evitar travamentos do xref em modo batch e no Emacs vivo por causa de buscas do `etags` a arquivos `TAGS` inexistentes.
    - **Validação:** Compilação limpa no repositório e em produção (`just compile-prod`), boot verificado (`just check-prod`), e suíte ERT de testes rodada com sucesso (`just test-all` - 169 testes passados, 0 falhas).
 
+** 2026-08-13 — [CONCLUÍDO] Subagentes com Modelo Forte: perfis por agente (spawn_agent → Gemini 3.1 Pro)
+   - **Contexto:** orquestrador = gemma local (agnes, MLX, janela pequena); subagente precisa de modelo forte na nuvem. O pacote faz o filho herdar backend/modelo do pai e a herança VENCE o override do agente (`(or inherited-backend gptel-backend)`, magent-agent.el:331-332), então sem intervenção subagente = mesmo modelo do orquestrador.
+   - **Ações e Recursos:**
+     - `lisp/custom-magent.el`: `+carlos/magent-subagent-profiles` (defcustom; `explore`/`general` → `Gemini`/`gemini-3.1-pro-preview`) + resolvedor `+carlos/magent-subagent-profile`.
+     - `lisp/custom-magent.el`: advice `+carlos/magent-subagent-apply-profile` (`:around` em `magent-agent-process`) que `setf` o `request-state` do filho para o perfil — contorna a herança pai→filho; orquestrador intocado.
+     - `lisp/custom-magent.el`: directiva `SUBAGENT DELEGATION` (nº 8) — delegação automática de exploração/análise/multi-step + síntese resumida no turno pai.
+     - `tests/magent-fsm-test.el`: GRUPO 10 (6 testes; 3 dependem do magent carregado → skip-unless no repo, validados no prod).
+     - `docs/magent-reference.org`: seção "Perfis de subagente (spawn_agent → modelo forte na nuvem)".
+   - **Validação:** `just compile` zero warnings no repo; suíte FSM repo 30 pass / 3 skip (magent não carregado no repo — builds parciais); suíte completa e GRUPO 10 validados no prod pós-sync.
+
 ** 2026-08-13 — [CONCLUÍDO] Correção da FSM com Submodelos: spawn_agent → wait_agent (HARD RULE)
    - **Diagnóstico (sessão real `session-20260813-153757.json`, projeto Agent_Smith):** o orquestrador (gemma local) chamou `spawn_agent(explore)` e encerrou o turno com texto ("Aguardando o resultado...") sem chamar `wait_agent`, deixando o job `agent-20260813-155202` órfão em `running`. O sampling FSM do gptel (`magent-llm-gptel--make-sampling-fsm`) trata a resposta de texto após tool result como DONE, e não há re-anexação do resultado do filho ao pai.
    - **Ações e Recursos:**

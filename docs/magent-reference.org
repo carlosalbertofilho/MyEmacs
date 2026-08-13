@@ -271,6 +271,29 @@ wait concluído); detecção via `+carlos/magent-fsm-pending-subagent-p`
 suprimido durante wait de subagente
 (`+carlos/magent-fsm-watchdog-should-fire-p`).
 
+** Perfis de subagente (spawn_agent → modelo forte na nuvem, 2026-08-13)
+
+O pacote faz o filho **herdar** backend/modelo do pai e a herança vence o
+override do agente (`(or inherited-backend gptel-backend)` em
+`magent-agent.el:331-332`; cópia em `magent-tools--agent-job-start`). Para o
+orquestrador leve (local) delegar a modelos fortes:
+
+- `+carlos/magent-subagent-profiles` (defcustom): alist `(AGENT-NAME .
+  (:backend B :model M))` — padrão `explore`/`general` → `Gemini` /
+  `gemini-3.1-pro-preview` (free tier). "Perfis diferentes" = mapear agentes do
+  `spawn_agent` a backends/modelos distintos.
+- `+carlos/magent-subagent-apply-profile`: advice `:around` em
+  `magent-agent-process` que faz `setf` no `request-state` do filho (11º arg) —
+  o `(or inherited ...)` passa a resolver para o perfil forte. Agentes fora do
+  alist (orquestrador) ficam intocados.
+- Directiva `SUBAGENT DELEGATION` (nº 8 em `+carlos/magent-system-directives`):
+  orquestrador deve SEMPRE delegar exploração de codebase/análise/tarefas
+  multi-step via `spawn_agent` (`explore`/`general`), aguardar `wait_agent` e
+  sintetizar um resumo conciso no turno pai (nunca colar o transcript inteiro).
+
+Testes: GRUPO 10 em `tests/magent-fsm-test.el` (defaults, resolver, aplicação do
+advice com `magent-request-context` real, instalação do advice, directiva).
+
 
 * Entry Points & Keybindings
 
