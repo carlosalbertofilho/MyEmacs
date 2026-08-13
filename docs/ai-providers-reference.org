@@ -110,6 +110,26 @@ final* do roteador dinâmico. A cascata de custo agora é:
 
 1. *Gemini free tier* (=gemini-3.5-flash=) — nuvem gratuita via
    =GEMINI_API_KEY= (Google AI Studio), cota generosa (15 RPM / 1500 RPD).
+
+** Fornecimento das API Keys (Emacs GUI e batch)
+
+As chaves de nuvem (Gemini/OpenCode Zen/OpenAI) vêm do agenix no host
+agnes: =/etc/api-keys.sh= (gerado por =modules/system/agenix-env.nix= do
+MyMachine) exporta =OPENCODE_ZEN_API_KEY=, =GEMINI_API_KEY= e
+=GOOGLE_API_KEY= a partir dos segredos descriptografados em
+=/run/agenix/*= (após =darwin-rebuild switch=). O =~/.zshrc= sourcea esse
+arquivo, mas o *Emacs GUI (Emacs.app) não herda o ambiente do shell* — sem
+as env vars, =gptel--get-api-key= retorna =nil= e qualquer request Gemini
+falha com =Wrong type argument: stringp, nil= (causa-raiz dos subagentes
+com modelo forte em 2026-08-13).
+
+Por isso =lisp/custom-ai.el= carrega =/etc/api-keys.sh= no boot
+(=+carlos/api-keys-file=, defcustom; =+carlos/--source-api-keys-from-file=),
+resolvendo a forma agenix =export VAR="$(cat /run/agenix/secret)"= sem
+sobrescrever variáveis já definidas no ambiente. Se o arquivo não existir
+ou os segredos não estiverem descriptografados, as chaves ficam ausentes
+(paridade com o shell, que tem o mesmo guard =if [ -r ... ]=).
+
 2. *OpenCode Zen free* (=big-pickle= primeiro, depois =*-free=) — custo
    zero dentro da assinatura.
 3. *Local* (MLX no agnes / Ollama nos demais) — apenas quando nuvem

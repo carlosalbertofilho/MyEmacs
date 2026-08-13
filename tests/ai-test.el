@@ -259,5 +259,49 @@ pelo Magent (buffer ` *magent-llm-gptel-request*` ou contexto
       (when (file-exists-p temp-file)
         (delete-file temp-file)))))
 
+(ert-deftest myemacs-ai-api-keys-source-from-sh-file ()
+  "Valida o parser de chaves de API a partir de um arquivo shell.
+Cobre o formato agenix (`export VAR=\"$(cat CAMINHO)\"') e literais.
+Regressão da causa-raiz: Emacs GUI/batch sem GEMINI_API_KEY no ambiente
+faz `gptel--get-api-key' retornar nil e o gptel falhar com `Wrong type
+argument: stringp, nil' em subagentes com backend Gemini."
+  :tags '(ai)
+  (let* ((secret-file (make-temp-file "myemacs-secret" nil nil "AIza-Teste-Key"))
+         (keys-file (make-temp-file "myemacs-keys" nil ".sh"))
+         (old-gemini (getenv "GEMINI_API_KEY_TEST"))
+         (old-google (getenv "GOOGLE_API_KEY_TEST")))
+    (unwind-protect
+        (progn
+          (with-temp-file keys-file
+            (insert "#!/bin/sh\n")
+            (insert "# comentário é ignorado\n")
+            (insert "if [ -r " secret-file " ]; then\n")
+            (insert "  export GEMINI_API_KEY_TEST=\"$(cat " secret-file ")\"\n")
+            (insert "fi\n")
+            (insert "export GOOGLE_API_KEY_TEST='outra-chave'\n")
+            (insert "sem-export=ignorada\n"))
+          (+carlos/--source-api-keys-from-file keys-file)
+          (should (equal "AIza-Teste-Key" (getenv "GEMINI_API_KEY_TEST")))
+          (should (equal "outra-chave" (getenv "GOOGLE_API_KEY_TEST"))))
+      (when secret-file (delete-file secret-file))
+      (when keys-file (delete-file keys-file))
+      (setenv "GEMINI_API_KEY_TEST" old-gemini)
+      (setenv "GOOGLE_API_KEY_TEST" old-google))))
+
+(ert-deftest myemacs-ai-api-keys-does-not-override ()
+  "Valida que variáveis já definidas no ambiente NÃO são sobrescritas."
+  :tags '(ai)
+  (let* ((keys-file (make-temp-file "myemacs-keys" nil ".sh"))
+         (old (getenv "MYEMACS_API_KEY_TEST")))
+    (unwind-protect
+        (progn
+          (with-temp-file keys-file
+            (insert "export MYEMACS_API_KEY_TEST=\"do-arquivo\"\n"))
+          (setenv "MYEMACS_API_KEY_TEST" "do-ambiente")
+          (+carlos/--source-api-keys-from-file keys-file)
+          (should (equal "do-ambiente" (getenv "MYEMACS_API_KEY_TEST"))))
+      (when keys-file (delete-file keys-file))
+      (setenv "MYEMACS_API_KEY_TEST" old))))
+
 (provide 'ai-test)
 ;;; ai-test.el ends here

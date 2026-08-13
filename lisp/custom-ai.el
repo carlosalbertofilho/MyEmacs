@@ -8,7 +8,10 @@
 ;; a integração Org é automática (gptel detecta org-mode via
 ;; `derived-mode-p' — nenhum minor-mode é necessário).
 ;; API keys de nuvem vêm do agenix (host agnes): /etc/api-keys.sh exporta
-;; OPENCODE_ZEN_API_KEY e GEMINI_API_KEY/GOOGLE_API_KEY.
+;; OPENCODE_ZEN_API_KEY e GEMINI_API_KEY/GOOGLE_API_KEY. O Emacs GUI
+;; (Emacs.app) NÃO herda o ambiente do shell — carregamos o arquivo no
+;; boot (guarda file-readable-p) para o gptel encontrar as chaves também
+;; em processos GUI e batch (subagentes do magent).
 
 ;;; Code:
 
@@ -46,6 +49,62 @@
 (declare-function org-table-align "org-table")
 (defvar url-connection-timeout)
 (defvar url-queue-timeout)
+
+;; ── API keys do ambiente (GUI Emacs não herda o shell) ──────────────
+;; O agenix (host agnes) gera /etc/api-keys.sh com a forma
+;;   export VAR="$(cat /run/agenix/secret)"
+;; (ver modules/system/agenix-env.nix em MyMachine). O Emacs GUI/batch não
+;; passa pelo .zshrc, então carregamos o arquivo aqui, resolvendo tanto a
+;; forma agenix (lê o conteúdo do arquivo) quanto literais simples.
+(defcustom +carlos/api-keys-file "/etc/api-keys.sh"
+  "Arquivo shell que exporta chaves de API como `export NOME=valor'.
+Formatos suportados: literal (`export NOME=\"chave\"') e agenix
+(`export NOME=\"$(cat CAMINHO)\"'). `nil' desativa o carregamento."
+  :type '(choice (const :tag "Nenhum" nil) file)
+  :group '+carlos/ai)
+
+(defun +carlos/--api-key-value-from-sh (raw)
+  "Resolve o valor da chave a partir da string shell RAW.
+Suporta literais com aspas simples/duplas e a forma agenix
+`\"$(cat CAMINHO)\"', lendo o conteúdo de CAMINHO (trim de \\n final)."
+  (let ((trimmed (string-trim raw)))
+    (if (string-match "\\`[\"']?\\$(cat[[:space:]]+\\([^)\"']+\\))[\"']?\\'"
+                      trimmed)
+        (let ((secret (match-string-no-properties 1 trimmed)))
+          (when (and (file-readable-p secret)
+                     (not (file-directory-p secret)))
+            (string-trim-right
+             (with-temp-buffer
+               (insert-file-contents secret)
+               (buffer-substring-no-properties (point-min) (point-max))))))
+      ;; Remove aspas delimitadoras simples/duplas manualmente
+      ;; (string-trim nativo do Emacs 30 não respeita charset multi-char).
+      (let ((value trimmed))
+        (when (and (> (length value) 1)
+                   (memq (aref value 0) '(?\" ?'))
+                   (eq (aref value (1- (length value))) (aref value 0)))
+          (setq value (substring value 1 -1)))
+        value))))
+
+(defun +carlos/--source-api-keys-from-file (file)
+  "Carrega chaves de API ausentes do ambiente a partir do arquivo shell FILE.
+Lê linhas `export VAR=valor' (resolvidas por
+`+carlos/--api-key-value-from-sh') e chama `setenv' apenas para
+variáveis ainda não definidas — nunca sobrescreve o ambiente."
+  (when (and file (file-readable-p file))
+    (with-temp-buffer
+      (insert-file-contents file)
+      (goto-char (point-min))
+      (while (re-search-forward
+              "^[[:space:]]*export[[:space:]]+\\([A-Za-z_][A-Za-z0-9_]*\\)=\\([^\n]*\\)"
+              nil t)
+        (let* ((var (match-string-no-properties 1))
+               (value (+carlos/--api-key-value-from-sh
+                       (match-string-no-properties 2))))
+          (when (and (not (getenv var)) value)
+            (setenv var value)))))))
+
+(+carlos/--source-api-keys-from-file +carlos/api-keys-file)
 
 (defvar +carlos/gptel-agent-backend "Zen Claude"
   "Backend padrão para sessões de agente.")
