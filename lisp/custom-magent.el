@@ -484,7 +484,8 @@ Resolve definições ou referências de ARGS :symbol usando xref/Eglot."
 
 (defun +carlos/magent-tool-snippet-expand (args)
   "Handler para a ferramenta `snippet_expand`.
-Retorna templates do Tempel, a estrutura do snippet ARGS :name, ou insere o snippet no buffer."
+Retorna templates do Tempel, a estrutura do snippet ARGS
+:name, ou insere o snippet no buffer."
   (let* ((name-str (plist-get args :name))
          (mode-str (plist-get args :mode))
          (action-str (plist-get args :action))
