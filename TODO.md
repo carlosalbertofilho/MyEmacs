@@ -98,6 +98,47 @@ inteiro colado.
    - *Queremos:* o orquestrador decide por tarefa (via `spawn_agent` com modelo explícito ou tool de seleção), priorizando **local (grátis) → free tier (Gemini/Zen free) → pago (Zen Claude)**, com tabela de custo/quota injetada e guardrails para não pagar quando local/free basta nem forçar modelo fraco em raciocínio profundo.
    - *Interação:* validar com os perfis fixos de subagentes e com a exclusão do roteador em requests gerenciadas (magent-managed).
 
+**Decisões de design (2026-08-13):**
+- **Mecanismo de roteamento:** decisão por *raciocínio + tool* — o orquestrador recebe um "menu de modelos" (custo/quota/disponibilidade) no system prompt e chama uma tool `select_model` que valida e retorna o modelo; o subagente herda a escolha. Guardrails no código.
+- **Prioridade do resumo:** *estado do projeto* — tarefa corrente, decisões+justificativas, arquivos tocados com motivo, comandos de verificação, próximos passos; descartar transcripts reproduzíveis.
+- **Gatilho da compactação:** *threshold + milestones* — medir tokens corretamente (input+output vs. janela real) e compactar também em marcos da tarefa (fim de etapa/subagente).
+- **Teto por complexidade:** *complexidade primeiro* — raciocínio profundo pula para free/paid direto; "local primeiro" vale para o que o local resolve bem.
+
+**Plano de Ação — Fase A: Roteamento de modelos pelo orquestrador (custom-magent.el)**
+
+- **A1. Menu de modelos (defcustom):** `+carlos/magent-model-menu` — alist de tiers com a escada: `local` (backend/modelo local ativo, ex. `("MLX Local" . qwen3.5-coder-9b)`), `free` (`"Gemini"` `gemini-3.5-flash`, `"OpenCode Zen"` `big-pickle`), `paid` (`"Zen Claude"` `claude-sonnet-5`). `+carlos/magent-model-max-tier` (local|free|paid, default `paid`) como teto do usuário.
+- **A2. Injeção do menu no system prompt:** função `+carlos/magent-model-menu-render` gera a tabela (tier, backend, modelo, custo, disponibilidade local via `+carlos/local-ai-server-ping-p`); inserir como nova regra **9. MODEL SELECTION** no const `+carlos/magent-system-directives` (custom-magent.el:478), mandando o orquestrador escolher por tarefa (complexidade primeiro) e chamar `select_model` antes de `spawn_agent`. O const precisa virar função (ou concat) para refletir disponibilidade em runtime.
+- **A3. Tool `select_model`:** registrar em `+carlos/magent-register-tools` (custom-magent.el:819) via `gptel-make-tool` (nome `select_model`, args `task_description` string + `agent` string opcional + `complexity` enum opcional `simple|moderate|deep`). Handler `+carlos/magent-tool-select-model`:
+  - Heurística de complexidade (se não informado): keywords de raciocínio profundo (refactor, architecture, debug, plan, schema, "review") → `deep`; senão `simple`/`moderate`.
+  - Escada (complexidade primeiro): `deep` → free (Gemini → Zen free) → paid (se free indisponível); `simple`/`moderate` → local (se ping online) → free → paid. Nunca acima de `+carlos/magent-model-max-tier`.
+  - Retorna JSON `{:backend B :model M :tier T :reason R}` e registra o override em `+carlos/magent-subagent-model-overrides` (alist `agent-name → (backend . model)`, transient).
+- **A4. Override dinâmico no advice de perfil:** em `+carlos/magent-subagent-apply-profile` (custom-magent.el:899), antes de consultar `+carlos/magent-subagent-profiles`, ler o override transiente de `+carlos/magent-subagent-model-overrides` (consumir com pop); se inválido (`gptel-get-backend` nil) → log + fallback perfil estático. O advice já aplica via `cl-struct-slot-value` no request-state do filho — sem tocar sources do elpaca.
+- **A5. Interação roteador dinâmico:** requests de subagente já são excluídas via `+carlos/magent-managed-request-p` (custom-ai.el:566) — apenas documentar.
+
+**Plano de Ação — Fase B: Compactação estilo opencode (custom-magent.el)**
+
+- **B1. Instrução orientada a estado:** `+carlos/magent-preservation-instruction` (custom-magent.el:649) → função `+carlos/magent-build-compaction-instruction` com seções: tarefa corrente e objetivo; decisões + justificativas; arquivos tocados (absolutos) com motivo; comandos de verificação válidos (`just ...`); próximos passos; e regras de descarte ("não replique transcripts de leitura reproduzíveis; preserve os últimos N turns crus e resuma só o prefixo antigo"). `+carlos/magent-compact` e `magent-runtime-session-compact` passam a usar a instrução gerada (a API `magent-runtime-session-compact` aceita `&key instruction` — runtime-api.el:597; o agente interno `compaction` lê `internal/session-compaction.org`, não editável, mas a instrução extra direciona o que preservar).
+- **B2. Medição correta de tokens:** verificar as chaves do evento no emit-site (`magent-lifecycle-events.el`); se houver `:input-len`, usar `:input-len` + `:output-len` contra `(+carlos/magent-get-context-window)`; senão usar estimativa `magent-runtime-session-token-count` se existir. Executor deve confirmar as chaves reais antes de implementar.
+- **B3. Gatilho por milestones:** novo sink (além do threshold do `turn-end`) que observa conclusão de subagente (verificar status de eventos de job em `magent-lifecycle-events.el`/`magent-tools--render-agent-job-event`) e compacta no `turn-end` quando ≥N subagentes completados desde a última compactação E tokens > limiar inferior (ex. 40% da janela).
+- **B4.** `C-c A p` (`+carlos/magent-compact`) passa a usar a instrução dinâmica (B1).
+
+**Testes ERT (tests/magent-test.el ou novo tests/routing-test.el)**
+- `myemacs-magent-select-model-deep-skips-local` — `deep` nunca cai no local.
+- `myemacs-magent-select-model-simple-prefers-local-when-online` — local online vence free.
+- `myemacs-magent-select-model-free-over-paid` — free disponível nunca usa paid.
+- `myemacs-magent-select-model-respects-max-tier` — teto `free` bloqueia `paid`.
+- `myemacs-magent-subagent-dynamic-override-beats-static-profile` — override transiente aplica antes do perfil estático.
+- `myemacs-magent-compact-instruction-contains-state-sections` — instrução gerada tem todas as seções de estado.
+- `myemacs-magent-compact-milestone-triggers-at-threshold` — contador de milestones + limiar dispara compactação.
+- Mocks (sem rede): `+carlos/local-ai-server-ping-p`, `gptel-get-backend`, registro de override, sink de eventos.
+
+**Docs e Portões**
+- `docs/magent-reference.org`: nova tool `select_model`, menu de modelos, seção de contexto/compactação.
+- `docs/ai-providers-reference.org`: nota sobre decisão de modelo pelo orquestrador.
+- `just lint` (compile+checkdoc), `just test` prod, `just sync` + `just compile-prod` + `just check-prod`, `just test-all`.
+- Atualizar roadmap.org e esta seção do TODO.md ao concluir.
+
+
 ## 2. Decisões Registradas
 
 - **Auditoria de Conformidade e Orquestração Híbrida do Agent_Smith (2026-08-13):** Executado um cenário híbrido de 4 modelos (Gemma 4 2B local como Orquestrador, Zen Claude na nuvem como Planejador, DeepSeek R1 14B local como Desenvolvedor e Big Pickle na nuvem como Revisor) para auditar o código do repositório `Agent_Smith`. O Planejador identificou desvios arquiteturais críticos no código do colega David (ausência de servidores MCP reais em `mcp_tools_*.py`, omissão de token `<end_code>` e regex XML errada no `extractor.py`, e falhas de escape de segurança por subprocessos no `executor.py`). O Desenvolvedor (DeepSeek R1) gerou a refatoração completa em Python dos 4 arquivos com as devidas correções (incluindo o uso do SDK FastMCP do MCP e a interceptação e propagação de SystemExit/KeyboardInterrupt), a qual recebeu nota PASS da avaliação do Revisor (Big Pickle).
