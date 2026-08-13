@@ -137,10 +137,12 @@ Foco: Alta velocidade (<1s TTFT), zero consumo de recursos locais, uso contínuo
 ** Tier 2 — Local High-Performance (GPU Apple Silicon =agnes.local:8081= via MLX)
 Foco: Trabalho 100% offline no MacBook M2 com aceleração de GPU Metal (24GB VRAM).
 
-| Papel | Provedor / Backend | Modelo | Benchmark Real |
-|-------+--------------------+--------+----------------|
-| *Default MLX (1ª Escolha)* | =MLX Local= | =mlx-community/gemma-4-e2b-it-4bit= | 31.4 tok/s \| TTFT 3.20s \| Turno Magent 11s (Raciocínio excelente). |
-| *Fallback Técnico MLX* | =MLX Local= | =mlx-community/Qwen3.5-9B-MLX-4bit= | 15.9 tok/s \| TTFT 1.10s \| Turno Magent 16s. |
+| Papel | Provedor / Backend | Modelo | Benchmark Real / VRAM |
+|-------+--------------------+--------+-----------------------|
+| *Default MLX (1ª Escolha)* | =MLX Local= | =mlx-community/gemma-4-e2b-it-4bit= | 31.4 tok/s \| TTFT 1.75s (Super leve e rápido). |
+| *Fallback Técnico MLX* | =MLX Local= | =mlx-community/Qwen3.5-9B-MLX-4bit= | 15.9 tok/s \| Excelente para chat em nova geração. |
+| *Codificação MLX Local* | =MLX Local= | =mlx-community/Qwen3.5-Coder-7B-Instruct-4bit= / =14B-4bit= | Foco total em desenvolvimento local no agnes. |
+| *Raciocínio Local (Deep)* | =MLX Local= | =mlx-community/DeepSeek-R1-Distill-Qwen-14B-4bit= | Raciocínio profundo offline (Magent / Refactorings). |
 
 ** Tier 3 — Local Hardware-Friendly (CPU / Servidor =aa102-006l:11434= via Ollama)
 Foco: Servidores headless, máquinas sem GPU dedicada ou ambientes com restrição de memória.
