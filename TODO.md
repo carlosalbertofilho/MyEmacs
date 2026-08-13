@@ -189,6 +189,15 @@ sessão `session-20260813-153757.json` (projeto Agent_Smith, host agnes).
 
 > **STATUS: IMPLEMENTADO.** Items abaixo concluídos em `lisp/custom-magent.el`,
 > cobertura ERT em `tests/magent-fsm-test.el` (GRUPO 10).
+>
+> **Nota pós-deploy (85b4d47):** a suíte do prod reprovou 2 testes do GRUPO 10 —
+> `void-function (setf magent-request-context-backend)` e `wrong-type-argument
+> listp`. Causa-raiz dupla: (1) `apply` tratava o `request-state` (struct) como
+> arglist final → `wrong-type-argument listp`; (2) accessors gerados da struct
+> indisponíveis no compile-time (magent-runtime não carregado no compile →
+> `setf` virou chamada a função vazia no `.elc`). Fix: `funcall` (aridade fixa)
+> + `cl-struct-slot-value` (cl-lib, sempre disponível) no advice; testes leem
+> via `cl-struct-slot-value`. Prod: 202 testes, 195 esperados, **0 unexpected**.
 
 ### Objetivos:
 Orquestrador = modelo leve local (no `agnes`: `mlx-community/gemma-4-e2b-it-4bit`,

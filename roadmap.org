@@ -35,6 +35,7 @@ entenderem o estado atual do projeto e decisões tomadas.
      - `tests/magent-fsm-test.el`: GRUPO 10 (6 testes; 3 dependem do magent carregado → skip-unless no repo, validados no prod).
      - `docs/magent-reference.org`: seção "Perfis de subagente (spawn_agent → modelo forte na nuvem)".
    - **Validação:** `just compile` zero warnings no repo; suíte FSM repo 30 pass / 3 skip (magent não carregado no repo — builds parciais); suíte completa e GRUPO 10 validados no prod pós-sync.
+   - **Fix pós-deploy (85b4d47):** GRUPO 10 reprovou no prod — `void-function (setf magent-request-context-backend)` (accessors da struct indisponíveis no compile-time; magent-runtime não carregado) e `wrong-type-argument listp` (`apply` tratava o `request-state` struct como arglist final). Advice corrigido para `funcall` (aridade fixa) + `cl-struct-slot-value` (cl-lib) para ler/gravar backend/modelo; testes alinhados. Suíte prod: 202 testes, 195 esperados, 0 inesperados.
 
 ** 2026-08-13 — [CONCLUÍDO] Correção da FSM com Submodelos: spawn_agent → wait_agent (HARD RULE)
    - **Diagnóstico (sessão real `session-20260813-153757.json`, projeto Agent_Smith):** o orquestrador (gemma local) chamou `spawn_agent(explore)` e encerrou o turno com texto ("Aguardando o resultado...") sem chamar `wait_agent`, deixando o job `agent-20260813-155202` órfão em `running`. O sampling FSM do gptel (`magent-llm-gptel--make-sampling-fsm`) trata a resposta de texto após tool result como DONE, e não há re-anexação do resultado do filho ao pai.
