@@ -321,15 +321,25 @@ Estes são os utilitários de alto nível implementados para transformar o Magen
 ** 3. `snippet_expand`
 - **Nome Técnico:** `snippet_expand`
 - **Handler Elisp:** `+carlos/magent-tool-snippet-expand`
-- **Descrição:** Permite interagir com os templates do Tempel instalados. Se nenhum parâmetro `:name` for enviado, retorna a lista completa de todos os nomes de snippets do Tempel registrados para o major-mode atual (ou do modo explicitado por `:mode`). Se `:name` for provido, extrai e retorna a representação estática da estrutura do template do snippet.
+- **Descrição:** Permite listar, inspecionar e fisicamente expandir/inserir templates do Tempel no buffer de edição.
 - **Parâmetros:**
-  - `:name` (string, opcional): Nome do snippet do Tempel para inspecionar.
-  - `:mode` (string, opcional): Nome de um major-mode específico (ex: `"emacs-lisp-mode"`).
-  - `:reason` (string, opcional): Razão para expandir/inspecionar o snippet.
+  - `:name` (string, opcional): Nome do snippet do Tempel (ex: `"deftest"` ou `"defun"`). Obrigatório se a ação for `inspect` ou `insert`.
+  - `:action` (string, opcional): Ação a ser executada. Pode ser `"list"` (padrão se `:name` for nulo), `"inspect"` (retorna a estrutura lisp do template do snippet), ou `"insert"` (expande fisicamente o snippet no buffer corrente sob o cursor do usuário usando `tempel-insert`).
+  - `:mode` (string, opcional): Nome de um major-mode específico para filtrar/listar templates (ex: `"emacs-lisp-mode"`).
+  - `:reason` (string, opcional): Razão para expandir/inspecionar/inserir o snippet.
 - **Formato da Saída (plist):**
-  #+begin_src elisp
-  (:status "success" :name "deftest" :template "(ert-deftest name () \"desc\" ...)")
-  #+end_src
+  - Para listagem:
+    #+begin_src elisp
+    (:status "success" :mode "emacs-lisp-mode" :total 12 :snippets ("deftest" "defun" "let" ...))
+    #+end_src
+  - Para inspeção:
+    #+begin_src elisp
+    (:status "success" :name "deftest" :template "((p \"Test name: \" name) ...)")
+    #+end_src
+  - Para inserção física:
+    #+begin_src elisp
+    (:status "success" :message "Snippet 'deftest' inserido com sucesso no buffer.")
+    #+end_src
 
 * Permissions & Audit Logging
 
