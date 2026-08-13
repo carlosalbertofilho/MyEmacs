@@ -86,6 +86,18 @@ inteiro colado.
    - *Ideia:* Usar o agent-shell standalone (Aider, Cursor, Claude Code) como subagente especializado delegado pelo Magent (através de `spawn_agent` / `wait_agent`) apenas para refatorações complexas de múltiplos arquivos.
    - *Status:* Adiado. Preservar o FinOps local e o roteador de custo zero por enquanto.
 
+### 1d. Controle de Contexto estilo opencode + Roteamento de Modelos pelo Orquestrador (2026-08-13)
+
+**Objetivo:** Evoluir o controle de contexto dos agentes do Magent no estilo do opencode (compactação inteligente guiada por objetivo, preservando estado acionável em vez de truncar) e dar ao agente orquestrador o poder de decidir o modelo mais adequado para cada subagente/tarefa.
+
+1. **Compactação estilo opencode:**
+   - *Hoje:* `+carlos/magent-auto-compact-check-and-run` (custom-magent.el:679) dispara no `turn-end` quando `output-len` > 60% da janela (fallback 16384) e chama `magent-runtime-session-compact` com uma instrução estática de preservação.
+   - *Queremos:* compactação progressiva que resuma o *prefixo antigo* mantendo os últimos N turns crus; resumo orientado a objetivo (tarefa corrente, decisões, arquivos tocados, comandos de verificação, próximos passos) e descarte de transcripts reproduzíveis (leitura de arquivos que voltam via RAG/AGENTS).
+2. **Roteamento de modelos pelo orquestrador:**
+   - *Hoje:* `+carlos/gptel-dynamic-router-advice` roteia estaticamente por buffer/keywords; subagentes usam perfis fixos (`explore`/`general` → Gemini 3.1 Pro).
+   - *Queremos:* o orquestrador decide por tarefa (via `spawn_agent` com modelo explícito ou tool de seleção), priorizando **local (grátis) → free tier (Gemini/Zen free) → pago (Zen Claude)**, com tabela de custo/quota injetada e guardrails para não pagar quando local/free basta nem forçar modelo fraco em raciocínio profundo.
+   - *Interação:* validar com os perfis fixos de subagentes e com a exclusão do roteador em requests gerenciadas (magent-managed).
+
 ## 2. Decisões Registradas
 
 - **Auditoria de Conformidade e Orquestração Híbrida do Agent_Smith (2026-08-13):** Executado um cenário híbrido de 4 modelos (Gemma 4 2B local como Orquestrador, Zen Claude na nuvem como Planejador, DeepSeek R1 14B local como Desenvolvedor e Big Pickle na nuvem como Revisor) para auditar o código do repositório `Agent_Smith`. O Planejador identificou desvios arquiteturais críticos no código do colega David (ausência de servidores MCP reais em `mcp_tools_*.py`, omissão de token `<end_code>` e regex XML errada no `extractor.py`, e falhas de escape de segurança por subprocessos no `executor.py`). O Desenvolvedor (DeepSeek R1) gerou a refatoração completa em Python dos 4 arquivos com as devidas correções (incluindo o uso do SDK FastMCP do MCP e a interceptação e propagação de SystemExit/KeyboardInterrupt), a qual recebeu nota PASS da avaliação do Revisor (Big Pickle).
