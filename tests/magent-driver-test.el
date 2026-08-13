@@ -29,10 +29,11 @@
 
 (ert-deftest myemacs-driver-snippet-expand-handler ()
   "Garante que `+carlos/magent-tool-snippet-expand` retorna plist válido em todos os cenários."
+  (skip-unless (require 'tempel nil t))
   (let ((mock-templates '((deftest "ert-deftest" n "  (should " p ")")
-                          (defun "defun" p "()" n "  " p))))
+                          (defun "defun" p "()" n "  " p)))
+        tempel-inserted-sym)
     (cl-letf (((symbol-function 'tempel--templates) (lambda () mock-templates))
-              (tempel-inserted-sym nil)
               ((symbol-function 'tempel-insert) (lambda (sym) (setq tempel-inserted-sym sym))))
       ;; 1. Cenário: Listar todos
       (let ((res (+carlos/magent-tool-snippet-expand nil)))
@@ -55,10 +56,11 @@
 
 (ert-deftest myemacs-driver-tools-catalog-registered ()
   "Garante que as 3 ferramentas curadas estão registradas no Magent."
-  (when (require 'magent-tools nil t)
-    (should (magent-tools-catalog-entry "flycheck_errors"))
-    (should (magent-tools-catalog-entry "lsp_navigation"))
-    (should (magent-tools-catalog-entry "snippet_expand"))))
+  (skip-unless (require 'gptel nil t))
+  (skip-unless (require 'magent-tools nil t))
+  (should (magent-tools-catalog-entry "flycheck_errors"))
+  (should (magent-tools-catalog-entry "lsp_navigation"))
+  (should (magent-tools-catalog-entry "snippet_expand")))
 
 (provide 'magent-driver-test)
 ;;; magent-driver-test.el ends here
