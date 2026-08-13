@@ -460,8 +460,11 @@ Resolve definições ou referências de ARGS :symbol usando xref/Eglot."
         `(:status "error" :message "Parâmetro :symbol é obrigatório.")
       (condition-case err
           (let ((xref-backend (and (fboundp 'xref-find-backend) (xref-find-backend))))
-            (if (not xref-backend)
-                `(:status "error" :message "Nenhum backend xref/LSP ativo no buffer atual.")
+            (if (or (not xref-backend)
+                    (and (eq xref-backend 'etags)
+                         (not (bound-and-true-p tags-file-name))
+                         (not (locate-dominating-file default-directory "TAGS"))))
+                `(:status "info" :message "Nenhum backend LSP ativo no buffer atual e nenhuma tabela de TAGS disponível.")
               (let* ((xrefs (if (string= action "references")
                                 (xref-backend-references xref-backend sym-str)
                               (xref-backend-definitions xref-backend sym-str)))
