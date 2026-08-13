@@ -209,53 +209,34 @@ Mitigações aplicadas (2026-08-10, commits 9a729b7/b35e9ed/8c78f8f):
 - Reprodução batch com a diretriz reforçada: 3/3 tool_calls nativos (mas a
   abordagem por prompt é probabilística — não é uma garantia).
 
-* Máquina de Estados (FSM) para bailizar o modelo — proposta de design
+* Loop de Eventos FSM do Magent (Arquitetura & Design de Orquestração)
 
-O pedido original era "controlar logits" — **inviável** pela API
-compatível-OpenAI do MLX (chat/completions não expõe logits; exigiria hook
-no servidor llama.cpp/MLX). O equivalente viável e recomendado é uma **FSM
-de orquestração em Elisp** no nível do adapter, que não controla logits mas
-**controla a decisão de turno do agente**:
+A FSM do Magent regula de forma assíncrona as iterações cognitivas e chamadas de ferramentas no Emacs sem bloquear o thread principal da interface. Ela gerencia o chaveamento de modelos, tratamento de erros, watchdog e fallback dinâmico baseado no perfil do host ativo.
 
-**Estado 1 — THINK (acumulando reasoning):** interceptar o canal reasoning
-(que hoje descarta tudo) e acumular chunks em buffer próprio.
+** Estrutura de Estados da FSM:
+- =idle=: Aguardando prompt do usuário.
+- =planning=: (Nuvem - Gemini Pro / Sonnet) Produção do plano de roteamento e passos necessários no buffer.
+- =thinking=: (Local - DeepSeek R1 / Qwen Coder) Execução do ciclo cognitivo e decisão de qual ferramenta invocar (Thought -> Action -> Observation).
+- =tool-executing=: (Emacs) Execução física de ferramentas do catálogo (ex.: snippet_expand, flycheck_errors).
+- =verifying=: (Flycheck/LSP) Validação da estabilidade do código alterado. Se houver erros, retorna para =thinking=; se zero erros, vai para =summarizing=.
+- =summarizing=: (Nuvem) Geração do relatório final e atualização FinOps para o usuário.
 
-**Estado 2 — DECIDE (reasoning-end):** no fim do reasoning, rodar sobre o
-buffer:
-1. =magent-llm-gptel--parse-dsml-tool-calls= (reutiliza o parser nativo);
-2. um parser auxiliar do formato Claude-XML =<tool_call><function=...
-   <parameter=name>...= (regex simples, ~5 linhas);
-3. se encontrar tool call: emiti-la como =magent-llm-tool-call-event= real
-   (mesmo caminho do canal nativo, linhas 794–806) e **suprimir** o bloco
-   DSML do reasoning exibido (para não duplicar); se não encontrar, seguir
-   para o terminal normal.
+** Tabela de Roteamento de Perfis por Host:
+A FSM adapta dinamicamente os backends e modelos do gptel dependendo de onde o Emacs está rodando:
 
-**Estado 3 — RETRY (turn vazio):** se o turn terminou com content vazio E o
-THINK não produziu tool call, re-disparar o request com instrução de
-forçagem nativa ("You MUST emit the tool call as a native function call in
-the final response") — 1 retry máximo, senão reporta erro legível.
+| Função / Estado FSM | MacBook Pro M2 (=agnes.local=) | Estação NixOS/CPU (=aa102-006l=) |
+|---------------------+-------------------------------+---------------------------------|
+| *Orquestração*      | Local: Gemma 2B (e2b MLX GPU) | Nuvem: Gemini 2.5 Flash (Free)  |
+| *Planejamento*      | Nuvem: Claude 3.5 Sonnet      | Nuvem: Gemini 2.5 Pro / Sonnet  |
+| *Desenvolvimento*   | Local: Qwen 3.5 9B (MLX GPU)  | Local: Qwen 2.5 Coder 3B (CPU)  |
+| *Raciocínio*        | Local: DeepSeek R1 14B (MLX)  | Local: DeepSeek R1 1.5B (CPU)   |
+| *Revisão (Audit)*   | Nuvem: Big Pickle (72B)       | Nuvem: Big Pickle (72B)         |
 
-Onde interceptar (pontos de extensão exatos em =magent-llm-gptel.el=):
+** Mecanismos de Robustez e Resiliência:
+1. **Watchdog de Latência:** Um timer de contagem regressiva =+carlos/magent-watchdog-timer= monitora a requisição ativa de desenvolvimento local. Caso o tempo limite (8s no MacBook, 15s na aa102-006l) seja atingido devido ao carregamento de pesos (cold-start) ou lentidão na CPU, a FSM aborta a chamada e faz fallback transparente do turno para a nuvem.
+2. **Sanitizador de Reasoning:** Captura e acumula o fluxo do canal =reasoning= do gptel. Se o modelo tentar chamar uma ferramenta em formato de tag (Claude-XML ou DSML) dentro do pensamento, um parser regex extrai a chamada e a envia ao Emacs no canal nativo, contornando a falha nativa do gptel-request de descartar tool calls no reasoning.
+3. **Trava de Edição (Semáforo de Buffer):** Impede modificação manual pelo usuário no buffer ativo durante o estado =tool-executing=, garantindo a integridade dos pontos e marcações de cursor.
 
-- Reasoning: linhas 776–793 (=eq (car response) 'reasoning=) — hoje só
-  acumula e emite delta. Inserir acumulação extra + hook no reasoning-end
-  (linha 777, =(cdr response) t=).
-- Terminal vazio: linha 807–813 — o =--emit-completed-or-textual-tool-calls=
-  com =--final-text= vazio; é aqui que o RETRY decidiria.
-- Eventos de tool call já existem: =magent-llm-tool-call-event= /
-  =magent-llm-tool-call-batch-end-event= (linhas 799–806) — o THINK→DECIDE
-  reusaria esses mesmos emissores.
-
-Vantagens: corrige a causa-raiz (tool call no reasoning hoje é descartada),
-reutiliza parser nativo, funciona para qualquer backend (MLX/Ollama/remote),
-zero toque no servidor. Desvantagens: mexe em internals do pacote (advices
-sobre funções privadas =magent-llm-gptel--*=), risco de duplicação de tool
-calls (content também emitiu), e precisa de testes ERT simulando o
-streaming via fake =gptel-request=.
-
-Alternativa mais barata (menos robusta): RETRY apenas, sem extração do
-reasoning — se o turn vazio for detectado, re-solicitar com forçagem nativa
-(e um hint do que o modelo pretendia chamar, extraído do reasoning).
 
 * Entry Points & Keybindings
 

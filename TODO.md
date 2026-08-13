@@ -116,7 +116,35 @@ inteiro colado.
   - *Tier 2 (Local GPU MLX agnes):* `mlx-community/gemma-4-e2b-it-4bit` (31.4 tok/s, 11s no Magent) como default local de alta velocidade.
   - *Tier 3 (Local CPU aa102-006l Ollama):* `qwen2.5-coder:3b` (7s no Magent) e `qwen2.5-coder:1.5b` (4s no Magent) no topo da lista do Ollama devido ao consumo leve de hardware. Documentado em `docs/ai-providers-reference.org`.
 - **Default local MLX: gemma-4-e2b-it-4bit (2026-08-10):** benchmark dos 5 modelos locais (ver `docs/magent-reference.org`) — gemma lidera (31.4 tok/s, 2x o Qwen3.5-9B) e completou o turn do magent em 30.3s com reasoning estruturado; Qwen2.5-7B (sem reasoning, 0c) levou 99.5s e errou tool (`read` num diretório); os 14B (Qwen3/DeepSeek-R1) são lentos demais (3.7–8 tok/s). Troca do default em `+carlos/ai-local-backend` (custom-ai.el) + testes atualizados. O Qwen3.5-9B permanece como opção no backend (lista de modelos).
-- **Scripts de avaliação de modelos locais (2026-08-10):** salvos em `bin/magent-batch-test.el` (reprodução batch do turn do magent sem GUI, drena `*magent-log*` via `MAGENT_SIM_MODEL`/`MAGENT_SIM_TIMEOUT`/`MAGENT_SIM_PROMPT`) e `bin/bench-local-models.py` (benchmark streaming tok/s, ttft, content/reasoning para MLX agnes:8081 e Ollama aa102-006l via `--ollama`). Usar para avaliar substitutos do 14B no host aa102-006l e validar a FSM real antes de trocar default. Critério de troca documentado em `docs/magent-reference.org`.
+- Scripts de avaliação de modelos locais (2026-08-10): salvos em `bin/magent-batch-test.el` (reprodução batch do turn do magent sem GUI, drena `*magent-log*` via `MAGENT_SIM_MODEL`/`MAGENT_SIM_TIMEOUT`/`MAGENT_SIM_PROMPT`) e `bin/bench-local-models.py` (benchmark streaming tok/s, ttft, content/reasoning para MLX agnes:8081 e Ollama aa102-006l via `--ollama`). Usar para avaliar substitutos do 14B no host aa102-006l e validar a FSM real antes de trocar default. Critério de troca documentado em `docs/magent-reference.org`.
+
+## 3. Plano de Ação — Implementação do Loop de Eventos FSM do Magent (2026-08-13)
+
+### Objetivos:
+Implementar a FSM (Finite State Machine) assíncrona orientada a eventos para o Magent e o roteamento dinâmico de backends/modelos adaptado a cada host do usuário (`agnes.local` e `aa102-006l`).
+
+### Passo 1: Infraestrutura da FSM e Roteador de Hosts (lisp/custom-magent.el)
+1. Definir variáveis globais de controle da FSM:
+   - `+carlos/magent-fsm-state` (símbolo, default `'idle`): Estado atual.
+   - `+carlos/magent-fsm-session` (símbolo, default `nil`): Sessão atual ativa.
+   - `+carlos/magent-fsm-retry-count` (integer, default `0`): Contador de retries do turno.
+   - `+carlos/magent-fsm-reasoning-buffer` (string, default `""`): Acumulador de reasoning.
+2. Implementar a detecção dinâmica de host:
+   - `+carlos/magent-host-profile`: Retorna `'agnes`, `'aa102-006l` ou `'default` baseando-se em `(system-name)`.
+3. Criar a lógica de roteamento automático de sessão por host:
+   - Na `aa102-006l`: Define o backend de orquestração como `"Gemini"` (modelo `"gemini-2.5-flash"`) e de desenvolvimento como `"Ollama Local"` (modelo `"qwen2.5-coder:3b"`).
+   - Na `agnes.local`: Mantém no backend `"MLX Local"` com os pesos corretos de GPU.
+
+### Passo 2: Interceptador de Reasoning e Parser DSML do thinking (lisp/custom-magent.el)
+1. Criar sink/advice que lê o fluxo no canal `reasoning` do gptel e o armazena em `+carlos/magent-fsm-reasoning-buffer`.
+2. Implementar parser regex que varre o pensamento acumulado ao fim do reasoning. Se encontrar tags de ferramentas (`<tool_call>` ou formato XML/DSML), extrai e injeta as chamadas na fila de execução física do Magent, resolvendo o problema de descarte silencioso de tool calls no reasoning.
+
+### Passo 3: Watchdog de Latência e Fallback de Turno (lisp/custom-magent.el)
+1. Criar o timer `+carlos/magent-watchdog-timer`.
+2. Em cada requisição de desenvolvimento local, inicia o timer com o limite do host (8s no M2, 15s na CPU do NixOS). Se estourar antes de receber resposta, cancela a requisição ativa e aciona o fallback automático daquele turno de desenvolvimento para a API do Gemini Flash/Sonnet na nuvem.
+
+### Passo 4: Cobertura de Testes ERT (tests/magent-test.el)
+1. Escrever testes unitários simulando a execução da FSM e atestando o funcionamento do roteamento, do parser de reasoning e do fallback sob mocks de resposta.
 
 ---
 > Para o histórico cronológico detalhado de conquistas e decisões arquiteturais, consulte o [roadmap.org](roadmap.org).
