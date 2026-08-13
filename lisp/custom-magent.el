@@ -419,6 +419,13 @@ NÃO replicar conteúdo lido que não tenha sido alterado."
 (defvar flycheck-mode)
 (defvar flycheck-current-errors)
 
+(defvar +carlos/magent-tool-flycheck-errors nil
+  "Gptel tool for Flycheck errors.")
+(defvar +carlos/magent-tool-lsp-navigation nil
+  "Gptel tool for LSP navigation.")
+(defvar +carlos/magent-tool-snippet-expand nil
+  "Gptel tool for Snippet expansion.")
+
 (defun +carlos/magent-tool-flycheck-errors (args)
   "Handler para a ferramenta `flycheck_errors`.
 Retorna erros do Flycheck no buffer ativo ou em ARGS :path."
@@ -494,45 +501,55 @@ Retorna templates do Tempel ou a estrutura do snippet ARGS :name."
               :total ,(length names)
               :snippets ,names)))))))
 
+(defun +carlos/magent-register-tools ()
+  "Register Carlos's Magent tools to magent-tools-catalog if available."
+  (when (boundp 'magent-tools-catalog)
+    (when +carlos/magent-tool-flycheck-errors
+      (add-to-list 'magent-tools-catalog
+                   `(:name "flycheck_errors" :tool ,+carlos/magent-tool-flycheck-errors :permission flycheck_errors)))
+    (when +carlos/magent-tool-lsp-navigation
+      (add-to-list 'magent-tools-catalog
+                   `(:name "lsp_navigation" :tool ,+carlos/magent-tool-lsp-navigation :permission lsp_navigation)))
+    (when +carlos/magent-tool-snippet-expand
+      (add-to-list 'magent-tools-catalog
+                   `(:name "snippet_expand" :tool ,+carlos/magent-tool-snippet-expand :permission snippet_expand)))))
+
 (with-eval-after-load 'gptel
   (when (fboundp 'gptel-make-tool)
-    (defvar +carlos/magent-tool-flycheck-errors
-      (gptel-make-tool
-       :name "flycheck_errors"
-       :description "Retrieve Flycheck errors and warnings for a file or live buffer in structured format (file, line, column, level, message, checker)."
-       :args '((:name "path" :type string :description "Optional file or buffer path")
-               (:name "reason" :type string :description "Reason for checking errors"))
-       :function #'+carlos/magent-tool-flycheck-errors
-       :category "magent"))
+    (setq +carlos/magent-tool-flycheck-errors
+          (gptel-make-tool
+           :name "flycheck_errors"
+           :description "Retrieve Flycheck errors and warnings for a file or live buffer in structured format (file, line, column, level, message, checker)."
+           :args '((:name "path" :type string :description "Optional file or buffer path")
+                   (:name "reason" :type string :description "Reason for checking errors"))
+           :function #'+carlos/magent-tool-flycheck-errors
+           :category "magent"))
 
-    (defvar +carlos/magent-tool-lsp-navigation
-      (gptel-make-tool
-       :name "lsp_navigation"
-       :description "Resolve definition or reference locations for a symbol using Xref/Eglot to eliminate hallucinated names."
-       :args '((:name "symbol" :type string :description "Symbol or function name to resolve")
-               (:name "action" :type string :description "Either 'definition' or 'references'")
-               (:name "reason" :type string :description "Reason for navigation"))
-       :function #'+carlos/magent-tool-lsp-navigation
-       :category "magent"))
+    (setq +carlos/magent-tool-lsp-navigation
+          (gptel-make-tool
+           :name "lsp_navigation"
+           :description "Resolve definition or reference locations for a symbol using Xref/Eglot to eliminate hallucinated names."
+           :args '((:name "symbol" :type string :description "Symbol or function name to resolve")
+                   (:name "action" :type string :description "Either 'definition' or 'references'")
+                   (:name "reason" :type string :description "Reason for navigation"))
+           :function #'+carlos/magent-tool-lsp-navigation
+           :category "magent"))
 
-    (defvar +carlos/magent-tool-snippet-expand
-      (gptel-make-tool
-       :name "snippet_expand"
-       :description "Inspect or expand a Tempel snippet template by name, or list available snippets for a major-mode."
-       :args '((:name "name" :type string :description "Optional snippet name to inspect")
-               (:name "mode" :type string :description "Optional major-mode name")
-               (:name "reason" :type string :description "Reason for snippet expansion"))
-       :function #'+carlos/magent-tool-snippet-expand
-       :category "magent"))))
+    (setq +carlos/magent-tool-snippet-expand
+          (gptel-make-tool
+           :name "snippet_expand"
+           :description "Inspect or expand a Tempel snippet template by name, or list available snippets for a major-mode."
+           :args '((:name "name" :type string :description "Optional snippet name to inspect")
+                   (:name "mode" :type string :description "Optional major-mode name")
+                   (:name "reason" :type string :description "Reason for snippet expansion"))
+           :function #'+carlos/magent-tool-snippet-expand
+           :category "magent"))
+
+    (when (featurep 'magent-tools)
+      (+carlos/magent-register-tools))))
 
 (with-eval-after-load 'magent-tools
-  (when (boundp 'magent-tools-catalog)
-    (add-to-list 'magent-tools-catalog
-                 `(:name "flycheck_errors" :tool ,+carlos/magent-tool-flycheck-errors :permission flycheck_errors))
-    (add-to-list 'magent-tools-catalog
-                 `(:name "lsp_navigation" :tool ,+carlos/magent-tool-lsp-navigation :permission lsp_navigation))
-    (add-to-list 'magent-tools-catalog
-                 `(:name "snippet_expand" :tool ,+carlos/magent-tool-snippet-expand :permission snippet_expand))))
+  (+carlos/magent-register-tools))
 
 (with-eval-after-load 'magent-config
   (when (boundp 'magent-enable-tools)
