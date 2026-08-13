@@ -11,6 +11,22 @@
 (when (advice-member-p #'+carlos/gptel-dynamic-router-advice 'gptel-request)
   (advice-remove 'gptel-request #'+carlos/gptel-dynamic-router-advice))
 
+(defun myemacs-ai--clean-response-to-string (response)
+  "Converte RESPONSE (que pode ser string, cons cell ou lista) em uma string limpa."
+  (cond
+   ((stringp response) response)
+   ((and (consp response) (stringp (cdr response))) (cdr response))
+   ((and (consp response) (stringp (car response))) (car response))
+   ((and (consp response) (listp response))
+    (apply #'concat
+           (mapcar (lambda (part)
+                     (cond ((stringp part) part)
+                           ((and (consp part) (stringp (cdr part))) (cdr part))
+                           ((and (consp part) (stringp (car part))) (car part))
+                           (t "")))
+                   response)))
+   (t (format "%S" response))))
+
 (defun get-project-context-string ()
   "Reads files in lisp/ and init.el to create a single massive context string."
   (let ((files '("init.el"
@@ -65,7 +81,7 @@
               :callback (lambda (response info)
                           (setq end-time (float-time))
                           (if response
-                              (setq response-text response)
+                              (setq response-text (myemacs-ai--clean-response-to-string response))
                             (setq error-msg (plist-get info :error)))
                           (setq done t)))
             
