@@ -88,6 +88,7 @@ inteiro colado.
 
 ## 2. Decisões Registradas
 
+- **Correção do MLX Local em sessões batch e Benchmark no agnes (2026-08-13):** Adicionado o parâmetro `:key "any"` ao backend de MLX Local no custom-ai.el para evitar erros de API key vazia (`wrong-type-argument stringp nil`) em execuções de testes batch/CI. O teste de rede do MLX Local em agnes passou com sucesso absoluto em apenas **1.81 segundos**.
 - **Suporte à Inserção Física de Snippets do Tempel (2026-08-13):** Aprimorada a ferramenta snippet_expand para suportar a ação `:action "insert"`, invocando fisicamente o tempel-insert na posição do cursor do usuário no buffer ativo. Desenvolvidos testes unitários com mocks para garantir o fluxo de listagem, inspeção e inserção de templates.
 - **Remoção de cenários obsoletos e criação do live-scenario com suporte a LSP (2026-08-13):** Removidos magent-driver-demo-scenario.el e magent-driver-test-scenario.el. Criado magent-driver-live-scenario.el configurando sandboxes em Elisp e Python (Eglot/LSP) para validar a teoria do buffer vivo. Protegido lsp_navigation contra travamentos de prompts de TAGS do etags em diretórios sem arquivo TAGS físico.
 - **Correção de compilação em custom-magent.el (2026-08-13):** Declaradas globalmente no topo de custom-magent.el com valor inicial nil as variáveis de ferramentas de gptel para evitar erros de compilation de símbolos livres (free variable). Lógica de registro movida para uma função unificada e executada de modo reativo para ambos os carregamentos (gptel e magent-tools).
