@@ -27,8 +27,6 @@
 (declare-function magent-llm-gptel--sanitize-info "magent-llm-gptel")
 (declare-function magent-llm-tool-call-event "magent-llm")
 (declare-function magent-agent-info-name "magent-agent-info")
-(declare-function magent-request-context-backend "magent-runtime")
-(declare-function magent-request-context-model "magent-runtime")
 (declare-function magent-agent-process "magent-agent")
 
 ;; ── Silenciar *Messages*: filtrar dumps longos (plist de tools / system prompt) ──
@@ -907,7 +905,9 @@ ORIG-FN é `magent-agent-process'; USER-PROMPT e demais argumentos são
 repassados intactos.  O pacote copia backend/modelo do request-state do pai
 para o filho e a herança vence o override do agente; este advice faz `setf'
 no REQUEST-STATE do filho para o perfil declarado antes de ORIG-FN processar
-o request."
+o request.  Usa `cl-struct-slot-value' em vez dos accessors gerados da struct
+— magent-runtime não está carregado no compile-time e `setf' direto viraria
+chamada a função vazia no .elc."
   (when (and agent-info request-state)
     (when-let* ((profile (+carlos/magent-subagent-profile
                           (magent-agent-info-name agent-info)))
@@ -915,12 +915,13 @@ o request."
                 (backend-obj (and (stringp backend-name)
                                   (fboundp 'gptel-get-backend)
                                   (gptel-get-backend backend-name))))
-      (setf (magent-request-context-backend request-state) backend-obj
-            (magent-request-context-model request-state)
+      (setf (cl-struct-slot-value 'magent-request-context 'backend request-state)
+            backend-obj
+            (cl-struct-slot-value 'magent-request-context 'model request-state)
             (intern (plist-get profile :model)))))
-  (apply orig-fn user-prompt callback agent-info skill-names event-context
-         request-context capability-resolution text-callback request-live-p
-         request-state))
+  (funcall orig-fn user-prompt callback agent-info skill-names event-context
+           request-context capability-resolution text-callback request-live-p
+           request-state))
 
 ;; ── Display rules ──────────────────────────────────────────────────
 (add-to-list 'display-buffer-alist

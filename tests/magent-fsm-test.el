@@ -420,8 +420,7 @@
 (ert-deftest myemacs-magent-subagent-apply-profile-known-agent ()
   "Advice aplica o perfil (backend/modelo forte) no request-state de agente com perfil."
   (skip-unless (fboundp '+carlos/magent-subagent-apply-profile))
-  (skip-unless (and (fboundp 'magent-request-context-create)
-                    (fboundp 'gptel-get-backend)))
+  (skip-unless (fboundp 'magent-request-context-create))
   (let* ((rc (magent-request-context-create :model 'gemma-local :backend 'local))
          (agent (and (fboundp 'magent-agent-info-create)
                      (magent-agent-info-create :name "explore" :mode 'subagent)))
@@ -430,8 +429,10 @@
     (funcall #'+carlos/magent-subagent-apply-profile
              orig "prompt" nil agent nil nil nil nil nil nil rc)
     (should called)
-    (should (eq (magent-request-context-backend rc) (gptel-get-backend "Gemini")))
-    (should (eq (magent-request-context-model rc) 'gemini-3.1-pro-preview))))
+    (should (eq (cl-struct-slot-value 'magent-request-context 'backend rc)
+                (gptel-get-backend "Gemini")))
+    (should (eq (cl-struct-slot-value 'magent-request-context 'model rc)
+                'gemini-3.1-pro-preview))))
 
 (ert-deftest myemacs-magent-subagent-apply-profile-unknown-agent ()
   "Advice não altera o request-state de agentes sem perfil (ex.: orquestrador)."
@@ -443,8 +444,8 @@
          (orig (lambda (&rest _) t)))
     (funcall #'+carlos/magent-subagent-apply-profile
              orig "prompt" nil agent nil nil nil nil nil nil rc)
-    (should (eq (magent-request-context-backend rc) 'local))
-    (should (eq (magent-request-context-model rc) 'gemma-local))))
+    (should (eq (cl-struct-slot-value 'magent-request-context 'backend rc) 'local))
+    (should (eq (cl-struct-slot-value 'magent-request-context 'model rc) 'gemma-local))))
 
 (ert-deftest myemacs-magent-subagent-advice-installed ()
   "O advice de perfis de subagente está instalado em magent-agent-process."
