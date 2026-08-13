@@ -33,7 +33,13 @@ mode, com IA unificada via =Magent= (agente nativo Emacs-Lisp de codificação c
 │   ├── custom-org.el       ← org-babel, jupyter, mermaid, pdf-tools, org-modern
 │   ├── custom-42.el        ← header42, custom-norminette, estilo C 42, reformatter
 │   ├── custom-ai.el        ← gptel backends, gptel-agent, gptel-context flexível
-│   ├── custom-magent.el    ← Magent (agente de codificação nativo, 15 ferramentas, agent-shell)
+│   ├── custom-magent.el    ← Magent: fachada (requer sub-módulos, entry points)
+│   │   ├── custom-magent-fsm.el    ← FSM, host routing, watchdog
+│   │   ├── custom-magent-tools.el  ← fixes, directivas, tools curadas
+│   │   ├── custom-magent-subagent.el ← perfis de modelo por subagente
+│   │   ├── custom-magent-context.el  ← auto-compactação por threshold
+│   │   ├── custom-magent-commands.el ← slash commands, workdir, FinOps
+│   │   └── custom-magent-ui.el       ← painel de atividade (Fase C)
 │   ├── custom-knowledge.el ← denote (Zettelkasten + silos)
 │   ├── custom-git.el       ← magit, justl, makefile-executor, commit IA local
 │   ├── custom-keybindings.el← atalhos C-c (todos habilitados)

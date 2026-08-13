@@ -11,6 +11,19 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-13 — [CONCLUÍDO] Split de custom-magent.el em módulos por domínio (fachada + 6 sub-módulos)
+   - **Motivação:** `custom-magent.el` atingiu 934 linhas com 9 grupos de funcionalidade; as Fases A/B/C planejadas no TODO.md §1d (roteamento de modelos pelo orquestrador, compactação estilo opencode, loop de eventos informativo) precisavam de arquivos de destino por domínio.
+   - **Layout resultante:**
+     - `lisp/custom-magent.el` — fachada: Commentary, requires dos 6 sub-módulos, receita Elpaca + `use-package magent`, entry points (`+carlos/magent-start`, `-agent-shell-interrupt`, `-agent-shell-prompt-region`), display rules, `(provide 'custom-magent)`.
+     - `lisp/custom-magent-fsm.el` — FSM de orquestração, host profiles + routing, watchdog, acumulador de reasoning, detecção de subagentes.
+     - `lisp/custom-magent-tools.el` — supressão de *Messages*/magent-log, fixes Gemini (sanitize tool-use name, `&rest args` no parse-response), schema `:items` da tool wait_agent, directivas de sistema, advices de path/write/edit, tools curadas (flycheck_errors/lsp_navigation/snippet_expand) + registro.
+     - `lisp/custom-magent-subagent.el` — perfis de backend/modelo por agente + advice `+carlos/magent-subagent-apply-profile`.
+     - `lisp/custom-magent-context.el` — auto-compactação por threshold + instrução de preservação + `C-c A p`.
+     - `lisp/custom-magent-commands.el` — slash commands, workdir, FinOps + binds `C-c M w/a/L`.
+     - `lisp/custom-magent-ui.el` — esqueleto da Fase C (painel de atividade).
+   - **Invariantes mantidos:** init.el continua com um único `(require 'custom-magent)`; testes ERT que dão `(require 'custom-magent)` seguem passando; nenhuma edição em sources do elpaca; `just compile` descobre os novos arquivos via `byte-recompile-directory`.
+   - **Validação:** repo — `just rebuild` + `just lint` (checkdoc limpo nos novos arquivos) + `just test` (204 testes, 0 unexpected); prod — `just sync` + `just rebuild-prod` + `just compile-prod` (zero warnings) + `just check-prod` (boot OK) + `just test` (204 testes, 0 unexpected, mesmo baseline de 7 skipped).
+
 ** 2026-08-13 — [CONCLUÍDO] Remoção de Arquivo Untracked, Correção de Símbolos Livres em custom-magent.el, Suporte a LSP em Cenário Vivo, Expansão de Snippets, Correção MLX Local, Heavy Context Benchmark, Orquestração Multiagente Local e Auditoria de Conformidade do Agent_Smith
    - **Remoção de Arquivo Untracked:** Removido o arquivo `--help` criado acidentalmente no repositório.
    - **Remoção de Cenários Obsoletos:** Deletados os arquivos antigos `magent-driver-demo-scenario.el` e `magent-driver-test-scenario.el`.

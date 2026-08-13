@@ -264,7 +264,7 @@ O resultado do =spawn_agent= tem o formato
 3. O prompt do subagente deve conter caminho absoluto real (ex.
    `/abs/path/file.md`) — o subagente NÃO recebe os anexos do pai.
 
-**Suporte na FSM (custom-magent.el):** estados =subagent-running= (turno de
+**Suporte na FSM (lisp/custom-magent-fsm.el):** estados =subagent-running= (turno de
 retomada com job pendente) e =subagent-waiting= (turno encerrado com spawn sem
 wait concluído); detecção via `+carlos/magent-fsm-pending-subagent-p`
 (`magent-tools--parent-session` + `magent-session-agent-jobs`); watchdog
