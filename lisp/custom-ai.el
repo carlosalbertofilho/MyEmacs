@@ -149,6 +149,7 @@ roteamento para backends locais fica apenas como fallback final.")
     :host "127.0.0.1:8081"
     :protocol "http"
     :stream t
+    :key "any"
     :models '("mlx-community/gemma-4-e2b-it-4bit"
               "mlx-community/Qwen2.5-7B-Instruct-4bit"
               "mlx-community/Qwen3.5-9B-MLX-4bit"
