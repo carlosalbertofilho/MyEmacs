@@ -138,13 +138,23 @@
             (dolist (item results)
               (insert (format "    - Encontrado em: =%s= na linha %s\n" (plist-get item :file) (plist-get item :line)))))))
 
-      (insert "\n* 4. Como testar a Teoria do Buffer Vivo com a IA (Magent):\n")
+      (insert "\n* 4. Snippets do Tempel (=snippet_expand=):\n")
+      (let ((res-list (+carlos/magent-tool-snippet-expand '(:reason "Listar snippets para validação")))
+            (res-inspect (+carlos/magent-tool-snippet-expand '(:name "deftest" :action "inspect" :reason "Inspecionar deftest"))))
+        (insert (format "  - *Listagem de Snippets:* Encontrados %d snippets registrados.\n" (or (plist-get res-list :total) 0)))
+        (insert (format "  - *Inspeção do snippet 'deftest':* %s\n" 
+                        (if (string= (plist-get res-inspect :status) "success")
+                            (format "Estrutura: =%s=" (plist-get res-inspect :template))
+                          "Snippet 'deftest' não encontrado (não há templates carregados na sessão atual).")))
+        (insert "  - *Nota:* O agente de IA usa esta ferramenta para entender a estrutura sintática padrão local do usuário antes de escrever código, garantindo que ele reutilize templates em vez de reinventá-los.\n"))
+
+      (insert "\n* 5. Como testar a Teoria do Buffer Vivo com a IA (Magent):\n")
       (insert "Para ver a IA atuando no buffer Python alimentado pelo LSP:\n")
       (insert "1. Mude para o buffer =*Magent-Python-Sandbox*=\n")
       (insert "2. Certifique-se de que o Eglot conectou (aparecerá =[eglot:basedpyright]= na modeline).\n")
       (insert "3. Chame a IA para operar nesse buffer usando =C-c I= (gptel-agent-run).\n")
       (insert "4. Peça no prompt: \"/explain os erros de flycheck deste buffer e modifique a chamada de calcular_soma corrigindo o erro de tipos do Python apontado pelo LSP.\"\n")
-      (insert "5. O Magent usará a ferramenta =flycheck_errors=, coletará os diagnósticos do LSP e editará o buffer dinamicamente corrigindo a chamada!\n")
+      (insert "5. O Magent usará a ferramenta =flycheck_errors= e =snippet_expand= para atuar diretamente no buffer de forma rápida e segura!\n")
       
       (goto-char (point-min))
       (read-only-mode 1))

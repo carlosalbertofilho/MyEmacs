@@ -28,10 +28,30 @@
       (should (plist-get res :status)))))
 
 (ert-deftest myemacs-driver-snippet-expand-handler ()
-  "Garante que `+carlos/magent-tool-snippet-expand` retorna plist válido."
-  (let ((res (+carlos/magent-tool-snippet-expand nil)))
-    (should (listp res))
-    (should (plist-get res :status))))
+  "Garante que `+carlos/magent-tool-snippet-expand` retorna plist válido em todos os cenários."
+  (let ((mock-templates '((deftest "ert-deftest" n "  (should " p ")")
+                          (defun "defun" p "()" n "  " p))))
+    (cl-letf (((symbol-function 'tempel--templates) (lambda () mock-templates))
+              (tempel-inserted-sym nil)
+              ((symbol-function 'tempel-insert) (lambda (sym) (setq tempel-inserted-sym sym))))
+      ;; 1. Cenário: Listar todos
+      (let ((res (+carlos/magent-tool-snippet-expand nil)))
+        (should (string= (plist-get res :status) "success"))
+        (should (equal (plist-get res :snippets) '("deftest" "defun"))))
+      
+      ;; 2. Cenário: Inspecionar um existente
+      (let ((res (+carlos/magent-tool-snippet-expand '(:name "deftest" :action "inspect"))))
+        (should (string= (plist-get res :status) "success"))
+        (should (string-match-p "ert-deftest" (plist-get res :template))))
+      
+      ;; 3. Cenário: Inspecionar inexistente
+      (let ((res (+carlos/magent-tool-snippet-expand '(:name "inexistente" :action "inspect"))))
+        (should (string= (plist-get res :status) "error")))
+      
+      ;; 4. Cenário: Inserir snippet
+      (let ((res (+carlos/magent-tool-snippet-expand '(:name "defun" :action "insert"))))
+        (should (string= (plist-get res :status) "success"))
+        (should (eq tempel-inserted-sym 'defun))))))
 
 (ert-deftest myemacs-driver-tools-catalog-registered ()
   "Garante que as 3 ferramentas curadas estão registradas no Magent."

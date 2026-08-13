@@ -484,25 +484,46 @@ Resolve definições ou referências de ARGS :symbol usando xref/Eglot."
 
 (defun +carlos/magent-tool-snippet-expand (args)
   "Handler para a ferramenta `snippet_expand`.
-Retorna templates do Tempel ou a estrutura do snippet ARGS :name."
+Retorna templates do Tempel, a estrutura do snippet ARGS :name, ou insere o snippet no buffer."
   (let* ((name-str (plist-get args :name))
          (mode-str (plist-get args :mode))
+         (action-str (plist-get args :action))
          (target-mode (if mode-str (intern mode-str) major-mode)))
     (if (not (require 'tempel nil t))
         `(:status "error" :message "Pacote tempel não está disponível.")
       (let ((templates (and (fboundp 'tempel--templates) (tempel--templates))))
-        (if (and name-str (not (string-empty-p name-str)))
-            (let ((found (assoc (intern name-str) templates)))
-              (if found
-                  `(:status "success"
-                    :name ,name-str
-                    :template ,(format "%S" (cdr found)))
-                `(:status "error" :message ,(format "Snippet '%s' não encontrado." name-str))))
+        (cond
+         ;; Ação: Inserir snippet fisicamente no buffer ativo
+         ((string= action-str "insert")
+          (if (and name-str (not (string-empty-p name-str)))
+              (let ((sym (intern name-str)))
+                (if (assoc sym templates)
+                    (condition-case err
+                        (progn
+                          ;; Executa a inserção no buffer atual
+                          (tempel-insert sym)
+                          `(:status "success"
+                            :message ,(format "Snippet '%s' inserido com sucesso no buffer." name-str)))
+                      (error `(:status "error" :message ,(format "Erro ao inserir snippet: %s" (error-message-string err)))))
+                  `(:status "error" :message ,(format "Snippet '%s' não encontrado." name-str))))
+            `(:status "error" :message "Nome do snippet é obrigatório para inserção.")))
+         
+         ;; Ação: Inspecionar estrutura de um snippet
+         ((and name-str (not (string-empty-p name-str)))
+          (let ((found (assoc (intern name-str) templates)))
+            (if found
+                `(:status "success"
+                  :name ,name-str
+                  :template ,(format "%S" (cdr found)))
+              `(:status "error" :message ,(format "Snippet '%s' não encontrado." name-str)))))
+         
+         ;; Ação padrão: Listar todos os snippets
+         (t
           (let ((names (mapcar (lambda (tmpl) (symbol-name (car tmpl))) templates)))
             `(:status "success"
               :mode ,(symbol-name target-mode)
               :total ,(length names)
-              :snippets ,names)))))))
+              :snippets ,names))))))))
 
 (defun +carlos/magent-register-tools ()
   "Register Carlos's Magent tools to magent-tools-catalog if available."
@@ -541,9 +562,10 @@ Retorna templates do Tempel ou a estrutura do snippet ARGS :name."
     (setq +carlos/magent-tool-snippet-expand
           (gptel-make-tool
            :name "snippet_expand"
-           :description "Inspect or expand a Tempel snippet template by name, or list available snippets for a major-mode."
-           :args '((:name "name" :type string :description "Optional snippet name to inspect")
-                   (:name "mode" :type string :description "Optional major-mode name")
+           :description "Inspect, list or physically insert a Tempel snippet template in the active buffer."
+           :args '((:name "name" :type string :description "Snippet name (e.g. 'deftest')")
+                   (:name "action" :type string :description "Either 'inspect' (to get structure), 'list' (to list names) or 'insert' (to physically expand it at point)")
+                   (:name "mode" :type string :description "Optional major-mode name filter")
                    (:name "reason" :type string :description "Reason for snippet expansion"))
            :function #'+carlos/magent-tool-snippet-expand
            :category "magent"))
