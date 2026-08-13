@@ -122,6 +122,20 @@ inteiro colado.
 - **B3. Gatilho por milestones:** novo sink (além do threshold do `turn-end`) que observa conclusão de subagente (verificar status de eventos de job em `magent-lifecycle-events.el`/`magent-tools--render-agent-job-event`) e compacta no `turn-end` quando ≥N subagentes completados desde a última compactação E tokens > limiar inferior (ex. 40% da janela).
 - **B4.** `C-c A p` (`+carlos/magent-compact`) passa a usar a instrução dinâmica (B1).
 
+**Plano de Ação — Fase C: Loop de eventos do chat mais informativo (custom-magent.el)**
+
+*Hoje:* o pipeline já emite eventos ricos, mas o buffer *Magent* mostra pouco: tool call = linha resumo conciso (agente + comando/path truncado) e resultado preview 150 chars (`magent-agent-loop-tool-result-summary`); subagente = só `:ui-visibility` summary-only (job id + status, sem tool calls do filho nem modelo usado); reasoning só entra se `magent-include-reasoning t`; sem duração/exit-code/token por tool e sem badge de modelo. Renderização: `magent-agent-loop` emite `tool-call-start/end` (magent-agent-loop.el:446/479) → `magent-acp.el:609-651` mapeia para updates do agent-shell.
+
+*Objetivo:* transformar o *Magent* em painel de atividade ao vivo (estilo opencode): cada ação do modelo visível com o detalhe necessário e o modelo responsável, subagentes com ciclo de vida completo, sem quebrar a FSM nem inflar o contexto.
+
+- **C1. Sink de atividade de UI `+carlos/magent-ui-activity-sink`:** registrado via `magent-lifecycle-events-add-sink`; consome `turn-start/end`, `tool-call-start/end`, `subagent-start/stop` e insere linhas compactas timestampadas no buffer *Magent* (`agent-shell-insert` se disponível; fallback `message`), com faces `+carlos/magent-ui-*` (tool ok/fail, reasoning, subagent, turn). Sink não deve lançar erro (o dispatch já captura, mas manter custo O(1) no hot path).
+- **C2. Detalhe de tool call enriquecido:** advice em `magent-agent-loop-tool-call-summary` (magent-agent-loop.el:298) adicionando por tool: `bash` → cwd+comando+elapsed; `edit_file`/`write_file` → path+bytes; `grep` → pattern+path; `spawn_agent` → agent+task_name+modelo (integra Fase A); e no `tool-call-end` exibir duração (elapsed) + status (✓/✗) + exit-code (o evento já carrega `:exit-code` e `:result-summary`).
+- **C3. Ciclo de vida do subagente visível:** sink nos eventos de subagente/job (`subagent-start/stop`; transições via `magent-tools--render-agent-job-event`, que hoje usa summary-only em magent-tools.el:1233) mostrando: `spawned explore (job abc) → running → completed/failed`, o **modelo efetivo** (override da Fase A / perfil estático) e um resumo do relatório final — sem vazar o transcript do filho (diretriz 8 do orquestrador).
+- **C4. Badge de modelo por turno/agente:** no `turn-start`, capturar backend/modelo ativo (`gptel-backend`/`gptel-model`) e exibir `[turn N · Gemini gemini-3.5-flash]`; nos eventos de subagente, exibir o modelo do filho resolvido.
+- **C5. Reasoning colapsável:** aproveitar o acumulador existente (`+carlos/magent-fsm-reasoning-accumulator-a`, custom-magent.el:371) e renderizar o reasoning sob um header colapsável (overlay com face) no buffer, respeitando `magent-include-reasoning`.
+- **Restrições:** não modificar sources do elpaca (só advices/sinks no custom-magent.el); respeitar `:ui-visibility` (não vazar transcripts de subagente); não interferir no threshold de compactação (B3) nem na FSM.
+
+
 **Testes ERT (tests/magent-test.el ou novo tests/routing-test.el)**
 - `myemacs-magent-select-model-deep-skips-local` — `deep` nunca cai no local.
 - `myemacs-magent-select-model-simple-prefers-local-when-online` — local online vence free.
@@ -130,10 +144,14 @@ inteiro colado.
 - `myemacs-magent-subagent-dynamic-override-beats-static-profile` — override transiente aplica antes do perfil estático.
 - `myemacs-magent-compact-instruction-contains-state-sections` — instrução gerada tem todas as seções de estado.
 - `myemacs-magent-compact-milestone-triggers-at-threshold` — contador de milestones + limiar dispara compactação.
-- Mocks (sem rede): `+carlos/local-ai-server-ping-p`, `gptel-get-backend`, registro de override, sink de eventos.
+- `myemacs-magent-ui-activity-sink-format` — sink formata linha correta por tipo de evento (tool/subagent/turn) a partir de plist de evento fake.
+- `myemacs-magent-ui-tool-call-detail-advice` — advice de resumo adiciona elapsed/exit-code/status e detalhe por tool (spawn_agent mostra modelo).
+- `myemacs-magent-ui-subagent-lifecycle-lines` — transições spawned→running→completed/failed com modelo efetivo.
+- `myemacs-magent-ui-model-badge-on-turn-start` — badge `[turn N · backend modelo]` captura backend/modelo ativos.
+- Mocks (sem rede): `+carlos/local-ai-server-ping-p`, `gptel-get-backend`, registro de override, sink de eventos, `agent-shell-insert` (buffer simulado).
 
 **Docs e Portões**
-- `docs/magent-reference.org`: nova tool `select_model`, menu de modelos, seção de contexto/compactação.
+- `docs/magent-reference.org`: nova tool `select_model`, menu de modelos, seção de contexto/compactação, e seção de UI/eventos (loop informativo, subagentes, badges).
 - `docs/ai-providers-reference.org`: nota sobre decisão de modelo pelo orquestrador.
 - `just lint` (compile+checkdoc), `just test` prod, `just sync` + `just compile-prod` + `just check-prod`, `just test-all`.
 - Atualizar roadmap.org e esta seção do TODO.md ao concluir.
