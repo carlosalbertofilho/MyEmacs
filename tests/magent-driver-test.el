@@ -22,9 +22,10 @@
 
 (ert-deftest myemacs-driver-lsp-navigation-symbol-with-no-xref ()
   "Garante que `+carlos/magent-tool-lsp-navigation` trata ausência de xref suavemente."
-  (let ((res (+carlos/magent-tool-lsp-navigation '(:symbol "test-func"))))
-    (should (listp res))
-    (should (plist-get res :status))))
+  (cl-letf (((symbol-function 'xref-find-backend) (lambda () nil)))
+    (let ((res (+carlos/magent-tool-lsp-navigation '(:symbol "test-func"))))
+      (should (listp res))
+      (should (plist-get res :status)))))
 
 (ert-deftest myemacs-driver-snippet-expand-handler ()
   "Garante que `+carlos/magent-tool-snippet-expand` retorna plist válido."
