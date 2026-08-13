@@ -182,3 +182,71 @@ sessão `session-20260813-153757.json` (projeto Agent_Smith, host agnes).
   conversa pai (exigiria sink de `magent-lifecycle-events` no `agent-job`).
 - **Feedback de UI durante wait_agent:** o sampling FSM fica em TOOL sem
   streaming durante o bloqueio; considerar sinalizar "aguardando subagente".
+
+---
+
+## 5. Plano de Ação — Subagentes com Modelo Forte (perfis por agente) (2026-08-13)
+
+### Objetivos:
+Orquestrador = modelo leve local (no `agnes`: `mlx-community/gemma-4-e2b-it-4bit`,
+MLX, janela pequena) que **só planeja, delega e sintetiza**. Subagentes
+(`spawn_agent`) rodam em **modelo forte na nuvem** (decisão do usuário:
+`gemini-3.1-pro-preview`, free tier Google), com janela maior, para análise de
+codebase, exploração e tarefas multi-step. Delegação **automática** dirigida por
+diretiva.
+
+### Contexto técnico (verificado no pacote magent):
+- O pacote **herda** backend/modelo do pai para o filho:
+  `child-request-context` copia `:model`/`:backend` do request-context do pai
+  (`magent-tools--agent-job-start`, `magent-tools.el:1240-1243`).
+- A herança **vence** o override do agente:
+  `backend = (or inherited-backend gptel-backend)`, `model = (or inherited-model
+  gptel-model)` (`magent-agent.el:331-332`). Logo, sem intervenção, subagente =
+  mesmo modelo do orquestrador.
+- `magent-agent-process` recebe `request-state` (o `child-request-context`) como
+  11º argumento opcional; `magent-request-context` é `cl-defstruct` mutável
+  (`magent-runtime.el:89-119`), accessors setf-able. → **ponto de override**.
+
+### Decisões do usuário (questionário 2026-08-13):
+1. Modelo forte dos subagentes no agnes: **gemini-3.1-pro-preview** (free tier).
+2. Implementação: **advice no child-request-context** (custom-magent.el).
+3. Gatilho automático de delegação: **análise/exploração + tarefas multi-step**.
+
+### Passos de implementação:
+1. **`+carlos/magent-subagent-profiles`** (defcustom): alist
+   `("explore" (:backend "Gemini" :model "gemini-3.1-pro-preview"))`,
+   `("general" ...idem...)` — "perfis diferentes" = mapear agentes do
+   `spawn_agent` a backends/modelos distintos (fonte da verdade única).
+   + `+carlos/magent-subagent-profile` (resolvedor por nome de agente).
+2. **Advice `+carlos/magent-subagent-apply-profile`** em `magent-agent-process`
+   (`:around`): quando `agent-info` do filho tiver perfil declarado, `setf` do
+   `request-state` (`magent-request-context-backend`/`-model`) para o perfil —
+   o `(or inherited ...)` passa a resolver para o modelo forte. Orquestrador
+   (não listado no alist) fica intocado. Registrar o advice via
+   `advice-add 'magent-agent-process :around ...`.
+3. **Directiva de delegação automática** em `+carlos/magent-system-directives`:
+   "SUBAGENT DELEGATION" — para exploração de codebase/análise de arquivos/
+   tarefas multi-step, SEMPRE `spawn_agent` (`explore` para busca/análise de
+   código, `general` para trabalho multi-step), aguardar com `wait_agent`,
+   sintetizar relatório resumido no turno do pai (nunca colar o transcript
+   inteiro; orquestrador mantém janela curta).
+4. **Testes ERT** (GRUPO 10 em `tests/magent-fsm-test.el`):
+   - default do defcustom cobre explore/general → Gemini/`gemini-3.1-pro-preview`;
+   - `+carlos/magent-subagent-profile` (conhecido → plist; desconhecido → nil);
+   - advice aplica backend/modelo no request-state de agente com perfil e não
+     altera o de agente sem perfil (faz `setf` num `magent-request-context` real);
+   - `advice-member-p` do advice em `magent-agent-process`.
+
+### Validação:
+- `just compile` (zero warnings) + `just checkdoc` (sem warnings novos) no repo.
+- Suíte FSM: `EMACS_TEST_DIR="$(pwd)"` + seletor `myemacs-magent-\(fsm\|host-profile\|watchdog\|directives\|subagent\)`.
+- Suíte completa ERT contra o repo.
+- Docs: `docs/magent-reference.org` (perfis de subagente + seção de delegação),
+  `roadmap.org` (entrada 2026-08-13).
+- Deploy: commit → push → `just sync` → `just compile-prod` → `just check-prod`.
+
+### Critério de aceite:
+- No `agnes`, `spawn_agent` gera job filho com backend/modelo `gemini-3.1-pro-preview`
+  (log INFO `agent=... backend=... model=...`), não mais gemma local.
+- Orquestrador gemma não tenta exploração profunda; delega automaticamente e
+  sintetiza o relatório resumido no turno pai.
