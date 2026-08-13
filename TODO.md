@@ -148,3 +148,37 @@ Implementar a FSM (Finite State Machine) assíncrona orientada a eventos para o 
 
 ---
 > Para o histórico cronológico detalhado de conquistas e decisões arquiteturais, consulte o [roadmap.org](roadmap.org).
+
+## 4. Plano de Ação — FSM & Submodelos (spawn_agent/wait_agent) (2026-08-13)
+
+### Objetivos:
+Corrigir o fluxo de submodelos do Magent: o orquestrador fazia `spawn_agent` e
+**encerrava o turno** sem `wait_agent`, deixando o job órfão (`running`) e sem
+mecanismo de re-anexação do resultado do filho ao pai. Diagnóstico completo na
+sessão `session-20260813-153757.json` (projeto Agent_Smith, host agnes).
+
+### Implementado (lisp/custom-magent.el):
+1. **Directiva SUBAGENT LIFECYCLE (HARD RULE):** proíbe terminar o turno sem
+   `wait_agent(job_id)`; obriga repetir `wait_agent` em timeout; exige caminho
+   absoluto no prompt do subagente (subagente não recebe anexos do pai).
+2. **FSM com estados `subagent-running`/`subagent-waiting`:** detecção de jobs
+   pendentes via `+carlos/magent-fsm-pending-subagent-p`
+   (`magent-tools--parent-session` + `magent-session-agent-jobs`).
+3. **Watchdog suprimido durante wait** (`+carlos/magent-fsm-watchdog-should-fire-p`):
+   wait de subagente é trabalho legítimo de longa duração, não latência.
+
+### Cobertura de Testes ERT (tests/magent-fsm-test.el, GRUPO 9):
+`myemacs-magent-fsm-subagent-jobs-var-exists`,
+`myemacs-magent-fsm-reset-clears-subagent-jobs`,
+`myemacs-magent-fsm-pending-subagent-{uses-cache,session-fallback,empty-is-nil}`,
+`myemacs-magent-fsm-turn-end-with-pending-subagent-waits`,
+`myemacs-magent-fsm-turn-start-with-pending-subagent-runs`,
+`myemacs-magent-fsm-watchdog-suppressed-while-subagent-pending`,
+`myemacs-magent-directives-enforce-subagent-lifecycle`.
+
+### Pendências (próximos passos):
+- **Re-anexação automática:** quando um job de subagente completa com o turno
+  do pai já encerrado, o resultado ainda não é injetado automaticamente na
+  conversa pai (exigiria sink de `magent-lifecycle-events` no `agent-job`).
+- **Feedback de UI durante wait_agent:** o sampling FSM fica em TOOL sem
+  streaming durante o bloqueio; considerar sinalizar "aguardando subagente".

@@ -105,10 +105,16 @@ Accept &rest ARGS for Gemini streaming 5th argument."
 
 (defvar +carlos/magent-fsm-state 'idle
   "Estado atual da FSM do Magent.
-Valores possíveis: idle planning thinking tool-executing verifying summarizing.")
+Valores possíveis: idle planning thinking tool-executing verifying
+summarizing subagent-running subagent-waiting.")
 
 (defvar +carlos/magent-fsm-session nil
   "Identificador da sessão Magent ativa na FSM.")
+
+(defvar +carlos/magent-fsm-subagent-jobs nil
+  "Lista de objetos `magent-agent-job' de subagentes ativos na FSM.
+Populada a partir da sessão pai via `+carlos/magent-fsm-refresh-subagent-jobs'
+e consultada por `+carlos/magent-fsm-pending-subagent-p'.")
 
 (defvar +carlos/magent-fsm-retry-count 0
   "Contador de retries do turno atual. Resetado a 0 em cada turn-start.")
@@ -122,7 +128,8 @@ Usado pelo sanitizador para detectar tool calls emitidas dentro do pensamento.")
   (setq +carlos/magent-fsm-state 'idle
         +carlos/magent-fsm-session nil
         +carlos/magent-fsm-retry-count 0
-        +carlos/magent-fsm-reasoning-buffer ""))
+        +carlos/magent-fsm-reasoning-buffer ""
+        +carlos/magent-fsm-subagent-jobs nil))
 
 (defun +carlos/magent-fsm-transition (new-state)
   "Transiciona a FSM para NEW-STATE e emite mensagem diagnóstica."
@@ -245,6 +252,42 @@ Retorna t se alguma tool call foi recuperada, nil caso contrário."
                  (truncate-string-to-width block 120 nil nil "…")))
       t)))
 
+;; ── ETAPA 2b: Detecção de Subagentes (spawn_agent/wait_agent) ────────────────
+;; O submodelo (spawn_agent) roda em sessão filha assíncrona. O contrato exige
+;; que o orquestrador chame wait_agent(job_id) antes de encerrar o turno; quando
+;; o turno termina com jobs pendentes, a FSM sinaliza `subagent-waiting' e o
+;; watchdog é suprimido (wait de subagente é trabalho legítimo de longa duração,
+;; não latência de backend).
+
+(defun +carlos/magent-fsm-subagent-session-jobs ()
+  "Retorna os jobs de subagentes ativos (queued/running) da sessão pai.
+Usa `magent-tools--parent-session' e `magent-session-agent-jobs' do Magent;
+retorna nil quando o Magent não está carregado ou não há sessão."
+  (when (and (fboundp 'magent-tools--parent-session)
+             (fboundp 'magent-session-agent-jobs)
+             (fboundp 'magent-agent-job-status))
+    (let ((session (magent-tools--parent-session)))
+      (when session
+        (cl-remove-if-not
+         (lambda (job)
+           (memq (magent-agent-job-status job) '(queued running)))
+         (magent-session-agent-jobs session))))))
+
+(defun +carlos/magent-fsm-refresh-subagent-jobs ()
+  "Sincroniza `+carlos/magent-fsm-subagent-jobs' com a sessão pai.
+Quando a infraestrutura de sessão do Magent está disponível, substitui o
+cache pela lista atual de jobs ativos (nil limpa jobs já concluídos)."
+  (when (and (fboundp 'magent-tools--parent-session)
+             (fboundp 'magent-session-agent-jobs)
+             (fboundp 'magent-agent-job-status))
+    (setq +carlos/magent-fsm-subagent-jobs
+          (+carlos/magent-fsm-subagent-session-jobs))))
+
+(defun +carlos/magent-fsm-pending-subagent-p ()
+  "Non-nil quando há subagentes ativos (cache ou sessão pai com jobs running)."
+  (or +carlos/magent-fsm-subagent-jobs
+      (+carlos/magent-fsm-subagent-session-jobs)))
+
 ;; ── ETAPA 3: Watchdog de Latência & Fallback para Nuvem ─────────────────────
 ;; Timer de contagem regressiva que aborta a requisição local lenta e chaveia
 ;; o turno para o backend de fallback da nuvem.
@@ -258,6 +301,13 @@ Retorna t se alguma tool call foi recuperada, nil caso contrário."
     (cancel-timer +carlos/magent-watchdog-timer))
   (setq +carlos/magent-watchdog-timer nil))
 
+(defun +carlos/magent-fsm-watchdog-should-fire-p ()
+  "Non-nil quando o watchdog deve disparar no estado atual.
+Não dispara enquanto houver subagente pendente: wait_agent legítimo é
+trabalho de longa duração, não latência de backend."
+  (and (memq +carlos/magent-fsm-state '(thinking tool-executing))
+       (not (+carlos/magent-fsm-pending-subagent-p))))
+
 (defun +carlos/magent-watchdog-start ()
   "Inicia o watchdog de latência com timeout do perfil do host.
 Se o timer disparar antes de a requisição retornar, emite aviso e
@@ -269,7 +319,7 @@ registra o evento de fallback no echo area."
            timeout nil
            (lambda ()
              (setq +carlos/magent-watchdog-timer nil)
-             (when (memq +carlos/magent-fsm-state '(thinking tool-executing))
+             (when (+carlos/magent-fsm-watchdog-should-fire-p)
                (message
                 (concat "[Magent FSM] ⚠️  Watchdog disparou após %ds. "
                         "Backend local lento — fallback → %s/%s.")
@@ -285,23 +335,32 @@ registra o evento de fallback no echo area."
 
 (defun +carlos/magent-fsm-turn-start-sink (_event-data)
   "Sink chamado no início de cada turno da sessão do Magent.
-Reseta o buffer de reasoning, incrementa a sessão e inicia o watchdog."
+Reseta o buffer de reasoning, incrementa a sessão e inicia o watchdog.
+Se um subagente ainda estiver ativo (turno de retomada), entra em
+`subagent-running' em vez de `thinking'."
   (setq +carlos/magent-fsm-reasoning-buffer ""
         +carlos/magent-fsm-retry-count 0)
-  (+carlos/magent-fsm-transition 'thinking)
+  (if (+carlos/magent-fsm-pending-subagent-p)
+      (+carlos/magent-fsm-transition 'subagent-running)
+    (+carlos/magent-fsm-transition 'thinking))
   (+carlos/magent-watchdog-start))
 
 (defun +carlos/magent-fsm-turn-end-sink (event-data)
   "Sink chamado ao fim de cada turno da sessão do Magent.
-Cancela o watchdog e verifica se há tool calls perdidas no reasoning."
+Cancela o watchdog e verifica se há tool calls perdidas no reasoning.
+Se o turno terminou com subagentes pendentes (spawn_agent sem wait_agent
+concluído), entra em `subagent-waiting' em vez de `idle'."
   (+carlos/magent-watchdog-cancel)
+  (+carlos/magent-fsm-refresh-subagent-jobs)
   (let ((status (plist-get event-data :status)))
     (cond
      ((eq status 'completed)
       (+carlos/magent-fsm-transition 'verifying)
       ;; Tenta resgatar tool calls do reasoning (turn vazio)
       (+carlos/magent-fsm-maybe-rescue-reasoning-tool-calls)
-      (+carlos/magent-fsm-transition 'idle))
+      (if (+carlos/magent-fsm-pending-subagent-p)
+          (+carlos/magent-fsm-transition 'subagent-waiting)
+        (+carlos/magent-fsm-transition 'idle)))
      (t
       (+carlos/magent-fsm-transition 'idle)))))
 
@@ -418,7 +477,7 @@ ORIG-FN é o handler original; RESPONSE é o chunk de streaming do gptel."
 2. NON-EMPTY PARAMETERS: Do not call write_file or edit_file with empty or missing args.
 3. NATIVE TOOLS FIRST: Prefer 'read_file', 'grep' (ripgrep), and 'glob' over shell commands.
 4. NON-INTERACTIVE SHELL: Avoid interactive shells; git commits must include '-m \"message\"'.
-5. SUBAGENT LIFECYCLE: When using 'spawn_agent', call 'wait_agent(job_id)' to get results.
+5. SUBAGENT LIFECYCLE (HARD RULE): 'spawn_agent' starts a background job and returns a job id — its result is NOT the answer. After 'spawn_agent', you MUST call 'wait_agent(job_id)' (use the job_id from 'next_action.arguments.job_id') and MUST NOT end your turn until 'wait_agent' returns the subagent's report; if 'wait_agent' reports status 'timeout', call 'wait_agent' again with the same job_id. Always give the subagent a real absolute path (e.g. '/abs/path/file.md') in its prompt — never tell it to analyze a file 'provided' or 'attached', because subagents do not receive the parent's attachments.
 6. TOOL CALL FORMAT: Always request tool use through the native structured function-calling mechanism. Tool calls MUST be emitted as native structured function calls in the FINAL response text — NEVER inside reasoning/thinking blocks, NEVER as free-form XML text. Reasoning blocks are never executed, so a tool call written there is silently dropped. If your backend only supports textual tool calls, use EXACTLY this DSML envelope, with nothing else between the tags:
 <tool_calls>
 <invoke name=\"read_file\">

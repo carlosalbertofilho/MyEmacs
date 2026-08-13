@@ -272,6 +272,7 @@ Regras:
 | 10 | Binds comentados em `custom-keybindings.el` → removidos | — |
 | 11/12 | `C-c e` duplicado → só em `custom-term.el` | `tests/term-test.el` |
 | 13/14 | Dashboard referenciava `consult-fzf`/`magit` → dashboard nano reescrito | `tests/dashboard-test.el` |
+| 15 | Submodelos: orquestrador fazia `spawn_agent` e encerrava o turno sem `wait_agent` → job órfão e FSM sem estados para subagente | hard rule na diretiva SUBAGENT LIFECYCLE + estados `subagent-running`/`subagent-waiting` + watchdog suprimido no wait | `tests/magent-fsm-test.el` (GRUPO 9) |
 
 ### Encontrados pela suíte (2026-08-06)
 

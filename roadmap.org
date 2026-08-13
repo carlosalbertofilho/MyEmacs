@@ -26,6 +26,16 @@ entenderem o estado atual do projeto e decisões tomadas.
    - **Proteção do lsp_navigation:** Modificado o handler `+carlos/magent-tool-lsp-navigation` para evitar travamentos do xref em modo batch e no Emacs vivo por causa de buscas do `etags` a arquivos `TAGS` inexistentes.
    - **Validação:** Compilação limpa no repositório e em produção (`just compile-prod`), boot verificado (`just check-prod`), e suíte ERT de testes rodada com sucesso (`just test-all` - 169 testes passados, 0 falhas).
 
+** 2026-08-13 — [CONCLUÍDO] Correção da FSM com Submodelos: spawn_agent → wait_agent (HARD RULE)
+   - **Diagnóstico (sessão real `session-20260813-153757.json`, projeto Agent_Smith):** o orquestrador (gemma local) chamou `spawn_agent(explore)` e encerrou o turno com texto ("Aguardando o resultado...") sem chamar `wait_agent`, deixando o job `agent-20260813-155202` órfão em `running`. O sampling FSM do gptel (`magent-llm-gptel--make-sampling-fsm`) trata a resposta de texto após tool result como DONE, e não há re-anexação do resultado do filho ao pai.
+   - **Ações e Recursos:**
+     - `lisp/custom-magent.el`: Directiva `SUBAGENT LIFECYCLE (HARD RULE)` — proíbe terminar o turno sem `wait_agent(job_id)`, obriga repetir `wait_agent` em timeout, e exige caminho absoluto no prompt do subagente (subagente não recebe anexos do pai).
+     - `lisp/custom-magent.el`: FSM com novos estados `subagent-running`/`subagent-waiting`; detecção de jobs pendentes via `+carlos/magent-fsm-pending-subagent-p` (`magent-tools--parent-session` + `magent-session-agent-jobs`).
+     - `lisp/custom-magent.el`: Watchdog suprimido durante wait de subagente via `+carlos/magent-fsm-watchdog-should-fire-p`.
+     - `tests/magent-fsm-test.el`: GRUPO 9 de testes ERT (8 testes) cobrindo var, reset, detecção, sinks de turn-start/end com subagente e supressão do watchdog.
+     - `docs/magent-reference.org`: seção "Subagentes (spawn_agent / wait_agent) — contrato de orquestração" e modos de falha nº 4.
+   - **Validação:** `just compile` zero warnings no repo; suíte FSM 27/27 (`myemacs-magent-(fsm|host-profile|watchdog|directives)`).
+
 ** 2026-08-12 — [CONCLUÍDO] Magent como Driver do Emacs (Fase C5: 3 Ferramentas Curadas) [Etapa C5]
    - **Objetivo:** Transformar o Magent de "gerador de texto" para operador de ferramentas do Emacs (Tool Operator), implementando e catalogando ferramentas locais curadas de introspecção e navegação in-process.
    - **Ações e Recursos:**

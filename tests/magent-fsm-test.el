@@ -50,7 +50,8 @@
   `(let ((+carlos/magent-fsm-state 'idle)
          (+carlos/magent-fsm-session nil)
          (+carlos/magent-fsm-retry-count 0)
-         (+carlos/magent-fsm-reasoning-buffer ""))
+         (+carlos/magent-fsm-reasoning-buffer "")
+         (+carlos/magent-fsm-subagent-jobs nil))
      ,@body))
 
 ;; ── GRUPO 1: Variáveis de estado ─────────────────────────────────────────────
@@ -290,9 +291,11 @@
   (skip-unless (fboundp '+carlos/magent-fsm-turn-end-sink))
   (myemacs-fsm-with-reset
     (+carlos/magent-fsm-transition 'thinking)
-    ;; Sem reasoning buffer — turn-end limpo
-    (+carlos/magent-fsm-turn-end-sink '(:status completed))
-    (should (eq +carlos/magent-fsm-state 'idle))))
+    ;; Sem subagentes pendentes e sem reasoning buffer — turn-end limpo
+    (cl-letf (((symbol-function '+carlos/magent-fsm-subagent-session-jobs)
+               (lambda () nil)))
+      (+carlos/magent-fsm-turn-end-sink '(:status completed))
+      (should (eq +carlos/magent-fsm-state 'idle)))))
 
 (ert-deftest myemacs-magent-fsm-turn-end-error-returns-idle ()
   "O sink de turn-end com status de erro também deve finalizar em idle."
@@ -300,8 +303,96 @@
   (skip-unless (fboundp '+carlos/magent-fsm-turn-end-sink))
   (myemacs-fsm-with-reset
     (+carlos/magent-fsm-transition 'thinking)
-    (+carlos/magent-fsm-turn-end-sink '(:status error))
-    (should (eq +carlos/magent-fsm-state 'idle))))
+    (cl-letf (((symbol-function '+carlos/magent-fsm-subagent-session-jobs)
+               (lambda () nil)))
+      (+carlos/magent-fsm-turn-end-sink '(:status error))
+      (should (eq +carlos/magent-fsm-state 'idle)))))
+
+;; ── GRUPO 9: Subagentes (spawn_agent/wait_agent) ─────────────────────────────
+
+(ert-deftest myemacs-magent-fsm-subagent-jobs-var-exists ()
+  "A FSM deve expor a variável de acompanhamento de subagentes."
+  (skip-unless myemacs-fsm-available)
+  (should (boundp '+carlos/magent-fsm-subagent-jobs)))
+
+(ert-deftest myemacs-magent-fsm-reset-clears-subagent-jobs ()
+  "O reset deve limpar a lista de subagentes ativos."
+  (skip-unless myemacs-fsm-available)
+  (skip-unless (fboundp '+carlos/magent-fsm-reset))
+  (let ((+carlos/magent-fsm-subagent-jobs '(job1 job2)))
+    (+carlos/magent-fsm-reset)
+    (should (null +carlos/magent-fsm-subagent-jobs))))
+
+(ert-deftest myemacs-magent-fsm-pending-subagent-uses-cache ()
+  "Com subagentes no cache, `pending-subagent-p' deve ser non-nil."
+  (skip-unless myemacs-fsm-available)
+  (skip-unless (fboundp '+carlos/magent-fsm-pending-subagent-p))
+  (let ((+carlos/magent-fsm-subagent-jobs '(job1)))
+    (should (+carlos/magent-fsm-pending-subagent-p))))
+
+(ert-deftest myemacs-magent-fsm-pending-subagent-session-fallback ()
+  "Sem cache, `pending-subagent-p' consulta os jobs da sessão pai."
+  (skip-unless myemacs-fsm-available)
+  (skip-unless (fboundp '+carlos/magent-fsm-pending-subagent-p))
+  (let ((+carlos/magent-fsm-subagent-jobs nil))
+    (cl-letf (((symbol-function '+carlos/magent-fsm-subagent-session-jobs)
+               (lambda () '(job1))))
+      (should (+carlos/magent-fsm-pending-subagent-p)))))
+
+(ert-deftest myemacs-magent-fsm-pending-subagent-empty-is-nil ()
+  "Sem cache e sem jobs na sessão, `pending-subagent-p' deve ser nil."
+  (skip-unless myemacs-fsm-available)
+  (skip-unless (fboundp '+carlos/magent-fsm-pending-subagent-p))
+  (let ((+carlos/magent-fsm-subagent-jobs nil))
+    (cl-letf (((symbol-function '+carlos/magent-fsm-subagent-session-jobs)
+               (lambda () nil)))
+      (should-not (+carlos/magent-fsm-pending-subagent-p)))))
+
+(ert-deftest myemacs-magent-fsm-turn-end-with-pending-subagent-waits ()
+  "Turn-end completed com subagente pendente deve entrar em `subagent-waiting'."
+  (skip-unless myemacs-fsm-available)
+  (skip-unless (fboundp '+carlos/magent-fsm-turn-end-sink))
+  (myemacs-fsm-with-reset
+    (+carlos/magent-fsm-transition 'thinking)
+    (cl-letf (((symbol-function '+carlos/magent-fsm-subagent-session-jobs)
+               (lambda () '(job1))))
+      (+carlos/magent-fsm-turn-end-sink '(:status completed))
+      (should (eq +carlos/magent-fsm-state 'subagent-waiting)))))
+
+(ert-deftest myemacs-magent-fsm-turn-start-with-pending-subagent-runs ()
+  "Turn-start com subagente ativo deve entrar em `subagent-running'."
+  (skip-unless myemacs-fsm-available)
+  (skip-unless (fboundp '+carlos/magent-fsm-turn-start-sink))
+  (myemacs-fsm-with-reset
+    (cl-letf (((symbol-function '+carlos/magent-fsm-subagent-session-jobs)
+               (lambda () '(job1)))
+              ((symbol-function '+carlos/magent-watchdog-start) #'ignore))
+      (+carlos/magent-fsm-turn-start-sink nil)
+      (should (eq +carlos/magent-fsm-state 'subagent-running)))))
+
+(ert-deftest myemacs-magent-fsm-watchdog-suppressed-while-subagent-pending ()
+  "O watchdog não deve disparar enquanto houver subagente pendente."
+  (skip-unless myemacs-fsm-available)
+  (skip-unless (fboundp '+carlos/magent-fsm-watchdog-should-fire-p))
+  (let ((+carlos/magent-fsm-state 'thinking)
+        (+carlos/magent-fsm-subagent-jobs '(job1)))
+    (should-not (+carlos/magent-fsm-watchdog-should-fire-p)))
+  (let ((+carlos/magent-fsm-state 'thinking)
+        (+carlos/magent-fsm-subagent-jobs nil))
+    (cl-letf (((symbol-function '+carlos/magent-fsm-subagent-session-jobs)
+               (lambda () nil)))
+      (should (+carlos/magent-fsm-watchdog-should-fire-p)))))
+
+(ert-deftest myemacs-magent-directives-enforce-subagent-lifecycle ()
+  "As diretivas do sistema devem impor o contrato spawn→wait_agent com caminho absoluto."
+  (skip-unless myemacs-fsm-available)
+  (skip-unless (boundp '+carlos/magent-system-directives))
+  (let ((d +carlos/magent-system-directives))
+    (should (string-match-p "HARD RULE" d))
+    (should (string-match-p "wait_agent" d))
+    (should (string-match-p "MUST NOT end your turn" d))
+    (should (string-match-p "absolute path" d))
+    (should (string-match-p "do not receive the parent's attachments" d))))
 
 (provide 'magent-fsm-test)
 ;;; magent-fsm-test.el ends here

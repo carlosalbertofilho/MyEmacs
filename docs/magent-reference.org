@@ -129,6 +129,14 @@ Diagnosticados em sessões reais + reprodução batch contra o servidor MLX
 3. **14B timeout:** DeepSeek-R1-Distill-Qwen-14B-4bit não respondeu em
    ~150s (servidor MLX lento; pode precisar de carga do modelo + timeout
    maior).
+4. **Subagente órfão (spawn_agent sem wait_agent):** o orquestrador chamou
+   =spawn_agent(explore)= e **encerrou o turno** com texto ("Aguardando o
+   resultado...") sem chamar =wait_agent= (sessão Agent_Smith 2026-08-13). O
+   job ficou =running= e o resultado do filho nunca volta ao pai. Causa: o
+   sampling FSM do gptel (=magent-llm-gptel--make-sampling-fsm=) trata a
+   resposta de texto após tool result como DONE, e não há re-anexação do
+   resultado do filho ao contexto do pai. Mitigado por hard rule na diretiva
+   SUBAGENT LIFECYCLE + estados FSM =subagent-running/subagent-waiting=.
 
 **Benchmark de modelos locais (2026-08-10, agnes M2, mesmo prompt do
 magent, `tok/s` medido via streaming):**
@@ -220,6 +228,8 @@ A FSM do Magent regula de forma assíncrona as iterações cognitivas e chamadas
 - =tool-executing=: (Emacs) Execução física de ferramentas do catálogo (ex.: snippet_expand, flycheck_errors).
 - =verifying=: (Flycheck/LSP) Validação da estabilidade do código alterado. Se houver erros, retorna para =thinking=; se zero erros, vai para =summarizing=.
 - =summarizing=: (Nuvem) Geração do relatório final e atualização FinOps para o usuário.
+- =subagent-running=: (Diagnóstico) Turno ativo com subagente (=spawn_agent=) ainda rodando em sessão filha (retomada com job pendente).
+- =subagent-waiting=: (Diagnóstico) Turno encerrado com jobs de subagente pendentes (=spawn_agent= sem =wait_agent= concluído).
 
 ** Tabela de Roteamento de Perfis por Host:
 A FSM adapta dinamicamente os backends e modelos do gptel dependendo de onde o Emacs está rodando:
@@ -236,6 +246,30 @@ A FSM adapta dinamicamente os backends e modelos do gptel dependendo de onde o E
 1. **Watchdog de Latência:** Um timer de contagem regressiva =+carlos/magent-watchdog-timer= monitora a requisição ativa de desenvolvimento local. Caso o tempo limite (8s no MacBook, 15s na aa102-006l) seja atingido devido ao carregamento de pesos (cold-start) ou lentidão na CPU, a FSM aborta a chamada e faz fallback transparente do turno para a nuvem.
 2. **Sanitizador de Reasoning:** Captura e acumula o fluxo do canal =reasoning= do gptel. Se o modelo tentar chamar uma ferramenta em formato de tag (Claude-XML ou DSML) dentro do pensamento, um parser regex extrai a chamada e a envia ao Emacs no canal nativo, contornando a falha nativa do gptel-request de descartar tool calls no reasoning.
 3. **Trava de Edição (Semáforo de Buffer):** Impede modificação manual pelo usuário no buffer ativo durante o estado =tool-executing=, garantindo a integridade dos pontos e marcações de cursor.
+
+** Subagentes (spawn_agent / wait_agent) — contrato de orquestração (2026-08-13)
+
+O Magent suporta submodelos via =spawn_agent= (inicia um job durável em sessão
+filha, execução assíncrona em background) e =wait_agent(job_id)= (observa o job
+até estado terminal ou timeout — `magent-request-timeout` 120s, fallback 300s).
+O resultado do =spawn_agent= tem o formato
+`{"status":"spawned","job":{...},"next_action":{"tool":"wait_agent","arguments":{"job_id":...}}}`
+— o `job_id` é o identificador que deve ser passado ao =wait_agent=.
+
+**Regras do contrato (hard rule, em `+carlos/magent-system-directives`):**
+1. O resultado de `spawn_agent` NÃO é a resposta final — o orquestrador deve
+   chamar `wait_agent(job_id)` e NÃO pode encerrar o turno antes do retorno.
+2. Se `wait_agent` retornar `status: timeout`, repetir `wait_agent` com o
+   mesmo `job_id`.
+3. O prompt do subagente deve conter caminho absoluto real (ex.
+   `/abs/path/file.md`) — o subagente NÃO recebe os anexos do pai.
+
+**Suporte na FSM (custom-magent.el):** estados =subagent-running= (turno de
+retomada com job pendente) e =subagent-waiting= (turno encerrado com spawn sem
+wait concluído); detecção via `+carlos/magent-fsm-pending-subagent-p`
+(`magent-tools--parent-session` + `magent-session-agent-jobs`); watchdog
+suprimido durante wait de subagente
+(`+carlos/magent-fsm-watchdog-should-fire-p`).
 
 
 * Entry Points & Keybindings
