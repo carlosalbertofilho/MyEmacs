@@ -88,6 +88,7 @@ inteiro colado.
 
 ## 2. Decisões Registradas
 
+- **Correção de compilação em custom-magent.el (2026-08-13):** Declaradas globalmente no topo de custom-magent.el com valor inicial nil as variáveis de ferramentas de gptel para evitar erros de compilation de símbolos livres (free variable). Lógica de registro movida para uma função unificada e executada de modo reativo para ambos os carregamentos (gptel e magent-tools).
 - **Magent como Driver do Emacs (Fase C5) (2026-08-12):** Implementação e catalogação in-process de 3 ferramentas curadas e tipadas (`flycheck_errors`, `lsp_navigation`, `snippet_expand`), devidamente autorizadas sob permissões individuais e testadas via suíte ERT.
 - **Gestão de Contexto Automática (2026-08-12):** Implementada a estratégia híbrida 100% autônoma de contexto: isolamento de dados dinâmicos para acionar Context Caching na nuvem (zero-loss de cache de prefixo) e auto-compactação automática por threshold (>= 60% da janela do modelo) via sink do ciclo de vida `turn-end`.
 - **Benchmark de Modelos no aa102-006l (2026-08-12):** Validado o sweet-spot dos modelos locais no Ollama (hardware leve): `qwen2.5-coder:1.5b` (ultra rápido, turn em 4s) e `qwen2.5-coder:3b` (excelente balanço de codificação local, turn em 7s).

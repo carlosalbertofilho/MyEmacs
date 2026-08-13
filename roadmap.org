@@ -11,6 +11,11 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-13 — [CONCLUÍDO] Remoção de Arquivo Untracked, Correção de Símbolos Livres em custom-magent.el
+   - **Remoção de Arquivo Untracked:** Removido o arquivo `--help` criado acidentalmente no repositório.
+   - **Correção de compilação em custom-magent.el:** Corrigido o erro do byte-compiler `reference to free variable` nas variáveis de ferramentas (`+carlos/magent-tool-*`). As variáveis foram declaradas no top-level com valor `nil` e a lógica de registro em `magent-tools-catalog` foi encapsulada no helper `+carlos/magent-register-tools` (invocado de forma reativa tanto no `with-eval-after-load 'gptel` quanto no `with-eval-after-load 'magent-tools`), resolvendo conflitos de ordem de carregamento.
+   - **Validação:** Compilação limpa no repositório e em produção (`just compile-prod`), boot verificado (`just check-prod`), e suíte ERT de testes rodada com sucesso (`just test-all` - 169 testes passados, 0 falhas).
+
 ** 2026-08-12 — [CONCLUÍDO] Magent como Driver do Emacs (Fase C5: 3 Ferramentas Curadas) [Etapa C5]
    - **Objetivo:** Transformar o Magent de "gerador de texto" para operador de ferramentas do Emacs (Tool Operator), implementando e catalogando ferramentas locais curadas de introspecção e navegação in-process.
    - **Ações e Recursos:**
