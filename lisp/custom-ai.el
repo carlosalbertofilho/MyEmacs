@@ -510,9 +510,13 @@ O Magent (`magent-llm-gptel') define seu próprio backend/modelo; o roteador
 dinâmico e o watchdog de latência NÃO devem tocá-lo — redirecionar para a
 nuvem quebra o tool calling local (erro `stop unknown reason').
 Também ignora correção gramatical (`*gptel-grammar*'), que fixa o modelo
-mistral local em `+carlos/gptel-grammar-model'."
+mistral local em `+carlos/gptel-grammar-model'.
+Ignora também buffers de benchmarks e testes locais de rede."
   (or (string-prefix-p " *magent-llm-gptel-request*" (buffer-name buffer))
       (string-prefix-p "*gptel-grammar" (buffer-name buffer))
+      (string-prefix-p " *heavy-" (buffer-name buffer))
+      (string-prefix-p " *benchmark-" (buffer-name buffer))
+      (string-prefix-p " *temp*" (buffer-name buffer))
       (and (listp context) (plist-member context :magent-llm-gptel))))
 
 (defun +carlos/gptel-dynamic-router-advice (prompt &rest args)

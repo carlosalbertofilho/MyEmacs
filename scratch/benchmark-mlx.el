@@ -20,7 +20,9 @@
     (unless backend
       (error "ERROR: Backend 'MLX Local' not found! Make sure custom-ai is loaded."))
     
-    (let* ((start-time (float-time))
+    (let* ((orig-backend gptel-backend)
+           (orig-model gptel-model)
+           (start-time (float-time))
            (ttft-time nil)
            (end-time nil)
            (response-text nil)
@@ -28,27 +30,32 @@
            (done nil)
            (temp-buf (generate-new-buffer (format " *benchmark-%s*" model-name))))
       
-      ;; Set local variables for the buffer to use the specific model
-      (with-current-buffer temp-buf
-        (setq-local gptel-backend backend)
-        (setq-local gptel-model model-name)
-        
-        (message "Sending request...")
-        (gptel-request benchmark-prompt
-          :system "Be concise."
-          :buffer temp-buf
-          :callback (lambda (response info)
-                      (setq end-time (float-time))
-                      (if response
-                          (setq response-text response)
-                        (setq error-msg (plist-get info :error)))
-                      (setq done t))))
-      
-      ;; Wait loop (non-blocking for Emacs process output)
-      (let ((timeout 60)
-            (wait-start (float-time)))
-        (while (and (not done) (< (- (float-time) wait-start) timeout))
-          (accept-process-output nil 0.1)))
+      (unwind-protect
+          (progn
+            ;; Set global variables during request and wait loop to guarantee
+            ;; that the async curl setup and callback read the correct backend key.
+            (setq gptel-backend backend
+                  gptel-model model-name)
+            
+            (message "Sending request...")
+            (gptel-request benchmark-prompt
+              :system "Be concise."
+              :buffer temp-buf
+              :callback (lambda (response info)
+                          (setq end-time (float-time))
+                          (if response
+                              (setq response-text response)
+                            (setq error-msg (plist-get info :error)))
+                          (setq done t)))
+            
+            ;; Wait loop (non-blocking for Emacs process output)
+            (let ((timeout 60)
+                  (wait-start (float-time)))
+              (while (and (not done) (< (- (float-time) wait-start) timeout))
+                (accept-process-output nil 0.1))))
+        ;; Restore global variables
+        (setq gptel-backend orig-backend
+              gptel-model orig-model))
       
       ;; Clean up buffer
       (kill-buffer temp-buf)

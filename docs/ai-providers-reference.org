@@ -153,3 +153,14 @@ Foco: Servidores headless, máquinas sem GPU dedicada ou ambientes com restriç�
 | *Default Coder Balanceado* | =Ollama Local= | =qwen2.5-coder:3b= | 9.20 tok/s \| TTFT 6.34s \| Turno Magent 7s (Precisão em Elisp/C/Python). |
 | *Raciocínio Leve (Reasoning)* | =Ollama Local= | =deepseek-r1:1.5b= | 16.82 tok/s \| TTFT 4.21s (Apenas análise conceitual). |
 
+
+** Heavy Context Benchmark Results (23.5k tokens context)
+Medido empiricamente em 2026-08-13 com o repositório completo `MyEmacs` carregado no MacBook M2 (GPU Metal 24GB VRAM):
+
+| Modelo | Status | Velocidade | Tempo Total | Tamanho (Tokens) | Nota de Síntese Arquitetural |
+|--------+--------+------------+-------------+------------------+------------------------------|
+| =mlx-community/gemma-4-e2b-it-4bit= | success | **15.73 tok/s** | 14.88s | ~234 | **Excelente e ultra rápido.** Resumiu perfeitamente a modularidade e o roteamento de fallbacks em poucos segundos. |
+| =mlx-community/Qwen3.5-9B-MLX-4bit= | success | **11.64 tok/s** | 21.05s | ~245 | **Muito bom.** Detalhou corretamente o Elpaca, a isolação do Magent e o comportamento dos arquivos `custom-*.el`. |
+| =mlx-community/DeepSeek-R1-Distill-Qwen-14B-4bit= | success | **13.00 tok/s** | 43.14s | ~561 | **Altíssima precisão com raciocínio.** Pensou em 4 etapas no `<thought>` e entregou a melhor análise lógica da configuração. |
+
+

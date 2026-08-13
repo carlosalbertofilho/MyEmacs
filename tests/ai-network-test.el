@@ -14,27 +14,36 @@
 (require 'gptel)
 (require 'cl-lib)
 
-(defun myemacs-ai--request-pong (backend model)
-  "Envia \"Reply with exactly: PONG\" para BACKEND/MODEL.
+(defun myemacs-ai--request-pong (backend-name model)
+  "Envia \"Reply with exactly: PONG\" para BACKEND-NAME/MODEL.
 Retorna não-nil se a resposta contiver \"PONG\". Timeout de 90s."
-  (let ((done nil) (result nil) (err nil))
-    (with-temp-buffer
-      (setq-local gptel-backend (gptel-get-backend backend))
-      (setq-local gptel-model model)
-      (gptel-request "Reply with exactly: PONG" :system "Be concise."
-        :callback (lambda (response info)
-                    (setq done t)
-                    (if response
-                        (setq result response)
-                      (setq err (plist-get info :error))))))
-    (let ((deadline (+ (float-time) 90)))
-      (while (and (not done) (< (float-time) deadline))
-        (sleep-for 0.5)))
+  (let* ((backend (gptel-get-backend backend-name))
+         (orig-backend gptel-backend)
+         (orig-model gptel-model)
+         (done nil) (result nil) (err nil))
+    (unwind-protect
+        (progn
+          (setq gptel-backend backend
+                gptel-model model)
+          (with-temp-buffer
+            (gptel-request "Reply with exactly: PONG"
+              :system "Be concise."
+              :callback (lambda (response info)
+                          (setq done t)
+                          (if response
+                              (setq result response)
+                            (setq err (plist-get info :error))))))
+          (let ((deadline (+ (float-time) 90)))
+            (while (and (not done) (< (float-time) deadline))
+              (sleep-for 0.5))))
+      ;; Restore global values
+      (setq gptel-backend orig-backend
+            gptel-model orig-model))
     (cond (result (string-match-p "PONG" result))
           (err (progn
                  (message "myemacs-ai: backend error %S" err)
                  nil))
-          (t (message "myemacs-ai: timeout (%s/%s)" backend model) nil))))
+          (t (message "myemacs-ai: timeout (%s/%s)" backend-name model) nil))))
 
 (ert-deftest myemacs-ai-network-zen-openai ()
   :tags '(ai network)
