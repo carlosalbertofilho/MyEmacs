@@ -88,6 +88,7 @@ inteiro colado.
 
 ## 2. Decisões Registradas
 
+- **Remoção de cenários obsoletos e criação do live-scenario com suporte a LSP (2026-08-13):** Removidos magent-driver-demo-scenario.el e magent-driver-test-scenario.el. Criado magent-driver-live-scenario.el configurando sandboxes em Elisp e Python (Eglot/LSP) para validar a teoria do buffer vivo. Protegido lsp_navigation contra travamentos de prompts de TAGS do etags em diretórios sem arquivo TAGS físico.
 - **Correção de compilação em custom-magent.el (2026-08-13):** Declaradas globalmente no topo de custom-magent.el com valor inicial nil as variáveis de ferramentas de gptel para evitar erros de compilation de símbolos livres (free variable). Lógica de registro movida para uma função unificada e executada de modo reativo para ambos os carregamentos (gptel e magent-tools).
 - **Magent como Driver do Emacs (Fase C5) (2026-08-12):** Implementação e catalogação in-process de 3 ferramentas curadas e tipadas (`flycheck_errors`, `lsp_navigation`, `snippet_expand`), devidamente autorizadas sob permissões individuais e testadas via suíte ERT.
 - **Gestão de Contexto Automática (2026-08-12):** Implementada a estratégia híbrida 100% autônoma de contexto: isolamento de dados dinâmicos para acionar Context Caching na nuvem (zero-loss de cache de prefixo) e auto-compactação automática por threshold (>= 60% da janela do modelo) via sink do ciclo de vida `turn-end`.
