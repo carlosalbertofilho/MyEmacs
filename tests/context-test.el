@@ -34,8 +34,8 @@
     (should (listp event-data))))
 
 (ert-deftest myemacs-context-compact-keybinding ()
-  "Garante que o atalho C-c A c está mapeado para `+carlos/magent-compact`."
-  (should (eq (global-key-binding (kbd "C-c A c")) #'+carlos/magent-compact)))
+  "Garante que o atalho C-c A p está mapeado para `+carlos/magent-compact`."
+  (should (eq (global-key-binding (kbd "C-c A p")) #'+carlos/magent-compact)))
 
 (provide 'context-test)
 ;;; context-test.el ends here

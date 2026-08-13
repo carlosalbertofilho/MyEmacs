@@ -377,7 +377,7 @@ NÃO replicar conteúdo lido que não tenha sido alterado."
           (message "[Magent Compact] Compactação de sessão iniciada com sucesso."))
       (message "[Magent Compact] magent-runtime-session-compact indisponível."))))
 
-(global-set-key (kbd "C-c A c") #'+carlos/magent-compact)
+(global-set-key (kbd "C-c A p") #'+carlos/magent-compact)
 
 (defun +carlos/magent-get-context-window ()
   "Retorna o tamanho da janela de contexto do modelo gptel ativo."
