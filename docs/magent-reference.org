@@ -306,8 +306,16 @@ orquestrador leve (local) delegar a modelos fortes:
   alist (orquestrador) ficam intocados.
 - Directiva `SUBAGENT DELEGATION` (nº 8 em `+carlos/magent-system-directives`):
   orquestrador deve SEMPRE delegar exploração de codebase/análise/tarefas
-  multi-step via `spawn_agent` (`explore`/`general`), aguardar `wait_agent` e
-  sintetizar um resumo conciso no turno pai (nunca colar o transcript inteiro).
+  multi-step **e edição complexa de arquivos** (rewrite de documentos,
+  planning files, refactoring, geração de conteúdo) via `spawn_agent`
+  (`explore`/`general`), aguardar `wait_agent` e sintetizar um resumo conciso
+  no turno pai (nunca colar o transcript inteiro). **Hard rule desde
+  2026-08-14:** o orquestrador "só orquestra, não implementa" — edições
+  complexas são delegadas porque o `edit_file` exige `old_text` byte-a-byte e
+  o modelo local alucina o conteúdo do arquivo (falha `old_text not found`).
+  Subagente de edição deve `read_file` o alvo antes de editar. Apenas
+  correções de uma linha com o texto exato recém-lido podem ser feitas
+  diretamente.
 
 Testes: GRUPO 10 em `tests/magent-fsm-test.el` (defaults, resolver, aplicação do
 advice com `magent-request-context` real, instalação do advice, directiva).
@@ -343,7 +351,9 @@ em vez de herdar o próprio modelo:
   `+carlos/magent-inject-system-directives`).
 - Tool `select_model` (args `task_description`/`agent`/`complexity`): heurística
   `+carlos/magent-task-complexity` (keywords deep: refactor/architecture/debug/
-  plan/schema/review); escada `+carlos/magent-resolve-model` — `deep` → free →
+  plan/schema/review **+ verbos de edição edit/update/rewrite/implement/
+  planning desde 2026-08-14** — toda alteração de arquivo vira `deep`, nunca
+  local); escada `+carlos/magent-resolve-model` — `deep` → free →
   paid (nunca local); `simple`/`moderate` → local (se ping online) → free →
   paid; teto respeita `+carlos/magent-model-max-tier`. Retorna JSON
   `{:backend B :model M :tier T :reason R}` e registra override transiente em

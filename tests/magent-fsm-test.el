@@ -463,5 +463,18 @@
     (should (string-match-p "spawn_agent" d))
     (should (string-match-p "stronger cloud model" d))))
 
+(ert-deftest myemacs-magent-directives-enforce-edit-delegation ()
+  "A directiva 8 deve proibir o orquestrador de editar arquivos complexos
+e obrigar a delegação a subagente (modelo forte), instruindo leitura prévia.
+Regressão: orquestrador local tentou editar TODO.md e alucinou old_text
+('old_text not found')."
+  (skip-unless (boundp '+carlos/magent-system-directives))
+  (let ((d +carlos/magent-system-directives))
+    (should (string-match-p "COMPLEX FILE EDIT" d))
+    (should (string-match-p "only orchestrate" d))
+    (should (string-match-p "old_text not found" d))
+    (should (string-match-p "read_file" d))
+    (should (string-match-p "read the target file" d))))
+
 (provide 'magent-fsm-test)
 ;;; magent-fsm-test.el ends here

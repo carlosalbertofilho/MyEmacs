@@ -140,7 +140,7 @@ Accept &rest ARGS for Gemini streaming 5th argument."
 </tool_calls>
 Do NOT use '<tool_call>', '<function=...>', or '<parameter=...>' forms; the runtime only parses the '<tool_calls>'/'<invoke name=...>'/'<parameter name=...>' syntax shown above. After requesting a tool, your next message MUST include the native tool call, not text about calling it.
  7. AVOID SIGPIPE (exit 141): Do not pipe long listings into 'head'/'tail' (e.g. 'find ... | head -50'). Closing the pipe kills the producer with SIGPIPE (exit 141), which the runtime reports as a FAILED tool result. Use 'find ... -maxdepth N' with explicit filters, or 'rg --max-count' instead.
-8. SUBAGENT DELEGATION: You are the ORCHESTRATOR — keep your context window lean. For codebase exploration, file analysis, or multi-step research tasks, ALWAYS delegate: call 'spawn_agent' with agent='explore' (codebase search/analysis) or 'general' (broader multi-step work), giving the subagent a precise task and absolute paths, then call 'wait_agent' and synthesize a CONCISE summary of the subagent's findings in your reply — do not paste the full transcript into your turn. Subagents run on a stronger cloud model with a larger context window.
+ 8. SUBAGENT DELEGATION (HARD RULE): You are the ORCHESTRATOR — you only orchestrate, you do not implement. Keep your context window lean. For codebase exploration, file analysis, multi-step research, OR ANY COMPLEX FILE EDIT (rewriting/updating whole documents, planning files, refactoring large code sections, content generation beyond a few lines), ALWAYS delegate: call 'select_model' first (rule 9), then 'spawn_agent' with agent='explore' (search/analysis) or 'general' (broader multi-step work including file edits), giving the subagent a precise task and absolute paths, then call 'wait_agent' and synthesize a CONCISE summary of the subagent's findings in your reply — do not paste the full transcript into your turn. Subagents run on a stronger cloud model with a larger context window. NEVER attempt a complex file edit yourself: 'edit_file' requires old_text to match the file byte-for-byte, and the local model hallucinates file content — that is why edits fail with 'old_text not found'. When delegating an edit, tell the subagent to read the target file with 'read_file' first and then edit with exact text copied from the actual file content. Small one-line fixes where you have just read the exact target line are the ONLY acceptable direct edit_file/write_file.
 9. MODEL SELECTION: Review the MODEL SELECTION MENU appended below. Before calling 'spawn_agent', call 'select_model' with the subagent's task_description and target agent name; the runtime resolves the model from the menu by task complexity and the user's tier cap, and applies it to the subagent automatically. For 'deep' reasoning (refactor, architecture, design, schema, debug, migration, security, plan, review, optimization), you MUST pick a free or paid tier — never the small local model. For 'simple'/'moderate' tasks, prefer the local model when it is ONLINE, then free, then paid. NEVER exceed the tier cap shown in the menu."
   "Instruções estritas de uso de ferramentas para os modelos do Magent.")
 
@@ -563,8 +563,14 @@ acima de `+carlos/magent-model-max-tier'."
   '("refactor" "architect" "architecture" "design" "schema" "migrat"
     "securit" "optimiz" "benchmark" "concurr" "thread" "protocol"
     "root cause" "causa raiz" "review" "plan" "analyse" "analyze"
-    "analis" "projetar" "arquitetur" "debug" "investigat" "troubleshoot")
-  "Keywords de raciocínio profundo na heurística de complexidade da Fase A.")
+    "analis" "projetar" "arquitetur" "debug" "investigat" "troubleshoot"
+    "edit" "editar" "update" "atualiz" "rewrite" "reescrev" "implement"
+    "planning")
+  "Keywords de raciocínio profundo na heurística de complexidade da Fase A.
+Inclui verbos de edição/escrita (`edit', `update', `rewrite', `implement',
+`planning') para que qualquer tarefa de alteração de arquivo — que exige
+leitura prévia e match exato de `old_text' — seja classificada como `deep'
+e delegada a subagente com modelo forte, nunca ao local.")
 
 (defun +carlos/magent-task-complexity (task-description)
   "Classifica TASK-DESCRIPTION como `simple', `moderate' ou `deep'.

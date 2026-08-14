@@ -49,6 +49,18 @@
   (should (eq (+carlos/magent-task-complexity (make-string 200 ?x))
               'deep)))
 
+(ert-deftest myemacs-magent-task-complexity-edit-deep ()
+  "Tarefas de edição/atualização de arquivo devem ser `deep' (nunca local).
+Regressão: 'Update the planning document...' era `moderate' e o orquestrador
+local assumia a edição, alucinando `old_text'.  Edição exige leitura prévia
+e match exato — modelo forte obrigatório."
+  (dolist (task '("Update the planning document to include model flexibility"
+                  "Edit the README to document the new API"
+                  "Rewrite the module implementing the new schema"
+                  "Atualizar o TODO.md com as novas fases"
+                  "Implement the authentication flow"))
+    (should (eq (+carlos/magent-task-complexity task) 'deep))))
+
 (ert-deftest myemacs-magent-classify-model ()
   "Garante que `+carlos/magent-classify-model` mapeia custo→tier."
   (should (eq (+carlos/magent-classify-model "Gemini" "gemini-3.5-flash")
