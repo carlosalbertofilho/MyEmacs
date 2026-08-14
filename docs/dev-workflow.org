@@ -25,6 +25,16 @@ Este documento descreve o fluxo de desenvolvimento interativo em Elisp no MyEmac
    - Ative `debug-on-error` com `C-c D d`.
    - Ao capturar um backtrace ou erro, selecione a região e pressione `C-c D a` (`+carlos/debug-region-with-ai`) para receber diagnóstico de escopo e estado de memória no buffer `*debug-ai*`.
 
+5. **Cuidado com mocks de accessor (2026-08-13):** accessors de =cl-defstruct=
+   (=gptel-backend-models=, =magent-thread-turn-usage=, =magent-agent-info-name=)
+   são *inlined* no =byte-compile= (vira =aref= + tipo-check) — mock de
+   function-cell via =cl-letf= não tem efeito. Prefira: (a) mockar a função que
+   *retorna* o struct (=gptel-get-backend= é função normal); (b) expor o dado como
+   argumento opcional da função sob teste (=backends=/=local-models=); ou (c)
+   testar a *decisão pura* (=+carlos/magent-compaction-decision=) em vez do caminho
+   que toca o accessor. Detalhes em =docs/testing-suite.org= (Descobertas de
+   Runtime para Mocks).
+
 * Tabela de Keybindings
 
 | Atalho (Global) | Atalho (`emacs-lisp-mode`) | Comando | Descrição |

@@ -63,9 +63,39 @@ just test-batch
 just test-all  # Roda compile + checkdoc + test-batch
 #+end_src
 
-* Diretrizes para Evolução da Suíte
+ * Diretrizes para Evolução da Suíte
 
 Ao adicionar novos recursos ou consertar bugs, siga as regras:
 1. *Bugs de Inicialização:* Cada bug resolvido (ex: `void-variable` ou `void-function`) deve ganhar uma asserção específica no =boot-test.el= ou =ai-test.el=.
 2. *Novos Atalhos:* Se adicionar um novo atalho global em =custom-keybindings.el=, declare-o na lista =critical-bindings= do teste =myemacs-kbd-no-collisions= em =tests/keybindings-test.el= para protegê-lo contra futuras regressões ou colisões em major modes.
 3. *Isolamento de Testes:* Testes de rede (Live APIs) devem conter a tag =:tags '(ai network)= e a macro =(skip-unless (getenv "EMACS_TEST_NETWORK"))= para evitar que falhas de conexão ou falta de chaves quebrem a suíte de testes offline local.
+
+ * Descobertas de Runtime para Mocks (2026-08-13)
+
+Ao escrever testes que mockam funções do gptel/magent, lembre:
+
+1. *Accessors de =cl-defstruct= são INLINED pelo byte-compiler* quando o struct está
+   carregado no compile-time — mock de function-cell com =cl-letf= no
+   =symbol-function= é *inócuo*: a chamada é expandida para
+   =(aref obj slot)= + tipo-check, ignorando o mock. Exemplos vistos:
+   =gptel-backend-models=, =gptel-backend-host=, =gptel-backend-protocol=,
+   =magent-thread-turn-usage=, =magent-agent-info-name=.
+   - *Contorno:* mockar a função que *retorna* o struct (=gptel-get-backend= é
+     função normal e mockável) ou injetar os valores como argumento opcional
+     das funções sob teste (ex.: `backends`/`local-models` de
+     =+carlos/magnet-model-menu-entries=), ou testar a decisão pura (ex.:
+     =+carlos/magent-compaction-decision=) em vez do caminho que toca o accessor.
+2. *Sem sessão/turno no batch:* =magent-runtime-session-current= e
+   =magent-thread-find-turn= retornam nil em batch sem sessão ativa — testes de
+   medição de tokens devem garantir zero-safe (=+carlos/magent-turn-tokens=
+   retorna 0).
+3. *`--init-directory` + `--batch` não carrega =early-init.el=* neste Emacs 30.2
+   — =load-prefer-newer-source= fica *void* e um =.elc= stale pode prevalecer
+   sobre o =.el= novo ("Source file ... newer than byte-compiled file; using
+   older file"). Rode =just rebuild= antes de testar se suspeitar de objeto velho.
+4. *=when-let*= com elemento =(fboundp 'X)= vira *binding* (var =fboundp= = símbolo),
+   NÃO condição — use bindings nomeados (=(has-get (fboundp 'X)) ...=).
+5. *=`push=` em =(alist-get k alist ...)= adiciona a entrada NO FRENTE* do alist
+   quando a chave é nova (ordem de inserção, não de tier) — ordene explicitamente
+   (ex.: rank de tier) ou use ordem estável.
+

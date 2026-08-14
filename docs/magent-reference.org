@@ -347,6 +347,47 @@ Testes: `tests/magent-routing-test.el` (tier-rank, task-complexity, classify-mod
 resolve-model escada/skip-local/offline/cap, menu-entries derivado + cap + fallback
 default, directives-render + inject, menu cap, select_model, override-consumed).
 
+** Compactação estilo opencode (Fase B — contexto & auto-compactação, 2026-08-13)
+
+A auto-compactação da sessão (lisp/custom-magent-context.el) foi reescrita com
+medição real de tokens e gatilho por milestones:
+
+- *Fatos confirmados no emit-site* (magent-lifecycle-events.el / runtime-api.el):
+  - O evento `turn-end` carrega APENAS `:context/:status/:detail` — **não existe**
+    `:input-len`/`:output-len` (o sink antigo lia `:output-len` e nunca disparava).
+  - `magent-runtime-session-token-count` **não existe** nos sources.
+  - `subagent-stop` carrega `:context/:audit-context` (sem `:status`); a conclusão
+    é inferida pelo próprio evento.
+  - `magent-runtime-session-compact` tem assinatura
+    `(runtime-session &key instruction observer approval-provider turn-metadata
+    on-complete)` — exige a session **posicional** (o `+carlos/magent-compact`
+    antigo chamava sem → erro em runtime).
+  - usage do gptel usa as chaves `:input` e `:output` (gptel.el:966).
+- *B1 — Instrução orientada a estado:* `+carlos/magent-build-compaction-instruction`
+  monta: estado do projeto (raiz + branch/rev git), objetivo corrente (preview da
+  sessão via cadeia `magent-runtime-session-current` → `magent-session-thread` →
+  `magent-thread-preview`), base estática `+carlos/magent-preservation-instruction`
+  e regras de descarte ("não replique transcripts reproduzíveis; preserve os
+  últimos 3 turns crus; consulte TODO.md/roadmap.org").
+- *B2 — Medição de tokens:* `+carlos/magent-turn-tokens` resolve o turno por
+  `:turn-id` do evento na cadeia runtime-session → magent-session → thread →
+  `magent-thread-find-turn` e soma o usage real (`:input` + `:output`);
+  fallback: estima por `magent-thread-turn-input` (chars/4). Acumula em
+  `+carlos/magent-context-estimated-tokens`.
+- *B3 — Gatilho por milestones:* sink `+carlos/magent-auto-compact-check-and-run`
+  despacha por `:type`: `subagent-stop` incrementa
+  `+carlos/magent-subagent-completions-since-compact`; `turn-end` (completed) soma
+  tokens e decide via função pura `+carlos/magent-compaction-decision`:
+  `immediate` quando >60% da janela (`+carlos/magent-context-compact-ratio`),
+  `milestone` quando ≥N subagentes (`+carlos/magent-milestone-subagents`, default 3)
+  E >40% da janela (`+carlos/magent-milestone-ratio`).
+- *B4 — Compactação manual:* `C-c A p` (`+carlos/magent-compact`) usa a instrução
+  dinâmica (B1), resolve a session via `magent-runtime-session-current` (com
+  guarda) e zera os contadores pós-compactação.
+
+Testes: `tests/context-test.el` (compaction-decision immediate/milestone,
+build-instruction-sections, sink subagent-stop conta, turn-tokens zero-safe).
+
 
 * Entry Points & Keybindings
 
@@ -525,4 +566,11 @@ Project sessions, turn ledgers, and history are stored in project-isolated direc
 2. **Use-package `:after`:** With ~use-package-expand-minimally t~, `:after` blocks are ignored during startup. Always wrap package post-configuration in explicit ~(with-eval-after-load 'magent ...)~.
 3. **Use `:custom` for options:** Never use global ~setq~ for defcustom variables. Use `:custom` in ~use-package~.
 4. **Single Frontend:** Magent uses =agent-shell= as its primary interactive UI. Keep ~C-c i~ (gptel chat) as a lightweight fallback interface.
+5. **Accessors de cl-defstruct são inlined:** =gptel-backend-models=, =gptel-backend-host=, =gptel-backend-protocol=, =magent-thread-turn-usage=, =magent-agent-info-name= são expandidos pelo byte-compiler (=aref= + tipo-check) quando o struct está carregado no compile-time — mock de function-cell é inócuo. Mocke a função que retorna o struct (=gptel-get-backend= é função normal) ou injete overrides como argumento opcional.
+6. **Sem chaves de tokens nos eventos de lifecycle:** `turn-end` só traz ~:context/:status/:detail~; `magent-runtime-session-token-count` não existe. Meça usage via =magent-thread-turn-usage= (chaves gptel ~:input/:output~) ou estime por comprimento.
+7. **=magent-runtime-session-compact= exige a session posicional:** chame com ~(magent-runtime-session-compact (magent-runtime-session-current) :instruction instr)~ — nunca apenas ~:instruction~.
+8. **=when-let*= com =(fboundp 'X)= vira binding:** use bindings nomeados ~(has-get (fboundp 'X))~; elemento de lista é sempre par (VAR VALOR).
+9. **=push= em =(alist-get k a)= insere a chave no FRENTE** (ordem de inserção) — ordene explicitamente por rank quando a ordem importar.
+10. **`--init-directory` + `--batch` não carrega =early-init.el=** (Emacs 30.2): =load-prefer-newer-source= fica void e =.elc= stale pode prevalecer; rode =just rebuild= antes de testar.
+
 
