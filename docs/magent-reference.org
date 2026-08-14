@@ -1,6 +1,7 @@
 #+TITLE: Magent Reference Guide
 #+AUTHOR: MyEmacs Documentation Generator
 #+DATE: 2026-08-06
+#+LAST_MODIFIED: 2026-08-14
 #+DESCRIPTION: Comprehensive reference for Magent native Emacs-Lisp AI coding agent
 
 * Table of Contents
@@ -137,6 +138,23 @@ Diagnosticados em sessões reais + reprodução batch contra o servidor MLX
    resposta de texto após tool result como DONE, e não há re-anexação do
    resultado do filho ao contexto do pai. Mitigado por hard rule na diretiva
    SUBAGENT LIFECYCLE + estados FSM =subagent-running/subagent-waiting=.
+5. **Empty-completion por orçamento de saída esgotado (max_tokens) — o bug
+   "colou o buffer de compilação e o agente não respondeu" (2026-08-14):** o
+   host agnes roteia o orquestrador para MLX Local
+   (=mlx-community/gemma-4-e2b-it-4bit=). Esse modelo é de *reasoning*: gera
+   primeiro um bloco grande de pensamento e só depois o =content=. O
+   =mlx_lm.server= aplica um default de **512 completion tokens** quando a
+   request não traz =max_tokens=; e o gptel só envia =:max_tokens= se
+   =gptel-max-tokens= estiver definido (default =nil=, gptel-openai.el:238).
+   Com o buffer de compilação do pdf-tools colado no chat (~1.1K tokens de
+   prompt), o reasoning do gemma consumia as 512 tokens e o servidor
+   respondia =finish_reason: length= com =content= vazio → o magent fechava o
+   turn com =completed "" nil (:reason empty-completion)= → "travou/não
+   respondeu". Fix: backend "MLX Local" passou a enviar
+   =:request-params '(:max_tokens 8192)= (mergeado na request via
+   =gptel--merge-plists=), permitindo reasoning (3.5K tokens) + content
+   (4.7K chars). Validado E2E: vazio em ~16s → análise correta em ~26s.
+   Regressão: =myemacs-ai-mlx-local-max-tokens= (exige =:max_tokens ≥ 2048=).
 
 **Benchmark de modelos locais (2026-08-10, agnes M2, mesmo prompt do
 magent, `tok/s` medido via streaming):**
