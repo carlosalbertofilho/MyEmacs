@@ -33,6 +33,50 @@
   (let ((event-data '(:status completed :output-len 50)))
     (should (listp event-data))))
 
+(ert-deftest myemacs-context-compaction-decision-immediate ()
+  "Garante que o threshold imediato dispara acima de 60% da janela."
+  (should (eq (+carlos/magent-compaction-decision 7000 10000 0)
+              'immediate))
+  (should (eq (+carlos/magent-compaction-decision 5900 10000 0)
+              nil)))
+
+(ert-deftest myemacs-context-compaction-decision-milestone ()
+  "Garante que o milestone exige N subagentes E tokens acima do limiar inferior."
+  (let ((+carlos/magent-milestone-subagents 3)
+        (+carlos/magent-milestone-ratio 0.4))
+    (should (eq (+carlos/magent-compaction-decision 4500 10000 3)
+                'milestone))
+    (should (eq (+carlos/magent-compaction-decision 4500 10000 2)
+                nil))
+    (should (eq (+carlos/magent-compaction-decision 3000 10000 3)
+                nil))
+    (should (eq (+carlos/magent-compaction-decision 7000 10000 0)
+                'immediate))))
+
+(ert-deftest myemacs-context-build-instruction-sections ()
+  "Garante que a instrução dinâmica (B1) contém estado, descarte e base."
+  (let ((instr (+carlos/magent-build-compaction-instruction)))
+    (should (stringp instr))
+    (should (string-match-p "Regras de descarte" instr))
+    (should (string-match-p "TODO\\.md" instr))
+    (should (string-match-p "preservando o estado do projeto" instr))))
+
+(ert-deftest myemacs-context-sink-subagent-stop-counts ()
+  "Garante que o sink conta subagentes completados (B3)."
+  (let ((+carlos/magent-subagent-completions-since-compact 0))
+    (+carlos/magent-auto-compact-check-and-run
+     '(:type subagent-stop :subagent-id "abc"))
+    (+carlos/magent-auto-compact-check-and-run
+     '(:type subagent-stop :subagent-id "def"))
+    (should (= +carlos/magent-subagent-completions-since-compact 2))))
+
+(ert-deftest myemacs-context-turn-tokens-zero-safe ()
+  "Garante que a medição de tokens (B2) é segura sem sessão ativa."
+  (let ((tokens (+carlos/magent-turn-tokens
+                 '(:type turn-end :status completed))))
+    (should (integerp tokens))
+    (should (>= tokens 0))))
+
 (ert-deftest myemacs-context-compact-keybinding ()
   "Garante que o atalho C-c A p está mapeado para `+carlos/magent-compact`."
   (should (eq (global-key-binding (kbd "C-c A p")) #'+carlos/magent-compact)))
