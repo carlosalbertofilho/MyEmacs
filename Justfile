@@ -81,7 +81,7 @@ compile-prod:
       --eval '(byte-recompile-directory (expand-file-name "lisp" user-emacs-directory) 0)' 2>&1)"; \
     status=$?; \
     echo "$output" | rg -i 'error|warning|failed|done' \
-      | rg -v 'Optimization failure|Unknown type: plist|epa-file|Unknown type jupyter' || true; \
+      | rg -v 'Optimization failure|Unknown type: plist|epa-file|Unknown type jupyter|Unknown type magent-request-context' || true; \
     exit "$status"
 
 # Nota: o repo pode ter builds elpaca parciais (ex.: falta tempel); o gate
@@ -94,7 +94,7 @@ compile: compile-modules
       --eval '(byte-recompile-directory (expand-file-name "lisp" user-emacs-directory) 0)' 2>&1)"; \
     status=$?; \
     echo "$output" | rg -i 'error|warning|failed|done' \
-      | rg -v 'Optimization failure|Unknown type: plist|epa-file|Unknown type jupyter' || true; \
+      | rg -v 'Optimization failure|Unknown type: plist|epa-file|Unknown type jupyter|Unknown type magent-request-context' || true; \
     exit "$status"
 
 # Build native C/C++ modules (vterm-module, tree-sitter grammars)
