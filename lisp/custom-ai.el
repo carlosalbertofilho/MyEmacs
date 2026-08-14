@@ -209,6 +209,7 @@ roteamento para backends locais fica apenas como fallback final.")
     :protocol "http"
     :stream t
     :key "any"
+    :request-params '(:max_tokens 8192)
     :models '("mlx-community/gemma-4-e2b-it-4bit"
               "mlx-community/gemma-4-9b-it-4bit"
               "mlx-community/Qwen3.5-9B-MLX-4bit"

@@ -29,6 +29,18 @@
                   "OpenCode Zen"))
     (should (gptel-get-backend name))))
 
+(ert-deftest myemacs-ai-mlx-local-max-tokens ()
+  :tags '(ai)
+  "O backend MLX Local precisa enviar max_tokens alto.
+O servidor mlx_lm.server aplica um default de 512 completion tokens quando
+o gptel não envia `max_tokens' (gptel-max-tokens nil). O gemma-4-e2b-it é
+um modelo com reasoning: com o buffer de compilação colado, o raciocínio
+consome todo o orçamento e o `content' fica vazio (`empty-completion' =
+\"não respondeu\"). O `:request-params' do backend é mergeado na request."
+  (let ((params (gptel-backend-request-params (gptel-get-backend "MLX Local"))))
+    (should (plist-get params :max_tokens))
+    (should (>= (plist-get params :max_tokens) 2048))))
+
 (ert-deftest myemacs-ai-zen-openai-url ()
   :tags '(ai)
   (should (equal "https://opencode.ai/zen/v1/chat/completions"
