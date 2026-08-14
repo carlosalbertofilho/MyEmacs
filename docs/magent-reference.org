@@ -438,6 +438,72 @@ resolve-cheap-model free/local, session-total-tokens, guarda sucesso/falha + sin
 skip/retry, turn-closed-p, safe-boundary).
 
 
+** Loop de eventos informativo (Fase C — painel de atividade, 2026-08-14)
+
+O painel de atividade (lisp/custom-magent-ui.el) torna o loop de eventos do chat
+mais informativo no buffer *Magent* (agent-shell), consumindo o barramento de
+lifecycle events via sink — sem modificar sources do elpaca.
+
+- *Mapa do loop de UI (verificado nos sources):*
+  - Frontend = `agent-shell` (config `magent-agent-shell.el:98`): buffer
+    "Magent", prompt "Magent> ", `default-model-id` = `magent-agent-shell--model-id`
+    que lê `gptel-model`.
+  - `magent-agent-loop.el` emite `tool-call-start` (:446) / `tool-call-end`
+    (:479) com `:exit-code/:result-summary/:ui-visible`.
+  - `magent-acp.el:609-651` mapeia os eventos para ACP `tool_call`/`tool_call_update`.
+  - Barramento `magent-lifecycle-events.el`: `add-sink` (:74),
+    `turn-start`/`turn-end` (:117/:126), `subagent-start`/`subagent-stop`
+    (:155/:165).
+  - `magent-agent.el` emite `llm-request-start` (:512, com `:backend/:model`) e
+    `llm-request-end` (:612-617, com `:status/:backend/:model`).
+  - `magent-tools.el:988` emite `agent-job-event` (eventos started/completed/
+    failed/cancelled, `:ui-visibility 'summary-only`).
+- *C1 — Sink de atividade:* `+carlos/magent-ui-activity-sink` renderiza linhas
+  timestampadas por `:type`:
+  - `turn-start` → título + badge de modelo (`[backend model]`) + "sem modelo".
+  - `llm-request-start` → captura `(BACKEND . MODEL)` em
+    `+carlos/magent-ui-last-turn-model` (fonte do badge).
+  - `llm-request-end` → ✓/✗ + badge + duração (desde o turn-start).
+  - `tool-call-start` → `⚙ <summary>`; guarda start-time em
+    `+carlos/magent-ui--tool-start-times` (hash call-id).
+  - `tool-call-end` → ✓/✗ + nome + `(exit N)` + duração + preview do
+    `result-summary` (100 chars).
+  - `turn-end` → limpa badge/start-time; se `+carlos/magent-fsm-reasoning-buffer`
+    não-vazio, renderiza preview de reasoning (C5).
+  - `subagent-start`/`agent-job-event` → ciclo de vida do subagente (C3).
+  - Faces: `+carlos/magent-ui-turn/-model/-tool-ok/-tool-fail/-reasoning/
+    -subagent/-time`. Inserção via `agent-shell-insert` (falha → `message`);
+    desativável com `+carlos/magent-ui-insert-enabled` (útil em batch/testes).
+  - Registro idempotente via `+carlos/magent-ui-register-sink`
+    (`with-eval-after-load 'magent-lifecycle-events` + `'magent-agent-shell`).
+- *C2 — Advice de resumo enriquecido:* `+carlos/magent-ui-tool-call-summary-a`
+  (`:around magent-agent-loop-tool-call-summary`, idempotente via
+  `advice-member-p`) anexa ao `spawn_agent` o modelo efetivo do filho
+  (`+carlos/magent-ui-subagent-model` → perfil `+carlos/magent-subagent-profile`)
+  e ao `bash` o `cwd` quando presente nos args.
+- *C3 — Ciclo de vida do subagente:* `agent-job-event` renderiza
+  spawned/completed/failed/cancelled com job-id (`magent-agent-job-id`), agent-name
+  (`magent-agent-job-agent-name`), modelo efetivo do filho e `:detail` truncado
+  (80 chars).
+- *C4 — Badge de modelo por turno:* captura backend/modelo no `llm-request-start`
+  e limpa no `turn-end`; o header do agent-shell já mostra model-id/model-name
+  (`agent-shell--make-header-model`).
+- *C5 — Reasoning colapsável:* no `turn-end`, lê `+carlos/magent-fsm-reasoning-buffer`
+  (acumulado pelo advice `+carlos/magent-fsm-reasoning-accumulator-a` da FSM,
+  custom-magent-fsm.el) e insere `💭 reasoning · N chars` + preview truncado
+  (`+carlos/magent-ui-reasoning-max-preview`, default 400) com a face
+  `+carlos/magent-ui-reasoning`. V1 = preview truncado (sem overlay/toggle).
+- *Gotcha de teste:* `magent-agent-job-id`/`magent-agent-job-agent-name` são
+  accessors de `cl-defstruct` — o byte-compiler os **inlina** no `.elc` (como
+  `aref`), então mock via `cl-letf` em `(symbol-function ...)` é inócuo. Use
+  objeto real `magent-agent-job-create` (`:id/:agent-name`) e mock apenas do
+  perfil `+carlos/magent-subagent-profile`.
+
+Testes: `tests/magent-ui-test.el` (12 testes — sink registro/formato,
+tool-start/end, turn-start badge, subagent lifecycle+modelo, reasoning preview,
+model-badge capture/reset, tool-call-detail-advice, subagent-model-resolver).
+
+
 * Entry Points & Keybindings
 
 Magent provides 3 main interactive entry points bound in =custom-keybindings.el=:
