@@ -384,9 +384,40 @@ medição real de tokens e gatilho por milestones:
 - *B4 — Compactação manual:* `C-c A p` (`+carlos/magent-compact`) usa a instrução
   dinâmica (B1), resolve a session via `magent-runtime-session-current` (com
   guarda) e zera os contadores pós-compactação.
+- *B5 — Gaps fechados (modelo barato + guarda anti-crescimento + fronteira segura,
+  2026-08-13):*
+  - B5.1 — `+carlos/magent-resolve-cheap-model`: o agente `compaction` é roteado no
+    advice `+carlos/magent-subagent-apply-profile` (custom-magent-subagent.el) para
+    um modelo barato — LOCAL se o servidor local está online E os tokens da sessão
+    ≤ `+carlos/magent-compaction-local-max-tokens` (default 32000), senão o primeiro
+    modelo FREE da nuvem (let-binding `+carlos/magent-model-max-tier` = 'free). Nunca
+    pago. Espelha `chat-compression-flash` do Gemini CLI / `gpt-4.1-mini` do
+    OpenRouter.
+  - B5.2 — Commit com IA (`+carlos/git-commit-ai-pair`, custom-git.el) resolve o par
+    backend/modelo via `+carlos/magent-resolve-cheap-model` com fallback para os
+    quick vars; usado em `generate-commit-message` e `insert-commit-message`.
+  - B5.3 — Guarda anti-crescimento: `+carlos/magent-session-total-tokens` soma o
+    usage REAL de todos os turns (via `magent-thread-turns` +
+    `magent-thread-turn-usage`); `+carlos/magent-compact` captura `before` e valida
+    em `:on-complete` com `+carlos/magent-compaction-result-handler`
+    (`completed` E `after < before*1.05` → sucesso; senão seta
+    `+carlos/magent-last-compaction-failed` e o sink de auto-compactação fica
+    bloqueado por `+carlos/magent-failure-retry-turn-ends` turnos). Espelha
+    `COMPRESSION_FAILED_INFLATED_TOKEN_COUNT` do Gemini CLI.
+  - B5.4 — Fronteira segura: `+carlos/magent-turn-closed-p` (turno fechado = todo
+    tool-call tem seu result no próprio turno) e `+carlos/magent-safe-compaction-boundary`
+    (acumula da cauda até keep-count/keep-ratio e avança enquanto o turno
+    pré-fronteira estiver aberto — nunca corta tool-call do result). A instrução
+    embute a fronteira.
+  - *Caveat do byte-compiler:* `defun` do mesmo arquivo definido antes do call-site
+    pode ser **inlined** pelo byte-compiler — mock via `cl-letf` em
+    `(symbol-function ...)` é inócuo. Testar com argumentos opcionais injetáveis
+    (`after` na guarda, `thread` no total de tokens).
 
 Testes: `tests/context-test.el` (compaction-decision immediate/milestone,
-build-instruction-sections, sink subagent-stop conta, turn-tokens zero-safe).
+build-instruction-sections, sink subagent-stop conta, turn-tokens zero-safe,
+resolve-cheap-model free/local, session-total-tokens, guarda sucesso/falha + sink
+skip/retry, turn-closed-p, safe-boundary).
 
 
 * Entry Points & Keybindings

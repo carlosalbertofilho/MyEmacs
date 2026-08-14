@@ -7,9 +7,21 @@
 
 ;;; Code:
 
+(require 'cl-lib)
+
 (declare-function magent-runtime-session-compact "magent-runtime-api")
 (declare-function magent-runtime-session-current "magent-runtime-api")
 (declare-function magent-lifecycle-events-add-sink "magent-lifecycle-events")
+(declare-function magent-thread-turns "magent-ledger")
+(declare-function magent-thread-find-turn "magent-ledger")
+(declare-function magent-thread-turn-input "magent-ledger")
+(declare-function magent-thread-turn-items "magent-ledger")
+(declare-function magent-thread-item-role "magent-ledger")
+(declare-function magent-thread-item-call-id "magent-ledger")
+(declare-function magent-runtime-session-magent-session "magent-runtime-api")
+(declare-function magent-session-thread "magent-ledger")
+(declare-function +carlos/magent-resolve-model "custom-magent-tools")
+(declare-function +carlos/local-ai-server-ping-p "custom-ai")
 
 ;; ── Auto-Compactação Automática (Fase B) ────────────────────────────
 (defcustom +carlos/magent-context-compact-ratio 0.6
@@ -35,6 +47,14 @@ percentual da janela do modelo."
   :type 'integer
   :group '+carlos/ai)
 
+(defcustom +carlos/magent-compaction-local-max-tokens 32000
+  "Teto de tokens da sessão para usar o modelo local na compactação (B5.1).
+Acima deste valor, a compactação usa o primeiro modelo free da nuvem —
+o equivalente ao flash do Gemini CLI — pois modelos locais pequenos
+resumem mal contexto grande."
+  :type 'integer
+  :group '+carlos/ai)
+
 (defvar +carlos/magent-preservation-instruction
   "Compactar a sessão preservando estruturadamente:
 1. Arquivos modificados ou criados (caminhos completos) e a razão da mudança;
@@ -54,6 +74,43 @@ NÃO replicar conteúdo lido que não tenha sido alterado."
 
 (defvar +carlos/magent-last-compaction-time nil
   "Timestamp (float-time) da última compactação automática.")
+
+(defvar +carlos/magent-last-compaction-failed nil
+  "Non-nil quando a última compactação não reduziu o contexto (B5.3).
+Bloqueia novas auto-compactações até uma compactação manual ou um novo
+lote de `+carlos/magent-failure-retry-turn-ends' turnos.")
+
+(defvar +carlos/magent-failure-retry-turn-ends 5
+  "Turnos completados até limpar `+carlos/magent-last-compaction-failed'.
+Permite que a auto-compactação tente novamente após uma falha.")
+
+(defvar +carlos/magent-turn-ends-since-failure 0
+  "Turnos completados desde que `+carlos/magent-last-compaction-failed' foi setado.")
+
+;; ── Acesso à sessão (helpers compartilhados) ─────────────────────────
+(defun +carlos/magent-session-thread ()
+  "Retorna o `magent-thread' da sessão Magent atual, ou nil.
+Resolve a cadeia runtime-session → magent-session → thread com guardas."
+  (when-let* ((session (and (fboundp 'magent-runtime-session-current)
+                            (magent-runtime-session-current)))
+              (msession (and (fboundp 'magent-runtime-session-magent-session)
+                             (magent-runtime-session-magent-session session)))
+              (thread (and (fboundp 'magent-session-thread)
+                           (magent-session-thread msession))))
+    thread))
+
+(defun +carlos/magent-session-total-tokens (&optional thread)
+  "Soma os tokens reais (usage) de todos os turnos de THREAD (B5.3).
+THREAD default: thread da sessão atual via `+carlos/magent-session-thread'.
+Itera `magent-thread-turns' somando `+carlos/magent-turn-usage-tokens';
+sem thread/turnos, retorna 0."
+  (let ((th (or thread (+carlos/magent-session-thread))))
+    (if (and th (fboundp 'magent-thread-turns))
+        (cl-reduce (lambda (acc turn)
+                     (+ acc (+carlos/magent-turn-usage-tokens turn)))
+                   (magent-thread-turns th)
+                   :initial-value 0)
+      0)))
 
 ;; ── B2. Medição de tokens (usage por turno no ledger) ───────────────
 (defun +carlos/magent-turn-usage-tokens (turn)
@@ -104,18 +161,95 @@ excede `+carlos/magent-milestone-ratio'; senão nil."
     'milestone)
    (t nil)))
 
+;; ── B5.4. Fronteira segura de corte (não dividir tool calls) ─────────
+(defun +carlos/magent-turn-closed-p (turn)
+  "Non-nil se TURN não tem tool call pendente (B5.4).
+Um turno é fechado quando todo item de chamada (role sem ser `tool' e com
+call-id) tem seu resultado correspondente (role `tool' com o mesmo
+call-id) dentro do PRÓPRIO turno.  Sem items ou sem chamadas → fechado."
+  (let ((items (and (fboundp 'magent-thread-turn-items)
+                    (magent-thread-turn-items turn))))
+    (if (null items)
+        t
+      (let ((calls (cl-remove-if-not
+                    (lambda (it)
+                      (and (magent-thread-item-call-id it)
+                           (not (eq (magent-thread-item-role it) 'tool))))
+                    items))
+            (results (cl-remove-if-not
+                      (lambda (it)
+                        (and (magent-thread-item-call-id it)
+                             (eq (magent-thread-item-role it) 'tool)))
+                      items)))
+        (cl-every (lambda (c)
+                    (cl-some (lambda (r)
+                               (string= (magent-thread-item-call-id r)
+                                        (magent-thread-item-call-id c)))
+                             results))
+                  calls)))))
+
+(defun +carlos/magent-safe-compaction-boundary
+    (thread &optional keep-count keep-ratio)
+  "Retorna o índice 0-based do primeiro turno de THREAD a preservar verbatim.
+Acumula turns da cauda até KEEP-COUNT (default 3) turns OU KEEP-RATIO
+default 0.3 — fração dos caracteres de input do thread —, o que vier
+primeiro — e avança a fronteira enquanto o turno imediatamente anterior
+não estiver fechado (`+carlos/magent-turn-closed-p'), garantindo que a
+região resumida (antes da fronteira) nunca termina com um tool call sem
+resultado.  Thread sem turns → 0 (nada a resumir)."
+  (let* ((turns (and (fboundp 'magent-thread-turns)
+                     (magent-thread-turns thread)))
+         (keep-count (or keep-count 3))
+         (keep-ratio (or keep-ratio 0.3)))
+    (if (null turns)
+        0
+      (let* ((total-chars (cl-reduce
+                           (lambda (acc turn)
+                             (+ acc (length (or (magent-thread-turn-input turn) ""))))
+                           turns :initial-value 0))
+             (n (length turns))
+             (b n) (count 0) (chars 0))
+        (while (and (> b 0)
+                    (or (< count keep-count)
+                        (< chars (* keep-ratio total-chars))))
+          (setq b (1- b))
+          (cl-incf count)
+          (cl-incf chars (length (or (magent-thread-turn-input (nth b turns)) ""))))
+        (while (and (> b 0)
+                    (< b n)
+                    (not (+carlos/magent-turn-closed-p (nth (1- b) turns))))
+          (cl-incf b))
+        b))))
+
 ;; ── B1. Instrução de compactação orientada a estado ─────────────────
 (defun +carlos/magent-session-preview ()
   "Retorna o preview (resumo) da sessão Magent atual, ou nil."
-  (when-let* ((session (and (fboundp 'magent-runtime-session-current)
-                            (magent-runtime-session-current)))
-              (msession (and (fboundp 'magent-runtime-session-magent-session)
-                             (magent-runtime-session-magent-session session)))
-              (thread (and (fboundp 'magent-session-thread)
-                           (magent-session-thread msession)))
+  (when-let* ((thread (+carlos/magent-session-thread))
               (preview (and (fboundp 'magent-thread-preview)
                             (magent-thread-preview thread))))
     (and (stringp preview) (string-trim preview))))
+
+;; ── B5.1. Modelo barato (compactação/commit) via selecionador ───────
+(defun +carlos/magent-resolve-cheap-model
+    (&optional token-count backends local-models)
+  "Resolve o modelo barato para compactação/commit (B5.1/B5.2).
+TOKEN-COUNT é a estimativa de tokens da sessão (default
+`+carlos/magent-session-total-tokens'); BACKENDS (alist NAME . MODELS) e
+LOCAL-MODELS (lista de strings) são overrides para testes, repassados a
+`+carlos/magent-resolve-model'.  Usa o selecionador inteligente da
+Fase A: modelo LOCAL se o servidor local está online E TOKEN-COUNT ≤
+`+carlos/magent-compaction-local-max-tokens'; caso contrário o primeiro
+modelo FREE da nuvem (teto \\='free — nunca pago).  Retorna o plist de
+`:backend', `:model', `:tier' e `:reason' de `+carlos/magent-resolve-model',
+ou nil sem gptel/backend disponível."
+  (let* ((local-online (+carlos/local-ai-server-ping-p))
+         (tokens (or token-count (+carlos/magent-session-total-tokens)))
+         (local (and local-online
+                     (<= tokens +carlos/magent-compaction-local-max-tokens)
+                     (+carlos/magent-resolve-model 'simple t backends local-models))))
+    (or local
+        (let ((+carlos/magent-model-max-tier 'free))
+          (+carlos/magent-resolve-model 'simple nil backends local-models)))))
 
 (defun +carlos/magent-build-compaction-instruction ()
   "Constrói a instrução de compactação orientada a estado (Fase B).
@@ -133,7 +267,9 @@ base de preservação estática e regras de descarte."
                 (string-trim
                  (shell-command-to-string
                   "git rev-parse --short HEAD"))))
-         (preview (+carlos/magent-session-preview)))
+         (preview (+carlos/magent-session-preview))
+         (boundary (when-let* ((thread (+carlos/magent-session-thread)))
+                     (+carlos/magent-safe-compaction-boundary thread))))
     (concat
      "Compactar a sessão preservando o estado do projeto:\n"
      "- Estado atual: "
@@ -145,6 +281,10 @@ base de preservação estática e regras de descarte."
      "- Objetivo/tarefa corrente (preview da sessão): "
      (or preview "indisponível")
      "\n"
+     (when boundary
+       (format
+        "- Fronteira de compactação: resuma apenas os turns 1..%d; preserve do turno %d em diante verbatim. NÃO divida tool calls e seus resultados.\n"
+        boundary (1+ boundary)))
      "- Decisões técnicas tomadas e justificativas; arquivos modificados ou "
      "criados (caminhos absolutos) com a razão de cada mudança;\n"
      "- Nomes de funções de testes ERT associadas às alterações;\n"
@@ -156,21 +296,52 @@ base de preservação estática e regras de descarte."
      "\nBase de preservação:\n" +carlos/magent-preservation-instruction)))
 
 ;; ── B4. Compactação manual + sink de lifecycle ──────────────────────
+(defun +carlos/magent-compaction-result-handler (status before &optional after)
+  "Guarda anti-crescimento (B5.3): valida o resultado da compactação.
+STATUS é o status reportado pelo `:on-complete'; BEFORE, os tokens da
+sessão medidos antes; AFTER (default: medição real pós-compactação via
+`+carlos/magent-session-total-tokens') são os tokens depois.  Sucesso:
+status `completed' E after < BEFORE*1.05 ou BEFORE zerado (sem medição,
+assume sucesso).  Em sucesso zera os contadores e limpa a flag de falha;
+em falha seta `+carlos/magent-last-compaction-failed' e registra
+before→after."
+  (let ((after-tokens (or after (+carlos/magent-session-total-tokens))))
+    (if (and (eq status 'completed)
+             (or (zerop before) (< after-tokens (* before 1.05))))
+        (progn
+          (setq +carlos/magent-context-estimated-tokens 0
+                +carlos/magent-subagent-completions-since-compact 0
+                +carlos/magent-last-compaction-failed nil
+                +carlos/magent-turn-ends-since-failure 0
+                +carlos/magent-last-compaction-time (float-time))
+          (message "[Magent Compact] OK: %d → %d tokens." before after-tokens))
+      (setq +carlos/magent-last-compaction-failed t)
+      (message (concat
+                "[Magent Compact] AVISO: compactação não reduziu o contexto "
+                "(%d → %d tokens). Próxima auto-compactação pulada.")
+               before after-tokens))))
+
 (defun +carlos/magent-compact (&optional instruction)
   "Compacta a sessão atual do Magent com INSTRUCTION.
-Default: instrução dinâmica de `+carlos/magent-build-compaction-instruction'."
+Default: instrução dinâmica de `+carlos/magent-build-compaction-instruction'.
+Mede os tokens da sessão antes de disparar e valida o resultado em
+`:on-complete' via `+carlos/magent-compaction-result-handler' (B5.3)."
   (interactive)
   (let ((instr (or instruction (+carlos/magent-build-compaction-instruction))))
     (if (fboundp 'magent-runtime-session-compact)
         (let ((session (and (fboundp 'magent-runtime-session-current)
                             (magent-runtime-session-current))))
           (if session
-              (progn
-                (magent-runtime-session-compact session :instruction instr)
-                (setq +carlos/magent-context-estimated-tokens 0
-                      +carlos/magent-subagent-completions-since-compact 0
-                      +carlos/magent-last-compaction-time (float-time))
-                (message "[Magent Compact] Compactação de sessão iniciada."))
+              (let ((before (+carlos/magent-session-total-tokens)))
+                (magent-runtime-session-compact
+                 session :instruction instr
+                 :on-complete
+                 (lambda (status _result)
+                   (+carlos/magent-compaction-result-handler status before)))
+                (message (concat
+                          "[Magent Compact] Compactação de sessão iniciada "
+                          "(%d tokens).")
+                         before))
             (message "[Magent Compact] Nenhuma sessão Magent ativa.")))
       (message "[Magent Compact] magent-runtime-session-compact indisponível."))))
 
@@ -188,13 +359,22 @@ Default: instrução dinâmica de `+carlos/magent-build-compaction-instruction'.
 Dispacha por :type do EVENT-DATA: `subagent-stop' incrementa o contador
 de milestones; `turn-end' com `completed' soma os tokens do turno em
 `+carlos/magent-context-estimated-tokens' e decide compactar via
-`+carlos/magent-compaction-decision'."
+`+carlos/magent-compaction-decision'.  Bloqueia a compactação automática
+enquanto `+carlos/magent-last-compaction-failed' estiver setado, reabrindo
+após `+carlos/magent-failure-retry-turn-ends' turnos (B5.3)."
   (pcase (plist-get event-data :type)
     ('subagent-stop
      (setq +carlos/magent-subagent-completions-since-compact
            (1+ +carlos/magent-subagent-completions-since-compact)))
     ('turn-end
      (when (eq (plist-get event-data :status) 'completed)
+       (when +carlos/magent-last-compaction-failed
+         (setq +carlos/magent-turn-ends-since-failure
+               (1+ +carlos/magent-turn-ends-since-failure))
+         (when (>= +carlos/magent-turn-ends-since-failure
+                   +carlos/magent-failure-retry-turn-ends)
+           (setq +carlos/magent-last-compaction-failed nil
+                 +carlos/magent-turn-ends-since-failure 0)))
        (setq +carlos/magent-context-estimated-tokens
              (+ +carlos/magent-context-estimated-tokens
                 (+carlos/magent-turn-tokens event-data)))
@@ -202,10 +382,12 @@ de milestones; `turn-end' com `completed' soma os tokens do turno em
                         +carlos/magent-context-estimated-tokens
                         (+carlos/magent-get-context-window)
                         +carlos/magent-subagent-completions-since-compact)))
-         (when decision
-           (message "[Magent Auto-Compact] Gatilho %s (%d tokens estimados). Compactando em segundo plano..."
-                    decision +carlos/magent-context-estimated-tokens)
-           (+carlos/magent-compact)))))))
+          (when (and decision (not +carlos/magent-last-compaction-failed))
+            (message (concat
+                      "[Magent Auto-Compact] Gatilho %s (%d tokens estimados). "
+                      "Compactando em segundo plano...")
+                     decision +carlos/magent-context-estimated-tokens)
+            (+carlos/magent-compact)))))))
 
 (with-eval-after-load 'magent-lifecycle-events
   (when (fboundp 'magent-lifecycle-events-add-sink)

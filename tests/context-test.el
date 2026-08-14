@@ -81,5 +81,128 @@
   "Garante que o atalho C-c A p está mapeado para `+carlos/magent-compact`."
   (should (eq (global-key-binding (kbd "C-c A p")) #'+carlos/magent-compact)))
 
+;; ── B5.1: Modelo barato (local até teto, senão free) ────────────────
+(ert-deftest myemacs-context-cheap-model-free-when-offline-or-big ()
+  "Garante que o modelo barato (B5.1) nunca é pago: offline ou acima do
+teto local, cai para o primeiro modelo free da nuvem."
+  (cl-letf (((symbol-function '+carlos/local-ai-server-ping-p))
+            (lambda () nil))
+    (let* ((backends '(("Gemini" . ("gemini-3.5-flash" "gemini-3.1-pro-preview"))
+                       ("Zen Claude" . ("claude-sonnet-5"))))
+           (choice (+carlos/magent-resolve-cheap-model 50000 backends nil)))
+      (should (equal (plist-get choice :tier) "free"))
+      (should (not (equal (plist-get choice :tier) "paid")))
+      (should (stringp (plist-get choice :backend))))))
+
+(ert-deftest myemacs-context-cheap-model-local-when-online-and-fits ()
+  "Garante que o modelo barato (B5.1) usa o modelo local quando online e
+a sessão cabe no teto de tokens."
+  (cl-letf (((symbol-function '+carlos/local-ai-server-ping-p))
+            (lambda () t)
+            ((symbol-function '+carlos/ai-local-backend))
+            (lambda () (cons "Ollama Local" 'qwen2.5-coder:3b)))
+    (let* ((backends '(("Ollama Local" . ("qwen2.5-coder:3b"))
+                       ("Gemini" . ("gemini-3.5-flash"))))
+           (local-models '("qwen2.5-coder:3b"))
+           (choice (+carlos/magent-resolve-cheap-model 1000 backends local-models)))
+      (should (equal (plist-get choice :tier) "local"))
+      (should (equal (plist-get choice :model) "qwen2.5-coder:3b")))))
+
+;; ── B5.3: Guarda anti-crescimento ────────────────────────────────────
+(ert-deftest myemacs-context-compaction-guard-success ()
+  "Garante que a guarda (B5.3) zera contadores e limpa a flag em sucesso."
+  (let ((+carlos/magent-last-compaction-failed t)
+        (+carlos/magent-context-estimated-tokens 500)
+        (+carlos/magent-subagent-completions-since-compact 2)
+        (+carlos/magent-turn-ends-since-failure 3))
+    (+carlos/magent-compaction-result-handler 'completed 1000 200)
+    (should (null +carlos/magent-last-compaction-failed))
+    (should (= +carlos/magent-context-estimated-tokens 0))
+    (should (= +carlos/magent-subagent-completions-since-compact 0))
+    (should (= +carlos/magent-turn-ends-since-failure 0))))
+
+(ert-deftest myemacs-context-compaction-guard-failure ()
+  "Garante que a guarda (B5.3) seta a flag e NÃO zera contadores em falha."
+  (let ((+carlos/magent-last-compaction-failed nil)
+        (+carlos/magent-context-estimated-tokens 500)
+        (+carlos/magent-subagent-completions-since-compact 2))
+    (+carlos/magent-compaction-result-handler 'completed 1000 9000)
+    (should +carlos/magent-last-compaction-failed)
+    (should (= +carlos/magent-context-estimated-tokens 500))
+    (should (= +carlos/magent-subagent-completions-since-compact 2))))
+
+(ert-deftest myemacs-context-sink-skips-after-failure-then-retries ()
+  "Garante que o sink bloqueia auto-compactação pós-falha e reabre após N turnos."
+  (let ((+carlos/magent-last-compaction-failed t)
+        (+carlos/magent-failure-retry-turn-ends 3)
+        (+carlos/magent-turn-ends-since-failure 0)
+        (+carlos/magent-context-estimated-tokens 100)
+        (+carlos/magent-subagent-completions-since-compact 0))
+    (+carlos/magent-auto-compact-check-and-run '(:type turn-end :status completed))
+    (+carlos/magent-auto-compact-check-and-run '(:type turn-end :status completed))
+    (should +carlos/magent-last-compaction-failed)
+    (should (= +carlos/magent-turn-ends-since-failure 2))
+    (+carlos/magent-auto-compact-check-and-run '(:type turn-end :status completed))
+    (should (null +carlos/magent-last-compaction-failed))
+    (should (= +carlos/magent-turn-ends-since-failure 0))))
+
+;; ── B5.3: Medição total da sessão ───────────────────────────────────
+(ert-deftest myemacs-context-session-total-tokens-sums ()
+  "Garante que `+carlos/magent-session-total-tokens' soma usage real dos turns."
+  (let* ((t1 (magent-thread-turn-create :id "t1" :usage '(:input 100 :output 50)))
+         (t2 (magent-thread-turn-create :id "t2" :usage '(:input 30)))
+         (thread (magent-thread-create :id "th" :turns (list t1 t2))))
+    (should (= (+carlos/magent-session-total-tokens thread) 180))))
+
+;; ── B5.4: Fronteira segura de corte ─────────────────────────────────
+(ert-deftest myemacs-context-turn-closed-p ()
+  "Garante que `+carlos/magent-turn-closed-p' detecta tool calls pendentes."
+  (let ((plain (magent-thread-turn-create :id "a")))
+    (should (equal (+carlos/magent-turn-closed-p plain) t)))
+  (let ((open (magent-thread-turn-create
+               :id "b"
+               :items (list (magent-thread-item-create
+                             :role 'assistant :name "read_file" :call-id "c1")))))
+    (should (null (+carlos/magent-turn-closed-p open))))
+  (let ((closed (magent-thread-turn-create
+                 :id "c"
+                 :items (list (magent-thread-item-create
+                               :role 'assistant :name "read_file" :call-id "c1")
+                              (magent-thread-item-create
+                               :role 'tool :call-id "c1")))))
+    (should (equal (+carlos/magent-turn-closed-p closed) t))))
+
+(ert-deftest myemacs-context-safe-boundary-avoids-open-turn ()
+  "Garante que a fronteira (B5.4) avança quando o turno pré-fronteira é aberto."
+  (let* ((mk (lambda (id &optional open)
+               (magent-thread-turn-create
+                :id id :input "xxxx"
+                :items (when open
+                         (list (magent-thread-item-create
+                                :role 'assistant :name "bash" :call-id (concat id "-c")))))))
+         (turns (list (funcall mk "t0")
+                      (funcall mk "t1")
+                      (funcall mk "t2" t)   ; turno aberto (tool call sem result)
+                      (funcall mk "t3")
+                      (funcall mk "t4")
+                      (funcall mk "t5")))
+         (thread (magent-thread-create :turns turns)))
+    (should (= (+carlos/magent-safe-compaction-boundary thread 3 0.3) 4))))
+
+(ert-deftest myemacs-context-safe-boundary-keeps-tail ()
+  "Garante que a fronteira (B5.4) preserva os últimos keep-count turns fechados."
+  (let* ((mk (lambda (id) (magent-thread-turn-create :id id :input "xxxx")))
+         (turns (mapcar mk (number-sequence 0 7)))
+         (thread (magent-thread-create :turns turns)))
+    (should (= (+carlos/magent-safe-compaction-boundary thread 3 0.3) 5))))
+
+;; ── B5.2: Commit usa o selecionador inteligente ─────────────────────
+(ert-deftest myemacs-git-commit-ai-pair-resolves ()
+  "Garante que `+carlos/git-commit-ai-pair' retorna (BACKEND . MODEL) válido."
+  (let ((pair (+carlos/git-commit-ai-pair)))
+    (should (consp pair))
+    (should (stringp (car pair)))
+    (should (stringp (cdr pair)))))
+
 (provide 'context-test)
 ;;; context-test.el ends here

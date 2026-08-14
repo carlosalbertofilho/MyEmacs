@@ -8,6 +8,7 @@
 ;; Forward declarations for byte-compiler
 (declare-function vc-git-root "vc-git")
 (declare-function +carlos/gptel-request "custom-ai")
+(declare-function +carlos/magent-resolve-cheap-model "custom-magent-context")
 (defvar +carlos/gptel-quick-local-backend)
 (defvar +carlos/gptel-quick-local-model)
 (declare-function makefile-executor-execute-project-target "makefile-executor")
@@ -73,6 +74,20 @@
 ;; ── +carlos/gptel-generate-commit-message ──────────────────────────
 ;; Reescrito sem dependência de magit (usa vc-git / processo git) e com
 ;; a API do gptel 0.9.9.5 (sem :backend/:model — usa +carlos/gptel-request).
+;; O backend/modelo é resolvido pelo selecionador inteligente da Fase A
+;; (local se online, senão flash free) com fallback para os quick vars.
+
+(defun +carlos/git-commit-ai-pair ()
+  "Retorna (BACKEND . MODEL) para a geração de commit com IA (B5.2).
+Resolve via `+carlos/magent-resolve-cheap-model' (selecionador inteligente:
+local se online, senão free da nuvem); em falha, fallback para
+`+carlos/gptel-quick-local-backend'/`+carlos/gptel-quick-local-model'."
+  (or (when-let* ((choice (+carlos/magent-resolve-cheap-model))
+                  (backend (plist-get choice :backend))
+                  (model (plist-get choice :model)))
+        (cons backend model))
+      (cons +carlos/gptel-quick-local-backend +carlos/gptel-quick-local-model)))
+
 (defun +carlos/gptel-generate-commit-message ()
   "Gera uma mensagem de commit usando IA a partir do diff staged.
 Sem dependência de magit: usa \\='git diff --cached\\=' diretamente.
@@ -90,11 +105,12 @@ Copia a mensagem gerada para o `kill-ring'."
                                      (insert-file-contents f)
                                      (buffer-string)))
                                  (directory-files rules-dir t "\\.md$")
-                                 "\n\n"))))
+                                 "\n\n")))
+             (pair (+carlos/git-commit-ai-pair)))
         (+carlos/gptel-request
          (format "Generate a concise, conventional commit message (type: scope: subject) for this diff:\n\n```\n%s\n```\n\nRules:\n%s"
                  diff rules)
-         +carlos/gptel-quick-local-backend +carlos/gptel-quick-local-model
+         (car pair) (intern (cdr pair))
          :system "You are an expert at writing conventional commits."
          :callback
          (lambda (response _info)
@@ -113,10 +129,11 @@ Funciona em buffers `git-commit-mode' ou `magit-commit-mode'."
   (let ((diff (shell-command-to-string "git diff --cached")))
     (if (string-empty-p diff)
         (user-error "Nothing staged for commit")
-      (let ((commit-buf (current-buffer)))
+      (let ((commit-buf (current-buffer))
+            (pair (+carlos/git-commit-ai-pair)))
         (+carlos/gptel-request
          (format "Generate a concise, conventional commit message (type: scope: subject) for this diff:\n\n```\n%s\n```" diff)
-         +carlos/gptel-quick-local-backend +carlos/gptel-quick-local-model
+         (car pair) (intern (cdr pair))
          :system "You are an expert at writing conventional commits."
          :callback
          (lambda (response _info)
