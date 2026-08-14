@@ -350,18 +350,37 @@ inspeciona ou insere um template do Tempel, retornando o resultado via
 ;; (local < free < paid), heurística de complexidade da tarefa e o teto do
 ;; usuário (`+carlos/magent-model-max-tier').
 
-(defcustom +carlos/magent-model-menu
+(defcustom +carlos/magent-model-tier-config
+  '(("free" . ("Gemini" "OpenCode Zen"))
+    ("paid" . ("Zen Claude" "OpenCode Zen")))
+  "Backends do gptel por tier para o menu de modelos do Magent (Fase A).
+Os MODELOS não são listados aqui: são derivados em runtime
+de `gptel-backend-models' do backend registrado (fonte única de verdade
+no arquivo custom-ai.el) e classificados por `+carlos/magent-classify-model'
+entre free tier e assinatura.  O tier local é resolvido separadamente a
+partir dos modelos realmente instalados no servidor local ativo."
+  :type '(alist :key-type string :value-type (repeat string))
+  :group 'magent)
+
+(defcustom +carlos/magent-model-menu-default
   '(("free" . (("Gemini" . "gemini-3.5-flash")
                ("OpenCode Zen" . "big-pickle")
                ("OpenCode Zen" . "deepseek-v4-flash-free")))
     ("paid" . (("Zen Claude" . "claude-sonnet-5")
                ("OpenCode Zen" . "gpt-5.6-sol"))))
-  "Menu de modelos por tier (free/paid) para o Magent.
-Alist de (TIER . ((BACKEND . MODEL)...)).  O tier local não entra aqui:
-é resolvido em runtime por `+carlos/ai-local-backend' (MLX/Ollama) e
-marcado ONLINE/OFFLINE conforme o ping do servidor."
+  "Fallback do menu de modelos (tiers cloud) quando o gptel não está carregado.
+Só usado em ambientes sem o gptel (ex.: suíte ERT no repo, builds elpaca
+parciais).  Em runtime normal o menu é derivado de `gptel-backend-models'."
   :type '(alist :key-type string
                 :value-type (alist :key-type string :value-type string))
+  :group 'magent)
+
+(defcustom +carlos/magent-model-per-tier-max 3
+  "Máximo de modelos por backend exibidos em cada tier do menu do Magent.
+Mantém o prompt enxuto quando um backend registra muitas variantes (ex.:
+OpenCode Zen free).  Modelos são priorizados na ordem de `:models' do
+backend registrado."
+  :type 'integer
   :group 'magent)
 
 (defcustom +carlos/magent-model-max-tier 'paid
@@ -406,29 +425,133 @@ MODEL pode ser string ou símbolo.  Retorna rótulo curto de custo/quota."
      ((string-match-p "pro\\|opus\\|sonnet\\|sol" model-str) "assinatura")
      (t "grátis (free tier)"))))
 
+(defun +carlos/magent-classify-model (backend-name model)
+  "Classifica MODEL no backend BACKEND-NAME como `local', `free' ou `paid'."
+  (let ((cost (+carlos/magent-model-cost backend-name model)))
+    (cond
+     ((string-match-p "local" cost) 'local)
+     ((string-match-p "free tier" cost) 'free)
+     (t 'paid))))
+
+(defun +carlos/magent-local-installed-models ()
+  "Lista os modelos realmente instalados no servidor local ativo.
+Consulta o endpoint de listagem do backend local ativo — `/v1/models'
+para MLX Local, `/api/tags' para Ollama Local — com timeout de 2s, e
+retorna os nomes como lista de strings.  Sem servidor ativo, backend
+não registrado ou resposta inválida, retorna nil (nunca lança erro)."
+  (when-let* ((pair (+carlos/ai-local-backend))
+              (backend-name (car pair))
+              (bk (and (fboundp 'gptel-get-backend)
+                       (fboundp 'gptel-backend-host)
+                       (fboundp 'gptel-backend-protocol)
+                       (gptel-get-backend backend-name))))
+    (let* ((host (gptel-backend-host bk))
+           (protocol (or (gptel-backend-protocol bk) "http"))
+           (url (format "%s://%s/%s"
+                        protocol host
+                        (if (string-match-p "MLX" backend-name)
+                            "v1/models" "api/tags"))))
+      (condition-case nil
+          (let ((buf (url-retrieve-synchronously url t nil 2)))
+            (when buf
+              (unwind-protect
+                  (with-current-buffer buf
+                    (goto-char (point-min))
+                    (re-search-forward "^\r?$" nil t)
+                    (let ((json (json-read-from-string
+                                 (buffer-substring-no-properties (point) (point-max)))))
+                      (if (string-match-p "MLX" backend-name)
+                          (mapcar (lambda (m) (cdr (assoc 'id m)))
+                                  (alist-get 'data json))
+                        (mapcar (lambda (m) (cdr (assoc 'name m)))
+                                (alist-get 'models json)))))
+                (kill-buffer buf))))
+        (error nil)))))
+
+(defun +carlos/magent-model-menu-entries (&optional backends local-models)
+  "Deriva o menu de modelos (Fase A) para o Magent.
+BACKENDS (alist NAME . MODELS) e LOCAL-MODELS (lista de strings) são
+overrides para testes; por padrão:
+- cloud: `gptel-backend-models' de cada backend de
+  `+carlos/magent-model-tier-config', classificados por
+  `+carlos/magent-classify-model' e limitados por
+  `+carlos/magent-model-per-tier-max' por backend em cada tier;
+- local: `+carlos/magent-local-installed-models' (instalados no servidor
+  local ativo, via `+carlos/ai-local-backend' como backend).
+Retorna alist (TIER . ((BACKEND . MODEL)...)).  Sem gptel carregado,
+os tiers cloud usam `+carlos/magent-model-menu-default'."
+  (let* ((cloud (if (and (not backends) (not (fboundp 'gptel-get-backend)))
+                    +carlos/magent-model-menu-default
+                  (+carlos/magent--model-cloud-entries backends)))
+         (local-backend (or (car (+carlos/ai-local-backend)) "Local"))
+         (local-entries (mapcar (lambda (m) (cons local-backend m))
+                                (or local-models
+                                    (+carlos/magent-local-installed-models)))))
+    (if local-entries
+        (cons (cons "local" (nreverse local-entries)) cloud)
+      cloud)))
+
+(defun +carlos/magent--model-cloud-entries (backends)
+  "Deriva os tiers cloud do menu de modelos do Magent.
+BACKENDS é um alist (NAME . MODELS); quando nil, deriva dos backends de
+`+carlos/magent-model-tier-config' via gptel (fallback para
+`+carlos/magent-model-menu-default' sem gptel).  Classifica cada modelo
+com `+carlos/magent-classify-model' e aplica
+`+carlos/magent-model-per-tier-max' por backend em cada tier.
+Retorna alist (TIER . ((BACKEND . MODEL)...)) na ordem de
+`+carlos/magent-model-tier-order'."
+  (let* ((src (or backends
+                  (let ((result nil))
+                    (dolist (pair +carlos/magent-model-tier-config)
+                      (let ((names (cdr pair)))
+                        (dolist (name names)
+                          (push (cons name
+                                      (and (fboundp 'gptel-get-backend)
+                                           (let ((bk (gptel-get-backend name)))
+                                             (and bk
+                                                  (fboundp 'gptel-backend-models)
+                                                  (gptel-backend-models bk)))))
+                                result))))
+                    (nreverse result))))
+         (tiers nil)
+         (per-backend (make-hash-table :test #'equal)))
+    (dolist (pair src)
+      (let ((name (car pair)))
+        (dolist (model (cdr pair))
+          (let* ((tier (symbol-name (+carlos/magent-classify-model name model)))
+                 (key (format "%s/%s" tier name)))
+            (when (< (gethash key per-backend 0) +carlos/magent-model-per-tier-max)
+              (puthash key (1+ (gethash key per-backend 0)) per-backend)
+              (push (cons name (+carlos/magent-model-str model))
+                    (alist-get tier tiers nil nil #'equal)))))))
+    (let ((ordered nil))
+      (dolist (tier +carlos/magent-model-tier-order)
+        (let ((entry (assoc tier tiers)))
+          (when entry
+            (push (cons tier (nreverse (cdr entry))) ordered))))
+      (nreverse ordered))))
+
 (defun +carlos/magent-model-menu-render ()
   "Renderiza o menu de modelos para o system prompt do Magent.
-Inclui o tier local (MLX/Ollama) marcado ONLINE/OFFLINE por ping e corta
-tiers acima de `+carlos/magent-model-max-tier'."
+Deriva os tiers cloud de `gptel-backend-models' e o local dos modelos
+instalados no servidor (marcados ONLINE/OFFLINE por ping); corta tiers
+acima de `+carlos/magent-model-max-tier'."
   (let* ((max-tier (symbol-name +carlos/magent-model-max-tier))
          (max-rank (+carlos/magent-tier-rank max-tier))
-         (local (+carlos/magent-local-pair))
+         (entries (+carlos/magent-model-menu-entries))
          (local-online (+carlos/local-ai-server-ping-p))
          (lines (list (format "MODEL SELECTION MENU (tier cap: %s):" max-tier))))
     (dolist (tier +carlos/magent-model-tier-order)
       (when (<= (+carlos/magent-tier-rank tier) max-rank)
         (push (format "- tier %s:" tier) lines)
-        (if (equal tier "local")
-            (push (format "  - %s / %s — %s [%s]"
-                          (car local) (+carlos/magent-model-str (cdr local))
-                          (+carlos/magent-model-cost (car local) (cdr local))
-                          (if local-online "ONLINE" "OFFLINE"))
-                  lines)
-          (dolist (entry (cdr (assoc tier +carlos/magent-model-menu)))
-            (push (format "  - %s / %s — %s"
-                          (car entry) (cdr entry)
-                          (+carlos/magent-model-cost (car entry) (cdr entry)))
-                  lines)))))
+        (dolist (entry (cdr (assoc tier entries)))
+          (push (format "  - %s / %s — %s%s"
+                        (car entry) (cdr entry)
+                        (+carlos/magent-model-cost (car entry) (cdr entry))
+                        (if (equal tier "local")
+                            (if local-online " [ONLINE]" " [OFFLINE]")
+                          ""))
+                lines))))
     (mapconcat #'identity (nreverse lines) "\n")))
 
 (defun +carlos/magent-system-directives-render ()
@@ -456,13 +579,17 @@ de 150 caracteres; `moderate' entre 61 e 150; `simple' até 60."
      ((> (length text) 60) 'moderate)
      (t 'simple))))
 
-(defun +carlos/magent-resolve-model (complexity &optional local-online-p)
+(defun +carlos/magent-resolve-model
+    (complexity &optional local-online-p backends local-models)
   "Resolve o modelo para COMPLEXITY (`simple', `moderate' ou `deep').
 Escada: local (apenas quando LOCAL-ONLINE-P e não `deep') → free → paid,
-nunca acima de `+carlos/magent-model-max-tier'.  Retorna plist com
-:backend, :model, :tier e :reason, ou nil se nada disponível."
+nunca acima de `+carlos/magent-model-max-tier'.  BACKENDS e LOCAL-MODELS
+são repassados a `+carlos/magent-model-menu-entries' (overrides p/ testes).
+Retorna plist com :backend, :model, :tier e :reason, ou nil se nada
+disponível."
   (let* ((max-tier (symbol-name +carlos/magent-model-max-tier))
          (max-rank (+carlos/magent-tier-rank max-tier))
+         (entries (+carlos/magent-model-menu-entries backends local-models))
          (tiers (append (when (and (not (eq complexity 'deep)) local-online-p)
                           '("local"))
                         (cl-remove "local" +carlos/magent-model-tier-order
@@ -470,11 +597,7 @@ nunca acima de `+carlos/magent-model-max-tier'.  Retorna plist com
     (catch 'resolved
       (dolist (tier tiers)
         (when (<= (+carlos/magent-tier-rank tier) max-rank)
-          (dolist (entry (if (equal tier "local")
-                             (let ((pair (+carlos/magent-local-pair)))
-                               (list (cons (car pair)
-                                           (+carlos/magent-model-str (cdr pair)))))
-                           (cdr (assoc tier +carlos/magent-model-menu))))
+          (dolist (entry (cdr (assoc tier entries)))
             (when (and (stringp (car entry))
                        (fboundp 'gptel-get-backend)
                        (gptel-get-backend (car entry)))

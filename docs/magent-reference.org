@@ -299,11 +299,24 @@ advice com `magent-request-context` real, instalação do advice, directiva).
 O orquestrador escolhe o modelo do subagente por tarefa (complexidade primeiro),
 em vez de herdar o próprio modelo:
 
-- `+carlos/magent-model-menu` (defcustom): alist por tier — `local` (backend +
-  modelo local ativo via `+carlos/ai-local-backend`, resolvido em runtime),
-  `free` (`"Gemini"`/`gemini-3.5-flash`, `"OpenCode Zen"`/`big-pickle`,
-  `"OpenCode Zen"`/`deepseek-v4-flash-free`), `paid` (`"Zen Claude"`/
-  `claude-sonnet-5`, `"OpenCode Zen"`/`gpt-5.6-sol`).
+- Menu de modelos **derivado dinamicamente** em runtime (não defcustom estático):
+  - `+carlos/magent-model-tier-config`: backends do gptel por tier — `free`
+    (`"Gemini"`, `"OpenCode Zen"`) e `paid` (`"Zen Claude"`, `"OpenCode Zen"`).
+  - `+carlos/magent-model-per-tier-max` (default `3`): cap de modelos por
+    backend em cada tier.
+  - `+carlos/magent-classify-model` (`backend-name model` → `local`/`free`/`paid`)
+    via `+carlos/magent-model-cost`: MLX/Ollama → local; OpenCode Zen →
+    `big-pickle` ou `*-free` → free tier, senão assinatura; `flash`/`lite` →
+    free; `pro`/`opus`/`sonnet`/`sol` → paid.
+  - `+carlos/magent-local-installed-models`: consulta o endpoint do servidor
+    local ativo (`/v1/models` MLX, `/api/tags` Ollama) com timeout de 2s e
+    lista os modelos **realmente instalados** (fonte de verdade local).
+  - `+carlos/magent-model-menu-entries`: deriva os tiers cloud de
+    `gptel-backend-models` do backend registrado (`gptel-get-backend` +
+    `gptel-backend-models`, accessors de struct **inlined** no .elc — não
+    mockáveis por function-cell) e o tier local dos modelos instalados;
+    retorna alist `(TIER . ((BACKEND . MODEL)...))`. Sem gptel carregado,
+    usa `+carlos/magent-model-menu-default` (menu estático de fallback).
 - `+carlos/magent-model-max-tier` (default `paid`): teto do usuário.
 - `+carlos/magent-model-menu-render`: tabela (tier, backend, modelo, custo,
   disponibilidade local via ping) injetada na regra **9. MODEL SELECTION** de
@@ -330,9 +343,9 @@ request-state)` — 11 args posicionais; `request-state` deve ir na 11ª posiç�
 compilado com magent-agent-info carregado → mock de function-cell não funciona;
 use objeto real `magent-agent-info-create`.
 
-Testes: `tests/magent-routing-test.el` (tier-rank, task-complexity, resolve-model
-escada/skip-local/offline/cap, directives-render + inject, menu cap, select_model,
-override-consumed).
+Testes: `tests/magent-routing-test.el` (tier-rank, task-complexity, classify-model,
+resolve-model escada/skip-local/offline/cap, menu-entries derivado + cap + fallback
+default, directives-render + inject, menu cap, select_model, override-consumed).
 
 
 * Entry Points & Keybindings
