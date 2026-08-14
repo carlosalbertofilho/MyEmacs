@@ -294,6 +294,46 @@ orquestrador leve (local) delegar a modelos fortes:
 Testes: GRUPO 10 em `tests/magent-fsm-test.el` (defaults, resolver, aplicação do
 advice com `magent-request-context` real, instalação do advice, directiva).
 
+** Roteamento de modelos pelo orquestrador (Fase A — model menu + select_model, 2026-08-13)
+
+O orquestrador escolhe o modelo do subagente por tarefa (complexidade primeiro),
+em vez de herdar o próprio modelo:
+
+- `+carlos/magent-model-menu` (defcustom): alist por tier — `local` (backend +
+  modelo local ativo via `+carlos/ai-local-backend`, resolvido em runtime),
+  `free` (`"Gemini"`/`gemini-3.5-flash`, `"OpenCode Zen"`/`big-pickle`,
+  `"OpenCode Zen"`/`deepseek-v4-flash-free`), `paid` (`"Zen Claude"`/
+  `claude-sonnet-5`, `"OpenCode Zen"`/`gpt-5.6-sol`).
+- `+carlos/magent-model-max-tier` (default `paid`): teto do usuário.
+- `+carlos/magent-model-menu-render`: tabela (tier, backend, modelo, custo,
+  disponibilidade local via ping) injetada na regra **9. MODEL SELECTION** de
+  `+carlos/magent-system-directives`. O prompt é montado em runtime por
+  `+carlos/magent-system-directives-render` (usado por
+  `+carlos/magent-inject-system-directives`).
+- Tool `select_model` (args `task_description`/`agent`/`complexity`): heurística
+  `+carlos/magent-task-complexity` (keywords deep: refactor/architecture/debug/
+  plan/schema/review); escada `+carlos/magent-resolve-model` — `deep` → free →
+  paid (nunca local); `simple`/`moderate` → local (se ping online) → free →
+  paid; teto respeita `+carlos/magent-model-max-tier`. Retorna JSON
+  `{:backend B :model M :tier T :reason R}` e registra override transiente em
+  `+carlos/magent-subagent-model-overrides` (alist `agent-name → (backend . model)`).
+- A4: `+carlos/magent-subagent-apply-profile` consome o override (pop) antes do
+  perfil estático; se inválido (`gptel-get-backend` nil) → log + fallback
+  estático. Aplica via `cl-struct-slot-value` no request-state do filho (11º
+  arg; contorna magent-runtime ausente no compile-time).
+
+Contrato de chamada do advice (importante para testes/mocks): `(orig-fn
+user-prompt &optional callback agent-info skill-names event-context
+request-context capability-resolution text-callback request-live-p
+request-state)` — 11 args posicionais; `request-state` deve ir na 11ª posição.
+`magent-agent-info-name` é accessor de cl-defstruct e é **inlined** no .elc
+compilado com magent-agent-info carregado → mock de function-cell não funciona;
+use objeto real `magent-agent-info-create`.
+
+Testes: `tests/magent-routing-test.el` (tier-rank, task-complexity, resolve-model
+escada/skip-local/offline/cap, directives-render + inject, menu cap, select_model,
+override-consumed).
+
 
 * Entry Points & Keybindings
 
@@ -331,52 +371,54 @@ Magent includes 15 built-in tools for agent interactions:
 
 Estes são os utilitários de alto nível implementados para transformar o Magent em um operador de ferramentas e buffers ativos in-process (Tool Operator). Elas são registradas no `magent-tools-catalog` sob o escopo de segurança individual e podem ser estendidas no futuro:
 
+** Contrato posicional (2026-08-13)
+
+Os handlers recebem **argumentos posicionais** na ordem declarada no spec da
+tool (`gptel-tool-specs`/`register-tools`); o `"reason"` (arg de display) é
+descartado. Handlers síncronos DEVEM retornar um struct `magent-tool-result-create`
+(`:output` JSON string, `:success`, `:status`, `:error`) — plists puras quebram o
+`complete` (`magent-tool-result-require`). Helper `+carlos/magent-tool-result`
+produz o struct quando `magent-tool-result-create` está disponível, senão
+retorna a string JSON (fallback p/ repo sem magent). `json-read-from-string`
+parseia chaves como símbolos — asserts de teste usam `(alist-get 'status parsed)`.
+
 ** 1. `flycheck_errors`
 - **Nome Técnico:** `flycheck_errors`
 - **Handler Elisp:** `+carlos/magent-tool-flycheck-errors`
-- **Descrição:** Varre o linter/checker ativo do Flycheck no buffer do caminho especificado em `:path` (ou no buffer atual se `:path` estiver vazio) e retorna um relatório estruturado contendo a lista completa de erros (linha, coluna, nível de severidade, checker responsável e mensagem de erro).
-- **Parâmetros:**
-  - `:path` (string, opcional): Caminho do arquivo ou buffer vivo para verificação.
-  - `:reason` (string, opcional): Razão ou finalidade de checar erros.
-- **Formato da Saída (plist):**
-  #+begin_src elisp
-  (:status "success" :buffer "nome" :file "/caminho/real.el" :total_errors 1 :errors ((:line 42 :column 12 :level "error" :message "void-function X" :checker "emacs-lisp")))
+- **Assinatura:** `(path &optional _reason)` — 1º arg = caminho do arquivo ou buffer vivo (string, opcional).
+- **Descrição:** Varre o linter/checker ativo do Flycheck no buffer do caminho especificado (ou no buffer atual se vazio) e retorna um relatório estruturado contendo a lista completa de erros (linha, coluna, nível de severidade, checker responsável e mensagem de erro).
+- **Formato da Saída (JSON):**
+  #+begin_src json
+  {"status":"success","buffer":"nome","file":"/caminho/real.el","total_errors":1,"errors":[{"line":42,"column":12,"level":"error","message":"void-function X","checker":"emacs-lisp"}]}
   #+end_src
 
 ** 2. `lsp_navigation`
 - **Nome Técnico:** `lsp_navigation`
 - **Handler Elisp:** `+carlos/magent-tool-lsp-navigation`
+- **Assinatura:** `(sym-str &optional action _reason)` — 1º arg = símbolo (string, obrigatório); 2º = `"definition"` (padrão) ou `"references"`.
 - **Descrição:** Usa o backend Xref/Eglot (LSP) ativo no buffer atual para resolver a localização exata de definições ou referências de um símbolo, retornando o nome do arquivo, a linha de ocorrência e uma linha de resumo. É a ferramenta principal para o agente ler assinaturas e evitar a alucinação de nomes de variáveis/funções.
-- **Parâmetros:**
-  - `:symbol` (string, obrigatório): Nome do símbolo, função ou tipo que se deseja inspecionar.
-  - `:action` (string, opcional): `"definition"` (padrão) ou `"references"`.
-  - `:reason` (string, opcional): Finalidade da navegação.
-- **Formato da Saída (plist):**
-  #+begin_src elisp
-  (:status "success" :symbol "+carlos/gptel-cache-hit-rate" :action "definition" :total 1 :results ((:summary "defun +carlos/gptel-cache-hit-rate (input cached)" :file "/abs/path/lisp/custom-ai.el" :line 705)))
+- **Formato da Saída (JSON):**
+  #+begin_src json
+  {"status":"success","symbol":"+carlos/gptel-cache-hit-rate","action":"definition","total":1,"results":[{"summary":"defun +carlos/gptel-cache-hit-rate (input cached)","file":"/abs/path/lisp/custom-ai.el","line":705}]}
   #+end_src
 
 ** 3. `snippet_expand`
 - **Nome Técnico:** `snippet_expand`
 - **Handler Elisp:** `+carlos/magent-tool-snippet-expand`
+- **Assinatura:** `(name-str &optional action mode)` — 1º arg = nome do snippet; 2º = ação (`"list"`/`"inspect"`/`"insert"`); 3º = major-mode p/ filtrar. (reason removido da assinatura.)
 - **Descrição:** Permite listar, inspecionar e fisicamente expandir/inserir templates do Tempel no buffer de edição.
-- **Parâmetros:**
-  - `:name` (string, opcional): Nome do snippet do Tempel (ex: `"deftest"` ou `"defun"`). Obrigatório se a ação for `inspect` ou `insert`.
-  - `:action` (string, opcional): Ação a ser executada. Pode ser `"list"` (padrão se `:name` for nulo), `"inspect"` (retorna a estrutura lisp do template do snippet), ou `"insert"` (expande fisicamente o snippet no buffer corrente sob o cursor do usuário usando `tempel-insert`).
-  - `:mode` (string, opcional): Nome de um major-mode específico para filtrar/listar templates (ex: `"emacs-lisp-mode"`).
-  - `:reason` (string, opcional): Razão para expandir/inspecionar/inserir o snippet.
-- **Formato da Saída (plist):**
+- **Formato da Saída (JSON):**
   - Para listagem:
-    #+begin_src elisp
-    (:status "success" :mode "emacs-lisp-mode" :total 12 :snippets ("deftest" "defun" "let" ...))
+    #+begin_src json
+    {"status":"success","mode":"emacs-lisp-mode","total":12,"snippets":["deftest","defun","let"]}
     #+end_src
   - Para inspeção:
-    #+begin_src elisp
-    (:status "success" :name "deftest" :template "((p \"Test name: \" name) ...)")
+    #+begin_src json
+    {"status":"success","name":"deftest","template":"((p \"Test name: \" name) ...)"}
     #+end_src
   - Para inserção física:
-    #+begin_src elisp
-    (:status "success" :message "Snippet 'deftest' inserido com sucesso no buffer.")
+    #+begin_src json
+    {"status":"success","message":"Snippet 'deftest' inserido com sucesso no buffer."}
     #+end_src
 
 * Permissions & Audit Logging

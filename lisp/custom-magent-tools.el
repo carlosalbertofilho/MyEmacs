@@ -7,6 +7,9 @@
 
 ;;; Code:
 
+(require 'cl-lib)
+(require 'json)
+
 (defvar magent-enable-logging)
 (defvar magent-enable-tools)
 (defvar magent-tools-catalog)
@@ -20,6 +23,7 @@
 (declare-function magent-llm-gptel--continue-with-user-message "magent-llm-gptel")
 (declare-function magent-llm-gptel--managed-info-p "magent-llm-gptel")
 (declare-function magent-llm-gptel--sanitize-info "magent-llm-gptel")
+(declare-function magent-tool-result-create "magent-protocol")
 (declare-function magent-llm-tool-call-event "magent-llm")
 
 ;; ── Silenciar *Messages*: filtrar dumps longos (plist de tools / system prompt) ──
@@ -136,12 +140,13 @@ Accept &rest ARGS for Gemini streaming 5th argument."
 </tool_calls>
 Do NOT use '<tool_call>', '<function=...>', or '<parameter=...>' forms; the runtime only parses the '<tool_calls>'/'<invoke name=...>'/'<parameter name=...>' syntax shown above. After requesting a tool, your next message MUST include the native tool call, not text about calling it.
  7. AVOID SIGPIPE (exit 141): Do not pipe long listings into 'head'/'tail' (e.g. 'find ... | head -50'). Closing the pipe kills the producer with SIGPIPE (exit 141), which the runtime reports as a FAILED tool result. Use 'find ... -maxdepth N' with explicit filters, or 'rg --max-count' instead.
-8. SUBAGENT DELEGATION: You are the ORCHESTRATOR — keep your context window lean. For codebase exploration, file analysis, or multi-step research tasks, ALWAYS delegate: call 'spawn_agent' with agent='explore' (codebase search/analysis) or 'general' (broader multi-step work), giving the subagent a precise task and absolute paths, then call 'wait_agent' and synthesize a CONCISE summary of the subagent's findings in your reply — do not paste the full transcript into your turn. Subagents run on a stronger cloud model with a larger context window."
+8. SUBAGENT DELEGATION: You are the ORCHESTRATOR — keep your context window lean. For codebase exploration, file analysis, or multi-step research tasks, ALWAYS delegate: call 'spawn_agent' with agent='explore' (codebase search/analysis) or 'general' (broader multi-step work), giving the subagent a precise task and absolute paths, then call 'wait_agent' and synthesize a CONCISE summary of the subagent's findings in your reply — do not paste the full transcript into your turn. Subagents run on a stronger cloud model with a larger context window.
+9. MODEL SELECTION: Review the MODEL SELECTION MENU appended below. Before calling 'spawn_agent', call 'select_model' with the subagent's task_description and target agent name; the runtime resolves the model from the menu by task complexity and the user's tier cap, and applies it to the subagent automatically. For 'deep' reasoning (refactor, architecture, design, schema, debug, migration, security, plan, review, optimization), you MUST pick a free or paid tier — never the small local model. For 'simple'/'moderate' tasks, prefer the local model when it is ONLINE, then free, then paid. NEVER exceed the tier cap shown in the menu."
   "Instruções estritas de uso de ferramentas para os modelos do Magent.")
 
 (defun +carlos/magent-inject-system-directives (composed &rest _)
-  "Append Magent system directives to the COMPOSED system message."
-  (concat composed "\n\n" +carlos/magent-system-directives))
+  "Append Magent system directives and model menu to COMPOSED message."
+  (concat composed "\n\n" (+carlos/magent-system-directives-render)))
 
 (defun +carlos/magent-resolve-path-advice (orig-fun path)
   "Expande PATH para absoluto com ORIG-FUN usando `default-directory'."
@@ -195,106 +200,331 @@ Do NOT use '<tool_call>', '<function=...>', or '<parameter=...>' forms; the runt
   "Gptel tool for LSP navigation.")
 (defvar +carlos/magent-tool-snippet-expand nil
   "Gptel tool for Snippet expansion.")
+(defvar +carlos/magent-tool-select-model nil
+  "Gptel tool for orchestrator model selection (Fase A).")
 
-(defun +carlos/magent-tool-flycheck-errors (args)
-  "Handler para a ferramenta `flycheck_errors`.
-Retorna erros do Flycheck no buffer ativo ou em ARGS :path."
-  (let* ((path (plist-get args :path))
-         (buf (if (and path (not (string-empty-p path)))
+(defun +carlos/magent-tool-result (payload &optional error)
+  "Constrói o resultado de uma tool do Magent a partir de PAYLOAD (JSON-safe).
+Quando `magent-protocol' está carregado retorna um `magent-tool-result'
+com `:output' JSON, `:success', `:status' e `:error'; caso contrário (ex.:
+testes batch sem o magent), retorna o JSON como string para compatibilidade
+com o gptel.  ERROR, quando presente, vira um resultado de falha e o payload
+é descartado."
+  (let ((output (if error (format "Error: %s" error) (json-encode payload))))
+    (if (fboundp 'magent-tool-result-create)
+        (magent-tool-result-create
+         :output output
+         :success (null error)
+         :status (if error 'failed 'completed)
+         :error error)
+      output)))
+
+(defun +carlos/magent-tool-flycheck-errors (path &optional _reason)
+  "Handler da tool `flycheck_errors'.
+PATH é o caminho do arquivo/buffer (opcional, default buffer atual);
+_REASON é display-only e descartado.  Retorna os erros do Flycheck em
+formato estruturado (file, line, column, level, message, checker) via
+`+carlos/magent-tool-result'."
+  (let* ((buf (if (and path (not (string-empty-p path)))
                   (find-buffer-visiting (expand-file-name path))
                 (current-buffer))))
     (if (not buf)
-        `(:status "error" :message ,(format "Buffer para '%s' não encontrado." (or path "current")))
+        (+carlos/magent-tool-result
+         nil (format "Buffer para '%s' não encontrado." (or path "current")))
       (with-current-buffer buf
         (if (and (boundp 'flycheck-mode) flycheck-mode)
-            (let ((errors (mapcar (lambda (err)
-                                    `(:line ,(flycheck-error-line err)
-                                      :column ,(flycheck-error-column err)
-                                      :level ,(symbol-name (flycheck-error-level err))
-                                      :message ,(flycheck-error-message err)
-                                      :checker ,(symbol-name (flycheck-error-checker err))))
-                                  (or (bound-and-true-p flycheck-current-errors) nil))))
-              `(:status "success"
-                :buffer ,(buffer-name buf)
-                :file ,(or (buffer-file-name buf) "none")
-                :total_errors ,(length errors)
-                :errors ,errors))
-          `(:status "info" :message "Flycheck-mode não está ativo no buffer." :total_errors 0 :errors []))))))
+            (let ((errors (vconcat
+                           (mapcar (lambda (err)
+                                     (list (cons "line" (flycheck-error-line err))
+                                           (cons "column" (flycheck-error-column err))
+                                           (cons "level" (symbol-name (flycheck-error-level err)))
+                                           (cons "message" (flycheck-error-message err))
+                                           (cons "checker" (symbol-name (flycheck-error-checker err)))))
+                                   (or (bound-and-true-p flycheck-current-errors) nil)))))
+              (+carlos/magent-tool-result
+               (list (cons "status" "success")
+                     (cons "buffer" (buffer-name buf))
+                     (cons "file" (or (buffer-file-name buf) "none"))
+                     (cons "total_errors" (length errors))
+                     (cons "errors" errors))))
+          (+carlos/magent-tool-result
+           (list (cons "status" "info")
+                 (cons "message" "Flycheck-mode não está ativo no buffer.")
+                 (cons "total_errors" 0)
+                 (cons "errors" []))))))))
 
-(defun +carlos/magent-tool-lsp-navigation (args)
-  "Handler para a ferramenta `lsp_navigation`.
-Resolve definições ou referências de ARGS :symbol usando xref/Eglot."
-  (let* ((sym-str (plist-get args :symbol))
-         (action (or (plist-get args :action) "definition")))
-    (if (not (and sym-str (not (string-empty-p sym-str))))
-        `(:status "error" :message "Parâmetro :symbol é obrigatório.")
-      (condition-case err
-          (let ((xref-backend (and (fboundp 'xref-find-backend) (xref-find-backend))))
-            (if (or (not xref-backend)
-                    (and (eq xref-backend 'etags)
-                         (not (bound-and-true-p tags-file-name))
-                         (not (locate-dominating-file default-directory "TAGS"))))
-                `(:status "info" :message "Nenhum backend LSP ativo no buffer atual e nenhuma tabela de TAGS disponível.")
-              (let* ((xrefs (if (string= action "references")
-                                (xref-backend-references xref-backend sym-str)
-                              (xref-backend-definitions xref-backend sym-str)))
-                     (results (mapcar (lambda (x)
-                                        (let* ((loc (xref-item-location x))
-                                               (summary (xref-item-summary x))
-                                               (file (and (fboundp 'xref-location-group) (xref-location-group loc)))
-                                               (line (and (fboundp 'xref-location-line) (xref-location-line loc))))
-                                          `(:summary ,summary :file ,file :line ,line)))
-                                      xrefs)))
-                `(:status "success"
-                  :symbol ,sym-str
-                  :action ,action
-                  :total ,(length results)
-                  :results ,results))))
-        (error `(:status "error" :message ,(error-message-string err)))))))
+(defun +carlos/magent-tool-lsp-navigation (sym-str &optional action _reason)
+  "Handler da tool `lsp_navigation'.
+SYM-STR é o símbolo a resolver; ACTION é \"definition\" (default) ou
+\"references\"; _REASON é display-only e descartado.  Resolve
+definições/referências via xref/Eglot em formato estruturado, ou retorna
+info quando não há backend LSP."
+  (if (not (and sym-str (not (string-empty-p sym-str))))
+      (+carlos/magent-tool-result nil "Parâmetro 'symbol' é obrigatório.")
+    (condition-case err
+        (let ((xref-backend (and (fboundp 'xref-find-backend) (xref-find-backend))))
+          (if (or (not xref-backend)
+                  (and (eq xref-backend 'etags)
+                       (not (bound-and-true-p tags-file-name))
+                       (not (locate-dominating-file default-directory "TAGS"))))
+              (+carlos/magent-tool-result
+               (list (cons "status" "info")
+                     (cons "message" "Nenhum backend LSP ativo no buffer atual e nenhuma tabela de TAGS disponível.")))
+            (let* ((xrefs (if (string= action "references")
+                              (xref-backend-references xref-backend sym-str)
+                            (xref-backend-definitions xref-backend sym-str)))
+                   (results (vconcat
+                             (mapcar (lambda (x)
+                                       (let* ((loc (xref-item-location x))
+                                              (summary (xref-item-summary x))
+                                              (file (and (fboundp 'xref-location-group)
+                                                         (xref-location-group loc)))
+                                              (line (and (fboundp 'xref-location-line)
+                                                         (xref-location-line loc))))
+                                         (list (cons "summary" summary)
+                                               (cons "file" file)
+                                               (cons "line" line))))
+                                     xrefs))))
+              (+carlos/magent-tool-result
+               (list (cons "status" "success")
+                     (cons "symbol" sym-str)
+                     (cons "action" action)
+                     (cons "total" (length results))
+                     (cons "results" results))))))
+      (error (+carlos/magent-tool-result nil (error-message-string err))))))
 
-(defun +carlos/magent-tool-snippet-expand (args)
-  "Handler para a ferramenta `snippet_expand`.
-Retorna templates do Tempel, a estrutura do snippet ARGS
-:name, ou insere o snippet no buffer."
-  (let* ((name-str (plist-get args :name))
-         (mode-str (plist-get args :mode))
-         (action-str (plist-get args :action))
-         (target-mode (if mode-str (intern mode-str) major-mode)))
+(defun +carlos/magent-tool-snippet-expand (name-str &optional action mode)
+  "Handler da tool `snippet_expand'.
+NAME-STR é o nome do snippet.  ACTION é \"inspect\", \"insert\" ou
+\"list\" (default); MODE é um major-mode opcional para filtrar.  Lista,
+inspeciona ou insere um template do Tempel, retornando o resultado via
+`+carlos/magent-tool-result'."
+  (let* ((action (or action "list"))
+         (target-mode (if mode (intern mode) major-mode)))
     (if (not (require 'tempel nil t))
-        `(:status "error" :message "Pacote tempel não está disponível.")
+        (+carlos/magent-tool-result nil "Pacote tempel não está disponível.")
       (let ((templates (and (fboundp 'tempel--templates) (tempel--templates))))
         (cond
          ;; Ação: Inserir snippet fisicamente no buffer ativo
-         ((string= action-str "insert")
+         ((string= action "insert")
           (if (and name-str (not (string-empty-p name-str)))
               (let ((sym (intern name-str)))
                 (if (assoc sym templates)
                     (condition-case err
                         (progn
-                          ;; Executa a inserção no buffer atual
                           (tempel-insert sym)
-                          `(:status "success"
-                            :message ,(format "Snippet '%s' inserido com sucesso no buffer." name-str)))
-                      (error `(:status "error" :message ,(format "Erro ao inserir snippet: %s" (error-message-string err)))))
-                  `(:status "error" :message ,(format "Snippet '%s' não encontrado." name-str))))
-            `(:status "error" :message "Nome do snippet é obrigatório para inserção.")))
-
+                          (+carlos/magent-tool-result
+                           (list (cons "status" "success")
+                                 (cons "message" (format "Snippet '%s' inserido com sucesso no buffer." name-str)))))
+                      (error (+carlos/magent-tool-result
+                              nil (format "Erro ao inserir snippet: %s" (error-message-string err)))))
+                  (+carlos/magent-tool-result
+                   nil (format "Snippet '%s' não encontrado." name-str))))
+            (+carlos/magent-tool-result
+             nil "Nome do snippet é obrigatório para inserção.")))
          ;; Ação: Inspecionar estrutura de um snippet
          ((and name-str (not (string-empty-p name-str)))
           (let ((found (assoc (intern name-str) templates)))
             (if found
-                `(:status "success"
-                  :name ,name-str
-                  :template ,(format "%S" (cdr found)))
-              `(:status "error" :message ,(format "Snippet '%s' não encontrado." name-str)))))
-
+                (+carlos/magent-tool-result
+                 (list (cons "status" "success")
+                       (cons "name" name-str)
+                       (cons "template" (format "%S" (cdr found)))))
+              (+carlos/magent-tool-result
+               nil (format "Snippet '%s' não encontrado." name-str)))))
          ;; Ação padrão: Listar todos os snippets
          (t
-          (let ((names (mapcar (lambda (tmpl) (symbol-name (car tmpl))) templates)))
-            `(:status "success"
-              :mode ,(symbol-name target-mode)
-              :total ,(length names)
-              :snippets ,names))))))))
+          (let ((names (apply #'vector
+                              (mapcar (lambda (tmpl) (symbol-name (car tmpl)))
+                                      templates))))
+            (+carlos/magent-tool-result
+             (list (cons "status" "success")
+                   (cons "mode" (symbol-name target-mode))
+                   (cons "total" (length names))
+                   (cons "snippets" names))))))))))
+
+;; ── Fase A: Roteamento de Modelos pelo Orquestrador ──────────────────
+;; O orquestrador enxerga o menu de modelos no system prompt (rule 9) e
+;; escolhe o modelo de cada subagente via a tool `select_model'.  As
+;; decisões de custo/disponibilidade ficam AQUI no código: escada de tiers
+;; (local < free < paid), heurística de complexidade da tarefa e o teto do
+;; usuário (`+carlos/magent-model-max-tier').
+
+(defcustom +carlos/magent-model-menu
+  '(("free" . (("Gemini" . "gemini-3.5-flash")
+               ("OpenCode Zen" . "big-pickle")
+               ("OpenCode Zen" . "deepseek-v4-flash-free")))
+    ("paid" . (("Zen Claude" . "claude-sonnet-5")
+               ("OpenCode Zen" . "gpt-5.6-sol"))))
+  "Menu de modelos por tier (free/paid) para o Magent.
+Alist de (TIER . ((BACKEND . MODEL)...)).  O tier local não entra aqui:
+é resolvido em runtime por `+carlos/ai-local-backend' (MLX/Ollama) e
+marcado ONLINE/OFFLINE conforme o ping do servidor."
+  :type '(alist :key-type string
+                :value-type (alist :key-type string :value-type string))
+  :group 'magent)
+
+(defcustom +carlos/magent-model-max-tier 'paid
+  "Teto de tier permitido no roteamento de modelos do Magent.
+Uma das palavras-chave `local', `free' ou `paid'.  O roteamento de modelos
+e o menu renderizado respeitam este teto, nunca oferecendo nada acima dele."
+  :type '(choice (const local) (const free) (const paid))
+  :group 'magent)
+
+(defconst +carlos/magent-model-tier-order '("local" "free" "paid")
+  "Ordem da escada de tiers do menu de modelos do Magent.")
+
+(defvar +carlos/magent-subagent-model-overrides nil
+  "Overrides transientes de modelo por subagente do Magent.
+Alist de (AGENT-NAME . (BACKEND-NAME . MODEL-STRING)), registrado pela
+tool `select_model' e consumido uma única vez (pop) pelo advice
+`+carlos/magent-subagent-apply-profile' ao criar o subagente.")
+
+(defun +carlos/magent-tier-rank (tier)
+  "Rank numérico de TIER na escada `+carlos/magent-model-tier-order'."
+  (or (cl-position tier +carlos/magent-model-tier-order :test #'equal) -1))
+
+(defun +carlos/magent-model-str (model)
+  "Retorna MODEL como string (símbolos viram nomes)."
+  (if (stringp model) model (symbol-name model)))
+
+(defun +carlos/magent-local-pair ()
+  "Retorna (BACKEND-STRING . MODEL) do modelo local do host (MLX/Ollama)."
+  (+carlos/ai-local-backend))
+
+(defun +carlos/magent-model-cost (backend-name model)
+  "Classifica o custo de MODEL em BACKEND-NAME para o menu do Magent.
+MODEL pode ser string ou símbolo.  Retorna rótulo curto de custo/quota."
+  (let ((model-str (+carlos/magent-model-str model)))
+    (cond
+     ((string-match-p "MLX\\|Ollama" backend-name) "grátis (local)")
+     ((equal backend-name "OpenCode Zen")
+      (if (or (equal model-str "big-pickle") (string-match-p "-free$" model-str))
+          "grátis (free tier)"
+        "assinatura (zen)"))
+     ((string-match-p "flash\\|lite" model-str) "grátis (free tier)")
+     ((string-match-p "pro\\|opus\\|sonnet\\|sol" model-str) "assinatura")
+     (t "grátis (free tier)"))))
+
+(defun +carlos/magent-model-menu-render ()
+  "Renderiza o menu de modelos para o system prompt do Magent.
+Inclui o tier local (MLX/Ollama) marcado ONLINE/OFFLINE por ping e corta
+tiers acima de `+carlos/magent-model-max-tier'."
+  (let* ((max-tier (symbol-name +carlos/magent-model-max-tier))
+         (max-rank (+carlos/magent-tier-rank max-tier))
+         (local (+carlos/magent-local-pair))
+         (local-online (+carlos/local-ai-server-ping-p))
+         (lines (list (format "MODEL SELECTION MENU (tier cap: %s):" max-tier))))
+    (dolist (tier +carlos/magent-model-tier-order)
+      (when (<= (+carlos/magent-tier-rank tier) max-rank)
+        (push (format "- tier %s:" tier) lines)
+        (if (equal tier "local")
+            (push (format "  - %s / %s — %s [%s]"
+                          (car local) (+carlos/magent-model-str (cdr local))
+                          (+carlos/magent-model-cost (car local) (cdr local))
+                          (if local-online "ONLINE" "OFFLINE"))
+                  lines)
+          (dolist (entry (cdr (assoc tier +carlos/magent-model-menu)))
+            (push (format "  - %s / %s — %s"
+                          (car entry) (cdr entry)
+                          (+carlos/magent-model-cost (car entry) (cdr entry)))
+                  lines)))))
+    (mapconcat #'identity (nreverse lines) "\n")))
+
+(defun +carlos/magent-system-directives-render ()
+  "Retorna as directivas estáticas seguidas do menu de modelos renderizado."
+  (concat +carlos/magent-system-directives
+          "\n\n" (+carlos/magent-model-menu-render)))
+
+(defconst +carlos/magent-deep-task-keywords
+  '("refactor" "architect" "architecture" "design" "schema" "migrat"
+    "securit" "optimiz" "benchmark" "concurr" "thread" "protocol"
+    "root cause" "causa raiz" "review" "plan" "analyse" "analyze"
+    "analis" "projetar" "arquitetur" "debug" "investigat" "troubleshoot")
+  "Keywords de raciocínio profundo na heurística de complexidade da Fase A.")
+
+(defun +carlos/magent-task-complexity (task-description)
+  "Classifica TASK-DESCRIPTION como `simple', `moderate' ou `deep'.
+`deep' se contém keyword de `+carlos/magent-deep-task-keywords' ou tem mais
+de 150 caracteres; `moderate' entre 61 e 150; `simple' até 60."
+  (let ((text (downcase (or task-description ""))))
+    (cond
+     ((or (> (length text) 150)
+          (cl-some (lambda (kw) (string-match-p kw text))
+                   +carlos/magent-deep-task-keywords))
+      'deep)
+     ((> (length text) 60) 'moderate)
+     (t 'simple))))
+
+(defun +carlos/magent-resolve-model (complexity &optional local-online-p)
+  "Resolve o modelo para COMPLEXITY (`simple', `moderate' ou `deep').
+Escada: local (apenas quando LOCAL-ONLINE-P e não `deep') → free → paid,
+nunca acima de `+carlos/magent-model-max-tier'.  Retorna plist com
+:backend, :model, :tier e :reason, ou nil se nada disponível."
+  (let* ((max-tier (symbol-name +carlos/magent-model-max-tier))
+         (max-rank (+carlos/magent-tier-rank max-tier))
+         (tiers (append (when (and (not (eq complexity 'deep)) local-online-p)
+                          '("local"))
+                        (cl-remove "local" +carlos/magent-model-tier-order
+                                   :test #'string=))))
+    (catch 'resolved
+      (dolist (tier tiers)
+        (when (<= (+carlos/magent-tier-rank tier) max-rank)
+          (dolist (entry (if (equal tier "local")
+                             (let ((pair (+carlos/magent-local-pair)))
+                               (list (cons (car pair)
+                                           (+carlos/magent-model-str (cdr pair)))))
+                           (cdr (assoc tier +carlos/magent-model-menu))))
+            (when (and (stringp (car entry))
+                       (fboundp 'gptel-get-backend)
+                       (gptel-get-backend (car entry)))
+              (throw 'resolved
+                (list :backend (car entry)
+                      :model (cdr entry)
+                      :tier tier
+                      :reason (format "%s task → tier %s (%s via %s)"
+                                      complexity tier
+                                      (+carlos/magent-model-cost (car entry) (cdr entry))
+                                      (car entry)))))))))))
+
+(defun +carlos/magent-tool-select-model
+    (task-description &optional agent complexity _reason)
+  "Handler da tool `select_model' (Fase A).
+TASK-DESCRIPTION descreve a tarefa do subagente; AGENT é o nome do
+subagente alvo (default \"general\"); COMPLEXITY é opcional, \"simple\",
+\"moderate\" ou \"deep\" (senão inferido de TASK-DESCRIPTION); _REASON é
+display-only e descartado.  Resolve o modelo na escada de tiers, registra
+um override transiente em `+carlos/magent-subagent-model-overrides' e
+retorna um `magent-tool-result' com o payload JSON (backend, model, tier,
+reason)."
+  (let* ((agent (or agent "general"))
+         (complexity-sym (pcase complexity
+                           ("deep" 'deep)
+                           ("moderate" 'moderate)
+                           ("simple" 'simple)
+                           (_ (+carlos/magent-task-complexity task-description))))
+         (choice (+carlos/magent-resolve-model
+                  complexity-sym (+carlos/local-ai-server-ping-p))))
+    (if (null choice)
+        (+carlos/magent-tool-result
+         nil (format "Nenhum modelo disponível para complexidade %s dentro do teto %s."
+                     complexity-sym (symbol-name +carlos/magent-model-max-tier)))
+      (let ((backend (plist-get choice :backend))
+            (model (plist-get choice :model))
+            (tier (plist-get choice :tier))
+            (reason (plist-get choice :reason)))
+        (setq +carlos/magent-subagent-model-overrides
+              (cons (cons agent (cons backend model))
+                    +carlos/magent-subagent-model-overrides))
+        (message "[Magent select_model] %s → %s/%s (tier %s) — %s"
+                 agent backend model tier reason)
+        (+carlos/magent-tool-result
+         (list (cons "status" "success")
+               (cons "agent" agent)
+               (cons "backend" backend)
+               (cons "model" model)
+               (cons "tier" tier)
+               (cons "reason" reason)))))))
 
 (defun +carlos/magent-register-tools ()
   "Register Carlos's Magent tools to magent-tools-catalog if available."
@@ -307,7 +537,10 @@ Retorna templates do Tempel, a estrutura do snippet ARGS
                    `(:name "lsp_navigation" :tool ,+carlos/magent-tool-lsp-navigation :permission lsp_navigation)))
     (when +carlos/magent-tool-snippet-expand
       (add-to-list 'magent-tools-catalog
-                   `(:name "snippet_expand" :tool ,+carlos/magent-tool-snippet-expand :permission snippet_expand)))))
+                   `(:name "snippet_expand" :tool ,+carlos/magent-tool-snippet-expand :permission snippet_expand)))
+    (when +carlos/magent-tool-select-model
+      (add-to-list 'magent-tools-catalog
+                   `(:name "select_model" :tool ,+carlos/magent-tool-select-model :permission select_model)))))
 
 (with-eval-after-load 'gptel
   (when (fboundp 'gptel-make-tool)
@@ -341,6 +574,17 @@ Retorna templates do Tempel, a estrutura do snippet ARGS
            :function #'+carlos/magent-tool-snippet-expand
            :category "magent"))
 
+    (setq +carlos/magent-tool-select-model
+          (gptel-make-tool
+           :name "select_model"
+           :description "Select and commit the model for a spawned subagent. Call BEFORE spawn_agent. Provide the task description and the target agent name ('explore' or 'general'); the runtime resolves the model by complexity and the user's tier cap and applies it to the subagent automatically."
+           :args '((:name "task_description" :type string :description "The task the subagent will perform")
+                   (:name "agent" :type string :description "Target agent name (e.g. 'explore' or 'general')")
+                   (:name "complexity" :type string :description "Optional: 'simple', 'moderate' or 'deep'. Inferred from task_description when omitted.")
+                   (:name "reason" :type string :description "Reason for this tool call"))
+           :function #'+carlos/magent-tool-select-model
+           :category "magent"))
+
     (when (featurep 'magent-tools)
       (+carlos/magent-register-tools))))
 
@@ -351,7 +595,8 @@ Retorna templates do Tempel, a estrutura do snippet ARGS
   (when (boundp 'magent-enable-tools)
     (add-to-list 'magent-enable-tools 'flycheck_errors)
     (add-to-list 'magent-enable-tools 'lsp_navigation)
-    (add-to-list 'magent-enable-tools 'snippet_expand)))
+    (add-to-list 'magent-enable-tools 'snippet_expand)
+    (add-to-list 'magent-enable-tools 'select_model)))
 
 (provide 'custom-magent-tools)
 ;;; custom-magent-tools.el ends here
