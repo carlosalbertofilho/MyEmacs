@@ -70,12 +70,18 @@ Suporta literais com aspas simples/duplas e a forma agenix
   (let ((trimmed (string-trim raw)))
     (if (string-match "\\`[\"']?\\$(cat[[:space:]]+\\([^)\"']+\\))[\"']?\\'"
                       trimmed)
-        (let ((secret (match-string-no-properties 1 trimmed)))
-          (when (and (file-readable-p secret)
-                     (not (file-directory-p secret)))
+        (let* ((secret (match-string-no-properties 1 trimmed))
+               (macos-secret (if (string-prefix-p "/run/agenix/" secret)
+                                 (concat "/run/agenix.d/1/" (file-name-nondirectory secret))
+                               nil))
+               (actual-secret (cond
+                               ((and (file-readable-p secret) (not (file-directory-p secret))) secret)
+                               ((and macos-secret (file-readable-p macos-secret) (not (file-directory-p macos-secret))) macos-secret)
+                               (t nil))))
+          (when actual-secret
             (string-trim-right
              (with-temp-buffer
-               (insert-file-contents secret)
+               (insert-file-contents actual-secret)
                (buffer-substring-no-properties (point-min) (point-max))))))
       ;; Remove aspas delimitadoras simples/duplas manualmente
       ;; (string-trim nativo do Emacs 30 não respeita charset multi-char).

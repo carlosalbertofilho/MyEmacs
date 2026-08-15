@@ -267,10 +267,15 @@ Falls back to `message' when no live Magent shell buffer exists."
 (defun +carlos/magent-ui-subagent-model (agent-name)
   "Return the effective `BACKEND MODEL' string for AGENT-NAME, or nil."
   (when (fboundp '+carlos/magent-subagent-profile)
-    (when-let* ((profile (+carlos/magent-subagent-profile agent-name))
-                (backend (plist-get profile :backend))
-                (model (plist-get profile :model)))
-      (format "%s %s" backend model))))
+    (let* ((override-entry (and (boundp '+carlos/magent-subagent-model-overrides)
+                                (assoc agent-name +carlos/magent-subagent-model-overrides)))
+           (override (and override-entry (cdr override-entry)))
+           (profile (if (and override (stringp (car override)) (stringp (cdr override)))
+                        (list :backend (car override) :model (cdr override))
+                      (+carlos/magent-subagent-profile agent-name))))
+      (when-let* ((backend (plist-get profile :backend))
+                  (model (plist-get profile :model)))
+        (format "%s %s" backend model)))))
 
 (defun +carlos/magent-ui-tool-call-summary-a (orig-fn name args &rest r)
   "Advice que enriquece o resumo de tool call retornado por ORIG-FN.
