@@ -2,7 +2,9 @@
 #+AUTHOR: MyEmacs Documentation Generator
 #+DATE: 2026-08-06
 #+LAST_MODIFIED: 2026-08-16
-#+DESCRIPTION: Comprehensive reference for Magent native Emacs-Lisp AI coding agent
+#+DESCRIPTION: Comprehensive reference for Magent native Emacs-Lisp AI coding agent and the MyEmacs orchestration layer (FSM, subagents, model routing, curated tools, expert team)
+#+FILETAGS: :RAG:AI:DOCS:
+#+OPTIONS: toc:2 num:t
 
 * Table of Contents
 :PROPERTIES:
@@ -11,15 +13,24 @@
 :CONTENTS:
 - [[#overview][Overview]]
 - [[#installation][Installation]]
-- [[#architecture][Architecture & Transport]]
+- [[#architecture--transport][Architecture & Transport]]
+- [[#streaming-pipeline-content-vs-reasoning][Streaming Pipeline (Content vs Reasoning)]]
+- [[#formato-dsml-textual][Formato DSML (textual)]]
+- [[#modos-de-falha-observados-modelos-locais][Modos de falha observados (modelos locais)]]
+- [[#loop-de-eventos-fsm-do-magent-orquestracao][Loop de Eventos FSM do Magent (Orquestração)]]
+- [[#roteamento-de-modelos-pelo-orquestrador-fase-a][Roteamento de Modelos pelo Orquestrador (Fase A)]]
+- [[#compactacao-estilo-opencode-fase-b][Compactação estilo opencode (Fase B)]]
+- [[#loop-de-eventos-informativo-fase-c][Loop de Eventos Informativo (Fase C)]]
 - [[#entry-points--keybindings][Entry Points & Keybindings]]
 - [[#catalog-of-15-tools][Catalog of 15 Tools]]
+- [[#magent-driver-tools][Magent Driver Tools (Ferramentas Curadas)]]
 - [[#permissions--audit-logging][Permissions & Audit Logging]]
-- [[#builtin-agents][Built-in Agents]]
+- [[#built-in-agents][Built-in Agents]]
 - [[#slash-commands][Slash Commands]]
 - [[#skills--instructions][Skills & Instructions]]
 - [[#custom-agents][Custom Agents]]
 - [[#project-ledger--agentsmd-integration][Project Ledger & AGENTS.md Integration]]
+- [[#custom-expert-team-myemacs-profiles][Custom Expert Team (MyEmacs Profiles)]]
 - [[#pitfalls--best-practices][Pitfalls & Best Practices]]
 :END:
 
@@ -34,7 +45,6 @@ agentic development environment inside Emacs with:
 - Skills and capabilities system
 - Frontend powered by =agent-shell= via ACP (Agent Control Protocol) in-process adapter
 - Transport provided by =gptel-request=
-
 * Installation
 
 Magent is installed via a pin git recipe using Elpaca:
@@ -55,7 +65,6 @@ Magent is installed via a pin git recipe using Elpaca:
 #+END_SRC
 
 Dependencies (=yaml=, =acp=, =agent-shell=, =shell-maker=, =cond-let=, =compat=) are resolved automatically by Elpaca.
-
 * Architecture & Transport
 
 Magent operates as an in-process agent framework:
@@ -63,8 +72,7 @@ Magent operates as an in-process agent framework:
 1. **Frontend:** =agent-shell= renders interactive agent UI in buffer =*Magent*=.
 2. **Protocol Adapter:** =acp= (Agent Control Protocol) handles asynchronous agent loop communication.
 3. **Transport Layer:** Magent uses =gptel-request= under the hood to send LLM requests to any of the backends registered in =custom-ai.el= (Zen Claude, Zen OpenAI, Gemini, Ollama, MLX).
-
-* Streaming Pipeline (Content vs Reasoning) — conhecimento crítico
+** Streaming Pipeline (Content vs Reasoning) — conhecimento crítico
 
 O adapter de streaming é =magent-llm-gptel--callback= em
 =elpaca/builds/magent/magent-llm-gptel.el:756=. Ele classifica cada chunk do
@@ -88,8 +96,7 @@ mortos.
 O FSM de transporte do gptel é =magent-llm-gptel--make-sampling-fsm=
 (linha 736): ~INIT→WAIT→TYPE→(TOOL|DONE)~, com pausa em tool calls e resume
 explícito do contexto.
-
-* Formato DSML (textual) — o único formato textual parseado
+** Formato DSML (textual) — o único formato textual parseado
 
 =magent-llm-gptel--parse-dsml-tool-calls= (linha 363) reconhece **apenas** o
 envelope textual do Anthropic:
@@ -113,8 +120,7 @@ pesado):
 
 O parse tem limite =magent-llm-gptel--textual-tool-call-max-length=; blocos
 maiores são ignorados. Constantes dos tags: =--dsml-tool-calls-open/close=.
-
-* Modos de falha observados (modelos locais) — 2026-08-10
+** Modos de falha observados (modelos locais) — 2026-08-10
 
 Diagnosticados em sessões reais + reprodução batch contra o servidor MLX
 (127.0.0.1:8081). Modelo ativo por padrão: =mlx-community/gemma-4-e2b-it-4bit=
@@ -234,9 +240,7 @@ Mitigações aplicadas (2026-08-10, commits 9a729b7/b35e9ed/8c78f8f):
   custom-magent.el).
 - Reprodução batch com a diretriz reforçada: 3/3 tool_calls nativos (mas a
   abordagem por prompt é probabilística — não é uma garantia).
-
-* Loop de Eventos FSM do Magent (Arquitetura & Design de Orquestração)
-
+* Loop de Eventos FSM do Magent (Orquestração)
 A FSM do Magent regula de forma assíncrona as iterações cognitivas e chamadas de ferramentas no Emacs sem bloquear o thread principal da interface. Ela gerencia o chaveamento de modelos, tratamento de erros, watchdog e fallback dinâmico baseado no perfil do host ativo.
 
 ** Estrutura de Estados da FSM:
@@ -329,8 +333,7 @@ orquestrador leve (local) delegar a modelos fortes:
 Testes: GRUPO 10 em `tests/magent-fsm-test.el` (defaults, resolver, resolução
 com dicas, aplicação do advice com `magent-request-context` real, instalação do
 advice, directiva).
-
-** Roteamento de modelos pelo orquestrador (Fase A — model menu + select_model, 2026-08-13)
+* Roteamento de Modelos pelo Orquestrador (Fase A — model menu + select_model, 2026-08-13)
 
 O orquestrador escolhe o modelo do subagente por tarefa (complexidade primeiro),
 em vez de herdar o próprio modelo:
@@ -394,8 +397,7 @@ use objeto real `magent-agent-info-create`.
 Testes: `tests/magent-routing-test.el` (tier-rank, task-complexity, classify-model,
 resolve-model escada/skip-local/offline/cap, menu-entries derivado + cap + fallback
 default, directives-render + inject, menu cap, select_model, override-consumed).
-
-** Compactação estilo opencode (Fase B — contexto & auto-compactação, 2026-08-13)
+* Compactação estilo opencode (Fase B — contexto & auto-compactação, 2026-08-13)
 
 A auto-compactação da sessão (lisp/custom-magent-context.el) foi reescrita com
 medição real de tokens e gatilho por milestones:
@@ -466,9 +468,7 @@ Testes: `tests/context-test.el` (compaction-decision immediate/milestone,
 build-instruction-sections, sink subagent-stop conta, turn-tokens zero-safe,
 resolve-cheap-model free/local, session-total-tokens, guarda sucesso/falha + sink
 skip/retry, turn-closed-p, safe-boundary).
-
-
-** Loop de eventos informativo (Fase C — painel de atividade, 2026-08-14)
+* Loop de Eventos Informativo (Fase C — Painel de Atividade, 2026-08-14)
 
 O painel de atividade (lisp/custom-magent-ui.el) torna o loop de eventos do chat
 mais informativo no buffer *Magent* (agent-shell), consumindo o barramento de
@@ -532,8 +532,19 @@ lifecycle events via sink — sem modificar sources do elpaca.
 Testes: `tests/magent-ui-test.el` (12 testes — sink registro/formato,
 tool-start/end, turn-start badge, subagent lifecycle+modelo, reasoning preview,
 model-badge capture/reset, tool-call-detail-advice, subagent-model-resolver).
-
-
+** Spinner de Delegação (D6, 2026-08-16)
+- *Onde:* `lisp/custom-magent-ui.el` — feedback visual no painel *Magent*
+  enquanto a FSM bloqueia em `subagent-waiting` (delegação para subagente).
+- *Como:* `+carlos/magent-ui-spinner-start` insere uma linha no point-max do
+  buffer e agenda um timer (`+carlos/magent-ui-spinner-interval` 0.1s);
+  `+carlos/magent-ui-spinner-tick` reescreve a linha in-place (frames braille
+  ⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏) via marker; `+carlos/magent-ui-spinner-stop` cancela e
+  remove a linha. `+carlos/magent-ui-spinner-active-p` indica atividade.
+- *Wiring FSM:* transições para `subagent-waiting` iniciam; transições a partir
+  dele e o reset da sessão param. Guards `fboundp` + `declare-function` (a UI
+  carrega depois da FSM no facade).
+- *Nota:* `set-marker` NÃO aceita nil como marker (`wrong-type-argument markerp
+  nil`) — usar `make-marker` antes de cada `set-marker` de um marker novo.
 * Entry Points & Keybindings
 
 Magent provides 3 main interactive entry points bound in =custom-keybindings.el=:
@@ -543,7 +554,6 @@ Magent provides 3 main interactive entry points bound in =custom-keybindings.el=
 | ~C-c A m~ | ~magent-start~ | Launch or switch to the project's Magent agent-shell session |
 | ~C-c A i~ | ~magent-agent-shell-interrupt~ | Interrupt current running agent turn/request |
 | ~C-c A r~ | ~magent-agent-shell-prompt-region~ | Send active region content as prompt to Magent |
-
 * Catalog of 15 Tools
 
 Magent ships 15 built-in tools (gptel-tool structs) for agent interactions,
@@ -582,8 +592,7 @@ section.
   ={"status":"spawned","job":{...},"next_action":{"tool":"wait_agent","arguments":{"job_id":...}}}= —
   the orchestrator MUST call =wait_agent= before ending the turn (hard rule).
 - ~web_search~ returns titles/URLs only; it does not fetch page content.
-
-* Magent Driver Tools (Fase A — Curated in-process tools) — adicionado 2026-08-12
+* Magent Driver Tools (Ferramentas Curadas in-process)
 
 Estes são os utilitários de alto nível implementados para transformar o Magent em um operador de ferramentas e buffers ativos in-process (Tool Operator). Elas são registradas no `magent-tools-catalog` sob o escopo de segurança individual e podem ser estendidas no futuro:
 
@@ -598,7 +607,7 @@ produz o struct quando `magent-tool-result-create` está disponível, senão
 retorna a string JSON (fallback p/ repo sem magent). `json-read-from-string`
 parseia chaves como símbolos — asserts de teste usam `(alist-get 'status parsed)`.
 
-** 1. `flycheck_errors`
+** `flycheck_errors`
 - **Nome Técnico:** `flycheck_errors`
 - **Handler Elisp:** `+carlos/magent-tool-flycheck-errors`
 - **Assinatura:** `(path &optional _reason)` — 1º arg = caminho do arquivo ou buffer vivo (string, opcional).
@@ -608,7 +617,7 @@ parseia chaves como símbolos — asserts de teste usam `(alist-get 'status pars
   {"status":"success","buffer":"nome","file":"/caminho/real.el","total_errors":1,"errors":[{"line":42,"column":12,"level":"error","message":"void-function X","checker":"emacs-lisp"}]}
   #+end_src
 
-** 2. `lsp_navigation`
+** `lsp_navigation`
 - **Nome Técnico:** `lsp_navigation`
 - **Handler Elisp:** `+carlos/magent-tool-lsp-navigation`
 - **Assinatura:** `(sym-str &optional action _reason)` — 1º arg = símbolo (string, obrigatório); 2º = `"definition"` (padrão) ou `"references"`.
@@ -618,7 +627,7 @@ parseia chaves como símbolos — asserts de teste usam `(alist-get 'status pars
   {"status":"success","symbol":"+carlos/gptel-cache-hit-rate","action":"definition","total":1,"results":[{"summary":"defun +carlos/gptel-cache-hit-rate (input cached)","file":"/abs/path/lisp/custom-ai.el","line":705}]}
   #+end_src
 
-** 3. `snippet_expand`
+** `snippet_expand`
 - **Nome Técnico:** `snippet_expand`
 - **Handler Elisp:** `+carlos/magent-tool-snippet-expand`
 - **Assinatura:** `(name-str &optional action mode)` — 1º arg = nome do snippet; 2º = ação (`"list"`/`"inspect"`/`"insert"`); 3º = major-mode p/ filtrar. (reason removido da assinatura.)
@@ -637,7 +646,7 @@ parseia chaves como símbolos — asserts de teste usam `(alist-get 'status pars
     {"status":"success","message":"Snippet 'deftest' inserido com sucesso no buffer."}
     #+end_src
 
-** 4. Live Buffer Driver (Fase B / D4 — `buffer_*` tools) — adicionado 2026-08-16
+** Live Buffer Driver (Fase B / D4 — `buffer_*` tools) — adicionado 2026-08-16
    Implementado em =lisp/custom-magent-buffer.el= (módulo novo, requerido pela
    fachada custom-magent.el). 5 tools registradas no `magent-tools-catalog` sob a
    permission **`buffer`** (símbolo novo, orquestrada pelo contrato de sessão
@@ -654,7 +663,7 @@ parseia chaves como símbolos — asserts de teste usam `(alist-get 'status pars
    - **Coordenadas:** linhas absolutas **1-based**, colunas **0-based** (clamped
      ao fim da linha).
 
-** 4.1 `buffer_insert`
+** `buffer_insert`
 - **Nome Técnico:** `buffer_insert`
 - **Handler Elisp:** `+carlos/magent-tool-buffer-insert`
 - **Assinatura:** `(text &optional buffer line column _reason)` — 1º arg = texto (obrigatório); 2º = buffer vivo (string; nil = atual); 3º/4º = LINE/COLUMN opcionais (nil = point).
@@ -665,7 +674,7 @@ parseia chaves como símbolos — asserts de teste usam `(alist-get 'status pars
   {"status":"success","buffer":"nome","text_len":6,"line":1}
   #+end_src
 
-** 4.2 `buffer_replace_region`
+** `buffer_replace_region`
 - **Nome Técnico:** `buffer_replace_region`
 - **Handler Elisp:** `+carlos/magent-tool-buffer-replace-region`
 - **Assinatura:** `(text &optional buffer start-line start-column end-line end-column _reason)`
@@ -679,7 +688,7 @@ parseia chaves como símbolos — asserts de teste usam `(alist-get 'status pars
   {"status":"success","buffer":"nome","text_len":4,"start_line":2}
   #+end_src
 
-** 4.3 `buffer_undo`
+** `buffer_undo`
 - **Nome Técnico:** `buffer_undo`
 - **Handler Elisp:** `+carlos/magent-tool-buffer-undo`
 - **Assinatura:** `(&optional buffer _reason)`
@@ -688,7 +697,7 @@ parseia chaves como símbolos — asserts de teste usam `(alist-get 'status pars
   information" quando não há boundary `nil` separando o grupo de edição). Retorna
   status `info` quando não há o que desfazer.
 
-** 4.4 `lsp_hover`
+** `lsp_hover`
 - **Nome Técnico:** `lsp_hover`
 - **Handler Elisp:** `+carlos/magent-tool-lsp-hover`
 - **Assinatura:** `(&optional buffer line column _reason)`
@@ -696,14 +705,13 @@ parseia chaves como símbolos — asserts de teste usam `(alist-get 'status pars
   identificador (`thing-at-point 'symbol`). Sem servidor LSP: status `info` com
   backend `none` + identifier (fallback p/ resolver símbolo via lsp_navigation).
 
-** 4.5 `describe_elisp_symbol`
+** `describe_elisp_symbol`
 - **Nome Técnico:** `describe_elisp_symbol`
 - **Handler Elisp:** `+carlos/magent-tool-describe-elisp-symbol`
 - **Assinatura:** `(symbol &optional _reason)` — 1º arg = nome do símbolo (string, obrigatório).
 - **Descrição:** Descreve símbolo Elisp: kind (function/variable/face/feature),
   docstring, valor atual truncado, arglist e arquivo de definição. Para resolver
   APIs e opções do Emacs sem adivinhar.
-
 * Permissions & Audit Logging
 
 ** Permission Rules
@@ -738,7 +746,6 @@ tool catalog (write/edit/bash), the orchestrator runs with
 - Rationale: the orchestrator plans, delegates, and synthesizes; all
   file-mutating work happens inside subagents where per-tool confirmation and
   audit still apply.
-
 * Built-in Agents
 
 | Agent | Mode | Purpose |
@@ -750,7 +757,6 @@ tool catalog (write/edit/bash), the orchestrator runs with
 | ~compaction~ | Internal | Context window summarization agent |
 | ~title~ | Internal | Generates short session titles |
 | ~summary~ | Internal | Summarizes PR or commit changes |
-
 * Slash Commands
 
 Magent supports slash commands inside the agent-shell buffer:
@@ -768,7 +774,6 @@ Magent supports slash commands inside the agent-shell buffer:
 | ~/doctor~ | Collect flycheck/flymake/eglot diagnostics |
 | ~/memory-list~ | List persisted session memories |
 | ~/memory-delete~ | Remove specified memory entry |
-
 * Skills & Instructions
 
 Skills are stored in Markdown files under ~.magent/skills/<name>/SKILL.md~ with YAML frontmatter:
@@ -790,7 +795,6 @@ Skill de auto-correção declarativa (Fase C, 2026-08-16):
 =buffer_conflict= → =flycheck_errors= → fix (=lsp_navigation= / =lsp_hover= /
 =describe_elisp_symbol=) → =buffer_undo= → critério de parada (zero erros ou 2
 tentativas sem progresso).
-
 * Custom Agents
 
 Custom agents can be defined per project under ~.magent/agent/<name>.md~:
@@ -809,65 +813,48 @@ permissions:
 
 System prompt instructions for this custom agent...
 #+END_SRC
-
 * Project Ledger & AGENTS.md Integration
 
 Magent reads project instructions automatically based on ~magent-project-instruction-file-names~ (default ~'("AGENTS.md")~).
 Project sessions, turn ledgers, and history are stored in project-isolated directories outside the git repository.
-
-* Pitfalls & Best Practices
-
-1. **Emacs 30 =defvar= gotcha:** Forward declarations of variables with non-nil defcustom defaults MUST use the bare form ~(defvar X)~ with ~(boundp 'X)~ guards to avoid clobbering runtime defaults with ~nil~.
-2. **Use-package `:after`:** With ~use-package-expand-minimally t~, `:after` blocks are ignored during startup. Always wrap package post-configuration in explicit ~(with-eval-after-load 'magent ...)~.
-3. **Use `:custom` for options:** Never use global ~setq~ for defcustom variables. Use `:custom` in ~use-package~.
-4. **Single Frontend:** Magent uses =agent-shell= as its primary interactive UI. Keep ~C-c i~ (gptel chat) as a lightweight fallback interface.
-5. **Accessors de cl-defstruct são inlined:** =gptel-backend-models=, =gptel-backend-host=, =gptel-backend-protocol=, =magent-thread-turn-usage=, =magent-agent-info-name= são expandidos pelo byte-compiler (=aref= + tipo-check) quando o struct está carregado no compile-time — mock de function-cell é inócuo. Mocke a função que retorna o struct (=gptel-get-backend= é função normal) ou injete overrides como argumento opcional.
-6. **Sem chaves de tokens nos eventos de lifecycle:** `turn-end` só traz ~:context/:status/:detail~; `magent-runtime-session-token-count` não existe. Meça usage via =magent-thread-turn-usage= (chaves gptel ~:input/:output~) ou estime por comprimento.
-7. **=magent-runtime-session-compact= exige a session posicional:** chame com ~(magent-runtime-session-compact (magent-runtime-session-current) :instruction instr)~ — nunca apenas ~:instruction~.
-8. **=when-let*= com =(fboundp 'X)= vira binding:** use bindings nomeados ~(has-get (fboundp 'X))~; elemento de lista é sempre par (VAR VALOR).
-9. **=push= em =(alist-get k a)= insere a chave no FRENTE** (ordem de inserção) — ordene explicitamente por rank quando a ordem importar.
-10. **`--init-directory` + `--batch` não carrega =early-init.el=** (Emacs 30.2): =load-prefer-newer-source= fica void e =.elc= stale pode prevalecer; rode =just rebuild= antes de testar.
-
-
-
 * Custom Expert Team (MyEmacs Profiles)
 
 Magent uses a team of highly specialized agent profiles (subagents) to maintain clean architecture, security, and quality. The Orchestrator delegates tasks to these experts.
 
-** 1. Coder (Live Buffer Driver)
+** Coder (Live Buffer Driver)
 - *Role:* Emacs Driver. Manipulates live buffers (`point`, `region`) as a pair-programming partner.
 - *Safety:* Crucial file-writing permissions (`write_file`, `edit_file`) are explicitly DENIED. It must act interactively in open buffers.
 - *Tools:* `buffer_insert`, `buffer_replace_region`, `buffer_undo`, `lsp_hover`, `describe_elisp_symbol`, `lsp_references`, `treesit_context`.
 
-** 2. Archeologist (Version Control & Historian)
+** Archeologist (Version Control & Historian)
 - *Role:* Release Manager and Historian. Ensures features are documented, committed, and synced.
 - *Tools:* `git_blame_line` (reads original commit messages to understand legacy workarounds), `forge_read_issue` (extracts PRs/Tickets), `magit_commit_semantic` (Conventional Commits validation).
 
-** 3. Sysadmin / DevOps
+** Sysadmin / DevOps
 - *Role:* Master of Infrastructure. Operates servers, Docker, and NixOS with a focus on resilience.
 - *Tools:* High-resilience TRAMP via Mosh (`/mosh:user@ip:`), `docker_tramp_read`, `nixos_transient_job` (fire-and-forget via `systemd-run`), `tramp_sudo_edit`.
 
-** 4. Planner / Architect
+** Planner / Architect
 - *Role:* Product Manager and Tech Lead. Designs the foundation.
 - *Rules:* Structural Editing ONLY (Org-mode AST). Never outputs raw Markdown.
 - *Workflow:* Uses the OpenCode Bifurcation style. Never auto-delegates to the Coder without user (ADR) approval on architectural trade-offs.
 
-** 5. Tech Writer / Librarian (RAG Guardian)
+** Tech Writer / Librarian (RAG Guardian)
 - *Role:* Knowledge Engineer. Maintains `docs/` as the Single Source of Truth.
 - *Pipeline (RAG ETL):* Uses `markitdown` (Microsoft) ONLY as a transient extraction middleware in `/tmp`. Uses the `Denote` package ecosystem (Zettelkasten) to actively synthesize, tag, and link the extracted knowledge into structured Org-mode files (`denote-create-note`, `denote-link-or-create`).
 - *Tools:* `rag_sync_api` (syncs Lisp docstrings to docs), `rag_verify_integrity` (Denote backlinks and broken references).
 
-** 6. Auditor (Staff Engineer)
+** Auditor (Staff Engineer)
 - *Role:* Architecture Reviewer and Standards Guardian (SOLID and Norminette).
 - *Rules:* Enforces a strict 25/30 executable line limit (Ecole 42/Norminette) using `treesit_count_executable_lines`.
 - *Compliance:* Uses `rfc_search_topic` and `rfc_read_section` (powered by `rfc-mode`) to ensure the codebase follows official IETF specs (OAuth, JWT) with zero hallucination and extreme token efficiency.
 
-** 7. Sec-Ops (Red Team)
+** Sec-Ops (Red Team)
 - *Role:* Security, OWASP, and Cryptography Specialist.
 - *Rules:* Strictly uses `rfc_read_section` to extract ONLY the "Security Considerations" section of RFCs, dodging context bloat.
 - *Audits:* Blocks Command Injection (bash), Path Traversal (TRAMP), and cryptographic failures (enforces modern AES-GCM/Argon2 and Agenix secrets).
 
-** 8. QA / Reviewer
+** QA / Reviewer
 - *Role:* Continuous Integrator. Codebase Gatekeeper.
 - *Rules:* Zero-Warnings and Zero-Regressions policy.
 - *Tools:* `just_run_recipe`, `ert_analyze_failure` (extracts only the backtrace), `polyglot_eval_snippet` (Org-Babel REPL sandbox).
@@ -892,17 +879,15 @@ Magent uses a team of highly specialized agent profiles (subagents) to maintain 
   coder/sysadmin/planner/auditor/sec-ops/qa `paid`. A resolução concreta é
   dinâmica por tarefa (`+carlos/magent-subagent-resolve` → complexidade +
   melhor custo no tier).
+* Pitfalls & Best Practices
 
-* Spinner de Delegação (D6, 2026-08-16)
-- *Onde:* `lisp/custom-magent-ui.el` — feedback visual no painel *Magent*
-  enquanto a FSM bloqueia em `subagent-waiting` (delegação para subagente).
-- *Como:* `+carlos/magent-ui-spinner-start` insere uma linha no point-max do
-  buffer e agenda um timer (`+carlos/magent-ui-spinner-interval` 0.1s);
-  `+carlos/magent-ui-spinner-tick` reescreve a linha in-place (frames braille
-  ⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏) via marker; `+carlos/magent-ui-spinner-stop` cancela e
-  remove a linha. `+carlos/magent-ui-spinner-active-p` indica atividade.
-- *Wiring FSM:* transições para `subagent-waiting` iniciam; transições a partir
-  dele e o reset da sessão param. Guards `fboundp` + `declare-function` (a UI
-  carrega depois da FSM no facade).
-- *Nota:* `set-marker` NÃO aceita nil como marker (`wrong-type-argument markerp
-  nil`) — usar `make-marker` antes de cada `set-marker` de um marker novo.
+1. **Emacs =defvar= gotcha (dois modos):** (a) Emacs 30 — forward declarations of variables with non-nil defcustom defaults MUST use the bare form ~(defvar X)~ with ~(boundp 'X)~ guards to avoid clobbering runtime defaults with ~nil~; (b) ~(defvar X "doc")~ com 2º argumento NÃO declara docstring — LIGA o valor de X à string (e o `defcustom` posterior nunca aplica o default). Forward decl com docstring → comentário + ~(defvar X)~ pelado.
+2. **Use-package `:after`:** With ~use-package-expand-minimally t~, `:after` blocks are ignored during startup. Always wrap package post-configuration in explicit ~(with-eval-after-load 'magent ...)~.
+3. **Use `:custom` for options:** Never use global ~setq~ for defcustom variables. Use `:custom` in ~use-package~.
+4. **Single Frontend:** Magent uses =agent-shell= as its primary interactive UI. Keep ~C-c i~ (gptel chat) as a lightweight fallback interface.
+5. **Accessors de cl-defstruct são inlined:** =gptel-backend-models=, =gptel-backend-host=, =gptel-backend-protocol=, =magent-thread-turn-usage=, =magent-agent-info-name= são expandidos pelo byte-compiler (=aref= + tipo-check) quando o struct está carregado no compile-time — mock de function-cell é inócuo. Mocke a função que retorna o struct (=gptel-get-backend= é função normal) ou injete overrides como argumento opcional.
+6. **Sem chaves de tokens nos eventos de lifecycle:** `turn-end` só traz ~:context/:status/:detail~; `magent-runtime-session-token-count` não existe. Meça usage via =magent-thread-turn-usage= (chaves gptel ~:input/:output~) ou estime por comprimento.
+7. **=magent-runtime-session-compact= exige a session posicional:** chame com ~(magent-runtime-session-compact (magent-runtime-session-current) :instruction instr)~ — nunca apenas ~:instruction~.
+8. **=when-let*= com =(fboundp 'X)= vira binding:** use bindings nomeados ~(has-get (fboundp 'X))~; elemento de lista é sempre par (VAR VALOR).
+9. **=push= em =(alist-get k a)= insere a chave no FRENTE** (ordem de inserção) — ordene explicitamente por rank quando a ordem importar.
+10. **`--init-directory` + `--batch` não carrega =early-init.el=** (Emacs 30.2): =load-prefer-newer-source= fica void e =.elc= stale pode prevalecer; rode =just rebuild= antes de testar.
