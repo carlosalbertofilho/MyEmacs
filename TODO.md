@@ -218,7 +218,11 @@ inteiro colado.
 - **D9. Criação da Equipe de Especialistas (Expansão de Perfis Futuros):**
   - *Objetivo:* Expandir a orquestração para cobrir todo o ciclo de vida de um projeto, criando subagentes hiper-especializados baseados nos ecossistemas nativos do Emacs. Serão desenhados iterativamente após os perfis `coder` e `archeologist`.
   - *Perfil `sysadmin` (ou `devops`):* Senhor da Infraestrutura. Usa **TRAMP** e Eshell para acessar servidores via SSH de forma transparente (`/ssh:user@ip`). Capaz de ler logs em produção (`tramp_read_file`), rodar comandos remotos e editar configurações de root (`sudo`) diretamente da sessão local do Emacs.
-  - *Perfil `planner` (ou `architect`):* Gerente de Produto e Tech Lead. Opera via **Org-mode** e **Org-Babel**. Em vez de emitir markdown livre, manipula a AST estrutural `.org` (`org_read_subtree`, `org_insert_heading`), injeta *TODOs*, altera metadados de planejamento e gera diagramas arquiteturais via `ob-mermaid`.
+  - *Perfil `planner` (ou `architect`):* Gerente de Produto e Tech Lead. Responsável por desenhar a fundação antes do código.
+    - *Edição Estrutural Pura:* Usa ferramentas nativas do Org-mode (`org_insert_heading`, `org_add_todo`) para injetar metas na AST do arquivo em vez de cuspir Markdown livre.
+    - *Anti-Alucinação de Diagramas:* A ferramenta `mermaid_validate` testa a sintaxe do bloco `#+begin_src mermaid` em background para garantir que o diagrama renderiza corretamente.
+    - *Mapeamento de Escopo:* `project_tree_summary` dá a visão de pastas via `project.el` para o arquiteto apontar o local correto da intervenção.
+    - *Design Orientado a Bifurcação (Estilo OpenCode):* O Planner NUNCA delega automaticamente para o Coder após desenhar. Quando há caminhos arquiteturais concorrentes, ele pausa a execução, expõe os dois caminhos opostos e os fundamentos de cada um (trade-offs), e exige que o usuário escolha o caminho (ADR) interativamente antes de carimbar o `roadmap.org`.
   - *Perfil `librarian` (ou `researcher`):* Guardião do Zettelkasten. Especialista em RAG local sobre a base do **Denote**. Cruza *backlinks*, pesquisa por *keywords* em silos específicos e extrai conhecimento pré-existente do próprio usuário, evitando reinventar a roda.
   - *Perfil `reviewer` (ou `qa`):* Integrador Contínuo. Garante o *zero-warning*. Interage fortemente com *Task Runners* (**Justfile**) da raiz do projeto (`just test-all`) e compila código Lisp em memória (*byte-compile*) para atestar a estabilidade sintática antes de qualquer commit ser sugerido ao usuário.
 
