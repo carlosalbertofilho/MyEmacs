@@ -71,6 +71,35 @@ entenderem o estado atual do projeto e decisões tomadas.
    - **Gates:** `just org-lint` limpo; `just lint` OK (checkdoc warnings
      pré-existentes); ERT org-lint 3/3. Sem deploy (apenas docs/planejamento).
 
+** 2026-08-16 — [DECIDIDO] Revisão do planejamento ativo (auditoria TODO.org vs código real)
+   - **Escopo:** cross-check do TODO.org (Plano Diretor + Backlog Ativo) contra
+     o código e o roadmap; itens verificados e opiniões registradas.
+   - **Consistência confirmada:** Etapas A1/B3/B4/C5 DONE; Fase B/C, D4–D10 e os
+     4 itens de Diagnóstico de Infra seguem backlog sem nada implementado no
+     código; Fase C (painel de atividade) em andamento com deploy =df524b7= no
+     prod.
+   - **Opiniões registradas (decisões/recomendações):**
+     1. *Merge Fase B × D4:* a Etapa C6 (buffer vivo) e o D4 (ferramentas
+        =buffer_insert=, =buffer_replace_region=, =buffer_undo=, =lsp_hover=,
+        =describe_elisp_symbol=) descrevem o mesmo trabalho — executar em
+        conjunto (nota adicionada aos dois itens no TODO.org).
+     2. *Fase C painel:* passo de documentação da seção UI/eventos já cumprido
+        (docs/magent-reference.org:450) — item é o mais barato de fechar
+        (validar no prod + sync + gates + marcar DONE).
+     3. *Prod desatualizado por design:* aguarda próximo =just sync= (gate
+        org-lint + novos testes entram só depois); painel já validável no prod
+        atual.
+     4. *Dívida de decisões de infra:* itens A2/A3 e Diagnóstico (1–4) parados
+        há 4 dias sem prazo — recomenda-se marcar prazo ou arquivar
+        explicitamente (ex.: guard jinx já mitigado por =skip-unless= na suíte).
+     5. *Próxima rodada de código recomendada:* D6 (spinners no painel) e D9
+        (equipe de especialistas) — destravam o valor do painel já deployado.
+     6. *Nota histórica:* o FSM de orquestração atual (8 estados,
+        custom-magent-fsm.el) não foi "removido" — o que foi superado foi o
+        FSM antigo de THINK/DECIDE/RETRY (nota corrigida no TODO.org).
+   - **Ações aplicadas nesta rodada:** correção do passo stale da Fase C no
+     TODO.org; correção da nota ambígua do FSM; notas de merge Fase B × D4.
+
 ** 2026-08-16 — [CONCLUÍDO] Ocultação de Ferramentas de Edição do Orquestrador (Fase D / Option 1)
    - **Objetivo:** Impedir estruturalmente que o modelo Orquestrador (geralmente um modelo local pequeno) tente realizar edições complexas em arquivos com ferramentas como `edit_file`, devido à sua incapacidade de reproduzir o `old_text` perfeitamente, forçando-o a sempre delegar para subagentes na nuvem.
    - **Decisão Arquitetural (Option 1):** Princípio do Menor Privilégio. Em vez de apenas instruir o orquestrador no prompt (o que frequentemente falha com modelos de 2B a 9B parâmetros), vamos remover fisicamente as permissões de edição do escopo do agente principal.

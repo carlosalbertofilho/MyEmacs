@@ -85,6 +85,11 @@ de buffers interativos em point/região do usuário.
   granulação de permissões, suporte a undo unificado, e degradação de
   performance sob contexto pesado.
 
+*Nota (2026-08-16, revisão do planejamento):* sobrepõe-se ao D4 (Operador de
+Buffer Vivo — =buffer_insert=, =buffer_replace_region=, =buffer_undo=,
+=lsp_hover=, =describe_elisp_symbol=). Executar em conjunto — a Etapa C6 é o
+objetivo e o D4 é a implementação concreta das ferramentas.
+
 *** TODO Fase C — Loop de auto-correção como skill/workflow
 
 - Criar uma skill declarativa reutilizável (em =magent/skills/=) para formalizar
@@ -153,11 +158,15 @@ vida do subagente, badge de modelo, reasoning colapsável) em
 *Restante:*
 
 - Validar interativamente no prod o painel de atividade (buffer *Magent*).
-- Atualizar =docs/magent-reference.org= com a seção de UI/eventos (loop
-  informativo, subagentes, badges).
 - Rodar =just sync= + =just compile-prod= (zero-warning) + =just check-prod= +
   =just test-all=.
 - Atualizar roadmap.org e marcar esta seção como DONE.
+
+*Nota (2026-08-16):* a seção de UI/eventos do painel (C1–C5) já está
+documentada em =docs/magent-reference.org= ("Loop de eventos informativo") —
+passo antes listado aqui já cumprido. Deploy do painel =df524b7= presente no
+prod; prod aguarda o próximo =just sync= para incluir o gate =org-lint= e os
+novos testes desta rodada.
 
 ** TODO Re-anexação automática de subagentes (herança da FSM & Submodelos)
     :PROPERTIES:
@@ -188,6 +197,10 @@ Pendências remanescentes do plano "FSM & Submodelos" (roadmap 2026-08-13):
     Implementar as mutações =buffer_insert=, =buffer_replace_region=,
     =buffer_undo= e sensores =lsp_hover=, =describe_elisp_symbol=. (Ver
     docs/magent-reference.org para a arquitetura completa).
+
+*Nota (2026-08-16, revisão do planejamento):* sobrepõe-se à Etapa C6 / Fase B
+(Driver do buffer vivo) — executar em conjunto; a Etapa C6 é o objetivo e este
+D4 é a implementação concreta das ferramentas.
 
 *** TODO D5. Context Sharing Dinâmico para Subagentes
     :PROPERTIES:
@@ -251,8 +264,9 @@ Planos concluídos e arquivados a partir desta refatoração (2026-08-16):
 - Plano Diretor — Fases A/B/B.5/D implementadas (roadmap 2026-08-12/13/16).
 - Fase D — Ocultação de ferramentas de edição do orquestrador (roadmap
   2026-08-16).
-- Loop de eventos FSM do Magent — superseded; FSM removida em 2026-08-12
-  (roadmap 2026-08-10/12).
+- Loop de eventos FSM do Magent — o FSM antigo (THINK/DECIDE/RETRY, 2026-08-10)
+  foi superado; a FSM de *orquestração* atual (8 estados) vive em
+  =lisp/custom-magent-fsm.el= (roadmap 2026-08-10/12/13/16).
 - FSM & Submodelos =spawn_agent=/=wait_agent= (roadmap 2026-08-13) — pendências
   movidas para o Backlog Ativo.
 - Subagentes com Modelo Forte — perfis por agente (roadmap 2026-08-13).
