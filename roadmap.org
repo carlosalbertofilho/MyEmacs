@@ -11,6 +11,14 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-16 — [CONCLUÍDO] Ocultação de Ferramentas de Edição do Orquestrador (Fase D / Option 1)
+   - **Objetivo:** Impedir estruturalmente que o modelo Orquestrador (geralmente um modelo local pequeno) tente realizar edições complexas em arquivos com ferramentas como `edit_file`, devido à sua incapacidade de reproduzir o `old_text` perfeitamente, forçando-o a sempre delegar para subagentes na nuvem.
+   - **Decisão Arquitetural (Option 1):** Princípio do Menor Privilégio. Em vez de apenas instruir o orquestrador no prompt (o que frequentemente falha com modelos de 2B a 9B parâmetros), vamos remover fisicamente as permissões de edição do escopo do agente principal.
+   - **Implementação (lisp/custom-magent-subagent.el):** Adicionado um let-binding dinâmico para a variável `magent-enable-tools` dentro do advice `+carlos/magent-subagent-apply-profile`, que envolve a execução de `magent-agent-process`.
+     - O binding verifica se o agente é o Orquestrador (ou seja, seu nome não está na lista `+carlos/magent-subagent-profiles` de subagentes e não é o agente interno de compactação).
+     - Se for o orquestrador, remove as ferramentas associadas às permissões `'edit`, `'write` e `'snippet_expand`.
+     - Subagentes (como `explore`, `general`, e `coder` no futuro) preservam a lista inteira de permissões e continuam aptos a escrever código.
+
 ** 2026-08-14 — [EM ANDAMENTO] Fase C: Loop de eventos informativo (painel de atividade do Magent)
    - **Objetivo:** tornar o loop de eventos do chat mais informativo, mostrando detalhes das ações dos modelos (tool calls, reasoning) e o ciclo de vida dos subagentes no buffer *Magent* (agent-shell), sem modificar sources do elpaca.
    - **Mapa do loop de UI (verificado nos sources):** o frontend é `agent-shell` (config `magent-agent-shell.el`: buffer "Magent", prompt "Magent> ", `default-model-id` lê `gptel-model`); `magent-agent-loop.el` emite lifecycle events `tool-call-start` (:446) / `tool-call-end` (:479) com `:exit-code/:result-summary/:ui-visible`; `magent-acp.el:609-651` mapeia para ACP `tool_call`/`tool_call_update`; o barramento é `magent-lifecycle-events.el` (`add-sink` :74, `turn-start/end` :117/:126, `subagent-start/stop` :155/:165); `magent-agent.el` emite `llm-request-start` (:512, com `:backend/:model`) e `llm-request-end` (:612-617, com `:status/:backend/:model`); `magent-tools.el:988` emite `agent-job-event` (started/completed/failed/cancelled).

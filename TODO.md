@@ -145,6 +145,17 @@ inteiro colado.
 - **C5. Reasoning colapsável:** aproveitar o acumulador existente (`+carlos/magent-fsm-reasoning-accumulator-a`, lisp/custom-magent-fsm.el) e renderizar o reasoning sob um header colapsável (overlay com face) no buffer, respeitando `magent-include-reasoning`.
 - **Restrições:** não modificar sources do elpaca (só advices/sinks no custom-magent.el); respeitar `:ui-visibility` (não vazar transcripts de subagente); não interferir no threshold de compactação (B3) nem na FSM.
 
+**Plano de Ação — Fase D: Ocultação de Ferramentas de Edição do Orquestrador (Option 1)**
+*Objetivo:* Blindar estruturalmente o Orquestrador contra tentativas de usar `edit_file`, `write_file` ou `snippet_expand`. Devido a limitações cognitivas, o orquestrador (frequentemente rodando num modelo local pequeno) tende a quebrar arquivos ao não conseguir fazer o match exato de `old_text`.
+
+- **D1. Filtro dinâmico de permissões no processo do agente:**
+  Em `lisp/custom-magent-subagent.el` (no advice `+carlos/magent-subagent-apply-profile`), interceptaremos a execução do processo `magent-agent-process`.
+- **D2. Aplicação do princípio do menor privilégio:**
+  Se o agente corrente for o Orquestrador (qualquer agente que não seja um subagente conhecido na lista `+carlos/magent-subagent-profiles` nem o agente de compactação), vamos criar um let-binding dinâmico para a variável global `magent-enable-tools`.
+- **D3. Ferramentas removidas:**
+  O binding removerá as permissões `'edit`, `'write` e `'snippet_expand` estritamente durante o turno do Orquestrador. Os subagentes (que geralmente rodam modelos de nuvem como Gemini Pro) manterão acesso total às ferramentas de edição.
+- **Resultado Esperado:** O orquestrador não terá acesso físico à ferramenta de edição, forçando-o a delegar via `spawn_agent` de forma estrutural, sem sobrecarregar a FSM ou o prompt base.
+
 
 **Testes ERT (tests/magent-test.el ou novo tests/routing-test.el)**
 - `myemacs-magent-select-model-deep-skips-local` — `deep` nunca cai no local.

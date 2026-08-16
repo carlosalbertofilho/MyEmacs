@@ -13,7 +13,7 @@
 (require 'cl-lib)
 
 (defvar +carlos/magent-subagent-model-overrides)
-
+(defvar magent-enable-tools)
 (declare-function magent-agent-info-name "magent-agent-info")
 (declare-function magent-agent-process "magent-agent")
 (declare-function +carlos/magent-resolve-cheap-model "custom-magent-context")
@@ -86,9 +86,16 @@ chamada a função vazia no .elc."
               backend-obj
               (cl-struct-slot-value 'magent-request-context 'model request-state)
               (intern (plist-get profile :model))))))
-  (funcall orig-fn user-prompt callback agent-info skill-names event-context
-           request-context capability-resolution text-callback request-live-p
-           request-state))
+  (let* ((agent-name (and agent-info (magent-agent-info-name agent-info)))
+         (is-orchestrator (and agent-name
+                               (not (equal agent-name "compaction"))
+                               (not (+carlos/magent-subagent-profile agent-name))))
+         (magent-enable-tools (if (and is-orchestrator (boundp 'magent-enable-tools))
+                                  (remq 'write (remq 'edit (remq 'snippet_expand magent-enable-tools)))
+                                (when (boundp 'magent-enable-tools) magent-enable-tools))))
+    (funcall orig-fn user-prompt callback agent-info skill-names event-context
+             request-context capability-resolution text-callback request-live-p
+             request-state)))
 
 (with-eval-after-load 'magent-agent
   (advice-add 'magent-agent-process
