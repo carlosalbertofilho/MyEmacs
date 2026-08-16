@@ -191,6 +191,11 @@ inteiro colado.
     - `describe_elisp_symbol`: Executa `describe-function`/`describe-variable` e retorna o texto puro do buffer `*Help*`. Essencial para dar *Context Awareness* exato quando o agente precisar escrever ou alterar configurações Lisp do próprio Emacs.
     - `lsp_references`: Busca e retorna trechos de código mostrando onde e como uma API foi chamada no projeto, fornecendo padrões de uso.
     - `treesit_context`: Retorna o caminho da árvore AST (`treesit-auto`) no ponto atual (ex: `Class -> Method -> if_statement`), orientando o agente espacialmente no buffer antes de inserir código.
+  - *Ferramentas Avançadas Futuras (Pós-Fundação Coder):*
+    - `buffer_outline`: Utiliza `imenu` para devolver um mapa semântico instantâneo do arquivo (Classes, Métodos e Linhas), eliminando a necessidade de ler arquivos gigantes.
+    - `treesit_edit_node`: Edição estrutural via AST (possível integração com pacote `combobulate`). O modelo deleta/substitui nós lógicos (funções/ifs) em vez de usar contagem de linhas e manipulação de strings.
+    - `repl_eval_region`: TDD para IA. Envia blocos de código silenciosamente para um processo `comint` / REPL em background e atesta o resultado antes de encerrar o turno.
+    - `read_devdocs`: Integração com `devdocs.el` para o agente consultar manuais completos offline (React, Python, Go) no próprio Emacs, garantindo zero alucinação.
   - *Fluxo de Trabalho (Loop In-Process):*
     1. O Orquestrador mapeia a arquitetura e invoca `spawn_agent` no perfil `coder`.
     2. `coder` usa `lsp_navigation` para injetar contexto 100% correto do código alvo.
@@ -204,6 +209,12 @@ inteiro colado.
   - *Objetivo:* Enriquecer o painel `*Magent*` para exibir barras de progresso ou *spinners* animados enquanto a FSM do orquestrador bloqueia no estado `subagent-waiting`. Prover feedback transparente de que um modelo pesado na nuvem (Gemini Pro) assumiu a tarefa.
 - **D7. Testes Unitários de Permissão (ERT):**
   - *Objetivo:* Adicionar testes em `tests/magent-routing-test.el` simulando `agent-info` de Orquestrador e Subagentes, garantindo que o catálogo filtrado (`magent-tools-get-gptel-tools-for-permission`) aplique corretamente o let-binding de restrição (D1/D2/D3).
+- **D8. Criação do Perfil `archeologist` (Gestor de Versionamento e Magit/Forge):**
+  - *Objetivo:* Um perfil dedicado à gestão de source-control, investigação de história de código e gestão de plataformas remotas (GitHub/GitLab). Será o próximo foco após estabilizarmos o perfil `coder`.
+  - *Ferramentas Projetadas:*
+    - `git_blame_line`: Lê a mensagem de commit e o autor de uma linha (via Magit) para dar contexto de *porquê* lógicas legadas ou workarounds existem, guiando refatorações com segurança.
+    - Integração com `forge`: Lê Issues e Pull Requests da plataforma e sincroniza o trabalho local com o planejamento remoto.
+    - Ferramentas nativas do Magit: Controle de staging seletivo, rebase interativo, checkout de branches e *commit message generation*.
 
 
 ## 2. Decisões Registradas
