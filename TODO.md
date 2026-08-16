@@ -217,7 +217,11 @@ inteiro colado.
     - Ferramentas nativas do Magit: Controle de staging seletivo, rebase interativo, checkout de branches e *commit message generation*.
 - **D9. Criação da Equipe de Especialistas (Expansão de Perfis Futuros):**
   - *Objetivo:* Expandir a orquestração para cobrir todo o ciclo de vida de um projeto, criando subagentes hiper-especializados baseados nos ecossistemas nativos do Emacs. Serão desenhados iterativamente após os perfis `coder` e `archeologist`.
-  - *Perfil `sysadmin` (ou `devops`):* Senhor da Infraestrutura. Usa **TRAMP** e Eshell para acessar servidores via SSH de forma transparente (`/ssh:user@ip`). Capaz de ler logs em produção (`tramp_read_file`), rodar comandos remotos e editar configurações de root (`sudo`) diretamente da sessão local do Emacs.
+  - *Perfil `sysadmin` (ou `devops`):* Senhor da Infraestrutura. Operador de servidores, Docker e NixOS focado em resiliência.
+    - *Motor TRAMP de Alta Resiliência:* Usa o protocolo Mosh (`/mosh:user@ip:`) no lugar do SSH para evitar timeouts de VPN/3G durante operações remotas demoradas.
+    - *Docker Integration:* A ferramenta `docker_tramp_read` usa o suporte embutido do Emacs (`/docker:container:/path`) para o agente ler e editar configurações e investigar logs *por dentro* dos containers em execução, exatamente como se fossem locais.
+    - *Execução Assíncrona (O Jeito NixOS):* A ferramenta `nixos_transient_job` encapsula builds ou scripts em um `systemd-run --user --remain-after-exit`. O agente lança o job, desconecta, e depois usa `tramp_journalctl` para checar os logs daquela `unit`, orquestrando fire-and-forget perfeito no NixOS.
+    - *Gerenciamento Declarativo Remoto:* Acesso via `tramp_sudo_edit` seguido de `nixos_remote_build` permite que o agente altere o `/etc/nixos/configuration.nix` e faça o switch verificando a saúde dos serviços (`tramp_systemd_status`).
   - *Perfil `planner` (ou `architect`):* Gerente de Produto e Tech Lead. Responsável por desenhar a fundação antes do código.
     - *Edição Estrutural Pura:* Usa ferramentas nativas do Org-mode (`org_insert_heading`, `org_add_todo`) para injetar metas na AST do arquivo em vez de cuspir Markdown livre.
     - *Anti-Alucinação de Diagramas:* A ferramenta `mermaid_validate` testa a sintaxe do bloco `#+begin_src mermaid` em background para garantir que o diagrama renderiza corretamente.
