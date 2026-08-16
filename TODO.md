@@ -180,9 +180,19 @@ inteiro colado.
 **Plano de Ação — Fase D+: Evolução da Orquestração e Perfil Coder (Driver do Emacs)**
 
 - **D4. Criação do Perfil `coder` (Operador de Buffer Vivo):**
-  - *Objetivo:* Especializar um subagente voltado inteiramente para edição em buffers interativos (Magent como Driver do Emacs - Fase B), enquanto o `explore`/`general` focam em leitura/RAG.
-  - *Ferramentas permitidas:* `snippet_expand`, `buffer_edit` (a implementar), `flycheck_errors`, `lsp_navigation`. O `coder` **não** usará `edit_file` / `write_file` (acesso cru a disco), mas sim ferramentas que manipulam o `point` e `region` no buffer ativo do Emacs.
-  - *Fluxo de Trabalho Esperado:* Inserir esqueleto via `snippet_expand` → preencher lacunas interativamente → validar com `flycheck_errors` → auto-corrigir em memória → devolver para o usuário salvar e commitar.
+  - *Objetivo:* Especializar um subagente voltado inteiramente para atuar como o "Driver do Emacs", manipulando o buffer em tempo real (`point`, `region`) como um parceiro de pair-programming. Ele nunca atuará nos arquivos físicos em disco.
+  - *Safety By Design (Menor Privilégio Invertido):* O perfil `coder` terá as permissões de acesso cru ao disco (`write_file` e `edit_file`) EXPRESSAMENTE REMOVIDAS. Todo o seu output ocorrerá interativamente em buffers abertos.
+  - *Ferramentas de Mutação Ligeiras (A Implementar):*
+    - `buffer_insert`: Insere texto em uma linha específica ou no `point` atual.
+    - `buffer_replace_region`: Substitui um bloco (por index de linhas), superando as falhas de alucinação do `old_text` enfrentadas no `edit_file`.
+    - `buffer_undo`: Permite ao agente "dar Ctrl+Z" em sua própria edição se a validação subsequente falhar.
+  - *Fluxo de Trabalho (Loop In-Process):*
+    1. O Orquestrador mapeia a arquitetura e invoca `spawn_agent` no perfil `coder`.
+    2. `coder` usa `lsp_navigation` para injetar contexto 100% correto do código alvo.
+    3. `coder` roda `snippet_expand` para injetar esqueletos sintáticos (templates do Tempel).
+    4. `coder` preenche os placeholders do snippet usando `buffer_insert`/`buffer_replace_region`.
+    5. `coder` aciona `flycheck_errors` no buffer vivo. Erros reais do linter realimentam o modelo para uma correção imediata na memória.
+    6. O turno termina. O usuário visualiza as alterações renderizadas no editor, com controle total para salvá-las ou descarta-las (`C-x C-s`).
 - **D5. Context Sharing Dinâmico para Subagentes (`spawn_agent` aprimorado):**
   - *Objetivo:* Injetar automaticamente contexto relevante (ex: caminho do buffer ativo, sumário do plano do orquestrador) nos prompts enviados a subagentes, evitando que o Orquestrador gaste tokens redundantes pedindo para o subagente ler arquivos que já estão em escopo.
 - **D6. Feedback de UI Visual para Delegação (Fase C+):**
