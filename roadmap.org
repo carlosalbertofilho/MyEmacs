@@ -35,6 +35,28 @@ entenderem o estado atual do projeto e decisões tomadas.
      (init.el:182) para cold boot mais rápido, ou mantê-lo como rede de
      segurança (recomendado até novo ciclo de stress).
 
+** 2026-08-16 — [CONCLUÍDO] Comando =+carlos/org-table-fit-window= (AutoFit à janela p/ tabelas org)
+   - **Objetivo:** emular o "AutoFit to Window" do Word no Org (Emacs 30 não tem
+     =org-table-fit-window=): comando que quebra células das colunas mais largas
+     (greedy, da mais larga para a menor) até a tabela caber na largura da
+     janela, com alinhamento preservado (item [#C] do TODO.org).
+   - **Implementação (lisp/custom-org.el):** comando + 5 helpers em bloco
+     =org-table fit-to-window= (dentro de =(when (require 'org-table nil t)
+     ...)=): =+carlos/org-table--continuation-p=, =--cell-wrapped-p=,
+     =--insert-row-below=, =--wrap-column= e =--measure=. Nuances: linhas de
+     continuação inseridas ancoradas pela *linha de dados* de origem (cut deixa
+     point na linha seguinte); normalização =skip-chars-backward= para a última
+     coluna; medição com =string-width= (não =org-string-width=, que infla sob
+     fonte customizada em batch); idempotência via detecção de célula já
+     embrulhada. Sem keybinding (chamar via =M-x=); sem fallback de cookies
+     =<lN>= por enquanto (greedy resolveu o caso de teste).
+   - **Testes (tests/org-test.el):** =myemacs-org-table-fit-window= (largura
+     final ≤ largura mockada + palavras preservadas), =-idempotent= e
+     =-no-op-when-fits=. Suíte repo 260/252/0/8; =just lint= (compile
+     zero-warning + checkdoc + org-lint) e =just check= OK.
+   - **Referência:** seção nova em docs/org-ecosystem.org (Org Tables —
+     AutoFit à janela).
+
 ** 2026-08-16 — [ARQUIVADO/DECIDIDO] agent-shell como subagente do Magent
    - **Decisão:** manter o Magent como agente principal (orquestrador + 3
      subagentes curados: explore/general/coder) com FinOps local e roteador de

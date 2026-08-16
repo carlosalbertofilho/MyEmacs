@@ -71,5 +71,82 @@ Quando o toolchain LaTeX esta ausente, o startup nao tenta criar previews."
                         (error (list 'erro _e)))))
       (kill-buffer buf))))
 
+(ert-deftest myemacs-org-table-fit-window ()
+  "org-table-fit-window emula AutoFit-to-window: reduz a tabela larga
+para caber na largura da janela, preservando todas as palavras."
+  (skip-unless (fboundp '+carlos/org-table-fit-window))
+  (let ((buf (get-buffer-create " *org-table-fit*"))
+        (window-width 25)
+        words-before words-after)
+    (unwind-protect
+        (with-current-buffer buf
+          (erase-buffer)
+          (insert "| N | Description | X |\n"
+                  "| 1 | alpha beta gamma delta epsilon | a |\n"
+                  "| 2 | zeta eta theta | b |\n")
+          (org-mode)
+          (org-table-align)
+          (setq words-before
+                (sort (split-string (buffer-substring-no-properties
+                                     (point-min) (point-max))
+                                    "[| \t\n+]+" t)
+                      #'string<))
+          (goto-char (point-min))
+          (cl-letf (((symbol-function 'window-text-width)
+                     (lambda (&optional _win) window-width)))
+            (+carlos/org-table-fit-window))
+          (let ((final (+carlos/org-table--measure)))
+            (should (<= (nth 2 final) window-width)))
+          (setq words-after
+                (sort (split-string (buffer-substring-no-properties
+                                     (point-min) (point-max))
+                                    "[| \t\n+]+" t)
+                      #'string<))
+          (should (equal words-before words-after)))
+      (kill-buffer buf))))
+
+(ert-deftest myemacs-org-table-fit-window-idempotent ()
+  "Rodar fit-window de novo nao modifica a tabela ja ajustada."
+  (skip-unless (fboundp '+carlos/org-table-fit-window))
+  (let ((buf (get-buffer-create " *org-table-fit-idem*"))
+        (window-width 25))
+    (unwind-protect
+        (with-current-buffer buf
+          (erase-buffer)
+          (insert "| N | Description | X |\n"
+                  "| 1 | alpha beta gamma delta epsilon | a |\n"
+                  "| 2 | zeta eta theta | b |\n")
+          (org-mode)
+          (org-table-align)
+          (goto-char (point-min))
+          (cl-letf (((symbol-function 'window-text-width)
+                     (lambda (&optional _win) window-width)))
+            (+carlos/org-table-fit-window))
+          (let ((after-first (buffer-string)))
+            (cl-letf (((symbol-function 'window-text-width)
+                       (lambda (&optional _win) window-width)))
+              (+carlos/org-table-fit-window))
+            (should (equal after-first (buffer-string)))))
+      (kill-buffer buf))))
+
+(ert-deftest myemacs-org-table-fit-window-no-op-when-fits ()
+  "Tabela menor que a janela nao e modificada pelo comando."
+  (skip-unless (fboundp '+carlos/org-table-fit-window))
+  (let ((buf (get-buffer-create " *org-table-fit-noop*")))
+    (unwind-protect
+        (with-current-buffer buf
+          (erase-buffer)
+          (insert "| N | Description | X |\n"
+                  "| 1 | alpha | a |\n")
+          (org-mode)
+          (org-table-align)
+          (let ((baseline (buffer-string)))
+            (goto-char (point-min))
+            (cl-letf (((symbol-function 'window-text-width)
+                       (lambda (&optional _win) 80)))
+              (+carlos/org-table-fit-window))
+            (should (equal baseline (buffer-string)))))
+      (kill-buffer buf))))
+
 (provide 'org-test)
 ;;; org-test.el ends here

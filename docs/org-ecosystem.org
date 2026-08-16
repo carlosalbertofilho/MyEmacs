@@ -1,6 +1,7 @@
 #+TITLE: Org Ecosystem Reference Guide
 #+AUTHOR: Generated Reference
 #+DATE: 2026-08-05
+#+LAST_MODIFIED: 2026-08-16
 #+DESCRIPTION: Comprehensive reference for the Org mode ecosystem in Emacs — core org, org-modern, ob-mermaid, jupyter integration, pdf-tools, and org-noter
 
 * Table of Contents
@@ -126,6 +127,40 @@ All packages except =org= (built-in) are installed via =straight= or =use-packag
 | =org-startup-with-inline-images=| =nil=   | =t=         | Show inline images immediately           |
 | =org-hide-emphasis-markers=     | =nil=   | =t=         | Hide =*=, =/=, =_= emphasis markers      |
 | =org-edit-src-content-indentation= | =2=  | =2=         | Extra indentation inside source blocks   |
+
+** Org Tables — AutoFit à janela (=+carlos/org-table-fit-window=)
+
+O Emacs 30 não tem =org-table-fit-window=: tabelas org são linhas de texto
+únicas, e o autofit padrão só *cresce* colunas — nunca *quebra* o texto de
+célula. Quando a tabela é mais larga que a janela, a linha estoura a borda
+(truncada). Este comando emula o "AutoFit to Window" do Word.
+
+- *Uso:* =M-x +carlos/org-table-fit-window= com point dentro da tabela. Sem
+  keybinding por enquanto.
+- *Comportamento:* se a tabela já cabe na janela, no-op com message. Se não
+  cabe, quebra as colunas da *mais larga para a menor* (greedy) até a largura
+  total ≤ largura disponível, respeitando um mínimo de 3 chars por coluna
+  (palavras são preservadas; uma palavra mais longa que o target força a
+  largura da coluna). Fecha com =org-table-align= e preserva o point. O comando
+  é idempotente: rodar de novo num resultado já ajustado não altera nada.
+- *Limitações:* janelas muito estreitas (palavras longas + mínimo de colunas)
+  podem não alcançar a largura-alvo — nesse caso uma message orienta a
+  encolher manualmente. Células com newline/blocos de código não são tocadas.
+  Fallback de cookies =<lN>= (=org-table-shrink=) fica como evolução futura.
+- *Implementação:* lisp/custom-org.el, bloco =org-table fit-to-window= (dentro
+  de =(when (require 'org-table nil t) ...)=), com os helpers
+  =+carlos/org-table--measure= (larguras por coluna e largura da tabela),
+  =--wrap-column= (wrap de uma coluna via =org-table-wrap-region=),
+  =--insert-row-below= (insere linhas de continuação ancoradas pela linha de
+  dados de origem), =--cell-wrapped-p= e =--continuation-p=.
+- *Notas de implementação:* a medição usa =string-width= (não
+  =org-string-width=, que usa =window-text-pixel-size= e infla a largura sob
+  fonte customizada em batch). =org-table-copy-region= com ='cut= deixa point
+  na linha seguinte — por isso a inserção é ancorada pela linha de dados de
+  origem; a última coluna precisa de =skip-chars-backward= antes do copy/paste
+  (o =org-table-check-inside-data-field= falha com point após o pipe final).
+- *Testes:* =myemacs-org-table-fit-window=, =-idempotent= e =-no-op-when-fits=
+  em tests/org-test.el (mockam =window-text-width= via =cl-letf=).
 
 ** Babel Languages Configuration
 

@@ -190,12 +190,32 @@ executor, prazo, critério de saída e abordagem concreta.
 2. Arquivar agent-shell — DONE 2026-08-16 (decisão registrada no roadmap).
 3. Elpaca ([:ensure (:wait t)]) — DONE 2026-08-16 (migrado; item [#B] acima).
 4. epdfinfo — DONE 2026-08-16 (fix poppler no MyMachine, commit f4f6ffc).
+5. org-table-fit-window — DONE 2026-08-16 (implementado e testado; item [#C] acima).
 
-** TODO [#C] Comando =+carlos/org-table-fit-window= (AutoFit à janela p/ tabelas org)
+** DONE [#C] Comando =+carlos/org-table-fit-window= (AutoFit à janela p/ tabelas org)
     :PROPERTIES:
     :CREATED: 2026-08-16
-    :STATUS: backlog
+    :STATUS: done
     :END:
+
+*Execução (2026-08-16):* comando + 5 helpers implementados em custom-org.el
+(dentro de `(when (require 'org-table nil t) ...)`), seguindo a abordagem acima.
+Nuances descobertas na implementação:
+- `org-table-wrap-region` e `org-table-copy-region`/`paste-rectangle` usados
+  como base; `org-table-copy-region` com `'cut` deixa point na linha seguinte —
+  as linhas são inseridas ancoradas pela *linha de dados* de origem
+  (`+carlos/org-table--insert-row-below`), não pela point.
+- Última coluna: `org-table-check-inside-data-field` falha com point após o pipe
+  final — normalizar com `(skip-chars-backward "^|\n")` antes de copy/paste.
+- Medição usa `string-width` (não `org-string-width`): este usa
+  `window-text-pixel-size` e infla a largura sob fonte customizada em batch
+  (23 → 31 chars), quebrando o critério de saída.
+- Continuidade (célula já embrulhada) detectada via prefixo de continuação
+  (`|` antes da primeira célula) — comando é idempotente.
+- Fallback de cookies `<lN>` do plano não foi necessário (greedy + mínimo de 3
+  chars resolveu o caso de teste; deixado como evolução futura).
+Testes: `myemacs-org-table-fit-window`, `-idempotent`, `-no-op-when-fits`
+(tests/org-test.el). Suíte repo 260/252/0/8. Documentado em docs/org-ecosystem.org.
 
 *Contexto:* tabelas org são linhas de texto únicas — o autofit padrão só *cresce*
 colunas, nunca *quebra* texto de célula. Quando a tabela é mais larga que a
