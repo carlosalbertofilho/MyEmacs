@@ -12,6 +12,21 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-16 — [CONCLUÍDO] Fix LaTeX preview automático no startup (guard toolchain)
+   - **Problema:** abrir qualquer `.org` com fragmento LaTeX levantava
+     `File mode specification error: (error Can't find 'latex' ...)` — o
+     `org-startup-with-latex-preview t` incondicional (custom-org.el) fazia o
+     `org-mode` tentar criar previews no open, e `latex`/`dvipng` não estão
+     instalados (nenhum texlive no Nix).
+   - **Fix:** guard no valor da opção — `org-startup-with-latex-preview` só é
+     `t` quando `latex` E `dvipng` existem (`(and (executable-find "latex")
+     (executable-find "dvipng"))`), preservando o preview em máquinas com o
+     toolchain instalado e evitando o erro onde não há.
+   - **Testes:** `myemacs-org-latex-preview-guarded-by-toolchain` (invariante
+     config ↔ toolchain) e `myemacs-org-open-with-latex-fragment-no-error`
+     (org-mode ativa sem erro em buffer com `$...$`), em tests/org-test.el.
+   - **Gates:** `just lint` limpo; suíte ERT verde no prod pós-sync.
+
 ** 2026-08-16 — [CONCLUÍDO] Fix epdfinfo Nix abortando no macOS (poppler mutex)
    - **Objetivo:** tornar pdf-tools utilizável no macOS com o binário `epdfinfo`
      do Nix (que abortava com `Abort trap: 6`).

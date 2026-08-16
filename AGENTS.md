@@ -379,6 +379,12 @@ insensível no Org, mas a consistência facilita o parsing/regex).
 |-----|-----|-------|
 | `+carlos/gptel-request` repassava `:response_format (:type "json_object")` a `gptel-request`, keyword que não existe no `&key` do gptel 0.9.9.5 (erro "Keyword argument :response_format not one of (...)") — quebrava TODA chamada Ollama/MLX | JSON forçado via `:schema` (único mecanismo do gptel 0.9.9.5); o helper não força mais nada e `:schema (:type object)` isolado produz `{}` — o caller (gramática) passa `:schema (:type object :properties (:corrected (:type string)))` explícito | `myemacs-spell-grammar-schema-passthrough` (fake `cl-defun` com o mesmo `&key` reproduz o erro) |
 
+### Encontrados pela suíte (2026-08-16)
+
+| Bug | Fix | Teste |
+|-----|-----|-------|
+| `org-startup-with-latex-preview t` incondicional (custom-org.el) — abrir `.org` com fragmento LaTeX levantava `File mode specification error: (error Can't find 'latex' ...)` quando `latex`/`dvipng` não estão instalados | Guard no valor: `org-startup-with-latex-preview` só é `t` quando `(and (executable-find "latex") (executable-find "dvipng"))` — preserva preview onde o toolchain existe, silencia onde não há | `myemacs-org-latex-preview-guarded-by-toolchain` + `myemacs-org-open-with-latex-fragment-no-error` (tests/org-test.el) |
+
 ---
 
 ## Testing (ERT Suite)

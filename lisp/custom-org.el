@@ -24,7 +24,11 @@
         org-confirm-babel-evaluate nil
         org-startup-indented t
         org-startup-with-inline-images t
-        org-startup-with-latex-preview t       ;; Render LaTeX fragments on open
+        org-startup-with-latex-preview (and (executable-find "latex")
+                                            (executable-find "dvipng"))
+        ;; Preview LaTeX fragments on open only when the toolchain exists
+        ;; (guarda evita "File mode specification error" quando latex/dvipng
+        ;; nao estao instalados)
         org-hide-emphasis-markers t
         org-edit-src-content-indentation 2)
   ;; LaTeX fragment rendering scale
