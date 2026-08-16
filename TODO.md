@@ -228,7 +228,11 @@ inteiro colado.
     - *Mapeamento de Escopo:* `project_tree_summary` dá a visão de pastas via `project.el` para o arquiteto apontar o local correto da intervenção.
     - *Design Orientado a Bifurcação (Estilo OpenCode):* O Planner NUNCA delega automaticamente para o Coder após desenhar. Quando há caminhos arquiteturais concorrentes, ele pausa a execução, expõe os dois caminhos opostos e os fundamentos de cada um (trade-offs), e exige que o usuário escolha o caminho (ADR) interativamente antes de carimbar o `roadmap.org`.
   - *Perfil `librarian` (ou `researcher`):* Guardião do Zettelkasten. Especialista em RAG local sobre a base do **Denote**. Cruza *backlinks*, pesquisa por *keywords* em silos específicos e extrai conhecimento pré-existente do próprio usuário, evitando reinventar a roda.
-  - *Perfil `reviewer` (ou `qa`):* Integrador Contínuo. Garante o *zero-warning*. Interage fortemente com *Task Runners* (**Justfile**) da raiz do projeto (`just test-all`) e compila código Lisp em memória (*byte-compile*) para atestar a estabilidade sintática antes de qualquer commit ser sugerido ao usuário.
+  - *Perfil `reviewer` (ou `qa`):* Integrador Contínuo. O Porteiro da Base de Código (Regra de Zero-Warnings e Zero-Regressions).
+    - *Task Runner Integrado:* A ferramenta `just_run_recipe` aciona comandos estritos do Justfile (`test-all`, `compile-prod`) capturando `exit-code` e saídas segregadas para atestar a estabilidade.
+    - *Análise Forense ERT:* A ferramenta `ert_analyze_failure` varre logs de testes batch do Emacs e extrai **apenas a pilha de chamadas (Backtrace)**, traduzindo spam em feedback acionável para o Coder.
+    - *Validação Poliglota via REPL:* A ferramenta `polyglot_eval_snippet` usa o motor do Org-Babel e buffers Comint para criar um sandbox onde o QA testa trechos de código (Python, TS, Go, C) isoladamente antes de aprovar (TDD executado pela IA).
+    - *Padrões Estritos:* Usa `elisp_byte_compile_file` para barrar *Warnings* Lisp em memória e `elisp_checkdoc` para exigir documentação padronizada.
 
 
 ## 2. Decisões Registradas
