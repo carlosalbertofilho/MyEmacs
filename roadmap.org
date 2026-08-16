@@ -30,8 +30,10 @@ entenderem o estado atual do projeto e decisões tomadas.
      check` OK; boot batch sem warnings custom-*/void-*. Gate `:ensure (:wait
      t)` confirmado funcionando sob `use-package-expand-minimally t` (expande
      para `elpaca--expand-declaration '(pkg :wait t)`).
-   - **Pendente (manual):** validação interativa no prod (`just test-run`);
-     depois avaliar remover o catch-all final (init.el:182).
+   - **Validação interativa:** `just test-run` no prod confirmada **sem erros**
+     (2026-08-16). Próxima decisão aberta: remover o catch-all final
+     (init.el:182) para cold boot mais rápido, ou mantê-lo como rede de
+     segurança (recomendado até novo ciclo de stress).
 
 ** 2026-08-16 — [ARQUIVADO/DECIDIDO] agent-shell como subagente do Magent
    - **Decisão:** manter o Magent como agente principal (orquestrador + 3

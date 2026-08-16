@@ -106,8 +106,9 @@ executor, prazo, critério de saída e abordagem concreta.
       catch-all final (init.el:182, rede de segurança do boot interativo).
       Validação: `just rebuild` 25/25 zero-warning; suíte 257/249/0/8 (sem
       regressão); `just lint` + `just check` OK; boot batch sem warnings
-      custom-*/void-*. Faltou (manual): validação interativa no prod (`just
-      test-run`) antes de avaliar remover o catch-all final.
+      custom-*/void-*. Validação interativa no prod (`just test-run`) confirmada
+      sem erros (2026-08-16). Fica a decisão de remover o catch-all final
+      (init.el:182) ou mantê-lo como rede de segurança.
 
 *** DONE [#A] Guard de runtime do jinx (=+carlos/jinx-mode-if-available=)
     :PROPERTIES:
