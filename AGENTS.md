@@ -410,18 +410,19 @@ Este projeto adota uma arquitetura de trabalho assistido entre agentes com difer
 
 * **Agente Planejador / Arquiteto (Alta Performance - Modelo Pro/Opus)**
   * **Responsabilidade:** Realizar diagnósticos de causa-raiz, leitura e análise de referências RAG complexas, e tomada de decisões estruturais.
-  * **Entregável:** Escrever um plano de implementação detalhado e passo a passo na seção "Plano de Ação" do [TODO.md](file:///Users/carlosfilho/Projects/Github/MyEmacs/TODO.md), indicando exatamente quais trechos de código e arquivos devem ser modificados. *Não deve aplicar as alterações diretamente.*
+  * **Planejamento Estrutural e RAG (A Regra de Ouro):** O planejamento NUNCA deve ser escrito como Markdown livre ou listas (`- [ ]`). O artefato único de planejamento é o arquivo [TODO.org](file:///Users/carlosfilho/Projects/Github/MyEmacs/TODO.org). O Planejador deve manipular a Árvore Sintática (AST) do Org-mode, utilizando cabeçalhos (`*`, `**`), metadados `TODO`, `DONE` e gavetas de propriedades (`:PROPERTIES:`).
+  * **Entregável:** Adicionar ou atualizar nós no `TODO.org` com o plano de implementação detalhado (indicando quais arquivos/linhas tocar), mantendo o arquivo perfeitamente legível para o mecanismo de *chunking* do RAG. *Não deve aplicar as alterações de código diretamente.*
 
 * **Agente Executor (Rápido/Cheaper - Modelo Flash/Lite)**
-  * **Responsabilidade:** Consumir o plano detalhado em `TODO.md` e aplicar as alterações nos arquivos `.el` de destino.
-  * **Diretriz:** Seguir estritamente o código e as regras de elisp recomendadas no plano de ação, tratando erros sintáticos simples locais.
+  * **Responsabilidade:** Consumir o plano detalhado no nó específico do `TODO.org` e aplicar as alterações nos arquivos `.el` de destino.
+  * **Diretriz:** Seguir estritamente o código e as regras de elisp recomendadas no plano de ação, tratando erros sintáticos simples locais. O agente deve preferencialmente consultar apenas o subtree pertinente do plano.
 
 * **Agente Auditor / Validador (Modelo Mediano/Audit - Modelo Medium/Flash)**
   * **Responsabilidade:** Auditar e certificar o trabalho do Executor.
   * **Ações Obrigatórias:**
     1. Rodar os testes estritos de carga, compilação e regressão (`just check-all`, que executa `check` + `test-all` = compile + checkdoc + suíte ERT).
     2. Garantir **zero warnings** na compilação (`byte-compile-error-on-warn t`).
-    3. Atualizar o histórico de mudanças no [TODO.md](file:///Users/carlosfilho/Projects/Github/MyEmacs/TODO.md) e [roadmap.org](file:///Users/carlosfilho/Projects/Github/MyEmacs/roadmap.org).
+    3. Atualizar o histórico de mudanças no [TODO.org](file:///Users/carlosfilho/Projects/Github/MyEmacs/TODO.org) (mudando estado de `TODO` para `DONE`) e [roadmap.org](file:///Users/carlosfilho/Projects/Github/MyEmacs/roadmap.org).
 
 ### 2. Portões de Qualidade (Quality Gates)
 

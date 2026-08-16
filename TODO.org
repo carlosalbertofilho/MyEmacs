@@ -1,18 +1,28 @@
-# TODO — Planejamento Ativo e Backlog (MyEmacs)
+* TODO — Planejamento Ativo e Backlog (MyEmacs)
 
-> **Histórico de planos concluídos (0.5–1.0):** todos implementados, validados e
-> arquivados no [roadmap.org](roadmap.org) (Linha do Tempo). Este arquivo mantém
-> apenas pendências ativas, backlog futuro e decisões registradas.
-> Última revisão e arquivamento: 2026-08-12.
+#+BEGIN_QUOTE
+**Histórico de planos concluídos (0.5–1.0):** todos implementados, validados e
+#+END_QUOTE
+arquivados no [roadmap.org](roadmap.org) (Linha do Tempo). Este arquivo mantém
+#+END_QUOTE
+apenas pendências ativas, backlog futuro e decisões registradas.
+#+END_QUOTE
+Última revisão e arquivamento: 2026-08-12.
+#+END_QUOTE
 
-## 0. Plano Diretor — Ambição e Pipeline de Execução (reorganizado 2026-08-12)
+** 0. Plano Diretor — Ambição e Pipeline de Execução (reorganizado 2026-08-12)
 
-> **Roteamento de IA (2026-08-10, concluído):** Gemini free tier
-> (`gemini-3.5-flash`) passou a ser a 1ª escolha de chat/quick/grammar em
-> todos os hosts, com OpenCode Zen free (`big-pickle`/`*-free`) como 2ª e
-> Local (MLX/Ollama) apenas como fallback final — ver roadmap.org.
+#+BEGIN_QUOTE
+**Roteamento de IA (2026-08-10, concluído):** Gemini free tier
+#+END_QUOTE
+(`gemini-3.5-flash`) passou a ser a 1ª escolha de chat/quick/grammar em
+#+END_QUOTE
+todos os hosts, com OpenCode Zen free (`big-pickle`/`*-free`) como 2ª e
+#+END_QUOTE
+Local (MLX/Ollama) apenas como fallback final — ver roadmap.org.
+#+END_QUOTE
 
-### A Ambição (north star)
+*** A Ambição (north star)
 
 **Magent/gptel como driver do Emacs** (§1e): o agente **opera o editor** como um
 parceiro de pareamento em vez de cuspir código para revisão. Em vez de escrever
@@ -25,7 +35,7 @@ o símbolo → `snippet_expand` insere o esqueleto em point → o modelo preench
 os campos → `flycheck_errors` valida → corrige até zero erros. Nada de bloco
 inteiro colado.
 
-### Pipeline de execução (do chão até a ambição)
+*** Pipeline de execução (do chão até a ambição)
 
 **Etapa A — Fundação (chão estável; itens paralelos, baixo risco):**
 1. **Fluxo de dev Elisp** (§1h — CONCLUÍDO 2026-08-12) — gerador de testes ERT via IA (`C-c D e`), bloco REPL `(when nil ...)` (`C-c D b`), prompts centralizados e docs RAG (`docs/dev-workflow.org`).
@@ -42,9 +52,9 @@ inteiro colado.
 6. **Fase B — Driver do buffer vivo** (§1e) — `buffer_edit` + workflow snippet → lacunas → flycheck → corrigir (o "preencher só as lacunas").
 7. **Fase C — Loop de auto-correção como skill/workflow** (§1e).
 
-## 1. Backlog Ativo (Pendências e Planos Futuros)
+** 1. Backlog Ativo (Pendências e Planos Futuros)
 
-### 1a. Magent como Driver do Emacs — Fase B & C (Operação em Buffer Vivo)
+*** 1a. Magent como Driver do Emacs — Fase B & C (Operação em Buffer Vivo)
 
 **Objetivo:** Transformar o Magent de operador estático de arquivos para operador de buffers interativos em point/região do usuário.
 
@@ -56,7 +66,7 @@ inteiro colado.
 2. **Fase C — Loop de auto-correção como skill/workflow:**
    - Criar uma skill declarativa reutilizável (em `.magent/skills/`) para formalizar o fluxo: escrever → analisar flycheck → corrigir → usar LSP/Xref para resolver símbolos.
 
-### 1b. Validação Interativa da Stack de IA (GUI)
+*** 1b. Validação Interativa da Stack de IA (GUI)
 
 **Objetivo:** Validar o fluxo interativo das integrações em modo GUI no ambiente `~/.config/emacs`.
 
@@ -68,7 +78,7 @@ inteiro colado.
   - gptel-org integrado em arquivos `.org`.
   - Troca dinâmica de backend e modelo no buffer e verificação de streaming.
 
-### 1c. Diagnóstico e Decisões Pendentes de Infraestrutura
+*** 1c. Diagnóstico e Decisões Pendentes de Infraestrutura
 
 1. **Elpaca 0.2.0 e Ativação Síncrona (`:ensure (:wait t)`):**
    - *Status:* O plano de migrar todos os pacotes de inicialização crítica para `:ensure (:wait t)` foi adiado porque a suíte e o boot estão estáveis após as políticas de limpeza de build stale.
@@ -86,7 +96,7 @@ inteiro colado.
    - *Ideia:* Usar o agent-shell standalone (Aider, Cursor, Claude Code) como subagente especializado delegado pelo Magent (através de `spawn_agent` / `wait_agent`) apenas para refatorações complexas de múltiplos arquivos.
    - *Status:* Adiado. Preservar o FinOps local e o roteador de custo zero por enquanto.
 
-### 1d. Controle de Contexto estilo opencode + Roteamento de Modelos pelo Orquestrador (2026-08-13)
+*** 1d. Controle de Contexto estilo opencode + Roteamento de Modelos pelo Orquestrador (2026-08-13)
 
 **Objetivo:** Evoluir o controle de contexto dos agentes do Magent no estilo do opencode (compactação inteligente guiada por objetivo, preservando estado acionável em vez de truncar) e dar ao agente orquestrador o poder de decidir o modelo mais adequado para cada subagente/tarefa.
 
@@ -235,7 +245,7 @@ inteiro colado.
     - *Padrões Estritos:* Usa `elisp_byte_compile_file` para barrar *Warnings* Lisp em memória e `elisp_checkdoc` para exigir documentação padronizada.
 
 
-## 2. Decisões Registradas
+** 2. Decisões Registradas
 
 - **Fase C — Loop de eventos do chat mais informativo (2026-08-14):** Implementado o painel de atividade do Magent em `lisp/custom-magent-ui.el`: sink `+carlos/magent-ui-activity-sink` renderiza linhas timestampadas no buffer *Magent* (turn-start/end com badge de modelo, tool-call-start/end com duração+exit-code+preview, subagente com ciclo de vida completo, reasoning preview). Advice `+carlos/magent-ui-tool-call-summary-a` enriquece `spawn_agent` (modelo efetivo) e `bash` (cwd). Gotcha descoberto: accessors de `cl-defstruct` (`magent-agent-job-id`) são inlined no `.elc` → mock por `symbol-function` é inócuo; testes usam `magent-agent-job-create` real. Suíte repo: 248/241/0/7. Deploy `df524b7` + sync + gates prod (compile-prod zero-warning, check-prod OK, 248 testes) — validação interativa em andamento.
 
@@ -274,12 +284,12 @@ inteiro colado.
 - **Default local MLX: gemma-4-e2b-it-4bit (2026-08-10):** benchmark dos 5 modelos locais (ver `docs/magent-reference.org`) — gemma lidera (31.4 tok/s, 2x o Qwen3.5-9B) e completou o turn do magent em 30.3s com reasoning estruturado; Qwen2.5-7B (sem reasoning, 0c) levou 99.5s e errou tool (`read` num diretório); os 14B (Qwen3/DeepSeek-R1) são lentos demais (3.7–8 tok/s). Troca do default em `+carlos/ai-local-backend` (custom-ai.el) + testes atualizados. O Qwen3.5-9B permanece como opção no backend (lista de modelos).
 - Scripts de avaliação de modelos locais (2026-08-10): salvos em `bin/magent-batch-test.el` (reprodução batch do turn do magent sem GUI, drena `*magent-log*` via `MAGENT_SIM_MODEL`/`MAGENT_SIM_TIMEOUT`/`MAGENT_SIM_PROMPT`) e `bin/bench-local-models.py` (benchmark streaming tok/s, ttft, content/reasoning para MLX agnes:8081 e Ollama aa102-006l via `--ollama`). Usar para avaliar substitutos do 14B no host aa102-006l e validar a FSM real antes de trocar default. Critério de troca documentado em `docs/magent-reference.org`.
 
-## 3. Plano de Ação — Implementação do Loop de Eventos FSM do Magent (2026-08-13)
+** 3. Plano de Ação — Implementação do Loop de Eventos FSM do Magent (2026-08-13)
 
-### Objetivos:
+*** Objetivos:
 Implementar a FSM (Finite State Machine) assíncrona orientada a eventos para o Magent e o roteamento dinâmico de backends/modelos adaptado a cada host do usuário (`agnes.local` e `aa102-006l`).
 
-### Passo 1: Infraestrutura da FSM e Roteador de Hosts (lisp/custom-magent.el)
+*** Passo 1: Infraestrutura da FSM e Roteador de Hosts (lisp/custom-magent.el)
 1. Definir variáveis globais de controle da FSM:
    - `+carlos/magent-fsm-state` (símbolo, default `'idle`): Estado atual.
    - `+carlos/magent-fsm-session` (símbolo, default `nil`): Sessão atual ativa.
@@ -291,29 +301,31 @@ Implementar a FSM (Finite State Machine) assíncrona orientada a eventos para o 
    - Na `aa102-006l`: Define o backend de orquestração como `"Gemini"` (modelo `"gemini-2.5-flash"`) e de desenvolvimento como `"Ollama Local"` (modelo `"qwen2.5-coder:3b"`).
    - Na `agnes.local`: Mantém no backend `"MLX Local"` com os pesos corretos de GPU.
 
-### Passo 2: Interceptador de Reasoning e Parser DSML do thinking (lisp/custom-magent.el)
+*** Passo 2: Interceptador de Reasoning e Parser DSML do thinking (lisp/custom-magent.el)
 1. Criar sink/advice que lê o fluxo no canal `reasoning` do gptel e o armazena em `+carlos/magent-fsm-reasoning-buffer`.
 2. Implementar parser regex que varre o pensamento acumulado ao fim do reasoning. Se encontrar tags de ferramentas (`<tool_call>` ou formato XML/DSML), extrai e injeta as chamadas na fila de execução física do Magent, resolvendo o problema de descarte silencioso de tool calls no reasoning.
 
-### Passo 3: Watchdog de Latência e Fallback de Turno (lisp/custom-magent.el)
+*** Passo 3: Watchdog de Latência e Fallback de Turno (lisp/custom-magent.el)
 1. Criar o timer `+carlos/magent-watchdog-timer`.
 2. Em cada requisição de desenvolvimento local, inicia o timer com o limite do host (8s no M2, 15s na CPU do NixOS). Se estourar antes de receber resposta, cancela a requisição ativa e aciona o fallback automático daquele turno de desenvolvimento para a API do Gemini Flash/Sonnet na nuvem.
 
-### Passo 4: Cobertura de Testes ERT (tests/magent-test.el)
+*** Passo 4: Cobertura de Testes ERT (tests/magent-test.el)
 1. Escrever testes unitários simulando a execução da FSM e atestando o funcionamento do roteamento, do parser de reasoning e do fallback sob mocks de resposta.
 
 ---
-> Para o histórico cronológico detalhado de conquistas e decisões arquiteturais, consulte o [roadmap.org](roadmap.org).
+#+BEGIN_QUOTE
+Para o histórico cronológico detalhado de conquistas e decisões arquiteturais, consulte o [roadmap.org](roadmap.org).
+#+END_QUOTE
 
-## 4. Plano de Ação — FSM & Submodelos (spawn_agent/wait_agent) (2026-08-13)
+** 4. Plano de Ação — FSM & Submodelos (spawn_agent/wait_agent) (2026-08-13)
 
-### Objetivos:
+*** Objetivos:
 Corrigir o fluxo de submodelos do Magent: o orquestrador fazia `spawn_agent` e
 **encerrava o turno** sem `wait_agent`, deixando o job órfão (`running`) e sem
 mecanismo de re-anexação do resultado do filho ao pai. Diagnóstico completo na
 sessão `session-20260813-153757.json` (projeto Agent_Smith, host agnes).
 
-### Implementado (lisp/custom-magent.el):
+*** Implementado (lisp/custom-magent.el):
 1. **Directiva SUBAGENT LIFECYCLE (HARD RULE):** proíbe terminar o turno sem
    `wait_agent(job_id)`; obriga repetir `wait_agent` em timeout; exige caminho
    absoluto no prompt do subagente (subagente não recebe anexos do pai).
@@ -323,7 +335,7 @@ sessão `session-20260813-153757.json` (projeto Agent_Smith, host agnes).
 3. **Watchdog suprimido durante wait** (`+carlos/magent-fsm-watchdog-should-fire-p`):
    wait de subagente é trabalho legítimo de longa duração, não latência.
 
-### Cobertura de Testes ERT (tests/magent-fsm-test.el, GRUPO 9):
+*** Cobertura de Testes ERT (tests/magent-fsm-test.el, GRUPO 9):
 `myemacs-magent-fsm-subagent-jobs-var-exists`,
 `myemacs-magent-fsm-reset-clears-subagent-jobs`,
 `myemacs-magent-fsm-pending-subagent-{uses-cache,session-fallback,empty-is-nil}`,
@@ -332,7 +344,7 @@ sessão `session-20260813-153757.json` (projeto Agent_Smith, host agnes).
 `myemacs-magent-fsm-watchdog-suppressed-while-subagent-pending`,
 `myemacs-magent-directives-enforce-subagent-lifecycle`.
 
-### Pendências (próximos passos):
+*** Pendências (próximos passos):
 - **Re-anexação automática:** quando um job de subagente completa com o turno
   do pai já encerrado, o resultado ainda não é injetado automaticamente na
   conversa pai (exigiria sink de `magent-lifecycle-events` no `agent-job`).
@@ -341,21 +353,32 @@ sessão `session-20260813-153757.json` (projeto Agent_Smith, host agnes).
 
 ---
 
-## 5. Plano de Ação — Subagentes com Modelo Forte (perfis por agente) (2026-08-13)
+** 5. Plano de Ação — Subagentes com Modelo Forte (perfis por agente) (2026-08-13)
 
-> **STATUS: IMPLEMENTADO.** Items abaixo concluídos em `lisp/custom-magent.el`,
-> cobertura ERT em `tests/magent-fsm-test.el` (GRUPO 10).
+#+BEGIN_QUOTE
+**STATUS: IMPLEMENTADO.** Items abaixo concluídos em `lisp/custom-magent.el`,
+#+END_QUOTE
+cobertura ERT em `tests/magent-fsm-test.el` (GRUPO 10).
+#+END_QUOTE
 >
-> **Nota pós-deploy (85b4d47):** a suíte do prod reprovou 2 testes do GRUPO 10 —
-> `void-function (setf magent-request-context-backend)` e `wrong-type-argument
-> listp`. Causa-raiz dupla: (1) `apply` tratava o `request-state` (struct) como
-> arglist final → `wrong-type-argument listp`; (2) accessors gerados da struct
-> indisponíveis no compile-time (magent-runtime não carregado no compile →
-> `setf` virou chamada a função vazia no `.elc`). Fix: `funcall` (aridade fixa)
-> + `cl-struct-slot-value` (cl-lib, sempre disponível) no advice; testes leem
-> via `cl-struct-slot-value`. Prod: 202 testes, 195 esperados, **0 unexpected**.
+**Nota pós-deploy (85b4d47):** a suíte do prod reprovou 2 testes do GRUPO 10 —
+#+END_QUOTE
+`void-function (setf magent-request-context-backend)` e `wrong-type-argument
+#+END_QUOTE
+listp`. Causa-raiz dupla: (1) `apply` tratava o `request-state` (struct) como
+#+END_QUOTE
+arglist final → `wrong-type-argument listp`; (2) accessors gerados da struct
+#+END_QUOTE
+indisponíveis no compile-time (magent-runtime não carregado no compile →
+#+END_QUOTE
+`setf` virou chamada a função vazia no `.elc`). Fix: `funcall` (aridade fixa)
+#+END_QUOTE
++ `cl-struct-slot-value` (cl-lib, sempre disponível) no advice; testes leem
+#+END_QUOTE
+via `cl-struct-slot-value`. Prod: 202 testes, 195 esperados, **0 unexpected**.
+#+END_QUOTE
 
-### Objetivos:
+*** Objetivos:
 Orquestrador = modelo leve local (no `agnes`: `mlx-community/gemma-4-e2b-it-4bit`,
 MLX, janela pequena) que **só planeja, delega e sintetiza**. Subagentes
 (`spawn_agent`) rodam em **modelo forte na nuvem** (decisão do usuário:
@@ -363,7 +386,7 @@ MLX, janela pequena) que **só planeja, delega e sintetiza**. Subagentes
 codebase, exploração e tarefas multi-step. Delegação **automática** dirigida por
 diretiva.
 
-### Contexto técnico (verificado no pacote magent):
+*** Contexto técnico (verificado no pacote magent):
 - O pacote **herda** backend/modelo do pai para o filho:
   `child-request-context` copia `:model`/`:backend` do request-context do pai
   (`magent-tools--agent-job-start`, `magent-tools.el:1240-1243`).
@@ -375,12 +398,12 @@ diretiva.
   11º argumento opcional; `magent-request-context` é `cl-defstruct` mutável
   (`magent-runtime.el:89-119`), accessors setf-able. → **ponto de override**.
 
-### Decisões do usuário (questionário 2026-08-13):
+*** Decisões do usuário (questionário 2026-08-13):
 1. Modelo forte dos subagentes no agnes: **gemini-3.1-pro-preview** (free tier).
 2. Implementação: **advice no child-request-context** (custom-magent.el).
 3. Gatilho automático de delegação: **análise/exploração + tarefas multi-step**.
 
-### Passos de implementação:
+*** Passos de implementação:
 1. **`+carlos/magent-subagent-profiles`** (defcustom): alist
    `("explore" (:backend "Gemini" :model "gemini-3.1-pro-preview"))`,
    `("general" ...idem...)` — "perfis diferentes" = mapear agentes do
@@ -405,7 +428,7 @@ diretiva.
      altera o de agente sem perfil (faz `setf` num `magent-request-context` real);
    - `advice-member-p` do advice em `magent-agent-process`.
 
-### Validação:
+*** Validação:
 - `just compile` (zero warnings) + `just checkdoc` (sem warnings novos) no repo.
 - Suíte FSM: `EMACS_TEST_DIR="$(pwd)"` + seletor `myemacs-magent-\(fsm\|host-profile\|watchdog\|directives\|subagent\)`.
 - Suíte completa ERT contra o repo.
@@ -413,7 +436,7 @@ diretiva.
   `roadmap.org` (entrada 2026-08-13).
 - Deploy: commit → push → `just sync` → `just compile-prod` → `just check-prod`.
 
-### Critério de aceite:
+*** Critério de aceite:
 - No `agnes`, `spawn_agent` gera job filho com backend/modelo `gemini-3.1-pro-preview`
   (log INFO `agent=... backend=... model=...`), não mais gemma local.
 - Orquestrador gemma não tenta exploração profunda; delega automaticamente e
