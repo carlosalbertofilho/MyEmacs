@@ -20,6 +20,17 @@
 (defvar +carlos/gptel-grammar-model)
 
 ;; ── jinx (spell checker JIT) ─────────────────────────────────────────
+(defun +carlos/jinx-mode-if-available ()
+  "Ativa `jinx-mode' apenas quando o módulo nativo está disponível.
+Retorna o resultado de `(jinx-mode 1)' ou nil silenciosamente quando
+`jinx-mode' não existe ou a ativação sinaliza erro (módulo C/.dylib ou
+libenchant ausente em builds parciais). Registrada nos hooks de
+text-mode/prog-mode para nunca quebrar o boot."
+  (when (fboundp 'jinx-mode)
+    (condition-case nil
+        (jinx-mode 1)
+      (error nil))))
+
 (use-package jinx
   :ensure t
   :demand t
@@ -28,8 +39,8 @@
   :config
   ;; Ativa em buffers de texto e código (comentários/strings checados
   ;; automaticamente por faces via jinx-include/exclude-faces).
-  (add-hook 'text-mode-hook #'jinx-mode)
-  (add-hook 'prog-mode-hook #'jinx-mode)
+  (add-hook 'text-mode-hook #'+carlos/jinx-mode-if-available)
+  (add-hook 'prog-mode-hook #'+carlos/jinx-mode-if-available)
 
   ;; Binds padrão do jinx, escopados ao minor-mode.
   (define-key jinx-mode-map (kbd "M-$")   #'jinx-correct)

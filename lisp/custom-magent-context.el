@@ -22,6 +22,9 @@
 (declare-function magent-session-thread "magent-ledger")
 (declare-function +carlos/magent-resolve-model "custom-magent-tools")
 (declare-function +carlos/local-ai-server-ping-p "custom-ai")
+(declare-function gptel--model-name "gptel")
+(declare-function project-root "project")
+(defvar +carlos/magent-model-max-tier 'paid)
 
 ;; ── Auto-Compactação Automática (Fase B) ────────────────────────────
 (defcustom +carlos/magent-context-compact-ratio 0.6

@@ -87,14 +87,21 @@ Pontos críticos:
 * Configuração (lisp/custom-jinx.el)
 
 ```elisp
+(defun +carlos/jinx-mode-if-available ()
+  ;; Ativa jinx-mode apenas se disponível (nil silencioso caso contrário)
+  (when (fboundp 'jinx-mode)
+    (condition-case nil
+        (jinx-mode 1)
+      (error nil))))
+
 (use-package jinx
   :ensure t
   :demand t
   :custom
   (jinx-languages "pt_BR en_US")   ; multi-idioma simultâneo
   :config
-  (add-hook 'text-mode-hook #'jinx-mode)
-  (add-hook 'prog-mode-hook #'jinx-mode)
+  (add-hook 'text-mode-hook #'+carlos/jinx-mode-if-available)
+  (add-hook 'prog-mode-hook #'+carlos/jinx-mode-if-available)
   (define-key jinx-mode-map (kbd "M-$")   #'jinx-correct)
   (define-key jinx-mode-map (kbd "C-M-$") #'jinx-languages))
 ```
@@ -105,6 +112,10 @@ Regras de uso:
 - =jinx-mode-map= é vazio por padrão (os binds M-$/C-M-$ são recomendação
   oficial e ficam livres para definição).
 - O módulo C só é compilado na *ativação* do minor-mode, não no load.
+- Os hooks de text/prog-mode registram =+carlos/jinx-mode-if-available=
+  (guard) em vez de =jinx-mode= direto: em builds parciais sem o módulo
+  nativo (.dylib/libenchant) a ativação sinaliza erro — o guard engole com
+  =condition-case= e retorna nil, evitando que o boot quebre.
 
 * Correção Gramatical via IA (gptel + Ollama/mistral)
 
@@ -163,7 +174,8 @@ Prefixos =myemacs-spell-*=:
 
 - =jinx-commands=: funções/var do jinx carregadas.
 - =jinx-languages-ptbr-enus=: =jinx-languages= contém pt_BR e en_US.
-- =jinx-hooks=: =jinx-mode= em text-mode-hook e prog-mode-hook.
+- =jinx-hooks=: o guard =+carlos/jinx-mode-if-available= em text-mode-hook e prog-mode-hook.
+- =jinx-guard-when-unavailable=: guard retorna nil sem erro com =jinx-mode= inexistente ou sinalizando erro.
 - =jinx-mode-map-binds=: M-$/C-M-$ mapeados no jinx-mode-map.
 - =jinx-module=: =+carlos/grammar-correct-region= fboundp + =C-c c g=.
 - =grammar-vars=: backends/modelo de gramática definidos.

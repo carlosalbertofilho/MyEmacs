@@ -12,6 +12,26 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-16 — [CONCLUÍDO] Guard de runtime do jinx (+carlos/jinx-mode-if-available)
+   - **Objetivo:** eliminar a fragilidade dos hooks de text-mode/prog-mode em
+     builds sem o módulo nativo do jinx (.dylib/libenchant). A proteção só
+     existia no teste (=skip-unless=), não no runtime (custom-jinx.el:31-32).
+   - **Implementação (lisp/custom-jinx.el):** nova função
+     =+carlos/jinx-mode-if-available= — predicação =(fboundp 'jinx-mode)= +
+     =condition-case= em torno de =(jinx-mode 1)=, retornando nil silencioso se
+     a função não existe ou a ativação sinaliza erro. Hooks de text/prog-mode
+     agora registram o guard em vez de =jinx-mode= direto (item [#A] do
+     TODO.org, Liquidação da Dívida Técnica de Infra).
+   - **Testes (tests/spell-test.el):** =myemacs-spell-jinx-guard-when-unavailable=
+     (mock de =jinx-mode= inexistente via fmakunbound e sinalizando erro via
+     defalias → guard retorna nil sem quebrar hook) + =myemacs-spell-jinx-hooks=
+     atualizado para assertar o guard nos hooks. 10/10 testes spell verdes.
+   - **Docs:** docs/spell-stack.org — config code block e lista de testes
+     atualizados com o guard.
+   - **Gates:** `just rebuild` repo 25/25 zero-warning; suíte repo sem regressões
+     novas vs baseline (as 12 falhas são pré-existentes de build parcial);
+     checkdoc e org-lint OK. Próxima: validação no prod (compile-prod/check-prod).
+
 ** 2026-08-16 — [CONCLUÍDO] Fix LaTeX preview automático no startup (guard toolchain)
    - **Problema:** abrir qualquer `.org` com fragmento LaTeX levantava
      `File mode specification error: (error Can't find 'latex' ...)` — o

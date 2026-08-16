@@ -204,5 +204,40 @@ a sessão cabe no teto de tokens."
     (should (stringp (car pair)))
     (should (stringp (cdr pair)))))
 
+;; ── Compilação isolada (Emacs 30 cconv) ─────────────────────────────
+(ert-deftest myemacs-magent-context-compiles-isolated ()
+  "Compilar `custom-magent-context.el' sem `custom-magent-tools' carregado
+não pode gerar erro cconv \"Unused lexical variable\" no binding dinâmico
+de `+carlos/magent-model-max-tier' (let em `+carlos/magent-compact').
+Reproduz o gate de build parcial (stale .elc): a forward declaration com o
+default real ('paid) marca a variável como special mesmo com Emacs 30.
+Skip quando o source do ambiente-alvo ainda não tem a forward declaration
+(prod pré-sync)."
+  (skip-unless (executable-find "emacs"))
+  (let* ((lisp-dir (expand-file-name
+                    "lisp"
+                    (or (getenv "EMACS_TEST_DIR") "~/.config/emacs")))
+         (file (expand-file-name "custom-magent-context.el" lisp-dir))
+         (elc (concat file "c")))
+    (skip-unless (file-exists-p file))
+    (skip-unless
+     (with-temp-buffer
+       (insert-file-contents file)
+       (string-match-p "defvar \\+carlos/magent-model-max-tier"
+                       (buffer-string))))
+    (unwind-protect
+        (with-temp-buffer
+          (let* ((code (format
+                        "(progn (setq byte-compile-error-on-warn t) \
+(byte-compile-file %S) (message \"ISOLATED-COMPILE-OK\"))"
+                        file))
+                 (status (call-process "emacs" nil (current-buffer) nil
+                                       "--batch" "-Q"
+                                       "-L" lisp-dir
+                                       "--eval" code)))
+            (should (zerop status))
+            (should (string-match-p "ISOLATED-COMPILE-OK" (buffer-string)))))
+      (when (file-exists-p elc) (delete-file elc)))))
+
 (provide 'context-test)
 ;;; context-test.el ends here

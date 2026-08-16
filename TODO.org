@@ -95,11 +95,12 @@ executor, prazo, critério de saída e abordagem concreta.
       (253/0/7) + boot batch e interativo sem warnings custom-*.
     - *Prazo:* 2026-08-18.
 
-*** TODO [#A] Guard de runtime do jinx (=+carlos/jinx-mode-if-available=)
+*** DONE [#A] Guard de runtime do jinx (=+carlos/jinx-mode-if-available=)
     :PROPERTIES:
     :ASSIGNEE: executor
     :DUE: 2026-08-17
-    :STATUS: backlog
+    :STATUS: done
+    :RESOLVED: 2026-08-16
     :END:
     - *Objetivo:* impedir erro silencioso nos hooks de text-mode/prog-mode em
       builds sem o módulo nativo (.dylib/libenchant). Hoje a proteção só existe
@@ -114,6 +115,14 @@ executor, prazo, critério de saída e abordagem concreta.
     - *Critério de saída:* boot em build parcial do repo sem erro nos hooks;
       suíte verde; compile zero-warning.
     - *Prazo:* 2026-08-17.
+    - *Execução (2026-08-16):* `+carlos/jinx-mode-if-available` implementado em
+      custom-jinx.el (fboundp + condition-case → nil silencioso); hooks de
+      text/prog-mode apontam para o guard; teste
+      `myemacs-spell-jinx-guard-when-unavailable` (mock de `jinx-mode`
+      inexistente/sinalizando erro → retorna nil sem quebrar hook) + hooks
+      atualizado. Docs: docs/spell-stack.org. Validação: 10/10 spell tests,
+      suíte repo sem regressões novas vs baseline (12 falhas pré-existentes de
+      build parcial), `just rebuild` 25/25 zero-warning, checkdoc/org-lint OK.
 
 *** DONE [#C] Corrigir epdfinfo do Nix abortando no macOS (Abort trap: 6)
     :PROPERTIES:
@@ -156,7 +165,7 @@ executor, prazo, critério de saída e abordagem concreta.
     - *Prazo:* 2026-08-17.
 
 *** Ordem de execução recomendada
-1. Guard do jinx (item mais rápido; elimina fragilidade de hooks).
+1. Guard do jinx — DONE 2026-08-16 (implementado e testado; item [#A] acima).
 2. Arquivar agent-shell (fecha pendência em 15 min).
 3. Elpaca ([:ensure (:wait t)]) — decisão com critério de saída.
 4. epdfinfo — DONE 2026-08-16 (fix poppler no MyMachine, commit f4f6ffc).
@@ -273,10 +282,9 @@ Ativo) — não duplicar; o plano define executor, prazo e critério de saída.
    falhas.
 2. *Guarda de Runtime para Módulo Nativo Jinx:* encapsular a inicialização do
    =jinx-mode= em =+carlos/jinx-mode-if-available= (evitando erro de compilação
-   do =.dylib= em builds parciais do repo que quebram hooks de =prog-mode=) foi
-   adiado porque o =skip-unless= nos testes mitigou o problema em batch.
-   *Decisão pendente:* aplicar ou não o helper seguro para portabilidade
-   universal ("Works anywhere").
+   do =.dylib= em builds parciais do repo que quebram hooks de =prog-mode=).
+   *RESOLVIDO 2026-08-16* (item [#A] acima) — guard implementado, hooks
+   atualizados, teste de regressão na suíte.
 3. *epdfinfo Nix aborta ao ser spawnado pelo Emacs no macOS:* *RESOLVIDO
    2026-08-16* (item [#C] acima) — a causa-raiz era o poppler 26.06.0 do Nix
    sem o fix do mutex (Issue #1743 / commit 08f4bca6 / release 26.07.0),

@@ -28,9 +28,27 @@
   (should (string-match-p "en_US" jinx-languages)))
 
 (ert-deftest myemacs-spell-jinx-hooks ()
-  (skip-unless myemacs-spell-jinx-available)
-  (should (memq 'jinx-mode text-mode-hook))
-  (should (memq 'jinx-mode prog-mode-hook)))
+  "O guard `+carlos/jinx-mode-if-available' está registrado nos hooks
+em vez de `jinx-mode' direto (proteção para builds sem o módulo nativo)."
+  (skip-unless (fboundp '+carlos/jinx-mode-if-available))
+  (should (memq '+carlos/jinx-mode-if-available text-mode-hook))
+  (should (memq '+carlos/jinx-mode-if-available prog-mode-hook)))
+
+(ert-deftest myemacs-spell-jinx-guard-when-unavailable ()
+  "O guard deve retornar nil sem erro quando `jinx-mode' está indisponível
+ou sinaliza erro — hooks de text/prog-mode não podem quebrar."
+  (skip-unless (fboundp '+carlos/jinx-mode-if-available))
+  (let ((orig (when (fboundp 'jinx-mode) (symbol-function 'jinx-mode))))
+    (unwind-protect
+        (progn
+          (fmakunbound 'jinx-mode)
+          (should-not (+carlos/jinx-mode-if-available))
+          (defalias 'jinx-mode (lambda (&optional _arg)
+                                 (error "native module missing")))
+          (should-not (+carlos/jinx-mode-if-available)))
+      (if orig
+          (fset 'jinx-mode orig)
+        (fmakunbound 'jinx-mode)))))
 
 (ert-deftest myemacs-spell-jinx-mode-map-binds ()
   (skip-unless myemacs-spell-jinx-available)
