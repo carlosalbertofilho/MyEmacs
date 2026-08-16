@@ -215,6 +215,12 @@ inteiro colado.
     - `git_blame_line`: Lê a mensagem de commit e o autor de uma linha (via Magit) para dar contexto de *porquê* lógicas legadas ou workarounds existem, guiando refatorações com segurança.
     - Integração com `forge`: Lê Issues e Pull Requests da plataforma e sincroniza o trabalho local com o planejamento remoto.
     - Ferramentas nativas do Magit: Controle de staging seletivo, rebase interativo, checkout de branches e *commit message generation*.
+- **D9. Criação da Equipe de Especialistas (Expansão de Perfis Futuros):**
+  - *Objetivo:* Expandir a orquestração para cobrir todo o ciclo de vida de um projeto, criando subagentes hiper-especializados baseados nos ecossistemas nativos do Emacs. Serão desenhados iterativamente após os perfis `coder` e `archeologist`.
+  - *Perfil `sysadmin` (ou `devops`):* Senhor da Infraestrutura. Usa **TRAMP** e Eshell para acessar servidores via SSH de forma transparente (`/ssh:user@ip`). Capaz de ler logs em produção (`tramp_read_file`), rodar comandos remotos e editar configurações de root (`sudo`) diretamente da sessão local do Emacs.
+  - *Perfil `planner` (ou `architect`):* Gerente de Produto e Tech Lead. Opera via **Org-mode** e **Org-Babel**. Em vez de emitir markdown livre, manipula a AST estrutural `.org` (`org_read_subtree`, `org_insert_heading`), injeta *TODOs*, altera metadados de planejamento e gera diagramas arquiteturais via `ob-mermaid`.
+  - *Perfil `librarian` (ou `researcher`):* Guardião do Zettelkasten. Especialista em RAG local sobre a base do **Denote**. Cruza *backlinks*, pesquisa por *keywords* em silos específicos e extrai conhecimento pré-existente do próprio usuário, evitando reinventar a roda.
+  - *Perfil `reviewer` (ou `qa`):* Integrador Contínuo. Garante o *zero-warning*. Interage fortemente com *Task Runners* (**Justfile**) da raiz do projeto (`just test-all`) e compila código Lisp em memória (*byte-compile*) para atestar a estabilidade sintática antes de qualquer commit ser sugerido ao usuário.
 
 
 ## 2. Decisões Registradas
