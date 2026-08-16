@@ -246,6 +246,14 @@ inteiro colado.
     - *Análise Forense ERT:* A ferramenta `ert_analyze_failure` varre logs de testes batch do Emacs e extrai **apenas a pilha de chamadas (Backtrace)**, traduzindo spam em feedback acionável para o Coder.
     - *Validação Poliglota via REPL:* A ferramenta `polyglot_eval_snippet` usa o motor do Org-Babel e buffers Comint para criar um sandbox onde o QA testa trechos de código (Python, TS, Go, C) isoladamente antes de aprovar (TDD executado pela IA).
     - *Padrões Estritos:* Usa `elisp_byte_compile_file` para barrar *Warnings* Lisp em memória e `elisp_checkdoc` para exigir documentação padronizada.
+  - *Perfil `auditor` (ou `staff-engineer`):* Revisor de Arquitetura e Guardião dos Padrões (SOLID e Norminette).
+    - *O Carrasco das Linhas:* A ferramenta `treesit_count_executable_lines` usa a AST do tree-sitter para impor um limite rígido de 25 linhas executáveis (C/Norminette da Ecole 42) ou 30 linhas (outras linguagens), barrando funções monstruosas e forçando modularidade.
+    - *Conformidade com RFCs:* A ferramenta `read_rfc_spec` permite que o Auditor consulte as especificações técnicas oficiais (ex: OAuth 2.0, JWT) da IETF. Ele barra planos que inventem "o que funciona" em vez de seguir o padrão da indústria.
+    - *Auditoria de Complexidade:* Rejeita funções com mais de 4 níveis de indentação ou violações óbvias do Princípio da Responsabilidade Única (SOLID).
+  - *Perfil `sec-ops` (ou `red-team`):* Especialista em Segurança, OWASP e Criptografia.
+    - *Leitor de "Security Considerations":* Orientado a focar estritamente na seção de segurança das RFCs ao validar um plano de implementação do Planner (ex: checar proteções de Origin Check em WebSockets).
+    - *OWASP Top 10 Nativo:* Ferramentas de análise profunda para barrar injeção de comandos (bash gerado pelo agente), Path Traversal (manipulação maliciosa de TRAMP) e XSS.
+    - *Policiamento Criptográfico:* Impede a aprovação de PRs/planos que utilizem algoritmos obsoletos (MD5, SHA1) ou que façam *hardcode* de senhas, exigindo uso do Agenix ou do padrão NIST/FIPS.
 
 
 ** 2. Decisões Registradas
