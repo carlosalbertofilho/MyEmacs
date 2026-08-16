@@ -63,6 +63,41 @@ inteiro colado.
 
 * Backlog Ativo (Pendências e Planos Futuros)
 
+** TODO [#A] Corrigir FSM do Magent para Isolamento e Ciclo de Vida de Subagentes
+    :PROPERTIES:
+    :CREATED: 2026-08-16
+    :STATUS: plano aprovado
+    :END:
+
+*Contexto e Causa-Raiz (Análise de Log):*
+O log da FSM do Magent registrou a seguinte oscilação espúria de estados durante a execução de um subagente (=agent-20260816-133137=):
+#+begin_example
+[Magent FSM] idle → verifying
+[Magent FSM] verifying → subagent-waiting
+Magent UI: [13:31:37] ✓ spawn_agent · 0.1s
+[Magent FSM] subagent-waiting → idle
+Magent UI: [13:31:43] ⚙ [Understand tool structure...] read_file
+[Magent FSM] idle → verifying
+[Magent FSM] verifying → subagent-waiting
+[Magent FSM] subagent-waiting → idle
+#+end_example
+
+Diagnosticada a causa-raiz em =lisp/custom-magent-fsm.el=:
+1. *Invasão de escopo por eventos do subagente:* Os sinks de ciclo de vida =+carlos/magent-fsm-turn-start-sink= e =+carlos/magent-fsm-turn-end-sink= são registrados globalmente via =magent-lifecycle-events-add-sink=. Quando o subagente executa turnos (ex: =read_file=, =grep=), os sinks disparam no contexto da sessão do subagente.
+2. *Limpeza prematura do cache de jobs:* No =turn-end= do subagente, =+carlos/magent-fsm-subagent-session-jobs= avalia =(magent-tools--parent-session)= no contexto do subagente (que não possui sub-subagentes), retornando =nil=. Isso faz =+carlos/magent-fsm-refresh-subagent-jobs= redefinir =+carlos/magent-fsm-subagent-jobs= como =nil=.
+3. *Transição indevida para =idle=:* Como =+carlos/magent-fsm-pending-subagent-p= passa a retornar =nil=, o sink de =turn-end= força a FSM do orquestrador de =subagent-waiting= para =idle= enquanto o subagente ainda está em execução.
+
+- *Objetivo:* Garantir que eventos de turno originados de subagentes não corrompam o estado da FSM do orquestrador principal nem transicionem a FSM prematuramente para =idle=.
+- *Abordagem de Implementação:*
+  1. *Filtro de Escopo de Sessão:* Atualizar os sinks em =custom-magent-fsm.el= para verificar se o evento pertence à sessão principal da FSM (comparando o ID da sessão do evento com =+carlos/magent-fsm-session= ou validando a sessão raiz).
+  2. *Preservação de Jobs Ativos:* Garantir que a consulta de jobs ativos em =+carlos/magent-fsm-subagent-session-jobs= inspecione a sessão raiz do orquestrador, e não a sessão filha do subagente.
+  3. *Manutenção de Estado:* Manter o estado da FSM em =subagent-running= / =subagent-waiting= até que TODOS os subagentes da sessão principal terminem (=completed= ou =failed=).
+  4. *Testes de Regressão ERT:* Adicionar testes em =tests/magent-fsm-test.el= simulando turnos de subagentes para validar que =+carlos/magent-fsm-state= permanece em =subagent-waiting= / =subagent-running= e não cai em =idle=.
+- *Critério de saída:*
+  - =just test= passa sem regressões (incluindo os novos testes da FSM).
+  - =just compile= com zero warnings.
+  - Ausência de transição espúria de =subagent-waiting= / =subagent-running= para =idle= durante a execução de subagentes.
+
 ** TODO [#A] Liquidação da Dívida Técnica de Infraestrutura (Plano aprovado)
     :PROPERTIES:
     :CREATED: 2026-08-16
