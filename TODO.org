@@ -161,6 +161,50 @@ executor, prazo, critério de saída e abordagem concreta.
 3. Elpaca ([:ensure (:wait t)]) — decisão com critério de saída.
 4. epdfinfo — DONE 2026-08-16 (fix poppler no MyMachine, commit f4f6ffc).
 
+** TODO [#C] Comando =+carlos/org-table-fit-window= (AutoFit à janela p/ tabelas org)
+    :PROPERTIES:
+    :CREATED: 2026-08-16
+    :STATUS: backlog
+    :END:
+
+*Contexto:* tabelas org são linhas de texto únicas — o autofit padrão só *cresce*
+colunas, nunca *quebra* texto de célula. Quando a tabela é mais larga que a
+janela, a linha estoura a borda (truncada). O Org desta versão (Emacs 30) não
+tem `org-table-fit-window` (verificado no fonte `org-table.el`); o Word resolve
+com AutoFit to Window. O objetivo é emular esse comportamento.
+
+- *Objetivo:* comando que ajusta a tabela no cursor para caber na largura da
+  janela (wrap de células + encolher colunas excedentes).
+- *Abordagem (implementar em custom-org.el):*
+  1. `user-error` se não estiver em tabela (`org-at-table-p`); preservar point.
+  2. Medir largura da tabela (soma dos máximos por coluna + separadores `| `,
+     ignorando linhas separadoras) vs. largura disponível
+     (`(window-text-width)`).
+  3. Se já cabe: no-op com message. Se não cabe:
+     a. *wrap por coluna* — da mais larga para a menor, selecionar
+        programaticamente as células da coluna (point/mark na mesma coluna) e
+        chamar `org-table-wrap-region` com largura-alvo heurística
+        (largura restante ÷ colunas restantes; mínimo 3 chars).
+     b. *fallback cookies* — se ainda exceder, aplicar cookies `<lN>` nas
+        colunas excedentes + `org-table-shrink` (`C-u C-c TAB`).
+  4. Fechar com `org-table-align` e restaurar point.
+- *Riscos/guardas a validar:*
+  - `org-table-wrap-region` exige região na mesma coluna e pode sobrescrever
+    linhas abaixo (docstring) — construir seleção por coluna com
+    goto-line/goto-column + `set-mark`, e dar espaço antes se necessário.
+  - Não tocar em campos com newline/blocos de código já presentes.
+  - Janela muito estreita: respeitar largura mínima, senão message orientando
+    a encolher manualmente.
+- *Keybinding:* sem binding por enquanto (chamar via `M-x`); decidir prefixo
+  depois de verificar colisões na suíte (ex.: `C-c o w`).
+- *Critério de saída:* tabela mais larga que a janela passa a caber (largura ≤
+  janela) com alinhamento preservado; `just compile` zero-warning; suíte ERT
+  verde.
+- *Teste:* `myemacs-org-table-fit-window` em tests/org-test.el — montar tabela
+  larga num buffer, mockar `window-text-width` (ex.: `cl-letf`), executar,
+  assertar que largura final ≤ largura mockada e alinhamento íntegro.
+- *Prazo:* 2026-08-20.
+
 ** TODO Magent como Driver do Emacs — Fase B & C (Operação em Buffer Vivo)
     :PROPERTIES:
     :CREATED: 2026-08-12
