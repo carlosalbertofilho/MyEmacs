@@ -724,17 +724,17 @@ Magent uses a team of highly specialized agent profiles (subagents) to maintain 
 
 ** 5. Tech Writer / Librarian (RAG Guardian)
 - *Role:* Knowledge Engineer. Maintains `docs/` as the Single Source of Truth.
-- *Pipeline:* Uses `markitdown` (Microsoft) to cleanly extract external sources (PDF/PPTX) into RAG-optimized Org-mode AST.
+- *Pipeline (RAG ETL):* Uses `markitdown` (Microsoft) ONLY as a transient extraction middleware in `/tmp`. Uses the `Denote` package ecosystem (Zettelkasten) to actively synthesize, tag, and link the extracted knowledge into structured Org-mode files (`denote-create-note`, `denote-link-or-create`).
 - *Tools:* `rag_sync_api` (syncs Lisp docstrings to docs), `rag_verify_integrity` (Denote backlinks and broken references).
 
 ** 6. Auditor (Staff Engineer)
 - *Role:* Architecture Reviewer and Standards Guardian (SOLID and Norminette).
 - *Rules:* Enforces a strict 25/30 executable line limit (Ecole 42/Norminette) using `treesit_count_executable_lines`.
-- *Compliance:* Uses `read_rfc_spec` to ensure the codebase follows official IETF specs (OAuth, JWT) instead of ad-hoc implementations.
+- *Compliance:* Uses `rfc_search_topic` and `rfc_read_section` (powered by `rfc-mode`) to ensure the codebase follows official IETF specs (OAuth, JWT) with zero hallucination and extreme token efficiency.
 
 ** 7. Sec-Ops (Red Team)
 - *Role:* Security, OWASP, and Cryptography Specialist.
-- *Rules:* Strictly reads the "Security Considerations" section of RFCs. 
+- *Rules:* Strictly uses `rfc_read_section` to extract ONLY the "Security Considerations" section of RFCs, dodging context bloat.
 - *Audits:* Blocks Command Injection (bash), Path Traversal (TRAMP), and cryptographic failures (enforces modern AES-GCM/Argon2 and Agenix secrets).
 
 ** 8. QA / Reviewer
