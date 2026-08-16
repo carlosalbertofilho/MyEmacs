@@ -187,74 +187,50 @@ inteiro colado.
 - `just lint` (compile+checkdoc), `just test` prod, `just sync` + `just compile-prod` + `just check-prod`, `just test-all`.
 - Atualizar roadmap.org e esta seção do TODO.md ao concluir.
 
-**Plano de Ação — Fase D+: Evolução da Orquestração e Perfil Coder (Driver do Emacs)**
+** Plano de Ação — Fase D+: Evolução da Orquestração e Equipe de Especialistas
 
-- **D4. Criação do Perfil `coder` (Operador de Buffer Vivo):**
-  - *Objetivo:* Especializar um subagente voltado inteiramente para atuar como o "Driver do Emacs", manipulando o buffer em tempo real (`point`, `region`) como um parceiro de pair-programming. Ele nunca atuará nos arquivos físicos em disco.
-  - *Safety By Design (Menor Privilégio Invertido):* O perfil `coder` terá as permissões de acesso cru ao disco (`write_file` e `edit_file`) EXPRESSAMENTE REMOVIDAS. Todo o seu output ocorrerá interativamente em buffers abertos.
-  - *Ferramentas de Mutação Ligeiras (A Implementar):*
-    - `buffer_insert`: Insere texto em uma linha específica ou no `point` atual.
-    - `buffer_replace_region`: Substitui um bloco (por index de linhas), superando as falhas de alucinação do `old_text` enfrentadas no `edit_file`.
-    - `buffer_undo`: Permite ao agente "dar Ctrl+Z" em sua própria edição se a validação subsequente falhar.
-  - *Ferramentas Sensoriais de Introspecção (A Implementar):*
-    - `lsp_hover`: Move o cursor virtual e extrai o popup do `eglot-hover-eldoc-function` (docstrings, assinaturas e tipos do LSP em tempo real), evitando que o modelo alucine APIs de bibliotecas que não conhece.
-    - `describe_elisp_symbol`: Executa `describe-function`/`describe-variable` e retorna o texto puro do buffer `*Help*`. Essencial para dar *Context Awareness* exato quando o agente precisar escrever ou alterar configurações Lisp do próprio Emacs.
-    - `lsp_references`: Busca e retorna trechos de código mostrando onde e como uma API foi chamada no projeto, fornecendo padrões de uso.
-    - `treesit_context`: Retorna o caminho da árvore AST (`treesit-auto`) no ponto atual (ex: `Class -> Method -> if_statement`), orientando o agente espacialmente no buffer antes de inserir código.
-  - *Ferramentas Avançadas Futuras (Pós-Fundação Coder):*
-    - `buffer_outline`: Utiliza `imenu` para devolver um mapa semântico instantâneo do arquivo (Classes, Métodos e Linhas), eliminando a necessidade de ler arquivos gigantes.
-    - `treesit_edit_node`: Edição estrutural via AST (possível integração com pacote `combobulate`). O modelo deleta/substitui nós lógicos (funções/ifs) em vez de usar contagem de linhas e manipulação de strings.
-    - `repl_eval_region`: TDD para IA. Envia blocos de código silenciosamente para um processo `comint` / REPL em background e atesta o resultado antes de encerrar o turno.
-    - `read_devdocs`: Integração com `devdocs.el` para o agente consultar manuais completos offline (React, Python, Go) no próprio Emacs, garantindo zero alucinação.
-  - *Fluxo de Trabalho (Loop In-Process):*
-    1. O Orquestrador mapeia a arquitetura e invoca `spawn_agent` no perfil `coder`.
-    2. `coder` usa `lsp_navigation` para injetar contexto 100% correto do código alvo.
-    3. `coder` roda `snippet_expand` para injetar esqueletos sintáticos (templates do Tempel).
-    4. `coder` preenche os placeholders do snippet usando `buffer_insert`/`buffer_replace_region`.
-    5. `coder` aciona `flycheck_errors` no buffer vivo. Erros reais do linter realimentam o modelo para uma correção imediata na memória.
-    6. O turno termina. O usuário visualiza as alterações renderizadas no editor, com controle total para salvá-las ou descarta-las (`C-x C-s`).
-- **D5. Context Sharing Dinâmico para Subagentes (`spawn_agent` aprimorado):**
-  - *Objetivo:* Injetar automaticamente contexto relevante (ex: caminho do buffer ativo, sumário do plano do orquestrador) nos prompts enviados a subagentes, evitando que o Orquestrador gaste tokens redundantes pedindo para o subagente ler arquivos que já estão em escopo.
-- **D6. Feedback de UI Visual para Delegação (Fase C+):**
-  - *Objetivo:* Enriquecer o painel `*Magent*` para exibir barras de progresso ou *spinners* animados enquanto a FSM do orquestrador bloqueia no estado `subagent-waiting`. Prover feedback transparente de que um modelo pesado na nuvem (Gemini Pro) assumiu a tarefa.
-- **D7. Testes Unitários de Permissão (ERT):**
-  - *Objetivo:* Adicionar testes em `tests/magent-routing-test.el` simulando `agent-info` de Orquestrador e Subagentes, garantindo que o catálogo filtrado (`magent-tools-get-gptel-tools-for-permission`) aplique corretamente o let-binding de restrição (D1/D2/D3).
-- **D8. Criação do Perfil `archeologist` (Gestor de Versionamento e Magit/Forge):**
-  - *Objetivo:* Garantir que a feature validada pelo QA seja perfeitamente documentada, commitada e sincronizada remotamente, agindo como Gerente de Lançamentos e Historiador.
-  - *Ferramentas Projetadas:*
-    - *O Historiador:* A ferramenta `git_blame_line` aciona a API do Magit para ler não apenas o autor, mas a mensagem original do commit, aconselhando o Orquestrador sobre *porquê* workarounds ou lógicas legadas existem antes de permitir refatorações perigosas.
-    - *Integração de Plataforma:* A ferramenta `forge_read_issue` usa o pacote Forge para extrair tickets e *Pull Requests* diretamente do GitHub/GitLab para o prompt, dando contexto de negócio ao Planner e ao Coder.
-    - *Commit Semântico Estruturado:* A ferramenta `magit_commit_semantic` aciona o `magit_diff_staged`, valida contra a convenção (Conventional Commits), cruza com o sumário arquitetural, faz o commit e finalmente executa a publicação (`git push` / `just deploy`).
-- **D9. Criação da Equipe de Especialistas (Expansão de Perfis Futuros):**
-  - *Objetivo:* Expandir a orquestração para cobrir todo o ciclo de vida de um projeto, criando subagentes hiper-especializados baseados nos ecossistemas nativos do Emacs. Serão desenhados iterativamente após os perfis `coder` e `archeologist`.
-  - *Perfil `sysadmin` (ou `devops`):* Senhor da Infraestrutura. Operador de servidores, Docker e NixOS focado em resiliência.
-    - *Motor TRAMP de Alta Resiliência:* Usa o protocolo Mosh (`/mosh:user@ip:`) no lugar do SSH para evitar timeouts de VPN/3G durante operações remotas demoradas.
-    - *Docker Integration:* A ferramenta `docker_tramp_read` usa o suporte embutido do Emacs (`/docker:container:/path`) para o agente ler e editar configurações e investigar logs *por dentro* dos containers em execução, exatamente como se fossem locais.
-    - *Execução Assíncrona (O Jeito NixOS):* A ferramenta `nixos_transient_job` encapsula builds ou scripts em um `systemd-run --user --remain-after-exit`. O agente lança o job, desconecta, e depois usa `tramp_journalctl` para checar os logs daquela `unit`, orquestrando fire-and-forget perfeito no NixOS.
-    - *Gerenciamento Declarativo Remoto:* Acesso via `tramp_sudo_edit` seguido de `nixos_remote_build` permite que o agente altere o `/etc/nixos/configuration.nix` e faça o switch verificando a saúde dos serviços (`tramp_systemd_status`).
-  - *Perfil `planner` (ou `architect`):* Gerente de Produto e Tech Lead. Responsável por desenhar a fundação antes do código.
-    - *Edição Estrutural Pura:* Usa ferramentas nativas do Org-mode (`org_insert_heading`, `org_add_todo`) para injetar metas na AST do arquivo em vez de cuspir Markdown livre.
-    - *Anti-Alucinação de Diagramas:* A ferramenta `mermaid_validate` testa a sintaxe do bloco `#+begin_src mermaid` em background para garantir que o diagrama renderiza corretamente.
-    - *Mapeamento de Escopo:* `project_tree_summary` dá a visão de pastas via `project.el` para o arquiteto apontar o local correto da intervenção.
-    - *Design Orientado a Bifurcação (Estilo OpenCode):* O Planner NUNCA delega automaticamente para o Coder após desenhar. Quando há caminhos arquiteturais concorrentes, ele pausa a execução, expõe os dois caminhos opostos e os fundamentos de cada um (trade-offs), e exige que o usuário escolha o caminho (ADR) interativamente antes de carimbar o `roadmap.org`.
-  - *Perfil `librarian` (ou `tech-writer`):* Engenheiro de Conhecimento e Guardião do RAG. Mantém a pasta `docs/` como Fonte Única de Verdade.
-    - *Fábrica de RAG via MarkItDown:* A ferramenta `rag_convert_document` padroniza o consumo de fontes externas ricas (PDFs, PPTXs, HTMLs). Ela usa a biblioteca `markitdown` (Microsoft) para extração limpa para Markdown e, em seguida, injeta na estrutura semântica nativa do Org-mode, criando RAG indexável de alta qualidade.
-    - *Sincronização Código ↔ Docs:* A ferramenta `rag_sync_api` monitora as alterações feitas pelo Coder, extrai as novas *docstrings* via AST e atualiza cirurgicamente a documentação de referência em `docs/`, garantindo que IAs futuras não alucinem baseadas em código stale.
-    - *Integridade Zettelkasten:* Especialista no **Denote**, cruza *backlinks* e usa `rag_verify_integrity` para caçar arquivos que citam funções deletadas pelo Archeologist, mantendo a documentação viva e coerente.
-  - *Perfil `reviewer` (ou `qa`):* Integrador Contínuo. O Porteiro da Base de Código (Regra de Zero-Warnings e Zero-Regressions).
-    - *Task Runner Integrado:* A ferramenta `just_run_recipe` aciona comandos estritos do Justfile (`test-all`, `compile-prod`) capturando `exit-code` e saídas segregadas para atestar a estabilidade.
-    - *Análise Forense ERT:* A ferramenta `ert_analyze_failure` varre logs de testes batch do Emacs e extrai **apenas a pilha de chamadas (Backtrace)**, traduzindo spam em feedback acionável para o Coder.
-    - *Validação Poliglota via REPL:* A ferramenta `polyglot_eval_snippet` usa o motor do Org-Babel e buffers Comint para criar um sandbox onde o QA testa trechos de código (Python, TS, Go, C) isoladamente antes de aprovar (TDD executado pela IA).
-    - *Padrões Estritos:* Usa `elisp_byte_compile_file` para barrar *Warnings* Lisp em memória e `elisp_checkdoc` para exigir documentação padronizada.
-  - *Perfil `auditor` (ou `staff-engineer`):* Revisor de Arquitetura e Guardião dos Padrões (SOLID e Norminette).
-    - *O Carrasco das Linhas:* A ferramenta `treesit_count_executable_lines` usa a AST do tree-sitter para impor um limite rígido de 25 linhas executáveis (C/Norminette da Ecole 42) ou 30 linhas (outras linguagens), barrando funções monstruosas e forçando modularidade.
-    - *Conformidade com RFCs:* A ferramenta `read_rfc_spec` permite que o Auditor consulte as especificações técnicas oficiais (ex: OAuth 2.0, JWT) da IETF. Ele barra planos que inventem "o que funciona" em vez de seguir o padrão da indústria.
-    - *Auditoria de Complexidade:* Rejeita funções com mais de 4 níveis de indentação ou violações óbvias do Princípio da Responsabilidade Única (SOLID).
-  - *Perfil `sec-ops` (ou `red-team`):* Especialista em Segurança, OWASP e Criptografia.
-    - *Leitor de "Security Considerations":* Orientado a focar estritamente na seção de segurança das RFCs ao validar um plano de implementação do Planner (ex: checar proteções de Origin Check em WebSockets).
-    - *OWASP Top 10 Nativo:* Ferramentas de análise profunda para barrar injeção de comandos (bash gerado pelo agente), Path Traversal (manipulação maliciosa de TRAMP) e XSS.
-    - *Policiamento Criptográfico:* Impede a aprovação de PRs/planos que utilizem algoritmos obsoletos (MD5, SHA1) ou que façam *hardcode* de senhas, exigindo uso do Agenix ou do padrão NIST/FIPS.
+*** TODO D4. Codificar Ferramentas do Perfil `coder` (Operador de Buffer Vivo)
+    :PROPERTIES:
+    :ASSIGNEE: coder
+    :STATUS: backlog
+    :TAGS: :magent:tools:
+    :END:
+    Implementar as mutações `buffer_insert`, `buffer_replace_region`, `buffer_undo` e sensores `lsp_hover`, `describe_elisp_symbol`. (Ver docs/magent-reference.org para a arquitetura completa).
 
+*** TODO D5. Context Sharing Dinâmico para Subagentes
+    :PROPERTIES:
+    :ASSIGNEE: orquestrador
+    :STATUS: backlog
+    :END:
+    Injetar automaticamente contexto relevante nos prompts enviados a subagentes (`spawn_agent` aprimorado).
+
+*** TODO D6. Feedback de UI Visual para Delegação (Fase C+)
+    :PROPERTIES:
+    :ASSIGNEE: coder
+    :STATUS: backlog
+    :END:
+    Enriquecer o painel `*Magent*` com spinners enquanto a FSM bloqueia em `subagent-waiting`.
+
+*** TODO D7. Testes Unitários de Permissão (ERT)
+    :PROPERTIES:
+    :ASSIGNEE: qa
+    :STATUS: backlog
+    :END:
+    Adicionar testes em `tests/magent-routing-test.el` simulando `agent-info`.
+
+*** TODO D8. Criação das Ferramentas do Perfil `archeologist`
+    :PROPERTIES:
+    :ASSIGNEE: coder
+    :STATUS: backlog
+    :END:
+    Implementar `git_blame_line`, `forge_read_issue` e `magit_commit_semantic`.
+
+*** TODO D9. Instanciar a Equipe de Especialistas (Sysadmin, Planner, Tech Writer, Auditor, Sec-Ops, QA)
+    :PROPERTIES:
+    :ASSIGNEE: planner
+    :STATUS: backlog
+    :END:
+    Criar o prompt base de cada subagente em Lisp conforme as especificações arquiteturais (movidas para `docs/magent-reference.org`).
 
 ** 2. Decisões Registradas
 
