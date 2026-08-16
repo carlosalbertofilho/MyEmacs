@@ -1,6 +1,7 @@
 #+TITLE: Denote Reference Guide
 #+AUTHOR: Generated Reference
 #+DATE: 2026-08-05
+#+LAST_MODIFIED: 2026-08-16
 #+DESCRIPTION: Comprehensive reference for Denote - a simple note-taking system for Emacs
 
 * Table of Contents
@@ -126,7 +127,7 @@ Your content here.
 | Variable                | Type   | Default              | Description                            |
 |-------------------------+--------+----------------------+----------------------------------------|
 | =denote-directory=      | string | =~/org/notes=        | Root directory for all notes           |
-| =denote-silo-extras=    | list   | =nil=                | Additional silo directories (if using silo package) |
+| =+carlos/denote-silo-directories= | list | =(~/org/notes)= | Silos locais (impl. local; ver *Denote Silos*) |
 | =denote-rename-file-using-front-matter= | boolean | =t= | Rename file based on front matter changes |
 
 ** Keyword Configuration
@@ -185,7 +186,7 @@ Your content here.
 | =denote-type=           | =M-x denote-type=   | Create note, prompt for file type        |
 | =denote-subdirectory=   | =M-x denote-subdirectory= | Create note in subdirectory        |
 | =denote-template=       | =M-x denote-template= | Create note from template             |
-| =denote-silo-new=       | =M-x denote-silo-new= | Create note in a silo                |
+| =+carlos/denote-silo-new= | =C-c n s= | Create note in a silo (impl. local) |
 | =denote-open-or-create= | =M-x denote-open-or-create= | Open existing or create new      |
 
 ** Note Management
@@ -197,7 +198,7 @@ Your content here.
 | =denote-open=             | =M-x denote-open=         | Open a note by identifier        |
 | =denote-delete=           | =M-x denote-delete=       | Delete current note              |
 | =denote-dired=            | =M-x denote-dired=        | Open Dired in denote directory   |
-| =denote-dired-silo=       | =M-x denote-dired-silo=   | Open Dired in a silo directory   |
+| =+carlos/denote-silo-dired= | =C-c n S= | Open Dired in a silo directory (impl. local) |
 
 ** Linking and Backlinks
 

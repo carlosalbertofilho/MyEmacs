@@ -57,7 +57,7 @@ e match exato — modelo forte obrigatório."
   (dolist (task '("Update the planning document to include model flexibility"
                   "Edit the README to document the new API"
                   "Rewrite the module implementing the new schema"
-                  "Atualizar o TODO.md com as novas fases"
+                   "Atualizar o TODO.org com as novas fases"
                   "Implement the authentication flow"))
     (should (eq (+carlos/magent-task-complexity task) 'deep))))
 

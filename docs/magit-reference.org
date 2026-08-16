@@ -1,6 +1,7 @@
 #+TITLE: Magit Reference Guide
 #+AUTHOR: Generated Reference
 #+DATE: 2026-08-05
+#+LAST_MODIFIED: 2026-08-16
 #+DESCRIPTION: Comprehensive reference for Magit - the Git porcelain for Emacs
 
 * Table of Contents
@@ -492,10 +493,13 @@ o padrão:
                (goto-char (point-min))
                (insert (string-trim response))))))))))
 
-;; Atalho dentro do buffer de commit
-(add-hook 'git-commit-mode-hook
-          (lambda ()
-            (local-set-key (kbd "C-c C-g") #'+carlos/gptel-insert-commit-message)))
+;; Atalho dentro do buffer de commit (magit e git-commit).
+;; Bind direto no mapa (não via hook) — aplica já no carregamento e é
+;; verificável em batch.
+(with-eval-after-load 'git-commit
+  (when (boundp 'git-commit-mode-map)
+    (define-key git-commit-mode-map (kbd "C-c C-g")
+      #'+carlos/gptel-insert-commit-message)))
 (with-eval-after-load 'magit
   (when (boundp 'magit-commit-mode-map)
     (define-key magit-commit-mode-map (kbd "C-c C-g")
@@ -731,9 +735,10 @@ full Magit package to be initialized.
                  (goto-char (point-min))
                  (insert msg)))))))))
 
-(add-hook 'git-commit-mode-hook
-          (lambda ()
-            (local-set-key (kbd "C-c C-g") #'+carlos/gptel-insert-commit-message)))
+(with-eval-after-load 'git-commit
+  (when (boundp 'git-commit-mode-map)
+    (define-key git-commit-mode-map (kbd "C-c C-g")
+      #'+carlos/gptel-insert-commit-message)))
 #+end_src
 
 ** Large Repository Optimization

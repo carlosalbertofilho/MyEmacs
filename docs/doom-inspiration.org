@@ -1,8 +1,10 @@
-#+title: Doom Emacs Inspiration Guide (Dirvish & Org Aesthetics)
-#+author: Research & Documentation Subagent
-#+date: 2026-08-05
-#+description: Detailed reference analysis of Doom Emacs configuration for Dirvish/Dired file management and Org-mode visual aesthetics, fonts, faces, and layouts.
-#+filetags: :emacs:doom:dirvish:dired:org-mode:aesthetics:ui:reference:
+#+TITLE: Doom Emacs Inspiration Guide (Dirvish & Org Aesthetics)
+#+AUTHOR: Carlos Filho
+#+DATE: 2026-08-05
+#+LAST_MODIFIED: 2026-08-16
+#+DESCRIPTION: Detailed reference analysis of Doom Emacs configuration for Dirvish/Dired file management and Org-mode visual aesthetics, fonts, faces, and layouts.
+#+FILETAGS: :RAG:DOCS: :emacs:doom:dirvish:dired:org-mode:aesthetics:ui:reference:
+#+OPTIONS: toc:2 num:t
 
 * Doom Emacs Inspiration Guide
 :PROPERTIES:

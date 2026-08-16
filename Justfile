@@ -110,8 +110,12 @@ checkdoc:
       --eval '(setq checkdoc-verbose t)' \
       --eval '(let ((errors 0)) (dolist (f (directory-files "lisp" t "\\.el$")) (condition-case nil (checkdoc-file f) (error (setq errors (1+ errors))))) (if (> errors 0) (error "checkdoc: %d files with issues" errors) (message "checkdoc: OK")))'
 
-# Lint: byte-compile + checkdoc
-lint: compile checkdoc
+# Lint org structure (balanced blocks, malformed headings, TODO.org naming)
+org-lint:
+    @emacs --batch -Q -l bin/org-lint.el --eval '(org-lint-run-and-exit)' 2>&1 || exit 1
+
+# Lint: byte-compile + checkdoc + org structure
+lint: compile checkdoc org-lint
     @echo "✅ Lint passed"
 
 # ── Tests (ERT suite) ────────────────────────────────────────────────

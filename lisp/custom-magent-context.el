@@ -60,7 +60,7 @@ resumem mal contexto grande."
 1. Arquivos modificados ou criados (caminhos completos) e a razão da mudança;
 2. Nomes de funções de testes ERT associadas às alterações;
 3. Decisões técnicas tomadas e suas justificativas;
-4. TODOs/estado pendente (não duplicar o TODO.md nem roadmap.org — consulte-os);
+4. TODOs/estado pendente (não duplicar o TODO.org nem roadmap.org — consulte-os);
 5. Restrições e preferências do usuário persistentes;
 6. Comandos e gates de compilação/teste válidos (`just ...`).
 NÃO replicar conteúdo lido que não tenha sido alterado."
@@ -292,7 +292,7 @@ base de preservação estática e regras de descarte."
      "- Restrições e preferências persistentes do usuário;\n"
      "Regras de descarte: não replique transcripts de leitura reproduzíveis "
      "(output de grep/ls/cat); preserve os últimos 3 turns crus e resuma apenas "
-     "o prefixo mais antigo; não duplique TODO.md nem roadmap.org (consulte-os).\n"
+     "o prefixo mais antigo; não duplique TODO.org nem roadmap.org (consulte-os).\n"
      "\nBase de preservação:\n" +carlos/magent-preservation-instruction)))
 
 ;; ── B4. Compactação manual + sink de lifecycle ──────────────────────

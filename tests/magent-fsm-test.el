@@ -466,7 +466,7 @@
 (ert-deftest myemacs-magent-directives-enforce-edit-delegation ()
   "A directiva 8 deve proibir o orquestrador de editar arquivos complexos
 e obrigar a delegação a subagente (modelo forte), instruindo leitura prévia.
-Regressão: orquestrador local tentou editar TODO.md e alucinou old_text
+Regressão: orquestrador local tentou editar TODO.org e alucinou old_text
 ('old_text not found')."
   (skip-unless (boundp '+carlos/magent-system-directives))
   (let ((d +carlos/magent-system-directives))

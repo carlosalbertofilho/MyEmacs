@@ -1,7 +1,9 @@
 #+TITLE: Suíte de Testes ERT e Padrões de Qualidade
+#+AUTHOR: Carlos Filho
+#+DATE: 2026-08-07
 #+DESCRIPTION: Guia de referência para a suíte de testes de regressão ERT e práticas de controle de qualidade do MyEmacs.
 #+CREATED: 2026-08-07
-#+LAST_MODIFIED: 2026-08-07
+#+LAST_MODIFIED: 2026-08-16
 #+CATEGORY: quality
 
 * Visão Geral
@@ -23,12 +25,26 @@ Os testes residem na pasta =tests/= e são estruturados por área de responsabil
 | [[file:../tests/term-test.el][term-test.el]]                   | Inicialização do vterm (se compilado) e atalhos de terminal/eshell. |
 | [[file:../tests/git-test.el][git-test.el]]                    | Integração com o Magit, transients e IA Commit local. |
 | [[file:../tests/org-test.el][org-test.el]]                    | Configurações de org-mode, org-modern e babel engines. |
+| [[file:../tests/org-lint-test.el][org-lint-test.el]]            | Gate =org-lint=: BEGIN/END balanceados, headings válidos e ausência de refs a =TODO.md=. |
 | [[file:../tests/dashboard-test.el][dashboard-test.el]]              | Comandos e buffers do dashboard nano-style. |
+| [[file:../tests/completion-test.el][completion-test.el]]          | Integração Tempel+Corfu: comandos, binds =M-+=/=M-*= e capf registrados. |
+| [[file:../tests/42-test.el][42-test.el]]                     | Header42 (login, 80 colunas, stdheader idempotente) e integração norminette/eglot. |
+| [[file:../tests/spell-test.el][spell-test.el]]                 | Módulo custom-jinx: dicionários pt_BR/en_US, hooks e binds =M-$=/=C-M-$=. |
+| [[file:../tests/dev-env-test.el][dev-env-test.el]]              | Ambiente de desenvolvimento: flycheck inline/wave, eldoc-box, apheleia, nerd-icons-corfu. |
+| [[file:../tests/dev-test.el][dev-test.el]]                   | Features Elisp interativas: ERT runners, geração de testes por IA, scratch blocks REPL. |
+| [[file:../tests/context-test.el][context-test.el]]             | Cache hit-rate, ratio de auto-compaction e preservação de instruções. |
+| [[file:../tests/magent-test.el][magent-test.el]]               | Pacote magent carrega, comandos existem, bind =C-c M m=, skills dir e agent-shell. |
+| [[file:../tests/magent-fsm-test.el][magent-fsm-test.el]]         | Estados da FSM de orquestração (idle→tool-executing→subagent-*) e hard rules. |
+| [[file:../tests/magent-routing-test.el][magent-routing-test.el]]     | Roteamento de modelo/backend por host e tier. |
+| [[file:../tests/magent-driver-test.el][magent-driver-test.el]]       | Tools curadas (flycheck_errors, lsp_navigation, snippet_expand) e select_model. |
+| [[file:../tests/magent-ui-test.el][magent-ui-test.el]]           | UI do Magent (transient, chaveamento de sessão). |
+| [[file:../tests/local-ai-automation-test.el][local-ai-automation-test.el]] | Pipeline Ollama CPU: docstrings e testes gerados por IA. |
 | [[file:../tests/ai-network-test.el][ai-network-test.el]]            | Testes de rede (live API requests) para provedores de nuvem (opt-in). |
+| [[file:../tests/load-tests.el][load-tests.el]]                 | Harness de carga da suíte (não é um conjunto de testes). |
 
 * Portões de Qualidade Rigorosos
 
-Para manter a estabilidade do editor entre diferentes hosts (agnes, aa102-006l), futuros agentes devem respeitar estritamente três portões de qualidade:
+Para manter a estabilidade do editor entre diferentes hosts (agnes, aa102-006l), futuros agentes devem respeitar estritamente os portões de qualidade:
 
 ** 1. Prevenção de Erros Ocultos de Lisp
 Durante a inicialização interativa, erros em hooks (como =after-init-hook= ou =window-setup-hook=) podem ser recuperados pelo Emacs sem abortar o processo, mas deixando a configuração em estado quebrado.
@@ -45,6 +61,13 @@ O Emacs possui um sistema de prioridade de keymaps onde major modes ou minor mod
 - *Teste associado:* =myemacs-kbd-no-collisions= cria buffers de teste, ativa os principais major modes (=org-mode=, =dired-mode=, =c-mode=, =emacs-lisp-mode=) e usa =key-binding= para garantir que as teclas globais críticas (como =C-c g= para Magit, =C-c i= para gptel e atalhos de IA/Magent) resolvam para os comandos esperados sem sofrer colisões locais.
 - *Regra:* Atalhos globais essenciais devem ser funcionais e consistentes em qualquer buffer do editor.
 
+** 4. Validação Estrutural dos Documentos Org (=org-lint=)
+Arquivos =TODO.org=, =roadmap.org= e =docs/*.org= devem ser Org válido e lint-clean.
+- *Ferramenta:* =bin/org-lint.el= (emacs-lisp puro, sem dependências) verifica três condições: blocos =#+BEGIN_*= com o =#+END_*= correspondente, headings malformados (espaço antes de =*=
+  no início da linha) e ausência de referências ao nome antigo =TODO.md=.
+- *Teste associado:* =myemacs-org-lint-all-files-clean= varre todos os `.org` do repo e falha em qualquer divergência.
+- *Regra:* Nenhum documento org do repo pode ser commitado com estrutura inválida.
+
 * Como Executar as Validações
 
 O =Justfile= encapsula o fluxo de controle de qualidade:
@@ -56,21 +79,24 @@ just check
 # 2. Executar compilação de byte-code (trata warnings como erros críticos)
 just compile
 
-# 3. Rodar a suíte ERT batch local
-just test-batch
+# 3. Portão de documentação: checkdoc + org-lint
+just lint  # = compile + checkdoc + org-lint
 
-# 4. Executar o fluxo completo de qualidade (CI/CD nativo)
-just test-all  # Roda compile + checkdoc + test-batch
+# 4. Rodar a suíte ERT batch (canônica; test-batch é alias)
+just test
+
+# 5. Executar o fluxo completo de qualidade (CI/CD nativo)
+just test-all  # = lint + test
 #+end_src
 
- * Diretrizes para Evolução da Suíte
+* Diretrizes para Evolução da Suíte
 
 Ao adicionar novos recursos ou consertar bugs, siga as regras:
 1. *Bugs de Inicialização:* Cada bug resolvido (ex: `void-variable` ou `void-function`) deve ganhar uma asserção específica no =boot-test.el= ou =ai-test.el=.
 2. *Novos Atalhos:* Se adicionar um novo atalho global em =custom-keybindings.el=, declare-o na lista =critical-bindings= do teste =myemacs-kbd-no-collisions= em =tests/keybindings-test.el= para protegê-lo contra futuras regressões ou colisões em major modes.
 3. *Isolamento de Testes:* Testes de rede (Live APIs) devem conter a tag =:tags '(ai network)= e a macro =(skip-unless (getenv "EMACS_TEST_NETWORK"))= para evitar que falhas de conexão ou falta de chaves quebrem a suíte de testes offline local.
 
- * Descobertas de Runtime para Mocks (2026-08-13)
+* Descobertas de Runtime para Mocks (2026-08-13)
 
 Ao escrever testes que mockam funções do gptel/magent, lembre:
 

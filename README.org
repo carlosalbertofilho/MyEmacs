@@ -60,7 +60,7 @@ mode, com IA unificada via =Magent= (agente nativo Emacs-Lisp de codificação c
 ├── guia_emacs.org
 ├── guia_detalhado.org
 ├── meu_emacs.org           ← Master Plan (migração Doom → Vanilla)
-├── TODO.md                 ← Plano de correção e próximos passos
+├── TODO.org                 ← Plano de correção e próximos passos
 └── roadmap.org             ← Histórico de ações realizadas
 #+end_src
 

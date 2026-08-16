@@ -1,7 +1,7 @@
 #+TITLE: Magent Reference Guide
 #+AUTHOR: MyEmacs Documentation Generator
 #+DATE: 2026-08-06
-#+LAST_MODIFIED: 2026-08-14
+#+LAST_MODIFIED: 2026-08-16
 #+DESCRIPTION: Comprehensive reference for Magent native Emacs-Lisp AI coding agent
 
 * Table of Contents
@@ -254,11 +254,10 @@ A FSM adapta dinamicamente os backends e modelos do gptel dependendo de onde o E
 
 | Função / Estado FSM | MacBook Pro M2 (=agnes.local=) | Estação NixOS/CPU (=aa102-006l=) |
 |---------------------+-------------------------------+---------------------------------|
-| *Orquestração*      | Local: Gemma 2B (e2b MLX GPU) | Nuvem: Gemini 2.5 Flash (Free)  |
-| *Planejamento*      | Nuvem: Claude 3.5 Sonnet      | Nuvem: Gemini 2.5 Pro / Sonnet  |
-| *Desenvolvimento*   | Local: Qwen 3.5 9B (MLX GPU)  | Local: Qwen 2.5 Coder 3B (CPU)  |
-| *Raciocínio*        | Local: DeepSeek R1 14B (MLX)  | Local: DeepSeek R1 1.5B (CPU)   |
-| *Revisão (Audit)*   | Nuvem: Big Pickle (72B)       | Nuvem: Big Pickle (72B)         |
+| *Orquestração*      | Local: MLX =gemma-4-e2b-it-4bit= | Nuvem: Gemini =gemini-2.5-flash= (free) |
+| *Desenvolvimento*   | Local: MLX =Qwen3.5-Coder-7B-Instruct-4bit= | Local: Ollama =qwen2.5-coder:3b= (CPU) |
+| *Raciocínio*        | Local: MLX =DeepSeek-R1-Distill-Qwen-14B-4bit= | Local: Ollama =deepseek-r1:1.5b= |
+| *Planejamento / Revisão* | Roteamento por tier em =custom-ai.el= (=big-pickle= free via Zen, Gemini free) — N/A per-host | Idem |
 
 ** Mecanismos de Robustez e Resiliência:
 1. **Watchdog de Latência:** Um timer de contagem regressiva =+carlos/magent-watchdog-timer= monitora a requisição ativa de desenvolvimento local. Caso o tempo limite (8s no MacBook, 15s na aa102-006l) seja atingido devido ao carregamento de pesos (cold-start) ou lentidão na CPU, a FSM aborta a chamada e faz fallback transparente do turno para a nuvem.
@@ -396,7 +395,7 @@ medição real de tokens e gatilho por milestones:
   sessão via cadeia `magent-runtime-session-current` → `magent-session-thread` →
   `magent-thread-preview`), base estática `+carlos/magent-preservation-instruction`
   e regras de descarte ("não replique transcripts reproduzíveis; preserve os
-  últimos 3 turns crus; consulte TODO.md/roadmap.org").
+  últimos 3 turns crus; consulte TODO.org/roadmap.org").
 - *B2 — Medição de tokens:* `+carlos/magent-turn-tokens` resolve o turno por
   `:turn-id` do evento na cadeia runtime-session → magent-session → thread →
   `magent-thread-find-turn` e soma o usage real (`:input` + `:output`);
@@ -526,25 +525,42 @@ Magent provides 3 main interactive entry points bound in =custom-keybindings.el=
 
 * Catalog of 15 Tools
 
-Magent includes 15 built-in tools for agent interactions:
+Magent ships 15 built-in tools (gptel-tool structs) for agent interactions,
+cataloged in =magent-tools-catalog= with a per-tool permission key (used by the
+permission system and by the orchestrator tool-hiding — see *Permissions &
+Audit Logging* and *Ocultação de ferramentas do orquestrador (Fase D)* below).
+The MyEmacs config adds 4 curated in-process tools (=flycheck_errors=,
+=lsp_navigation=, =snippet_expand=, =select_model=) documented in the next
+section.
 
-| Tool Name | Scope | Description |
-|-----------+-------+-------------|
-| ~read_file~ | File | Read contents of a file with line numbers |
-| ~write_file~ | File | Write complete content to a file |
-| ~replace_file~ | File | Replace a single contiguous block of code |
-| ~multi_replace_file~ | File | Perform multiple non-contiguous edits in a single file |
-| ~delete_file~ | File | Remove a file from the filesystem |
-| ~list_directory~ | Filesystem | List files and subdirectories in a directory |
-| ~file_tree~ | Filesystem | Generate a visual tree structure of a directory |
-| ~run_command~ | Execution | Execute a shell command in the project root |
-| ~grep_search~ | Search | Search patterns using ripgrep (~rg~) |
-| ~find_files~ | Search | Find files matching glob patterns using ~fd~ or ~find~ |
-| ~emacs_eval~ | Emacs | Evaluate Elisp code inside the running Emacs instance |
-| ~web_search~ | Network | Perform web search queries |
-| ~fetch_web_page~ | Network | Fetch and render web page content |
-| ~recall_memory~ | Memory | Retrieve stored project memory entries |
-| ~save_memory~ | Memory | Persist memory entries for future sessions |
+| Tool Name | Permission | Description |
+|-----------+------------+-------------|
+| ~read_file~ | read | Read a bounded page of a file's saved disk contents (200-line pages, =has_more=/=next_start_line=) |
+| ~read_buffer~ | read | Read a bounded page of a live file-visiting Emacs buffer, including unsaved edits |
+| ~write_file~ | write | Write full content atomically; creates missing dirs; fails with =buffer_conflict= on unsaved buffer edits |
+| ~write_repo_summary~ | write | Upsert the repository's canonical org summary note (full/scoped modes, /summarize) |
+| ~edit_file~ | edit | Replace an exact unique =old_text= with =new_text= atomically (surgical edits) |
+| ~grep~ | grep | Regex search via ripgrep respecting .gitignore |
+| ~glob~ | glob | Find files matching glob patterns (* and **) |
+| ~bash~ | bash | Execute a shell command (pipefail, synchronous; confirm required) |
+| ~emacs_eval~ | emacs_eval | Evaluate Emacs Lisp in the running instance (buffer/state/xref inspection) |
+| ~spawn_agent~ | agent | Start a durable child-agent job (explore/general); returns =job_id= + =next_action= for wait_agent |
+| ~send_agent_message~ | agent | Send follow-up input to a completed/failed child job |
+| ~wait_agent~ | agent | Wait for one or more child jobs and return their status and results |
+| ~list_agents~ | agent | List child jobs of the current session |
+| ~close_agent~ | agent | Close a child job and abort its live request |
+| ~web_search~ | web_search | DuckDuckGo search returning titles and URLs only |
+
+** Notas de escopo (safety by design):
+- ~read_file~ never reads unsaved buffer edits — use ~read_buffer~ for live
+  editor state. Paginate via =has_more=/=next_start_line=; do not use =wc= or
+  =sed= to discover file size.
+- ~write_file~ / ~edit_file~ never overwrite unsaved buffer edits (fail with
+  =buffer_conflict=) — user work is never lost.
+- ~spawn_agent~ returns
+  ={"status":"spawned","job":{...},"next_action":{"tool":"wait_agent","arguments":{"job_id":...}}}= —
+  the orchestrator MUST call =wait_agent= before ending the turn (hard rule).
+- ~web_search~ returns titles/URLs only; it does not fetch page content.
 
 * Magent Driver Tools (Fase A — Curated in-process tools) — adicionado 2026-08-12
 
@@ -614,6 +630,23 @@ Default security policy for ~build~ agent:
 
 ** Audit Logging
 When ~magent-enable-audit-log~ is ~t~, Magent records all agent decisions, tool invocations, and approvals to JSONL log files under ~magent-session-directory/audit/~.
+
+** Ocultação de ferramentas do orquestrador (Fase D)
+The MyEmacs config restricts the *orchestrator* (the main Magent agent) to a
+read-only, coordination-only toolset. While subagents (build/dev) keep the full
+tool catalog (write/edit/bash), the orchestrator runs with
+=edit_file=, =write_file=, =write_repo_summary= e =snippet_expand= removed from
+=magent-enable-tools= (via advice on =magent-agent-process= in
+=custom-magent-subagent.el=):
+
+- **Orchestrator (hidden):** =write=, =edit=, =snippet_expand= permissions
+  (=write_file=, =write_repo_summary=, =edit_file=, =snippet_expand= removed).
+  Keeps =read_file=/=read_buffer=, =grep=/=glob=, =spawn_agent= family,
+  =emacs_eval=, =web_search=.
+- **Subagents (build/dev):** full catalog (write/edit/bash allowed).
+- Rationale: the orchestrator plans, delegates, and synthesizes; all
+  file-mutating work happens inside subagents where per-tool confirmation and
+  audit still apply.
 
 * Built-in Agents
 

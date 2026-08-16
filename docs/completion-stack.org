@@ -1,6 +1,7 @@
 #+TITLE: Emacs Completion Stack Reference
 #+AUTHOR: Generated Reference
 #+DATE: 2026-08-05
+#+LAST_MODIFIED: 2026-08-16
 #+DESCRIPTION: Comprehensive reference for Vertico, Consult, Corfu, Marginalia, Orderless, Embark
 
 * Table of Contents
@@ -190,7 +191,7 @@ many built-in commands to Consult equivalents.
    ("C-s" . consult-line)
    ("C-c s" . consult-ripgrep)
    ("M-g g" . consult-goto-line)
-   ("M-g i" . consult-imenu)
+   ("M-s i" . consult-imenu)
    ("M-g M-g" . consult-goto-line)
    ("M-y" . consult-yank-pop)
    ("C-x C-b" . consult-buffer)))
@@ -492,7 +493,7 @@ Here is a complete, production-ready configuration combining all packages:
    ("C-c s" . consult-ripgrep)
    ("C-c k" . consult-keep-lines)
    ("M-g g" . consult-goto-line)
-   ("M-g i" . consult-imenu)
+   ("M-s i" . consult-imenu)
    ("M-g M-g" . consult-goto-line)
    ("M-y" . consult-yank-pop)
    ("M-s l" . consult-line)
@@ -552,7 +553,7 @@ Here is a complete, production-ready configuration combining all packages:
 | =C-c s=    | =consult-ripgrep=        | Project search                  |
 | =C-c k=    | =consult-keep-lines=     | Filter lines                    |
 | =M-g g=    | =consult-goto-line=      | Go to line                      |
-| =M-g i=    | =consult-imenu=          | Navigate imenu                  |
+| =M-s i=    | =consult-imenu=          | Navigate imenu                  |
 | =M-y=      | =consult-yank-pop=       | Kill ring browser               |
 | =C-.=      | =embark-act=             | Context actions                 |
 | =C-;=      | =embark-dwim=            | Quick action                    |

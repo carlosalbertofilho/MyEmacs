@@ -1,8 +1,10 @@
-#+title: Dirvish Reference Guide
-#+author: AI Agent (RAG Context)
-#+date: 2026-08-05
-#+description: Comprehensive reference for the Dirvish Emacs package --- file manager built on Dired
-#+filetags: :emacs:dirvish:dired:file-manager:reference:
+#+TITLE: Dirvish Reference Guide
+#+AUTHOR: Carlos Filho
+#+DATE: 2026-08-05
+#+LAST_MODIFIED: 2026-08-16
+#+DESCRIPTION: Comprehensive reference for the Dirvish Emacs package --- file manager built on Dired
+#+FILETAGS: :RAG:DOCS: :emacs:dirvish:dired:file-manager:reference:
+#+OPTIONS: toc:2 num:t
 
 * Dirvish Reference Guide
 :PROPERTIES:
@@ -223,20 +225,18 @@ Format: =("key" "path" "description")=
 |--------------------------------+----------+---------+---------------------------------------------------|
 | =dirvish-side-width=             | integer  | 30      | Width of the side window in columns               |
 | =dirvish-fullscreen=             | boolean  | =t=       | Whether Dirvish occupies the entire frame          |
-| =dirvish-default-layout=         | integer  | 0       | Layout index (typically 0-5, NOT 10)               |
+| =dirvish-default-layout=         | list     | (1 0.11 0.55) | Layout recipe; MyEmacs usa o layout de 3 painéis main/side/preview |
 | =dirvish-hide-cursor=            | boolean  | =t=       | Hide cursor in Dired buffers                       |
 | =dirvish-use-mode-line=          | symbol   | =t=       | =nil= to hide, ='global= to span all panes           |
 | =dirvish-window-size=            | N/A      | N/A     | NOT a standard dirvish variable --- see note below |
 
 #+begin_warning
-=dirvish-window-size= is NOT a standard Dirvish variable. To configure window
-ratios, use =dirvish-layout-recipes= instead:
+=dirvish-window-size= is NOT a standard Dirvish variable. Window ratios come
+from the layout recipe value of =dirvish-default-layout= (a list of 3 floats
+for the main/side/preview panes). The official MyEmacs value is:
 
 #+begin_src emacs-lisp
-(setq dirvish-layout-recipes
-      '((0 1 1)          ; Layout 0: single pane (full)
-        (1 2 1)          ; Layout 1: two panes, ratio 2:1
-        (2 1 1 1)))      ; Layout 2: three panes, ratio 1:1:1
+(setq dirvish-default-layout '(1 0.11 0.55))  ; main . side . preview
 #+end_src
 #+end_warning
 
@@ -247,20 +247,22 @@ ratios, use =dirvish-layout-recipes= instead:
 
 | Variable                          | Type    | Recommended | Description                                  |
 |-----------------------------------+---------+-------------+----------------------------------------------|
-| =dirvish-nerd-icons-height=         | integer | 16-18       | Icon height in pixels                        |
-| =dirvish-nerd-icons-offset=         | integer | -2          | Vertical offset adjustment                   |
+| =dirvish-nerd-icons-height=         | float   | 0.85        | Scale factor relative to the =default= face (not pixels) |
+| =dirvish-nerd-icons-offset=         | float   | 0.00        | Vertical =:v-adjust= offset; negative values break alignment |
 | =dirvish-subtree-icon-scale-factor= | float   | 1.0         | Scale factor for subtree expansion icons     |
 
 #+begin_danger
-RAG TRAP: =dirvish-nerd-icons-height= of 12 makes icons TOO SMALL, not too large.
-The value represents the icon height in pixels. If you see giant icons, the value
-is likely set too HIGH (e.g., 40+), not too low. Recommended range: 16-18 for
-standard font sizes (14-16pt). Adjust based on your =default= face height.
+RAG TRAP: =dirvish-nerd-icons-height= is a FLOAT SCALE FACTOR relative to the
+=default= face height, NOT a pixel value. Integers like 12 or 16-18 produce
+enormous icons (they are interpreted as 12x/16x the face). Official MyEmacs
+value is =0.85= (85% of the default face height). The same applies to
+=dirvish-nerd-icons-offset=, which is a float =:v-adjust= (0.00 official;
+=-2= as an integer broke the icon alignment).
 #+end_danger
 
 #+begin_src emacs-lisp
-(setq dirvish-nerd-icons-height 16    ; Standard size for 14-16pt fonts
-      dirvish-nerd-icons-offset -2)   ; Slight vertical adjustment
+(setq dirvish-nerd-icons-height 0.85   ; 85% of default face height
+      dirvish-nerd-icons-offset 0.00)  ; no vertical adjustment
 #+end_src
 
 #+begin_note

@@ -1,4 +1,6 @@
 #+TITLE: Referência de Provedores de IA - MyEmacs
+#+AUTHOR: Carlos Filho
+#+DATE: 2026-08-07
 #+DESCRIPTION: Detalhamento de limites, quotas, privacidade e modelos disponíveis no Google AI Studio (Free Tier) e OpenCode Zen (Assinatura).
 #+CREATED: 2026-08-07
 #+LAST_MODIFIED: 2026-08-14

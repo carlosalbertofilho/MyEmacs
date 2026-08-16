@@ -1,6 +1,7 @@
 #+TITLE: GPTel Reference Guide
 #+AUTHOR: Generated Reference
 #+DATE: 2026-08-05
+#+LAST_MODIFIED: 2026-08-16
 #+DESCRIPTION: Comprehensive reference for gptel Emacs LLM client
 
 * Table of Contents
@@ -460,6 +461,27 @@ GPTel supports tool use (function calling) for LLMs that support it.
 ** Pitfall 8: gptel-agent project directories
 - For gptel-agent, call project directories DIRECTLY
 - Do NOT use =advice-add= to modify agent directory behavior
+
+* Backends e Keybindings do MyEmacs (=custom-ai.el=)
+
+Backends registrados na config (fonte da verdade: =lisp/custom-ai.el=):
+
+| Backend | Tipo | Endpoint | Modelos |
+|---------+------+----------+---------|
+| =OpenCode Zen= | OpenAI | opencode.ai =/zen/v1/chat/completions= | =big-pickle= (default), =gpt-5.6-sol=, =gpt-5.3-codex=, =gpt-5.2-codex=, =deepseek-v4-pro=, =qwen3.6-plus=, =kimi-k2.7-code= + free tier (=deepseek-v4-flash-free=, =north-mini-code-free=, =mimo-v2.5-free=, =laguna-s-2.1-free=, =ling-3.0-tiny-free=, =longcat-2.0-free=, =nemotron-3-ultra-free=) |
+| =Zen Claude= | Anthropic | opencode.ai =/zen/v1/messages= | =claude-sonnet-5=, =claude-opus-5= |
+| =Gemini= | Google | default | =gemini-3.5-flash= (default), =-lite=, =gemini-3.6-flash=, =gemini-3.1-pro-preview=, =gemini-2.5-flash=, =gemini-2.5-pro=, =gemini-2.0-flash=, =gemma-4-31b-it= |
+| =Ollama Local= | Ollama | nativo =/api/chat= | modelos locais (CPU/GPU) |
+
+- Chaves via env: =OPENCODE_ZEN_API_KEY= (Zen) e =GEMINI_API_KEY=/=GOOGLE_API_KEY= (Gemini).
+- =:schema= é o único mecanismo de JSON estruturado (gptel 0.9.9.5) — não existe
+  =:response_format=. O backend/modelo ativos são definidos por backend;
+  =:backend= não é suportado em =gptel-request=.
+
+Keybindings globais (entry points):
+- =C-c i= → =gptel= (novo buffer de chat)
+- =C-c I= → =+carlos/gptel-agent-run= (sessão de agente)
+- Prefixo de IA dedicado: =C-c A= (=m= magent, =i= aggy, =c= copilot region, =f= fluxo, =g= aggy prompt, =r= resolver IA)
 
 * Quick Reference Tables
 
