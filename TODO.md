@@ -177,6 +177,19 @@ inteiro colado.
 - `just lint` (compile+checkdoc), `just test` prod, `just sync` + `just compile-prod` + `just check-prod`, `just test-all`.
 - Atualizar roadmap.org e esta seção do TODO.md ao concluir.
 
+**Plano de Ação — Fase D+: Evolução da Orquestração e Perfil Coder (Driver do Emacs)**
+
+- **D4. Criação do Perfil `coder` (Operador de Buffer Vivo):**
+  - *Objetivo:* Especializar um subagente voltado inteiramente para edição em buffers interativos (Magent como Driver do Emacs - Fase B), enquanto o `explore`/`general` focam em leitura/RAG.
+  - *Ferramentas permitidas:* `snippet_expand`, `buffer_edit` (a implementar), `flycheck_errors`, `lsp_navigation`. O `coder` **não** usará `edit_file` / `write_file` (acesso cru a disco), mas sim ferramentas que manipulam o `point` e `region` no buffer ativo do Emacs.
+  - *Fluxo de Trabalho Esperado:* Inserir esqueleto via `snippet_expand` → preencher lacunas interativamente → validar com `flycheck_errors` → auto-corrigir em memória → devolver para o usuário salvar e commitar.
+- **D5. Context Sharing Dinâmico para Subagentes (`spawn_agent` aprimorado):**
+  - *Objetivo:* Injetar automaticamente contexto relevante (ex: caminho do buffer ativo, sumário do plano do orquestrador) nos prompts enviados a subagentes, evitando que o Orquestrador gaste tokens redundantes pedindo para o subagente ler arquivos que já estão em escopo.
+- **D6. Feedback de UI Visual para Delegação (Fase C+):**
+  - *Objetivo:* Enriquecer o painel `*Magent*` para exibir barras de progresso ou *spinners* animados enquanto a FSM do orquestrador bloqueia no estado `subagent-waiting`. Prover feedback transparente de que um modelo pesado na nuvem (Gemini Pro) assumiu a tarefa.
+- **D7. Testes Unitários de Permissão (ERT):**
+  - *Objetivo:* Adicionar testes em `tests/magent-routing-test.el` simulando `agent-info` de Orquestrador e Subagentes, garantindo que o catálogo filtrado (`magent-tools-get-gptel-tools-for-permission`) aplique corretamente o let-binding de restrição (D1/D2/D3).
+
 
 ## 2. Decisões Registradas
 
