@@ -170,11 +170,21 @@ Every `custom-*.el` file MUST follow this template:
 ;; External packages: :ensure t (Elpaca installs from git)
 (use-package vertico :ensure t :config (vertico-mode 1))
 
-;; Packages with hard requires: :demand t + elpaca-wait
-(use-package flycheck :ensure t :demand t)
-(elpaca-wait)  ;; Block until installed
+;; Packages with hard requires (boot-critical, :demand t): use a SCOPED wait
+;; (:ensure (:wait t)) instead of a global (elpaca-wait) — blocks only until
+;; that package activates, avoiding the fragile global-barrier ordering.
+(use-package flycheck :ensure (:wait t) :demand t)
 (require 'something-that-needs-flycheck)
 ```
+
+**Política de waits do Elpaca (2026-08-16):** prefira `:ensure (:wait t)` para
+pacotes carregados sincronamente no boot (`:demand t`). Evite `(elpaca-wait)`
+espalhado: cada chamada é uma *barreira global* (espera a fila inteira).
+Waits globais mantidos por design: bootstrap do `elpaca-use-package`
+(init.el:64), grupo de completion (custom-completion.el:30, pacotes que
+carregam juntos) e o catch-all final (init.el:182, rede de segurança). Não
+migre pacotes **deferidos** (sem `:demand`) para `:wait t` — só adicionaria
+bloqueio sem ganho.
 
 **Load order:** Use `:after` for dependencies:
 

@@ -18,7 +18,7 @@
 (declare-function transient-append-suffix "transient")
 
 ;; ── magit ───────────────────────────────────────────────────────────
-;; transient é instalado/ativado cedo no init.el (use-package + elpaca-wait);
+;; transient é instalado/ativado cedo no init.el (:ensure (:wait t));
 ;; um segundo `:ensure t' aqui causaria "Duplicate item ID queued: transient".
 (use-package magit
   :ensure t

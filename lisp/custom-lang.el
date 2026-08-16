@@ -22,7 +22,7 @@
 
 ;; ── treesit-auto ────────────────────────────────────────────────────
 (use-package treesit-auto
-  :ensure t
+  :ensure (:wait t)
   :demand t
   :custom
   (treesit-auto-install (unless noninteractive 'prompt))
@@ -87,9 +87,8 @@
 ;; ── reformatter.el (wrapper for external CLI reformatters) ──────────
 ;; Used by custom-42.el to define c_formatter_42 integration.
 (use-package reformatter
-  :ensure t
+  :ensure (:wait t)
   :demand t)
-(elpaca-wait)
 
 ;; ── Elisp ───────────────────────────────────────────────────────────
 (use-package elisp-mode
@@ -144,12 +143,11 @@
 (setq-default flycheck-indication-mode 'left-fringe)
 
 (use-package flycheck
-  :ensure t
+  :ensure (:wait t)
   :demand t
   :config
   (define-key flycheck-mode-map (kbd "M-g n") #'flycheck-next-error)
   (define-key flycheck-mode-map (kbd "M-g p") #'flycheck-previous-error))
-(elpaca-wait)
 
 (use-package consult-flycheck
   :ensure t

@@ -64,8 +64,7 @@
 (elpaca-wait)  ;; Block until elpaca-use-package is installed
 
 ;; Ensure compat is managed by Elpaca and loaded early to avoid version conflict warnings
-(use-package compat :ensure t)
-(elpaca-wait)
+(use-package compat :ensure (:wait t))
 
 ;; use-package defaults (Elpaca handles :ensure automatically)
 (setq use-package-always-defer t
@@ -75,8 +74,7 @@
 ;; magit, gptel e dirvish dependem de transient; sem isso, o `:demand t'
 ;; do custom-git pode carregá-lo antes da ativação da Elpaca
 ;; (warning "transient loaded before Elpaca activation").
-(use-package transient :ensure t)
-(elpaca-wait)
+(use-package transient :ensure (:wait t))
 
 ;; ── Load paths ──────────────────────────────────────────────────────
 (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))

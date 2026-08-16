@@ -74,11 +74,12 @@ Decisões Pendentes de Infraestrutura + Etapa A2 do Plano Diretor). Plano criado
 na revisão do planejamento (roadmap 2026-08-16, [DECIDIDO]). Cada sub-item tem
 executor, prazo, critério de saída e abordagem concreta.
 
-*** TODO [#B] Ativação síncrona do Elpaca ([:ensure (:wait t)]) — decidir migrar ou arquivar
+*** DONE [#B] Ativação síncrona do Elpaca ([:ensure (:wait t)]) — migrado
     :PROPERTIES:
     :ASSIGNEE: executor
     :DUE: 2026-08-18
-    :STATUS: backlog
+    :STATUS: done
+    :RESOLVED: 2026-08-16
     :END:
     - *Objetivo:* eliminar a fragilidade dos =(elpaca-wait)= espalhados
       (init.el:64/68/79/182, custom-completion.el:30, custom-42.el:28) — hoje a
@@ -94,6 +95,19 @@ executor, prazo, critério de saída e abordagem concreta.
     - *Critério de saída:* =just compile= zero-warning + suíte completa
       (253/0/7) + boot batch e interativo sem warnings custom-*.
     - *Prazo:* 2026-08-18.
+    - *Execução (2026-08-16):* migrados para `:ensure (:wait t)` (wait escopado,
+      remove barreira global): `reformatter` e `flycheck` (Fase 1, custom-lang.el
+      — `apheleia` removido dos candidatos por ser deferido, sem `:demand`),
+      `compat` e `transient` (init.el) e `treesit-auto` (custom-lang.el)
+      (Fase 2). Wait redundante de `flycheck` removido em custom-42.el:28 (já
+      ativado em custom-lang, carregado antes). Waits intencionalmente mantidos:
+      bootstrap do elpaca-use-package (init.el:64), grupo de completion
+      (custom-completion.el:30 — vertico/marginalia/etc. carregam juntos) e o
+      catch-all final (init.el:182, rede de segurança do boot interativo).
+      Validação: `just rebuild` 25/25 zero-warning; suíte 257/249/0/8 (sem
+      regressão); `just lint` + `just check` OK; boot batch sem warnings
+      custom-*/void-*. Faltou (manual): validação interativa no prod (`just
+      test-run`) antes de avaliar remover o catch-all final.
 
 *** DONE [#A] Guard de runtime do jinx (=+carlos/jinx-mode-if-available=)
     :PROPERTIES:
@@ -150,11 +164,12 @@ executor, prazo, critério de saída e abordagem concreta.
       PNG válido; PDF abre em =pdf-view-mode= (2 páginas).
     - *Prazo:* 2026-08-20.
 
-*** TODO [#C] Arquivar agent-shell como subagente do Magent (decisão)
+*** DONE [#C] Arquivar agent-shell como subagente do Magent (decisão)
     :PROPERTIES:
     :ASSIGNEE: planejador
     :DUE: 2026-08-17
-    :STATUS: backlog
+    :STATUS: done
+    :RESOLVED: 2026-08-16
     :END:
     - *Objetivo:* fechar o Diagnóstico item 4 sem trabalho — decisão consciente
       de manter o FinOps local e o roteador de custo zero.
@@ -163,11 +178,16 @@ executor, prazo, critério de saída e abordagem concreta.
     - *Critério de saída:* entrada no roadmap + item 4 do Diagnóstico marcado
       como decidido.
     - *Prazo:* 2026-08-17.
+    - *Execução (2026-08-16):* ARQUIVADO/DECIDIDO — mantém o Magent como agente
+      principal com FinOps local e roteador de custo zero; o agent-shell
+      standalone (Aider/Cursor/Claude Code) só seria retomado como subagente
+      delegado se refatorações multi-arquivo virarem gargalo real. Gatilho de
+      retomada registrado no roadmap.org.
 
 *** Ordem de execução recomendada
 1. Guard do jinx — DONE 2026-08-16 (implementado e testado; item [#A] acima).
-2. Arquivar agent-shell (fecha pendência em 15 min).
-3. Elpaca ([:ensure (:wait t)]) — decisão com critério de saída.
+2. Arquivar agent-shell — DONE 2026-08-16 (decisão registrada no roadmap).
+3. Elpaca ([:ensure (:wait t)]) — DONE 2026-08-16 (migrado; item [#B] acima).
 4. epdfinfo — DONE 2026-08-16 (fix poppler no MyMachine, commit f4f6ffc).
 
 ** TODO [#C] Comando =+carlos/org-table-fit-window= (AutoFit à janela p/ tabelas org)
@@ -276,10 +296,10 @@ Ativo) — não duplicar; o plano define executor, prazo e critério de saída.
 1. *Elpaca 0.2.0 e Ativação Síncrona (=:ensure (:wait t)=):* o plano de migrar
    os pacotes de inicialização crítica para =:ensure (:wait t)= foi adiado
    porque suíte e boot estão estáveis após as políticas de limpeza de build
-   stale. *Decisão pendente:* manter o plano (substituir =(elpaca-wait)= no
-   top-level e usar =:ensure (:wait t)= em =treesit-auto=, =reformatter=,
-   =flycheck= e =apheleia=) ou arquivar se o comportamento se mantiver sem
-   falhas.
+   stale. *RESOLVIDO 2026-08-16* (item [#B] do plano de liquidação) — migrados
+   reformatter/flycheck/compat/transient/treesit-auto; wait redundante de
+   flycheck em custom-42 removido; mantidos bootstrap, grupo de completion e
+   catch-all final (rede de segurança). Validação interativa pendente.
 2. *Guarda de Runtime para Módulo Nativo Jinx:* encapsular a inicialização do
    =jinx-mode= em =+carlos/jinx-mode-if-available= (evitando erro de compilação
    do =.dylib= em builds parciais do repo que quebram hooks de =prog-mode=).
@@ -293,8 +313,9 @@ Ativo) — não duplicar; o plano define executor, prazo e critério de saída.
 4. *agent-shell como subagente do Magent:* usar o agent-shell standalone
    (Aider, Cursor, Claude Code) como subagente especializado delegado pelo
    Magent (=spawn_agent= / =wait_agent=) apenas para refatorações complexas de
-   múltiplos arquivos. *Status:* adiado — preservar o FinOps local e o roteador
-   de custo zero.
+   múltiplos arquivos. *ARQUIVADO/DECIDIDO 2026-08-16* — mantém o FinOps local
+   e o roteador de custo zero (item [#C] do plano de liquidação). Gatilho de
+   retomada: refatoração multi-arquivo virar gargalo real na prática.
 
 ** TODO Fase C — Loop de eventos do chat mais informativo (painel de atividade)
     :PROPERTIES:

@@ -6,10 +6,9 @@
 
 ;;; Code:
 
-(declare-function elpaca-wait "elpaca")
-
 ;; ── flycheck (dependency for norminette) ───────────────────────────
-;; Installed by custom-lang.el (:ensure t). Use :ensure nil here to prevent duplicate Elpaca queue error.
+;; Instalado e ativado por custom-lang.el (:ensure (:wait t)). Use :ensure
+;; nil aqui para evitar fila duplicada no Elpaca; o wait já é escopado no lang.
 (use-package flycheck
   :ensure nil
   :demand t
@@ -22,10 +21,6 @@
                 load-path))
   ;; Habilitar checagem emacs-lisp para arquivos .el
   (add-hook 'emacs-lisp-mode-hook #'flycheck-mode))
-
-;; Wait for flycheck to be installed before loading custom-norminette
-;; (which has a hard (require 'flycheck) at the top)
-(elpaca-wait)
 
 ;; ── site-lisp ───────────────────────────────────────────────────────
 (require 'header42)

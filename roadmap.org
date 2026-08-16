@@ -12,6 +12,40 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-16 — [CONCLUÍDO] Ativação síncrona do Elpaca ([:ensure (:wait t)])
+   - **Objetivo:** eliminar a fragilidade dos `(elpaca-wait)` espalhados (cada
+     um é barreira global: bloqueia até *todos* os pacotes da fila), migrando
+     para wait escopado por pacote (item [#B] da Liquidação da Dívida Técnica).
+   - **Implementação:** migrados para `:ensure (:wait t)` — `reformatter` e
+     `flycheck` (Fase 1, custom-lang.el) e `compat` + `transient` (init.el) +
+     `treesit-auto` (custom-lang.el, Fase 2). Removido o wait redundante de
+     `flycheck` em custom-42.el:28 (flycheck já é ativado em custom-lang, que
+     carrega antes). `apheleia` **removido dos candidatos**: é deferido (sem
+     `:demand`), `:wait t` só adicionaria bloqueio. Waits mantidos por design:
+     bootstrap do elpaca-use-package (init.el:64), grupo de completion
+     (custom-completion.el:30 — 7 pacotes que carregam juntos) e catch-all
+     final (init.el:182, rede de segurança do boot interativo).
+   - **Validação:** `just rebuild` 25/25 zero-warning; suíte repo 257/249/0/8
+     (sem regressão); `just lint` (checkdoc + org-lint + compile) OK; `just
+     check` OK; boot batch sem warnings custom-*/void-*. Gate `:ensure (:wait
+     t)` confirmado funcionando sob `use-package-expand-minimally t` (expande
+     para `elpaca--expand-declaration '(pkg :wait t)`).
+   - **Pendente (manual):** validação interativa no prod (`just test-run`);
+     depois avaliar remover o catch-all final (init.el:182).
+
+** 2026-08-16 — [ARQUIVADO/DECIDIDO] agent-shell como subagente do Magent
+   - **Decisão:** manter o Magent como agente principal (orquestrador + 3
+     subagentes curados: explore/general/coder) com FinOps local e roteador de
+     custo zero. O agent-shell standalone (Aider/Cursor/Claude Code) **não**
+     vira subagente delegado por agora — o custo de integrar outro frontend ACP
+     não compensa enquanto o pipeline atual atende os fluxos reais.
+   - **Gatilho de retomada (explícito):** se refatorações de múltiplos arquivos
+     (span > 2 arquivos) virarem gargalo real de produtividade/erros na
+     prática, retomar o plano: delegar via =spawn_agent= / =wait_agent= apenas
+     essas refatorações.
+   - **Fecho:** Diagnóstico item 4 marcado como decidido no TODO.org; item [#C]
+     do plano de liquidação DONE (2026-08-16). Sem alteração de código.
+
 ** 2026-08-16 — [CONCLUÍDO] Guard de runtime do jinx (+carlos/jinx-mode-if-available)
    - **Objetivo:** eliminar a fragilidade dos hooks de text-mode/prog-mode em
      builds sem o módulo nativo do jinx (.dylib/libenchant). A proteção só
