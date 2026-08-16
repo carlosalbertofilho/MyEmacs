@@ -31,6 +31,16 @@ entenderem o estado atual do projeto e decisões tomadas.
    - **Gates:** `just rebuild` repo 25/25 zero-warning; suíte repo sem regressões
      novas vs baseline (as 12 falhas são pré-existentes de build parcial);
      checkdoc e org-lint OK. Próxima: validação no prod (compile-prod/check-prod).
+   - **Deploy (0b621a1):** commit+push+sync+compile-prod+check-prod verde; suíte
+     prod 257 testes / 0 unexpected. Durante o gate do deploy descobriu-se um
+     segundo bug latente: `Unused lexical variable` do cconv (Emacs 30) no
+     binding dinâmico de `+carlos/magent-model-max-tier` em
+     custom-magent-context.el:251 quando o boot carrega `.elc` stale de
+     custom-magent-tools — fixado com forward declaration (default real 'paid) +
+     `declare-function` de `gptel--model-name`/`project-root`; teste
+     `myemacs-magent-context-compiles-isolated` em tests/context-test.el (ver
+     AGENTS.md, tabela Known Bugs). Build stale também causava 12 falhas na
+     suíte do repo — eliminadas por `just rebuild` (higiene de artefatos).
 
 ** 2026-08-16 — [CONCLUÍDO] Fix LaTeX preview automático no startup (guard toolchain)
    - **Problema:** abrir qualquer `.org` com fragmento LaTeX levantava

@@ -384,6 +384,7 @@ insensível no Org, mas a consistência facilita o parsing/regex).
 | Bug | Fix | Teste |
 |-----|-----|-------|
 | `org-startup-with-latex-preview t` incondicional (custom-org.el) — abrir `.org` com fragmento LaTeX levantava `File mode specification error: (error Can't find 'latex' ...)` quando `latex`/`dvipng` não estão instalados | Guard no valor: `org-startup-with-latex-preview` só é `t` quando `(and (executable-find "latex") (executable-find "dvipng"))` — preserva preview onde o toolchain existe, silencia onde não há | `myemacs-org-latex-preview-guarded-by-toolchain` + `myemacs-org-open-with-latex-fragment-no-error` (tests/org-test.el) |
+| `custom-magent-context.el:251:16: Error: Unused lexical variable ‘+carlos/magent-model-max-tier’` intermitente no `just compile`/`compile-prod` — `let` bindava a defcustom de custom-magent-tools (`.elc` stale no boot fazia o cconv do Emacs 30 tratá-la como lexical → warning→erro no gate) | Forward declaration `(defvar +carlos/magent-model-max-tier 'paid)` (default real, nunca `nil`) no bloco de declarações do context.el + `declare-function` para `gptel--model-name`/`project-root` — compile determinístico em qualquer estado de build parcial | `myemacs-magent-context-compiles-isolated` (tests/context-test.el; skip pré-sync) |
 
 ---
 
