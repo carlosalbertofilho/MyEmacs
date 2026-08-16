@@ -63,6 +63,104 @@ inteiro colado.
 
 * Backlog Ativo (Pendências e Planos Futuros)
 
+** TODO [#A] Liquidação da Dívida Técnica de Infraestrutura (Plano aprovado)
+    :PROPERTIES:
+    :CREATED: 2026-08-16
+    :STATUS: plano aprovado
+    :END:
+
+*Contexto:* decisões de infra em aberto há mais de 4 dias (item Diagnóstico e
+Decisões Pendentes de Infraestrutura + Etapa A2 do Plano Diretor). Plano criado
+na revisão do planejamento (roadmap 2026-08-16, [DECIDIDO]). Cada sub-item tem
+executor, prazo, critério de saída e abordagem concreta.
+
+*** TODO [#B] Ativação síncrona do Elpaca ([:ensure (:wait t)]) — decidir migrar ou arquivar
+    :PROPERTIES:
+    :ASSIGNEE: executor
+    :DUE: 2026-08-18
+    :STATUS: backlog
+    :END:
+    - *Objetivo:* eliminar a fragilidade dos =(elpaca-wait)= espalhados
+      (init.el:64/68/79/182, custom-completion.el:30, custom-42.el:28) — hoje a
+      ordem exata dos waits é o que evita void-function/void-variable no boot.
+    - *Abordagem:*
+      1. Confirmar a lista de pacotes críticos de boot no boot log (candidatos:
+         =treesit-auto=, =reformatter=, =flycheck=, =apheleia=).
+      2. Migrar um subconjunto pequeno (=reformatter=, =apheleia=) para
+         =:ensure (:wait t)= e validar (ver critério de saída).
+      3. Se limpo: migrar os demais e remover waits redundantes.
+      4. Se regredir: reverter e ARQUIVAR o plano — manter o padrão atual com
+         critério de saída explícito.
+    - *Critério de saída:* =just compile= zero-warning + suíte completa
+      (253/0/7) + boot batch e interativo sem warnings custom-*.
+    - *Prazo:* 2026-08-18.
+
+*** TODO [#A] Guard de runtime do jinx (=+carlos/jinx-mode-if-available=)
+    :PROPERTIES:
+    :ASSIGNEE: executor
+    :DUE: 2026-08-17
+    :STATUS: backlog
+    :END:
+    - *Objetivo:* impedir erro silencioso nos hooks de text-mode/prog-mode em
+      builds sem o módulo nativo (.dylib/libenchant). Hoje a proteção só existe
+      no teste (=skip-unless=), não no runtime (custom-jinx.el:31-32).
+    - *Abordagem:*
+      1. Implementar =+carlos/jinx-mode-if-available= em custom-jinx.el —
+         =condition-case= em torno de =(jinx-mode 1)= + predicação
+         (fboundp/boundp), retornando nil silenciosamente se indisponível.
+      2. Registrar a nova função nos hooks (substituir custom-jinx.el:31-32).
+      3. Teste ERT em tests/spell-test.el: mock de =jinx-mode= indisponível →
+         hook não quebra.
+    - *Critério de saída:* boot em build parcial do repo sem erro nos hooks;
+      suíte verde; compile zero-warning.
+    - *Prazo:* 2026-08-17.
+
+*** DONE [#C] Corrigir epdfinfo do Nix abortando no macOS (Abort trap: 6)
+    :PROPERTIES:
+    :ASSIGNEE: executor
+    :DUE: 2026-08-20
+    :STATUS: done
+    :RESOLVED: 2026-08-16
+    :END:
+    - *Objetivo:* tornar pdf-tools utilizável no macOS com o epdfinfo do Nix.
+    - *Causa-raiz (investigação 2026-08-16):* o binário do Nix aborta também no
+      shell (não é problema de =fork()= do Emacs — diagnóstico anterior era falso
+      positivo por testar sem =open:=/render). Stack: =poppler_page_render_full->
+      std::mutex::lock()-> std::system_error (Invalid argument)->
+      SIGABRT=. `PopplerPage::mutex` é zero-inicializado pelo GObject; no macOS um
+      `std::mutex` zeroizado falha o lock com =EINVAL= (provado por teste isolado).
+      No Linux zeros = initializer válido (por isso o CI do nixpkgs não pegou).
+    - *Solução aplicada:* overlay darwin no MyMachine patcheando o poppler 26.06.0
+      com o fix upstream (poppler Issue #1743, commit 08f4bca6, lançado no
+      26.07.0) — construct/destruct do mutex em =poppler_page_init/finalize=;
+      rebuild de poppler-glib + pdf-tools + epdfinfo. Commit f4f6ffc
+      (MyMachine, fix-poppler-mutex-darwin). Remover o overlay quando o nixpkgs
+      subir para poppler >= 26.07.0.
+    - *Validação (2026-08-16):* protocolo open+renderpage no shell exit=0;
+      =pdf-info-check-epdfinfo= OK no Emacs GUI; =pdf-info-renderpage= retornou
+      PNG válido; PDF abre em =pdf-view-mode= (2 páginas).
+    - *Prazo:* 2026-08-20.
+
+*** TODO [#C] Arquivar agent-shell como subagente do Magent (decisão)
+    :PROPERTIES:
+    :ASSIGNEE: planejador
+    :DUE: 2026-08-17
+    :STATUS: backlog
+    :END:
+    - *Objetivo:* fechar o Diagnóstico item 4 sem trabalho — decisão consciente
+      de manter o FinOps local e o roteador de custo zero.
+    - *Abordagem:* registrar no roadmap como [ARQUIVADO/DECIDIDO] com gatilho
+      explícito de retomada (refactor multi-arquivo virar gargalo real).
+    - *Critério de saída:* entrada no roadmap + item 4 do Diagnóstico marcado
+      como decidido.
+    - *Prazo:* 2026-08-17.
+
+*** Ordem de execução recomendada
+1. Guard do jinx (item mais rápido; elimina fragilidade de hooks).
+2. Arquivar agent-shell (fecha pendência em 15 min).
+3. Elpaca ([:ensure (:wait t)]) — decisão com critério de saída.
+4. epdfinfo — DONE 2026-08-16 (fix poppler no MyMachine, commit f4f6ffc).
+
 ** TODO Magent como Driver do Emacs — Fase B & C (Operação em Buffer Vivo)
     :PROPERTIES:
     :CREATED: 2026-08-12
@@ -118,6 +216,10 @@ Validar o fluxo interativo das integrações em modo GUI no ambiente
     :STATUS: backlog
     :END:
 
+*Nota (2026-08-16):* os 4 itens abaixo são cobertos pelo plano priorizado
+"Liquidação da Dívida Técnica de Infraestrutura" (item [#A] no topo do Backlog
+Ativo) — não duplicar; o plano define executor, prazo e critério de saída.
+
 1. *Elpaca 0.2.0 e Ativação Síncrona (=:ensure (:wait t)=):* o plano de migrar
    os pacotes de inicialização crítica para =:ensure (:wait t)= foi adiado
    porque suíte e boot estão estáveis após as políticas de limpeza de build
@@ -131,12 +233,11 @@ Validar o fluxo interativo das integrações em modo GUI no ambiente
    adiado porque o =skip-unless= nos testes mitigou o problema em batch.
    *Decisão pendente:* aplicar ou não o helper seguro para portabilidade
    universal ("Works anywhere").
-3. *epdfinfo Nix aborta ao ser spawnado pelo Emacs no macOS:* o binário
-   =epdfinfo= derivado do Nix aborta com =Abort trap: 6= (problemas de
-   =fork()=/glib) ao ser spawnado como subprocesso direto do Emacs; funciona
-   via shell. *Ações futuras:* wrapper em C com =fork=/=exec= próprios; advice
-   em =pdf-info-process-assert-running= para spawn via shell; ou compilar
-   =epdfinfo= via poppler do Homebrew.
+3. *epdfinfo Nix aborta ao ser spawnado pelo Emacs no macOS:* *RESOLVIDO
+   2026-08-16* (item [#C] acima) — a causa-raiz era o poppler 26.06.0 do Nix
+   sem o fix do mutex (Issue #1743 / commit 08f4bca6 / release 26.07.0),
+   patcheado via overlay darwin no MyMachine (commit f4f6ffc); o binário
+   abortava também no shell, não era problema de =fork()= do Emacs.
 4. *agent-shell como subagente do Magent:* usar o agent-shell standalone
    (Aider, Cursor, Claude Code) como subagente especializado delegado pelo
    Magent (=spawn_agent= / =wait_agent=) apenas para refatorações complexas de

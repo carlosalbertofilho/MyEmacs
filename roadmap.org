@@ -12,6 +12,27 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-16 — [CONCLUÍDO] Fix epdfinfo Nix abortando no macOS (poppler mutex)
+   - **Objetivo:** tornar pdf-tools utilizável no macOS com o binário `epdfinfo`
+     do Nix (que abortava com `Abort trap: 6`).
+   - **Investigação (causa-raiz):** reproduzido que o binário do Nix aborta
+     também no shell (diagnóstico anterior de "funciona via shell" era falso
+     positivo por testar sem `open:`/render). Stack: `poppler_page_render_full`
+     -> `std::mutex::lock()` -> `std::system_error` (Invalid argument) ->
+     SIGABRT. `PopplerPage::mutex` é um `std::mutex` zero-inicializado pelo
+     GObject; no macOS um `std::mutex` zeroizado falha o lock com EINVAL
+     (provado por teste isolado); no Linux zeros = initializer válido, por isso
+     o CI do nixpkgs não pegou.
+   - **Fix:** upstream poppler Issue #1743, commit 08f4bca6, lançado no 26.07.0.
+     Aplicado como overlay darwin no MyMachine patcheando o poppler 26.06.0
+     (construct/destruct do mutex em `poppler_page_init`/`poppler_page_finalize`),
+     reconstruindo poppler-glib + `emacsPackages.pdf-tools` + `epdfinfo`
+     (commit f4f6ffc, ID fix-poppler-mutex-darwin).
+   - **Validação:** protocolo open+renderpage no shell exit=0; `pdf-info-check-
+     epdfinfo` OK no Emacs GUI; `pdf-info-renderpage` retornou PNG válido; PDF
+     abre em `pdf-view-mode` (2 páginas).
+   - **Gates:** item [#C] do TODO.org marcado DONE; org-lint limpo.
+
 ** 2026-08-16 — [CONCLUÍDO] Refatoração dos arquivos .org para padrões canônicos (AST org + org-lint)
    - **Objetivo:** formalizar e padronizar TODO.org, roadmap.org e docs/*.org
      usando os melhores padrões do formato Org, e codificar as convenções no
@@ -98,7 +119,10 @@ entenderem o estado atual do projeto e decisões tomadas.
         custom-magent-fsm.el) não foi "removido" — o que foi superado foi o
         FSM antigo de THINK/DECIDE/RETRY (nota corrigida no TODO.org).
    - **Ações aplicadas nesta rodada:** correção do passo stale da Fase C no
-     TODO.org; correção da nota ambígua do FSM; notas de merge Fase B × D4.
+     TODO.org; correção da nota ambígua do FSM; notas de merge Fase B × D4;
+     plano priorizado "Liquidação da Dívida Técnica de Infraestrutura"
+     registrado no TODO.org (item [#A], com executor/prazo/critério de saída
+     por sub-item — elpaca, jinx, epdfinfo, agent-shell).
 
 ** 2026-08-16 — [CONCLUÍDO] Ocultação de Ferramentas de Edição do Orquestrador (Fase D / Option 1)
    - **Objetivo:** Impedir estruturalmente que o modelo Orquestrador (geralmente um modelo local pequeno) tente realizar edições complexas em arquivos com ferramentas como `edit_file`, devido à sua incapacidade de reproduzir o `old_text` perfeitamente, forçando-o a sempre delegar para subagentes na nuvem.
