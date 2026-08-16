@@ -186,6 +186,11 @@ inteiro colado.
     - `buffer_insert`: Insere texto em uma linha específica ou no `point` atual.
     - `buffer_replace_region`: Substitui um bloco (por index de linhas), superando as falhas de alucinação do `old_text` enfrentadas no `edit_file`.
     - `buffer_undo`: Permite ao agente "dar Ctrl+Z" em sua própria edição se a validação subsequente falhar.
+  - *Ferramentas Sensoriais de Introspecção (A Implementar):*
+    - `lsp_hover`: Move o cursor virtual e extrai o popup do `eglot-hover-eldoc-function` (docstrings, assinaturas e tipos do LSP em tempo real), evitando que o modelo alucine APIs de bibliotecas que não conhece.
+    - `describe_elisp_symbol`: Executa `describe-function`/`describe-variable` e retorna o texto puro do buffer `*Help*`. Essencial para dar *Context Awareness* exato quando o agente precisar escrever ou alterar configurações Lisp do próprio Emacs.
+    - `lsp_references`: Busca e retorna trechos de código mostrando onde e como uma API foi chamada no projeto, fornecendo padrões de uso.
+    - `treesit_context`: Retorna o caminho da árvore AST (`treesit-auto`) no ponto atual (ex: `Class -> Method -> if_statement`), orientando o agente espacialmente no buffer antes de inserir código.
   - *Fluxo de Trabalho (Loop In-Process):*
     1. O Orquestrador mapeia a arquitetura e invoca `spawn_agent` no perfil `coder`.
     2. `coder` usa `lsp_navigation` para injetar contexto 100% correto do código alvo.
