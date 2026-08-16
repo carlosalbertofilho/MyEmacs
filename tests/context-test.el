@@ -26,7 +26,7 @@
   "Garante que a instrução de preservação estruturada contém as 6 diretivas."
   (should (boundp '+carlos/magent-preservation-instruction))
   (should (string-match-p "Arquivos modificados" +carlos/magent-preservation-instruction))
-  (should (string-match-p "TODO\\.md" +carlos/magent-preservation-instruction)))
+  (should (string-match-p "TODO\\.org" +carlos/magent-preservation-instruction)))
 
 (ert-deftest myemacs-context-auto-compact-sink-runs ()
   "Garante que `+carlos/magent-auto-compact-check-and-run` executa sem erros."
@@ -58,7 +58,7 @@
   (let ((instr (+carlos/magent-build-compaction-instruction)))
     (should (stringp instr))
     (should (string-match-p "Regras de descarte" instr))
-    (should (string-match-p "TODO\\.md" instr))
+    (should (string-match-p "TODO\\.org" instr))
     (should (string-match-p "preservando o estado do projeto" instr))))
 
 (ert-deftest myemacs-context-sink-subagent-stop-counts ()
