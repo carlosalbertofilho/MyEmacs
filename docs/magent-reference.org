@@ -616,6 +616,73 @@ parseia chaves como símbolos — asserts de teste usam `(alist-get 'status pars
     {"status":"success","message":"Snippet 'deftest' inserido com sucesso no buffer."}
     #+end_src
 
+** 4. Live Buffer Driver (Fase B / D4 — `buffer_*` tools) — adicionado 2026-08-16
+   Implementado em =lisp/custom-magent-buffer.el= (módulo novo, requerido pela
+   fachada custom-magent.el). 5 tools registradas no `magent-tools-catalog` sob a
+   permission **`buffer`** (símbolo novo, orquestrada pelo contrato de sessão
+   abaixo). Assinaturas posicionais na ordem do argspec (sem o arg "reason").
+
+   - **Contrato de sessão (ownership):** cada buffer operado pelo driver fica em
+     `+carlos/magent-buffer-session` (buffer-name . `buffer-chars-modified-tick`).
+     A primeira operação adota o baseline; qualquer mutação com tick divergente
+     (edição manual entre chamadas) falha com `user-error`
+     `buffer_conflict: ...chame read_buffer novamente...`. O advice `:after` em
+     `magent-tools--read-buffer` adota o baseline ao ler o buffer vivo
+     (=read_buffer= "reivindica" o estado). `+carlos/magent-fsm-reset` chama
+     `+carlos/magent-buffer-reset-session` (cancelamento libera a sessão).
+   - **Coordenadas:** linhas absolutas **1-based**, colunas **0-based** (clamped
+     ao fim da linha).
+
+** 4.1 `buffer_insert`
+- **Nome Técnico:** `buffer_insert`
+- **Handler Elisp:** `+carlos/magent-tool-buffer-insert`
+- **Assinatura:** `(text &optional buffer line column _reason)` — 1º arg = texto (obrigatório); 2º = buffer vivo (string; nil = atual); 3º/4º = LINE/COLUMN opcionais (nil = point).
+- **Descrição:** Insere TEXT no buffer vivo no ponto atual ou em coordenadas
+  (line 1-based, column 0-based). Valida o contrato de sessão.
+- **Formato da Saída (JSON):**
+  #+begin_src json
+  {"status":"success","buffer":"nome","text_len":6,"line":1}
+  #+end_src
+
+** 4.2 `buffer_replace_region`
+- **Nome Técnico:** `buffer_replace_region`
+- **Handler Elisp:** `+carlos/magent-tool-buffer-replace-region`
+- **Assinatura:** `(text &optional buffer start-line start-column end-line end-column _reason)`
+- **Descrição:** Substitui região do buffer por TEXT em 3 modos:
+  (a) *linhas inteiras* — START-LINE e opcional END-LINE, sem colunas (END cai no
+  início da linha seguinte; inclua `\n` final em TEXT para não mergear com a linha
+  seguinte); (b) *range exato* — START-LINE/START-COLUMN/END-LINE/END-COLUMN;
+  (c) *região ativa* — sem coordenadas e sem BUFFER, usa a região do buffer atual.
+- **Formato da Saída (JSON):**
+  #+begin_src json
+  {"status":"success","buffer":"nome","text_len":4,"start_line":2}
+  #+end_src
+
+** 4.3 `buffer_undo`
+- **Nome Técnico:** `buffer_undo`
+- **Handler Elisp:** `+carlos/magent-tool-buffer-undo`
+- **Assinatura:** `(&optional buffer _reason)`
+- **Descrição:** Desfaz a última mudança do buffer vivo. Implementado com
+  `undo-start` + `undo-more 1` (NÃO `(undo)`, que falha com "No further undo
+  information" quando não há boundary `nil` separando o grupo de edição). Retorna
+  status `info` quando não há o que desfazer.
+
+** 4.4 `lsp_hover`
+- **Nome Técnico:** `lsp_hover`
+- **Handler Elisp:** `+carlos/magent-tool-lsp-hover`
+- **Assinatura:** `(&optional buffer line column _reason)`
+- **Descrição:** Retorna o hover do Eglot no ponto (ou LINE/COLUMN) com o
+  identificador (`thing-at-point 'symbol`). Sem servidor LSP: status `info` com
+  backend `none` + identifier (fallback p/ resolver símbolo via lsp_navigation).
+
+** 4.5 `describe_elisp_symbol`
+- **Nome Técnico:** `describe_elisp_symbol`
+- **Handler Elisp:** `+carlos/magent-tool-describe-elisp-symbol`
+- **Assinatura:** `(symbol &optional _reason)` — 1º arg = nome do símbolo (string, obrigatório).
+- **Descrição:** Descreve símbolo Elisp: kind (function/variable/face/feature),
+  docstring, valor atual truncado, arglist e arquivo de definição. Para resolver
+  APIs e opções do Emacs sem adivinhar.
+
 * Permissions & Audit Logging
 
 ** Permission Rules
@@ -639,11 +706,14 @@ tool catalog (write/edit/bash), the orchestrator runs with
 =magent-enable-tools= (via advice on =magent-agent-process= in
 =custom-magent-subagent.el=):
 
-- **Orchestrator (hidden):** =write=, =edit=, =snippet_expand= permissions
-  (=write_file=, =write_repo_summary=, =edit_file=, =snippet_expand= removed).
-  Keeps =read_file=/=read_buffer=, =grep=/=glob=, =spawn_agent= family,
-  =emacs_eval=, =web_search=.
-- **Subagents (build/dev):** full catalog (write/edit/bash allowed).
+- **Orchestrator (hidden):** =write=, =edit=, =snippet_expand= e =buffer=
+  permissions (=write_file=, =write_repo_summary=, =edit_file=, =snippet_expand=,
+  =buffer_insert=, =buffer_replace_region=, =buffer_undo=, =lsp_hover=,
+  =describe_elisp_symbol= removidas). Keeps =read_file=/=read_buffer=,
+  =grep=/=glob=, =spawn_agent= family, =emacs_eval=, =web_search=.
+- **Subagents (build/dev):** full catalog (write/edit/bash/buffer allowed).
+- **Coder (live-buffer driver):** perfil que usa as `buffer_*` tools —
+  orquestra o buffer vivo em point/região (perfil 1 abaixo).
 - Rationale: the orchestrator plans, delegates, and synthesizes; all
   file-mutating work happens inside subagents where per-tool confirmation and
   audit still apply.
@@ -693,6 +763,12 @@ You are an expert C tutor at 42 School conforming strictly to Norm v4.1...
 #+END_SRC
 
 Skills with ~type: instruction~ are injected into the agent system prompt context when triggered or active.
+
+Skill de auto-correção declarativa (Fase C, 2026-08-16):
+=magent/skills/buffer-driver-loop/SKILL.md= — fluxo read → write → ownership/
+=buffer_conflict= → =flycheck_errors= → fix (=lsp_navigation= / =lsp_hover= /
+=describe_elisp_symbol=) → =buffer_undo= → critério de parada (zero erros ou 2
+tentativas sem progresso).
 
 * Custom Agents
 

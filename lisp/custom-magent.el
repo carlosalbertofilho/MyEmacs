@@ -10,6 +10,7 @@
 ;; expõe o ponto de entrada da sessão.  A lógica está segregada por domínio:
 ;;   custom-magent-fsm.el      FSM de orquestração, host routing, watchdog
 ;;   custom-magent-tools.el    Fixes de tool/schema, directivas, tools curadas
+;;   custom-magent-buffer.el   Driver de buffer vivo (Fase B/D4): buffer_* tools
 ;;   custom-magent-subagent.el Perfis de modelo por subagente
 ;;   custom-magent-context.el  Auto-compactação por threshold de janela
 ;;   custom-magent-commands.el Slash commands, workdir e FinOps
@@ -19,6 +20,7 @@
 
 (require 'custom-magent-fsm)
 (require 'custom-magent-tools)
+(require 'custom-magent-buffer)
 (require 'custom-magent-subagent)
 (require 'custom-magent-context)
 (require 'custom-magent-commands)

@@ -26,6 +26,7 @@
 (require 'local-ai-automation-test)
 (require 'context-test)
 (require 'magent-driver-test)
+(require 'magent-buffer-test)
 
 (provide 'load-tests)
 ;;; load-tests.el ends here

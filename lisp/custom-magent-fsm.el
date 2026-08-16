@@ -12,6 +12,7 @@
 (declare-function magent-tools--parent-session "magent-tools")
 (declare-function magent-session-agent-jobs "magent-session")
 (declare-function magent-agent-job-status "magent-agent")
+(declare-function +carlos/magent-buffer-reset-session "custom-magent-buffer")
 
 ;; ── ETAPA 1: Estado da FSM & Detecção de Perfil por Host ────────────────────
 ;; Variáveis de controle do loop de eventos assíncrono do Magent.
@@ -38,12 +39,17 @@ e consultada por `+carlos/magent-fsm-pending-subagent-p'.")
 Usado pelo sanitizador para detectar tool calls emitidas dentro do pensamento.")
 
 (defun +carlos/magent-fsm-reset ()
-  "Reseta o estado da FSM para o início de um novo turno."
+  "Reseta o estado da FSM para o início de um novo turno.
+Também libera o contrato de sessão de buffers do driver (Fase B/D4) quando o
+módulo custom-magent-buffer já está carregado — coordenado com o cancelamento
+pela FSM."
   (setq +carlos/magent-fsm-state 'idle
         +carlos/magent-fsm-session nil
         +carlos/magent-fsm-retry-count 0
         +carlos/magent-fsm-reasoning-buffer ""
-        +carlos/magent-fsm-subagent-jobs nil))
+        +carlos/magent-fsm-subagent-jobs nil)
+  (when (fboundp '+carlos/magent-buffer-reset-session)
+    (+carlos/magent-buffer-reset-session)))
 
 (defun +carlos/magent-fsm-transition (new-state)
   "Transiciona a FSM para NEW-STATE e emite mensagem diagnóstica."

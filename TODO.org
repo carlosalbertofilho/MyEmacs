@@ -255,16 +255,16 @@ com AutoFit to Window. O objetivo é emular esse comportamento.
   assertar que largura final ≤ largura mockada e alinhamento íntegro.
 - *Prazo:* 2026-08-20.
 
-** TODO Magent como Driver do Emacs — Fase B & C (Operação em Buffer Vivo)
+** DONE Magent como Driver do Emacs — Fase B & C (Operação em Buffer Vivo)
     :PROPERTIES:
     :CREATED: 2026-08-12
-    :STATUS: backlog
+    :STATUS: done
     :END:
 
 *Objetivo:* transformar o Magent de operador estático de arquivos para operador
 de buffers interativos em point/região do usuário.
 
-*** TODO Fase B — Driver do buffer vivo (pareamento de verdade)
+*** DONE Fase B — Driver do buffer vivo (pareamento de verdade)
 
 - Implementar =buffer_edit=/=buffer_insert= operando diretamente no buffer do
   usuário (point/região).
@@ -282,11 +282,22 @@ Buffer Vivo — =buffer_insert=, =buffer_replace_region=, =buffer_undo=,
 =lsp_hover=, =describe_elisp_symbol=). Executar em conjunto — a Etapa C6 é o
 objetivo e o D4 é a implementação concreta das ferramentas.
 
-*** TODO Fase C — Loop de auto-correção como skill/workflow
+*Execução (2026-08-16):* implementado em =lisp/custom-magent-buffer.el=
+(5 tools com `:permission buffer`, contrato de sessão por
+`buffer-chars-modified-tick` com erro `buffer_conflict`, advice de adoção no
+=read_buffer=, reset via `+carlos/magent-fsm-reset`). Coberto por 16 testes em
+=tests/magent-buffer-test.el= (suíte repo 276: 268 ok / 0 falhas / 8 skips).
+
+*** DONE Fase C — Loop de auto-correção como skill/workflow
 
 - Criar uma skill declarativa reutilizável (em =magent/skills/=) para formalizar
   o fluxo: escrever → analisar flycheck → corrigir → usar LSP/Xref para
   resolver símbolos.
+
+*Execução (2026-08-16):* skill declarativa
+=magent/skills/buffer-driver-loop/SKILL.md= com o loop read → escrever →
+ownership → flycheck → corrigir (lsp_navigation/lsp_hover/
+describe_elisp_symbol) → undo → critério de parada.
 
 ** TODO Validação Interativa da Stack de IA (GUI)
     :PROPERTIES:
@@ -383,10 +394,10 @@ Pendências remanescentes do plano "FSM & Submodelos" (roadmap 2026-08-13):
     :STATUS: backlog
     :END:
 
-*** TODO D4. Codificar Ferramentas do Perfil =coder= (Operador de Buffer Vivo)
+*** DONE D4. Codificar Ferramentas do Perfil =coder= (Operador de Buffer Vivo)
     :PROPERTIES:
     :ASSIGNEE: coder
-    :STATUS: backlog
+    :STATUS: done
     :TAGS: :magent:tools:
     :END:
     Implementar as mutações =buffer_insert=, =buffer_replace_region=,
@@ -396,6 +407,12 @@ Pendências remanescentes do plano "FSM & Submodelos" (roadmap 2026-08-13):
 *Nota (2026-08-16, revisão do planejamento):* sobrepõe-se à Etapa C6 / Fase B
 (Driver do buffer vivo) — executar em conjunto; a Etapa C6 é o objetivo e este
 D4 é a implementação concreta das ferramentas.
+
+*Execução (2026-08-16):* concluído junto com a Fase B — módulo
+=lisp/custom-magent-buffer.el=, permissões `:permission buffer`,
+orquestrador esconde `buffer` (custom-magent-subagent.el), registro em
+`magent-enable-tools` via `custom-magent-config`. 16 testes ERT em
+=tests/magent-buffer-test.el=.
 
 *** TODO D5. Context Sharing Dinâmico para Subagentes
     :PROPERTIES:

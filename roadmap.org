@@ -12,6 +12,53 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-16 — [CONCLUÍDO] Magent como Driver do Emacs — Fase B & C + D4 (Operação em Buffer Vivo)
+   - **Objetivo:** transformar o Magent de operador estático de arquivos para
+     operador de buffers interativos em point/região do usuário: mutações
+     (=buffer_insert=, =buffer_replace_region=, =buffer_undo=) e sensores
+     (=lsp_hover=, =describe_elisp_symbol=) com contrato de sessão de ownership,
+     e skill declarativa de auto-correção (Fase C). Merge planejado da Etapa C6
+     com o D4 (implementação concreta das ferramentas).
+   - **Implementação (novo módulo =lisp/custom-magent-buffer.el=):**
+     - *5 tools* registradas no `magent-tools-catalog` com nova permission
+       `buffer` (símbolo), via =gptel-make-tool= no bloco `with-eval-after-load
+       'gptel`; handlers com assinaturas posicionais no contrato do magent
+       (ordem do argspec, sem o arg display-only "reason" — validado
+       empiricamente em `magent-agent-loop--tool-arg-values`).
+     - *Contrato de sessão:* alist `+carlos/magent-buffer-session`
+       (buffer-name . `buffer-chars-modified-tick`); adota baseline na primeira
+       operação e falha com `user-error` `buffer_conflict` quando o tick difere
+       (edição manual entre chamadas); advice `:after` em
+       `magent-tools--read-buffer` adota o baseline (coordena com read_buffer);
+       reset via `+carlos/magent-fsm-reset` (cancelamento pela FSM).
+     - *Coordenadas:* linhas 1-based / colunas 0-based (clamped). 
+       =buffer_replace_region= modos: linhas inteiras (end-column nil), range
+       exato, ou região ativa (sem coordenadas + `use-region-p`).
+     - *Undo robusto:* `undo-start` + `undo-more 1` (não `(undo)`, que falha com
+       "No further undo information" quando não há boundary `nil` separando o
+       grupo de edição — caso sintético/sem undo-auto).
+     - *Wiring:* fachada custom-magent.el requer o módulo; FSM reset chama
+       `+carlos/magent-buffer-reset-session` (guard); orquestrador esconde
+       `buffer` (custom-magent-subagent.el, `remq 'buffer`);
+       `magent-enable-tools` ganha `'buffer` (custom-magent-buffer.el).
+   - **Skill (Fase C):** =magent/skills/buffer-driver-loop/SKILL.md= declarativa —
+     read → write → ownership/buffer_conflict → flycheck_errors → fix
+     (lsp_navigation/lsp_hover/describe_elisp_symbol) → buffer_undo → critério
+     de parada (zero erros ou 2 tentativas sem progresso).
+   - **Testes:** =tests/magent-buffer-test.el= (16 testes ERT) + require em
+     load-tests.el. Cobertura: insert point/coords/validação/conflict, replace
+     whole-lines/exato/região ativa/falta de coords, undo/undo-vazio, lsp-hover
+     sem eglot, describe symbol (function/variable/ausente), advice adopt via
+     read_buffer, reset FSM, catálogo com permission `buffer`.
+   - **Gates:** `just rebuild` 26/26 zero-warning; `just lint` (compile +
+     checkdoc + org-lint) OK; `just check` OK; suíte repo 276/268/0/8 (antes
+     260/252/0/8 — +16 sem regressão).
+   - **Descobertas (pré-existentes, fora de escopo):** `load-prefer-newer-source`
+     é *void* no Emacs 30.2 (renomeada para `load-prefer-newer`) — early-init.el
+     e AGENTS.md ainda citam o nome antigo; ruído benigno de native-comp
+     `Unknown type magent-request-context` no `-l tests/load-tests.el` (25
+     ocorrências, também presente sem as mudanças desta rodada).
+
 ** 2026-08-16 — [CONCLUÍDO] Ativação síncrona do Elpaca ([:ensure (:wait t)])
    - **Objetivo:** eliminar a fragilidade dos `(elpaca-wait)` espalhados (cada
      um é barreira global: bloqueia até *todos* os pacotes da fila), migrando
