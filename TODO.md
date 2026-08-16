@@ -210,11 +210,11 @@ inteiro colado.
 - **D7. Testes Unitários de Permissão (ERT):**
   - *Objetivo:* Adicionar testes em `tests/magent-routing-test.el` simulando `agent-info` de Orquestrador e Subagentes, garantindo que o catálogo filtrado (`magent-tools-get-gptel-tools-for-permission`) aplique corretamente o let-binding de restrição (D1/D2/D3).
 - **D8. Criação do Perfil `archeologist` (Gestor de Versionamento e Magit/Forge):**
-  - *Objetivo:* Um perfil dedicado à gestão de source-control, investigação de história de código e gestão de plataformas remotas (GitHub/GitLab). Será o próximo foco após estabilizarmos o perfil `coder`.
+  - *Objetivo:* Garantir que a feature validada pelo QA seja perfeitamente documentada, commitada e sincronizada remotamente, agindo como Gerente de Lançamentos e Historiador.
   - *Ferramentas Projetadas:*
-    - `git_blame_line`: Lê a mensagem de commit e o autor de uma linha (via Magit) para dar contexto de *porquê* lógicas legadas ou workarounds existem, guiando refatorações com segurança.
-    - Integração com `forge`: Lê Issues e Pull Requests da plataforma e sincroniza o trabalho local com o planejamento remoto.
-    - Ferramentas nativas do Magit: Controle de staging seletivo, rebase interativo, checkout de branches e *commit message generation*.
+    - *O Historiador:* A ferramenta `git_blame_line` aciona a API do Magit para ler não apenas o autor, mas a mensagem original do commit, aconselhando o Orquestrador sobre *porquê* workarounds ou lógicas legadas existem antes de permitir refatorações perigosas.
+    - *Integração de Plataforma:* A ferramenta `forge_read_issue` usa o pacote Forge para extrair tickets e *Pull Requests* diretamente do GitHub/GitLab para o prompt, dando contexto de negócio ao Planner e ao Coder.
+    - *Commit Semântico Estruturado:* A ferramenta `magit_commit_semantic` aciona o `magit_diff_staged`, valida contra a convenção (Conventional Commits), cruza com o sumário arquitetural, faz o commit e finalmente executa a publicação (`git push` / `just deploy`).
 - **D9. Criação da Equipe de Especialistas (Expansão de Perfis Futuros):**
   - *Objetivo:* Expandir a orquestração para cobrir todo o ciclo de vida de um projeto, criando subagentes hiper-especializados baseados nos ecossistemas nativos do Emacs. Serão desenhados iterativamente após os perfis `coder` e `archeologist`.
   - *Perfil `sysadmin` (ou `devops`):* Senhor da Infraestrutura. Operador de servidores, Docker e NixOS focado em resiliência.
