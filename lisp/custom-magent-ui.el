@@ -304,6 +304,110 @@ assinatura) e anexa modelo do filho para `spawn_agent' e cwd para
   (advice-add 'magent-agent-loop-tool-call-summary
               :around #'+carlos/magent-ui-tool-call-summary-a))
 
+;; ── D6: Spinner de subagente ────────────────────────────────────────
+;; Enquanto a FSM bloqueia em `subagent-waiting', um timer anima uma linha
+;; de spinner (frames braille) no buffer *Magent*.  O wiring fica na FSM:
+;; `+carlos/magent-fsm-transition' chama start ao entrar em subagent-waiting
+;; e stop ao sair (guards `fboundp' — a UI carrega depois da FSM).
+
+(defcustom +carlos/magent-ui-spinner-interval 0.1
+  "Intervalo em segundos entre frames do spinner de subagente."
+  :type 'float
+  :group 'magent)
+
+(defvar +carlos/magent-ui-spinner-frames
+  '("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
+  "Frames Unicode (braille) do spinner de subagente.")
+
+(defvar +carlos/magent-ui-spinner-timer nil
+  "Timer ativo do spinner de subagente.  nil quando inativo.")
+
+(defvar +carlos/magent-ui-spinner-frame-index 0
+  "Índice do frame atual do spinner de subagente.")
+
+(defvar +carlos/magent-ui-spinner-marker nil
+  "Marker da linha do spinner no buffer *Magent*.")
+
+(defface +carlos/magent-ui-spinner '((t (:inherit font-lock-keyword-face)))
+  "Face para a linha do spinner de subagente.")
+
+(defun +carlos/magent-ui-spinner-active-p ()
+  "Return non-nil when the subagent-waiting spinner is active."
+  (timerp +carlos/magent-ui-spinner-timer))
+
+(defun +carlos/magent-ui-spinner-line ()
+  "Return the current spinner line text with the spinner face."
+  (propertize
+   (format "[%s] ⏳ %s aguardando subagente..."
+           (+carlos/magent-ui--timestamp)
+           (nth (mod +carlos/magent-ui-spinner-frame-index
+                     (length +carlos/magent-ui-spinner-frames))
+                +carlos/magent-ui-spinner-frames))
+   'face '+carlos/magent-ui-spinner))
+
+(defun +carlos/magent-ui-spinner-start ()
+  "Start the subagent-waiting spinner in the Magent shell buffer.
+Inserts the first frame line at point-max and schedules
+`+carlos/magent-ui-spinner-tick' every
+`+carlos/magent-ui-spinner-interval' seconds.  Returns non-nil when
+started, nil when the shell buffer is unavailable or already running."
+  (when-let* ((buffer (+carlos/magent-ui--shell-buffer))
+              ((not (+carlos/magent-ui-spinner-active-p))))
+    (setq +carlos/magent-ui-spinner-frame-index 0)
+    (when (markerp +carlos/magent-ui-spinner-marker)
+      (set-marker +carlos/magent-ui-spinner-marker nil))
+    (with-current-buffer buffer
+      (let ((inhibit-read-only t))
+        (goto-char (point-max))
+        (set-marker (setq +carlos/magent-ui-spinner-marker (make-marker))
+                    (point))
+        (insert (+carlos/magent-ui-spinner-line) "\n")))
+    (setq +carlos/magent-ui-spinner-timer
+          (run-with-timer 0 +carlos/magent-ui-spinner-interval
+                          #'+carlos/magent-ui-spinner-tick))
+    t))
+
+(defun +carlos/magent-ui-spinner-tick ()
+  "Replace the spinner line with the next frame, in place.
+Stops the spinner (buffer dead) instead of leaking the timer."
+  (when (and (timerp +carlos/magent-ui-spinner-timer)
+             (markerp +carlos/magent-ui-spinner-marker))
+    (let ((buffer (marker-buffer +carlos/magent-ui-spinner-marker)))
+      (if (buffer-live-p buffer)
+          (with-current-buffer buffer
+            (let ((inhibit-read-only t))
+              (save-excursion
+                (goto-char +carlos/magent-ui-spinner-marker)
+                (let ((start (line-beginning-position))
+                      (end (min (1+ (line-end-position)) (point-max))))
+                  (delete-region start end)
+                  (goto-char start)
+                  (insert (+carlos/magent-ui-spinner-line))))
+              (setq +carlos/magent-ui-spinner-frame-index
+                    (1+ +carlos/magent-ui-spinner-frame-index))))
+        (+carlos/magent-ui-spinner-stop)))))
+
+(defun +carlos/magent-ui-spinner-stop ()
+  "Stop the subagent-waiting spinner and remove its line from the buffer.
+Returns nil."
+  (when (timerp +carlos/magent-ui-spinner-timer)
+    (cancel-timer +carlos/magent-ui-spinner-timer))
+  (setq +carlos/magent-ui-spinner-timer nil)
+  (when (markerp +carlos/magent-ui-spinner-marker)
+    (let ((buffer (marker-buffer +carlos/magent-ui-spinner-marker))
+          (pos (marker-position +carlos/magent-ui-spinner-marker)))
+      (when (buffer-live-p buffer)
+        (with-current-buffer buffer
+          (let ((inhibit-read-only t))
+            (when pos
+              (save-excursion
+                (goto-char pos)
+                (delete-region (line-beginning-position)
+                               (min (1+ (line-end-position)) (point-max))))))))
+      (set-marker +carlos/magent-ui-spinner-marker nil))
+    (setq +carlos/magent-ui-spinner-marker nil))
+  nil)
+
 ;; ── Registro do sink ──────────────────────────────────────────────
 (defun +carlos/magent-ui-register-sink ()
   "Register the Magent UI activity sink when the lifecycle API is available."

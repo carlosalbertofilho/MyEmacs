@@ -13,6 +13,8 @@
 (declare-function magent-session-agent-jobs "magent-session")
 (declare-function magent-agent-job-status "magent-agent")
 (declare-function +carlos/magent-buffer-reset-session "custom-magent-buffer")
+(declare-function +carlos/magent-ui-spinner-start "custom-magent-ui")
+(declare-function +carlos/magent-ui-spinner-stop "custom-magent-ui")
 
 ;; ── ETAPA 1: Estado da FSM & Detecção de Perfil por Host ────────────────────
 ;; Variáveis de controle do loop de eventos assíncrono do Magent.
@@ -49,14 +51,25 @@ pela FSM."
         +carlos/magent-fsm-reasoning-buffer ""
         +carlos/magent-fsm-subagent-jobs nil)
   (when (fboundp '+carlos/magent-buffer-reset-session)
-    (+carlos/magent-buffer-reset-session)))
+    (+carlos/magent-buffer-reset-session))
+  (when (fboundp '+carlos/magent-ui-spinner-stop)
+    (+carlos/magent-ui-spinner-stop)))
 
 (defun +carlos/magent-fsm-transition (new-state)
-  "Transiciona a FSM para NEW-STATE e emite mensagem diagnóstica."
+  "Transiciona a FSM para NEW-STATE e emite mensagem diagnóstica.
+Inicia o spinner de subagente (D6) ao bloquear em `subagent-waiting' e o
+para ao sair do estado (qualquer transição a partir dele)."
   (let ((prev +carlos/magent-fsm-state))
     (setq +carlos/magent-fsm-state new-state)
     (unless (eq prev new-state)
-      (message "[Magent FSM] %s → %s" prev new-state))))
+      (message "[Magent FSM] %s → %s" prev new-state)
+      (cond
+       ((eq new-state 'subagent-waiting)
+        (when (fboundp '+carlos/magent-ui-spinner-start)
+          (+carlos/magent-ui-spinner-start)))
+       ((eq prev 'subagent-waiting)
+        (when (fboundp '+carlos/magent-ui-spinner-stop)
+          (+carlos/magent-ui-spinner-stop)))))))
 
 ;; ── ETAPA 1b: Detecção de Perfil por Host ───────────────────────────────────
 

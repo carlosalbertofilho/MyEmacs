@@ -422,13 +422,20 @@ orquestrador esconde `buffer` (custom-magent-subagent.el), registro em
     Injetar automaticamente contexto relevante nos prompts enviados a
     subagentes (=spawn_agent= aprimorado).
 
-*** TODO D6. Feedback de UI Visual para Delegação (Fase C+)
+*** DONE D6. Feedback de UI Visual para Delegação (Fase C+)
     :PROPERTIES:
     :ASSIGNEE: coder
-    :STATUS: backlog
+    :STATUS: done
     :END:
     Enriquecer o painel *Magent* com spinners enquanto a FSM bloqueia em
     =subagent-waiting=.
+
+*Execução (2026-08-16):* spinner braille animado por timer no buffer *Magent*
+em =custom-magent-ui.el= (=+carlos/magent-ui-spinner-start/-tick/-stop=,
+frames ⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏). Wiring na FSM: entrar em `subagent-waiting`
+inicia; sair do estado ou reset da sessão para. Guards `fboundp` (UI carrega
+depois da FSM). 3 testes de UI + 3 de wiring FSM em =tests/magent-ui-test.el=
+e =tests/magent-fsm-test.el=.
 
 *** TODO D7. Testes Unitários de Permissão (ERT)
     :PROPERTIES:
@@ -444,13 +451,22 @@ orquestrador esconde `buffer` (custom-magent-subagent.el), registro em
     :END:
     Implementar =git_blame_line=, =forge_read_issue= e =magit_commit_semantic=.
 
-*** TODO D9. Instanciar a Equipe de Especialistas (Sysadmin, Planner, Tech Writer, Auditor, Sec-Ops, QA)
+*** DONE D9. Instanciar a Equipe de Especialistas (Sysadmin, Planner, Tech Writer, Auditor, Sec-Ops, QA)
     :PROPERTIES:
     :ASSIGNEE: planner
-    :STATUS: backlog
+    :STATUS: done
     :END:
     Criar o prompt base de cada subagente em Lisp conforme as especificações
     arquiteturais (movidas para =docs/magent-reference.org=).
+
+*Execução (2026-08-16):* módulo novo =lisp/custom-magent-team.el= — 7 perfis
+subagente (coder + sysadmin, planner, tech-writer, auditor, sec-ops, qa) em
+`+carlos/magent-expert-team` (alist name → description/prompt/permission),
+registrados no `magent-agent-registry` via `+carlos/magent-team-register`
+(garante `ensure-initialized` antes — a init lazy do Magent faz `clrhash` e
+apagaria perfis registrados antes dela). Perfis de modelo forte na nuvem
+adicionados a `+carlos/magent-subagent-profiles`. 6 testes ERT em
+=#tests/magent-team-test.el=.
 
 *** TODO D10. Integrar Pacote =rfc-mode= e Ferramentas Lisp
     :PROPERTIES:

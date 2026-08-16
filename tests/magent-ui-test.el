@@ -191,3 +191,44 @@
     (should (equal (+carlos/magent-ui-subagent-model "general")
                    "Gemini gemini-3.1-pro-preview"))
     (should (null (+carlos/magent-ui-subagent-model "unknown")))))
+
+;; ── D6: Spinner de subagente ────────────────────────────────────────────────
+(ert-deftest myemacs-magent-ui-spinner-inactive-by-default ()
+  "O spinner começa inativo (sem timer)."
+  (skip-unless myemacs-ui-available)
+  (skip-unless (fboundp '+carlos/magent-ui-spinner-active-p))
+  (should-not (+carlos/magent-ui-spinner-active-p)))
+
+(ert-deftest myemacs-magent-ui-spinner-start-inserts-line ()
+  "start liga o timer e insere a primeira linha de spinner no buffer."
+  (skip-unless myemacs-ui-available)
+  (skip-unless (fboundp '+carlos/magent-ui-spinner-start))
+  (myemacs-ui-with-buffer
+    (should (+carlos/magent-ui-spinner-start))
+    (should (+carlos/magent-ui-spinner-active-p))
+    (should (string-match-p "⏳" (buffer-string)))
+    (should (string-match-p "aguardando subagente" (buffer-string)))
+    (+carlos/magent-ui-spinner-stop)))
+
+(ert-deftest myemacs-magent-ui-spinner-tick-advances-frame ()
+  "tick substitui a linha pelo próximo frame, sem acumular linhas."
+  (skip-unless myemacs-ui-available)
+  (skip-unless (fboundp '+carlos/magent-ui-spinner-tick))
+  (myemacs-ui-with-buffer
+    (+carlos/magent-ui-spinner-start)
+    (let ((first (buffer-string)))
+      (+carlos/magent-ui-spinner-tick)
+      (should (= (count-lines (point-min) (point-max)) 1))
+      (should (not (string= first (buffer-string)))))
+    (+carlos/magent-ui-spinner-stop)))
+
+(ert-deftest myemacs-magent-ui-spinner-stop-removes-line ()
+  "stop cancela o timer e remove a linha do spinner."
+  (skip-unless myemacs-ui-available)
+  (skip-unless (fboundp '+carlos/magent-ui-spinner-stop))
+  (myemacs-ui-with-buffer
+    (+carlos/magent-ui-spinner-start)
+    (+carlos/magent-ui-spinner-stop)
+    (should-not (+carlos/magent-ui-spinner-active-p))
+    (should (null +carlos/magent-ui-spinner-marker))
+    (should (string-empty-p (string-trim (buffer-string))))))

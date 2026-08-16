@@ -11,6 +11,7 @@
 
 ;;; Code:
 (require 'ert)
+(require 'cl-lib)
 
 ;; ── Loader: carrega custom-magent.el do ambiente correto ─────────────────────
 (defvar myemacs-fsm-config-dir
@@ -475,6 +476,54 @@ Regressão: orquestrador local tentou editar TODO.org e alucinou old_text
     (should (string-match-p "old_text not found" d))
     (should (string-match-p "read_file" d))
     (should (string-match-p "read the target file" d))))
+
+;; ── GRUPO D6: Spinner de subagente (wiring FSM ↔ UI) ─────────────────────────
+;; O wiring é mínimo: entrar em subagent-waiting inicia o spinner do painel e
+;; sair (qualquer transição a partir dele) o para.  Stubs `cl-letf' nas funções
+;; da UI para contar as chamadas sem depender do buffer *Magent* real.
+
+(ert-deftest myemacs-magent-fsm-spinner-starts-on-subagent-waiting ()
+  "Entrar em subagent-waiting inicia o spinner do painel (D6)."
+  (skip-unless myemacs-fsm-available)
+  (skip-unless (fboundp '+carlos/magent-fsm-transition))
+  (myemacs-fsm-with-reset
+    (let ((start-calls 0) (stop-calls 0))
+      (cl-letf (((symbol-function '+carlos/magent-ui-spinner-start)
+                 (lambda () (setq start-calls (1+ start-calls)) t))
+                ((symbol-function '+carlos/magent-ui-spinner-stop)
+                 (lambda () (setq stop-calls (1+ stop-calls)) nil)))
+        (+carlos/magent-fsm-transition 'subagent-waiting)
+        (should (= start-calls 1))
+        (should (= stop-calls 0))
+        (+carlos/magent-fsm-transition 'idle)
+        (should (= stop-calls 1))
+        (should (= start-calls 1))))))
+
+(ert-deftest myemacs-magent-fsm-spinner-not-started-elsewhere ()
+  "Transições que não sejam subagent-waiting não iniciam o spinner."
+  (skip-unless myemacs-fsm-available)
+  (skip-unless (fboundp '+carlos/magent-fsm-transition))
+  (myemacs-fsm-with-reset
+    (let ((start-calls 0) (stop-calls 0))
+      (cl-letf (((symbol-function '+carlos/magent-ui-spinner-start)
+                 (lambda () (setq start-calls (1+ start-calls)) t))
+                ((symbol-function '+carlos/magent-ui-spinner-stop)
+                 (lambda () (setq stop-calls (1+ stop-calls)) nil)))
+        (+carlos/magent-fsm-transition 'thinking)
+        (+carlos/magent-fsm-transition 'subagent-running)
+        (should (= start-calls 0))
+        (should (= stop-calls 0))))))
+
+(ert-deftest myemacs-magent-fsm-reset-stops-spinner ()
+  "Reset da FSM para o spinner (cancelamento/interrupção de sessão)."
+  (skip-unless myemacs-fsm-available)
+  (skip-unless (fboundp '+carlos/magent-fsm-reset))
+  (myemacs-fsm-with-reset
+    (let ((stop-calls 0))
+      (cl-letf (((symbol-function '+carlos/magent-ui-spinner-stop)
+                 (lambda () (setq stop-calls (1+ stop-calls)) nil)))
+        (+carlos/magent-fsm-reset)
+        (should (= stop-calls 1))))))
 
 (provide 'magent-fsm-test)
 ;;; magent-fsm-test.el ends here

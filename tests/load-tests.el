@@ -27,6 +27,7 @@
 (require 'context-test)
 (require 'magent-driver-test)
 (require 'magent-buffer-test)
+(require 'magent-team-test)
 
 (provide 'load-tests)
 ;;; load-tests.el ends here

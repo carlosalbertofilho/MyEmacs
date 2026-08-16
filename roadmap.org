@@ -12,6 +12,42 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-16 — [CONCLUÍDO] D6 + D9 — Spinner de delegação e Equipe de Especialistas
+   - **Objetivo:** completar o painel de atividade (Fase C+) com feedback visual
+     durante a delegação e instanciar a equipe de especialistas do Magent.
+   - **D6 — Spinner durante =subagent-waiting= (lisp/custom-magent-ui.el):**
+     - *Spinner braille* animado por timer (`run-with-timer` 0.1s, frames
+       ⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏), linha própria no buffer *Magent* atualizada in-place
+       via marker (=+carlos/magent-ui-spinner-start/-tick/-stop=,
+       =+carlos/magent-ui-spinner-active-p=).
+     - *Wiring mínimo na FSM* (=+carlos/magent-fsm-transition=): entrar em
+       `subagent-waiting` inicia; qualquer transição a partir dele (ou reset da
+       sessão) para. Guards `fboundp` (UI carrega depois da FSM) +
+       `declare-function` (compile zero-warning).
+     - *Bug corrigido durante testes:* `set-marker` não aceita nil como marker —
+       exige `make-marker` antes (`wrong-type-argument markerp nil`).
+   - **D9 — Equipe de Especialistas (novo lisp/custom-magent-team.el):**
+     - *7 perfis subagente* (coder + sysadmin, planner, tech-writer, auditor,
+       sec-ops, qa) em `+carlos/magent-expert-team` (alist name → description /
+       prompt base em Lisp / permission rules), conforme docs/magent-reference.org
+       "Custom Expert Team". Coder nega write/edit explicitamente (política D4).
+     - *Registro* em `magent-agent-registry` via `+carlos/magent-team-register`
+       (idempotente; `with-eval-after-load 'magent-agent-registry`).
+       =+carlos/magent-team-registered-p= para resolução.
+     - *Descoberta estrutural do registry:* `magent-agent-registry-get` faz init
+       lazy (`ensure-initialized`) que executa `clrhash` e apaga perfis
+       registrados antes dela — `+carlos/magent-team-register` agora força
+       `ensure-initialized` ANTES de registrar (interativo e em testes).
+     - *Modelos:* 7 entradas fortes na nuvem adicionadas a
+       `+carlos/magent-subagent-profiles` (gemini-3.1-pro-preview).
+   - **Testes (13 novos, 0 regressão):** 4 spinner UI + 3 wiring FSM
+     (magent-ui-test.el / magent-fsm-test.el) + 6 equipe (magent-team-test.el:
+     dados/perfis, papel dos prompts, coder nega write/edit, registro count,
+     registro no registry, perfis de modelo).
+   - **Gates:** `just rebuild` 27/27 zero-warning; `just lint` (compile +
+     checkdoc + org-lint) OK; `just check` OK; suíte repo 289/281/0/8 (antes
+     276/268/0/8 — +13 sem regressão).
+
 ** 2026-08-16 — [CONCLUÍDO] Magent como Driver do Emacs — Fase B & C + D4 (Operação em Buffer Vivo)
    - **Objetivo:** transformar o Magent de operador estático de arquivos para
      operador de buffers interativos em point/região do usuário: mutações

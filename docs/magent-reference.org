@@ -850,3 +850,34 @@ Magent uses a team of highly specialized agent profiles (subagents) to maintain 
 - *Role:* Continuous Integrator. Codebase Gatekeeper.
 - *Rules:* Zero-Warnings and Zero-Regressions policy.
 - *Tools:* `just_run_recipe`, `ert_analyze_failure` (extracts only the backtrace), `polyglot_eval_snippet` (Org-Babel REPL sandbox).
+
+** Implementação (D9, 2026-08-16)
+- *Módulo:* `lisp/custom-magent-team.el` (novo). Perfis instanciados como
+  subagentes reais no `magent-agent-registry` — o Orquestrador pode delegar com
+  `spawn_agent` nomeando um membro da equipe (ex.: `sysadmin`, `sec-ops`).
+- *Estrutura:* `+carlos/magent-expert-team` (alist name → `:description` /
+  `:prompt` / `:permission`). Regra default `(* . deny)`; perfil concede
+  permissões mínimas por papel (Coder nega `write`/`edit` explicitamente —
+  política D4 do buffer vivo).
+- *Resolução:* `+carlos/magent-team-registered-p NAME` (consulta o registry);
+  registro automático via `with-eval-after-load 'magent-agent-registry`.
+- *GOTCHA do registry:* `magent-agent-registry-get` faz init lazy
+  (`ensure-initialized`) que executa `clrhash` e apaga perfis registrados
+  antes dela. `+carlos/magent-team-register` força `ensure-initialized`
+  ANTES de registrar.
+- *Modelos:* entradas para os 7 membros em `+carlos/magent-subagent-profiles`
+  (nuvem forte: `gemini-3.1-pro-preview`).
+
+* Spinner de Delegação (D6, 2026-08-16)
+- *Onde:* `lisp/custom-magent-ui.el` — feedback visual no painel *Magent*
+  enquanto a FSM bloqueia em `subagent-waiting` (delegação para subagente).
+- *Como:* `+carlos/magent-ui-spinner-start` insere uma linha no point-max do
+  buffer e agenda um timer (`+carlos/magent-ui-spinner-interval` 0.1s);
+  `+carlos/magent-ui-spinner-tick` reescreve a linha in-place (frames braille
+  ⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏) via marker; `+carlos/magent-ui-spinner-stop` cancela e
+  remove a linha. `+carlos/magent-ui-spinner-active-p` indica atividade.
+- *Wiring FSM:* transições para `subagent-waiting` iniciam; transições a partir
+  dele e o reset da sessão param. Guards `fboundp` + `declare-function` (a UI
+  carrega depois da FSM no facade).
+- *Nota:* `set-marker` NÃO aceita nil como marker (`wrong-type-argument markerp
+  nil`) — usar `make-marker` antes de cada `set-marker` de um marker novo.

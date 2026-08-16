@@ -12,9 +12,10 @@
 ;;   custom-magent-tools.el    Fixes de tool/schema, directivas, tools curadas
 ;;   custom-magent-buffer.el   Driver de buffer vivo (Fase B/D4): buffer_* tools
 ;;   custom-magent-subagent.el Perfis de modelo por subagente
+;;   custom-magent-team.el     Equipe de especialistas (D9): perfis subagente
 ;;   custom-magent-context.el  Auto-compactação por threshold de janela
 ;;   custom-magent-commands.el Slash commands, workdir e FinOps
-;;   custom-magent-ui.el       Painel de atividade (Fase C)
+;;   custom-magent-ui.el       Painel de atividade (Fase C) + spinner (D6)
 
 ;;; Code:
 
@@ -22,6 +23,7 @@
 (require 'custom-magent-tools)
 (require 'custom-magent-buffer)
 (require 'custom-magent-subagent)
+(require 'custom-magent-team)
 (require 'custom-magent-context)
 (require 'custom-magent-commands)
 (require 'custom-magent-ui)

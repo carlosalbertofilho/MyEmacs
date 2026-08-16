@@ -27,7 +27,15 @@
 
 (defcustom +carlos/magent-subagent-profiles
   '(("explore"  :backend "Gemini" :model "gemini-3.1-pro-preview")
-    ("general"  :backend "Gemini" :model "gemini-3.1-pro-preview"))
+    ("general"  :backend "Gemini" :model "gemini-3.1-pro-preview")
+    ;; Equipe de especialistas (D9, custom-magent-team.el)
+    ("coder"       :backend "Gemini" :model "gemini-3.1-pro-preview")
+    ("sysadmin"    :backend "Gemini" :model "gemini-3.1-pro-preview")
+    ("planner"     :backend "Gemini" :model "gemini-3.1-pro-preview")
+    ("tech-writer" :backend "Gemini" :model "gemini-3.1-pro-preview")
+    ("auditor"     :backend "Gemini" :model "gemini-3.1-pro-preview")
+    ("sec-ops"     :backend "Gemini" :model "gemini-3.1-pro-preview")
+    ("qa"          :backend "Gemini" :model "gemini-3.1-pro-preview"))
   "Perfis de backend/modelo dos subagentes do Magent (spawn_agent).
 Alist de (AGENT-NAME . (:backend B :model M)).  O advice
 `+carlos/magent-subagent-apply-profile' aplica o perfil no request-state do
