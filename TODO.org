@@ -464,9 +464,31 @@ subagente (coder + sysadmin, planner, tech-writer, auditor, sec-ops, qa) em
 `+carlos/magent-expert-team` (alist name → description/prompt/permission),
 registrados no `magent-agent-registry` via `+carlos/magent-team-register`
 (garante `ensure-initialized` antes — a init lazy do Magent faz `clrhash` e
-apagaria perfis registrados antes dela). Perfis de modelo forte na nuvem
-adicionados a `+carlos/magent-subagent-profiles`. 6 testes ERT em
+apagaria perfis registrados antes dela). Entradas de roteamento para os 7
+membros em `+carlos/magent-subagent-profiles` (dicas `:min-tier` desde
+2026-08-16; antes modelo forte pinado — ver nó seguinte). 6 testes ERT em
 =#tests/magent-team-test.el=.
+
+*** DONE D9.1. Roteamento de modelos dinâmico por perfil (melhor custo, sem pin)
+    :PROPERTIES:
+    :ASSIGNEE: planner
+    :STATUS: done
+    :END:
+    Substituir o modelo pinado (=gemini-3.1-pro-preview=) dos perfis por
+    seleção do orquestrador baseada na lista de modelos + melhor custo.
+
+*Execução (2026-08-16):* perfis em `+carlos/magent-subagent-profiles` agora
+são dicas-only (`:min-tier`: explore/general → local, tech-writer → free,
+coder/sysadmin/planner/auditor/sec-ops/qa → paid; `:preferred-backend`
+opcional). `+carlos/magent-resolve-model` ganhou arg `hints` (piso + backend
+preferido); `+carlos/magent-model-cost-rank` (0 free/local, 1 assinatura, 2
+metered) + `+carlos/magent--tier-sorted-entries` ordenam o tier por custo
+crescente (ex.: paid → OpenCode Zen =gpt-5.6-sol= antes de
+=gemini-3.1-pro-preview=). Advice aplica override do `select_model` primeiro,
+senão `+carlos/magent-subagent-resolve` (complexidade + dicas); agentes sem
+perfil intocados. UI mostra "(min paid tier)". Bugs: forward decl com docstring
+ligava a variável → decl pelado `(defvar V)` + guard `boundp`. Gates: repo
+295/287/0/8; docs magent-reference.org Fase A atualizado.
 
 *** TODO D10. Integrar Pacote =rfc-mode= e Ferramentas Lisp
     :PROPERTIES:

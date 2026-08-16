@@ -23,6 +23,13 @@
 (declare-function magent-llm-gptel--continue-with-user-message "magent-llm-gptel")
 (declare-function magent-llm-gptel--managed-info-p "magent-llm-gptel")
 (declare-function magent-llm-gptel--sanitize-info "magent-llm-gptel")
+(declare-function +carlos/local-ai-server-ping-p "custom-ai")
+(declare-function +carlos/ai-local-backend "custom-ai")
+(declare-function gptel-get-backend "gptel")
+(declare-function gptel-backend-host "gptel")
+(declare-function gptel-backend-models "gptel")
+(declare-function gptel-backend-protocol "gptel")
+(declare-function tempel-insert "tempel")
 (declare-function magent-tool-result-create "magent-protocol")
 (declare-function magent-llm-tool-call-event "magent-llm")
 
@@ -141,7 +148,7 @@ Accept &rest ARGS for Gemini streaming 5th argument."
 Do NOT use '<tool_call>', '<function=...>', or '<parameter=...>' forms; the runtime only parses the '<tool_calls>'/'<invoke name=...>'/'<parameter name=...>' syntax shown above. After requesting a tool, your next message MUST include the native tool call, not text about calling it.
  7. AVOID SIGPIPE (exit 141): Do not pipe long listings into 'head'/'tail' (e.g. 'find ... | head -50'). Closing the pipe kills the producer with SIGPIPE (exit 141), which the runtime reports as a FAILED tool result. Use 'find ... -maxdepth N' with explicit filters, or 'rg --max-count' instead.
  8. SUBAGENT DELEGATION (HARD RULE): You are the ORCHESTRATOR — you only orchestrate, you do not implement. Keep your context window lean. For codebase exploration, file analysis, multi-step research, OR ANY COMPLEX FILE EDIT (rewriting/updating whole documents, planning files, refactoring large code sections, content generation beyond a few lines), ALWAYS delegate: call 'select_model' first (rule 9), then 'spawn_agent' with agent='explore' (search/analysis) or 'general' (broader multi-step work including file edits), giving the subagent a precise task and absolute paths, then call 'wait_agent' and synthesize a CONCISE summary of the subagent's findings in your reply — do not paste the full transcript into your turn. Subagents run on a stronger cloud model with a larger context window. NEVER attempt a complex file edit yourself: 'edit_file' requires old_text to match the file byte-for-byte, and the local model hallucinates file content — that is why edits fail with 'old_text not found'. When delegating an edit, tell the subagent to read the target file with 'read_file' first and then edit with exact text copied from the actual file content. Small one-line fixes where you have just read the exact target line are the ONLY acceptable direct edit_file/write_file.
-9. MODEL SELECTION: Review the MODEL SELECTION MENU appended below. Before calling 'spawn_agent', call 'select_model' with the subagent's task_description and target agent name; the runtime resolves the model from the menu by task complexity and the user's tier cap, and applies it to the subagent automatically. For 'deep' reasoning (refactor, architecture, design, schema, debug, migration, security, plan, review, optimization), you MUST pick a free or paid tier — never the small local model. For 'simple'/'moderate' tasks, prefer the local model when it is ONLINE, then free, then paid. NEVER exceed the tier cap shown in the menu."
+9. MODEL SELECTION: Review the MODEL SELECTION MENU appended below. Before calling 'spawn_agent', call 'select_model' with the subagent's task_description and target agent name; the runtime resolves the model from the menu by task complexity and the user's tier cap, and applies it to the subagent automatically. For 'deep' reasoning (refactor, architecture, design, schema, debug, migration, security, plan, review, optimization), you MUST pick a free or paid tier — never the small local model. For 'simple'/'moderate' tasks, prefer the local model when it is ONLINE, then free, then paid. Some agent profiles impose a MINIMUM TIER FLOOR (e.g., paid for coder, sysadmin, planner, auditor, sec-ops, qa) — select_model enforces the floor, so you cannot pick below it for those agents; choose the cheapest model that satisfies the task and the floor. NEVER exceed the tier cap shown in the menu."
   "Instruções estritas de uso de ferramentas para os modelos do Magent.")
 
 (defun +carlos/magent-inject-system-directives (composed &rest _)
@@ -399,6 +406,12 @@ Alist de (AGENT-NAME . (BACKEND-NAME . MODEL-STRING)), registrado pela
 tool `select_model' e consumido uma única vez (pop) pelo advice
 `+carlos/magent-subagent-apply-profile' ao criar o subagente.")
 
+;; Forward declaration pelada de `+carlos/magent-subagent-profiles' (definido em
+;; custom-magent-subagent.el, carregado depois) — só suprime o warning do
+;; byte-compiler; NÃO liga a variável (defvar com valor/docstring ligaria e
+;; corromperia o defcustom). O runtime guarda com `boundp' antes de ler.
+(defvar +carlos/magent-subagent-profiles)
+
 (defun +carlos/magent-tier-rank (tier)
   "Rank numérico de TIER na escada `+carlos/magent-model-tier-order'."
   (or (cl-position tier +carlos/magent-model-tier-order :test #'equal) -1))
@@ -424,6 +437,18 @@ MODEL pode ser string ou símbolo.  Retorna rótulo curto de custo/quota."
      ((string-match-p "flash\\|lite" model-str) "grátis (free tier)")
      ((string-match-p "pro\\|opus\\|sonnet\\|sol" model-str) "assinatura")
      (t "grátis (free tier)"))))
+
+(defun +carlos/magent-model-cost-rank (backend-name model)
+  "Custo numérico de MODEL em BACKEND-NAME para ordenar mais barato-primeiro.
+Derivado de `+carlos/magent-model-cost': 0 para grátis (free tier)/local,
+1 para assinatura Zen (plano já pago — custo marginal zero), 2 para
+assinatura metered por uso, 99 para desconhecido."
+  (let ((label (+carlos/magent-model-cost backend-name model)))
+    (cond ((string-match-p "free tier" label) 0)
+          ((string-match-p "local" label) 0)
+          ((string-match-p "zen" label) 1)
+          ((string-match-p "assinatura" label) 2)
+          (t 99))))
 
 (defun +carlos/magent-classify-model (backend-name model)
   "Classifica MODEL no backend BACKEND-NAME como `local', `free' ou `paid'."
@@ -585,16 +610,47 @@ de 150 caracteres; `moderate' entre 61 e 150; `simple' até 60."
      ((> (length text) 60) 'moderate)
      (t 'simple))))
 
+(defun +carlos/magent--tier-sorted-entries (tier entries &optional preferred-backend)
+  "Retorna as entries do TIER em ENTRIES ordenadas mais barato-primeiro.
+Ordena por `+carlos/magent-model-cost-rank' ascendente; dentro do mesmo
+custo, modelos de PREFERRED-BACKEND primeiro (dica de perfil) e, por fim,
+a ordem do menu como desempate.  ENTRIES é o alist (TIER . ((BACKEND .
+MODEL)...)) de `+carlos/magent-model-menu-entries'."
+  (let* ((pref (and (stringp preferred-backend) preferred-backend))
+         (ranked (cl-loop for entry in (cdr (assoc tier entries))
+                          for i from 0
+                          collect (list (+carlos/magent-model-cost-rank
+                                         (car entry) (cdr entry))
+                                        (if (and pref (equal (car entry) pref)) 0 1)
+                                        i
+                                        entry))))
+    (mapcar (lambda (row) (cadddr row))
+            (sort ranked
+                  (lambda (a b)
+                    (let ((ra (nth 0 a)) (rb (nth 0 b))
+                          (pa (nth 1 a)) (pb (nth 1 b))
+                          (ia (nth 2 a)) (ib (nth 2 b)))
+                      (or (< ra rb)
+                          (and (= ra rb)
+                               (or (< pa pb)
+                                   (and (= pa pb) (< ia ib)))))))))))
+
 (defun +carlos/magent-resolve-model
-    (complexity &optional local-online-p backends local-models)
+    (complexity &optional local-online-p backends local-models hints)
   "Resolve o modelo para COMPLEXITY (`simple', `moderate' ou `deep').
 Escada: local (apenas quando LOCAL-ONLINE-P e não `deep') → free → paid,
-nunca acima de `+carlos/magent-model-max-tier'.  BACKENDS e LOCAL-MODELS
-são repassados a `+carlos/magent-model-menu-entries' (overrides p/ testes).
+nunca acima de `+carlos/magent-model-max-tier'.  HINTS (plist) pode impor
+`:min-tier' (piso — o tier escolhido nunca fica abaixo; ex.: \"paid\" para
+perfis de alto valor) e `:preferred-backend' (desempate por backend dentro
+do tier escolhido).  Dentro do tier, o modelo mais barato vem primeiro
+(`+carlos/magent--tier-sorted-entries').  BACKENDS e LOCAL-MODELS são
+repassados a `+carlos/magent-model-menu-entries' (overrides p/ testes).
 Retorna plist com :backend, :model, :tier e :reason, ou nil se nada
 disponível."
   (let* ((max-tier (symbol-name +carlos/magent-model-max-tier))
          (max-rank (+carlos/magent-tier-rank max-tier))
+         (min-tier (plist-get hints :min-tier))
+         (min-rank (and min-tier (+carlos/magent-tier-rank min-tier)))
          (entries (+carlos/magent-model-menu-entries backends local-models))
          (tiers (append (when (and (not (eq complexity 'deep)) local-online-p)
                           '("local"))
@@ -602,8 +658,11 @@ disponível."
                                    :test #'string=))))
     (catch 'resolved
       (dolist (tier tiers)
-        (when (<= (+carlos/magent-tier-rank tier) max-rank)
-          (dolist (entry (cdr (assoc tier entries)))
+        (when (and (<= (+carlos/magent-tier-rank tier) max-rank)
+                   (or (null min-rank)
+                       (>= (+carlos/magent-tier-rank tier) min-rank)))
+          (dolist (entry (+carlos/magent--tier-sorted-entries
+                          tier entries (plist-get hints :preferred-backend)))
             (when (and (stringp (car entry))
                        (fboundp 'gptel-get-backend)
                        (gptel-get-backend (car entry)))
@@ -611,8 +670,11 @@ disponível."
                 (list :backend (car entry)
                       :model (cdr entry)
                       :tier tier
-                      :reason (format "%s task → tier %s (%s via %s)"
+                      :reason (format "%s task → tier %s%s (%s via %s)"
                                       complexity tier
+                                      (if min-tier
+                                          (format " [min %s]" min-tier)
+                                        "")
                                       (+carlos/magent-model-cost (car entry) (cdr entry))
                                       (car entry)))))))))))
 
@@ -627,13 +689,15 @@ um override transiente em `+carlos/magent-subagent-model-overrides' e
 retorna um `magent-tool-result' com o payload JSON (backend, model, tier,
 reason)."
   (let* ((agent (or agent "general"))
+         (hints (and (boundp '+carlos/magent-subagent-profiles)
+                     (cdr (assoc agent +carlos/magent-subagent-profiles))))
          (complexity-sym (pcase complexity
                            ("deep" 'deep)
                            ("moderate" 'moderate)
                            ("simple" 'simple)
                            (_ (+carlos/magent-task-complexity task-description))))
          (choice (+carlos/magent-resolve-model
-                  complexity-sym (+carlos/local-ai-server-ping-p))))
+                  complexity-sym (+carlos/local-ai-server-ping-p) nil nil hints)))
     (if (null choice)
         (+carlos/magent-tool-result
          nil (format "Nenhum modelo disponível para complexidade %s dentro do teto %s."

@@ -103,7 +103,7 @@
       (cl-letf (((symbol-function '+carlos/magent-subagent-profile)
                  (lambda (agent)
                    (when (equal agent "explore")
-                     '(:backend "Gemini" :model "gemini-3.1-pro-preview")))))
+                     '(:min-tier "paid")))))
         (+carlos/magent-ui-activity-sink
          `(:type agent-job-event :event started :job ,job))
         (+carlos/magent-ui-activity-sink
@@ -112,7 +112,7 @@
       (should (string-match-p "spawned → running" content))
       (should (string-match-p "completed ✓" content))
       (should (string-match-p "explore" content))
-      (should (string-match-p "Gemini" content)))))
+      (should (string-match-p "min paid tier" content)))))
 
 (ert-deftest myemacs-magent-ui-sink-reasoning-preview ()
   "turn-end com reasoning acumulado gera preview truncado."
@@ -168,9 +168,9 @@
     (cl-letf (((symbol-function '+carlos/magent-subagent-profile)
                (lambda (agent)
                  (when (equal agent "explore")
-                   '(:backend "Gemini" :model "gemini-3.1-pro-preview")))))
+                   '(:min-tier "paid")))))
       (should (string-match-p
-               "Gemini gemini-3.1-pro-preview"
+               "min paid tier"
                (funcall a orig "spawn_agent"
                         '(:agent "explore" :task_name "diagnose"))))
       (should (string-match-p
@@ -187,9 +187,9 @@
   (cl-letf (((symbol-function '+carlos/magent-subagent-profile)
              (lambda (agent)
                (when (equal agent "general")
-                 '(:backend "Gemini" :model "gemini-3.1-pro-preview")))))
+                 '(:min-tier "free")))))
     (should (equal (+carlos/magent-ui-subagent-model "general")
-                   "Gemini gemini-3.1-pro-preview"))
+                   "(min free tier)"))
     (should (null (+carlos/magent-ui-subagent-model "unknown")))))
 
 ;; ── D6: Spinner de subagente ────────────────────────────────────────────────

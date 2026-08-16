@@ -288,7 +288,7 @@ wait concluído); detecção via `+carlos/magent-fsm-pending-subagent-p`
 suprimido durante wait de subagente
 (`+carlos/magent-fsm-watchdog-should-fire-p`).
 
-** Perfis de subagente (spawn_agent → modelo forte na nuvem, 2026-08-13)
+** Perfis de subagente (spawn_agent → dicas de roteamento, 2026-08-16)
 
 O pacote faz o filho **herdar** backend/modelo do pai e a herança vence o
 override do agente (`(or inherited-backend gptel-backend)` em
@@ -296,13 +296,23 @@ override do agente (`(or inherited-backend gptel-backend)` em
 orquestrador leve (local) delegar a modelos fortes:
 
 - `+carlos/magent-subagent-profiles` (defcustom): alist `(AGENT-NAME .
-  (:backend B :model M))` — padrão `explore`/`general` → `Gemini` /
-  `gemini-3.1-pro-preview` (free tier). "Perfis diferentes" = mapear agentes do
-  `spawn_agent` a backends/modelos distintos.
+  HINTS)` onde HINTS é um plist **sem modelo pinado**:
+  - `:min-tier` — piso de tier (`local`/`free`/`paid`) que o roteamento nunca
+    desce abaixo, independente da complexidade da tarefa. Padrão:
+    `explore`/`general` → `local` (nenhum piso real), `tech-writer` → `free`,
+    `coder`/`sysadmin`/`planner`/`auditor`/`sec-ops`/`qa` → `paid`.
+  - `:preferred-backend` (opcional) — backend preferido como desempate dentro
+    do tier escolhido.
+- `+carlos/magent-subagent-resolve` (`agent-name task-description`): classifica
+  a tarefa com `+carlos/magent-task-complexity` e delega a
+  `+carlos/magent-resolve-model` com as dicas do perfil. Retorna nil (a
+  herança do pai fica) quando o agente não tem perfil — orquestrador e
+  agentes primários ficam intocados.
 - `+carlos/magent-subagent-apply-profile`: advice `:around` em
-  `magent-agent-process` que faz `setf` no `request-state` do filho (11º arg) —
-  o `(or inherited ...)` passa a resolver para o perfil forte. Agentes fora do
-  alist (orquestrador) ficam intocados.
+  `magent-agent-process` que faz `setf` no `request-state` do filho (11º arg).
+  Prioridade: 1) override transiente do `select_model` (pop); 2) resolução
+  dinâmica `+carlos/magent-subagent-resolve` (complexidade + dicas); 3) nada
+  (herança do pai). Agentes fora do alist ficam intocados.
 - Directiva `SUBAGENT DELEGATION` (nº 8 em `+carlos/magent-system-directives`):
   orquestrador deve SEMPRE delegar exploração de codebase/análise/tarefas
   multi-step **e edição complexa de arquivos** (rewrite de documentos,
@@ -316,8 +326,9 @@ orquestrador leve (local) delegar a modelos fortes:
   correções de uma linha com o texto exato recém-lido podem ser feitas
   diretamente.
 
-Testes: GRUPO 10 em `tests/magent-fsm-test.el` (defaults, resolver, aplicação do
-advice com `magent-request-context` real, instalação do advice, directiva).
+Testes: GRUPO 10 em `tests/magent-fsm-test.el` (defaults, resolver, resolução
+com dicas, aplicação do advice com `magent-request-context` real, instalação do
+advice, directiva).
 
 ** Roteamento de modelos pelo orquestrador (Fase A — model menu + select_model, 2026-08-13)
 
@@ -354,13 +365,23 @@ em vez de herdar o próprio modelo:
   planning desde 2026-08-14** — toda alteração de arquivo vira `deep`, nunca
   local); escada `+carlos/magent-resolve-model` — `deep` → free →
   paid (nunca local); `simple`/`moderate` → local (se ping online) → free →
-  paid; teto respeita `+carlos/magent-model-max-tier`. Retorna JSON
+  paid; teto respeita `+carlos/magent-model-max-tier`. Desde 2026-08-16 a
+  escada também respeita o **piso `:min-tier` das dicas do perfil** do agente
+  (`select_model` lê `+carlos/magent-subagent-profiles` em runtime com guard
+  `boundp`; ex.: `coder` com local online ainda resolve paid). Retorna JSON
   `{:backend B :model M :tier T :reason R}` e registra override transiente em
   `+carlos/magent-subagent-model-overrides` (alist `agent-name → (backend . model)`).
-- A4: `+carlos/magent-subagent-apply-profile` consome o override (pop) antes do
-  perfil estático; se inválido (`gptel-get-backend` nil) → log + fallback
-  estático. Aplica via `cl-struct-slot-value` no request-state do filho (11º
-  arg; contorna magent-runtime ausente no compile-time).
+- Custo dentro do tier (2026-08-16): `+carlos/magent-model-cost-rank`
+  (`backend model` → `0` free/local, `1` assinatura já coberta pelo plano,
+  `2` assinatura metered, `99` desconhecido) + `+carlos/magent--tier-sorted-entries`
+  ordenam as entradas de cada tier por custo crescente (mais barato primeiro),
+  com `:preferred-backend` como desempate e a ordem do menu por último.
+- A4: `+carlos/magent-subagent-apply-profile` consome o override (pop) antes
+  das dicas; se inválido (`gptel-get-backend` nil) → log + fallback para
+  resolução dinâmica por perfil (`+carlos/magent-subagent-resolve`). Aplica via
+  `cl-struct-slot-value` no request-state do filho (11º arg; contorna
+  magent-runtime ausente no compile-time). Nunca há modelo pinado por perfil —
+  sem override explícito o modelo é sempre resolvido em runtime.
 
 Contrato de chamada do advice (importante para testes/mocks): `(orig-fn
 user-prompt &optional callback agent-info skill-names event-context
@@ -866,7 +887,11 @@ Magent uses a team of highly specialized agent profiles (subagents) to maintain 
   antes dela. `+carlos/magent-team-register` força `ensure-initialized`
   ANTES de registrar.
 - *Modelos:* entradas para os 7 membros em `+carlos/magent-subagent-profiles`
-  (nuvem forte: `gemini-3.1-pro-preview`).
+  como **dicas de roteamento** (`:min-tier`/`:preferred-backend`, sem modelo
+  pinado desde 2026-08-16): explore/general `local`, tech-writer `free`,
+  coder/sysadmin/planner/auditor/sec-ops/qa `paid`. A resolução concreta é
+  dinâmica por tarefa (`+carlos/magent-subagent-resolve` → complexidade +
+  melhor custo no tier).
 
 * Spinner de Delegação (D6, 2026-08-16)
 - *Onde:* `lisp/custom-magent-ui.el` — feedback visual no painel *Magent*

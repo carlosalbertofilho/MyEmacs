@@ -265,17 +265,27 @@ Falls back to `message' when no live Magent shell buffer exists."
 ;; trabalho quando presente nos args.
 
 (defun +carlos/magent-ui-subagent-model (agent-name)
-  "Return the effective `BACKEND MODEL' string for AGENT-NAME, or nil."
+  "Return a model label for AGENT-NAME, or nil.
+Prefere o override transiente de `select_model' (modelo efetivamente
+escolhido pelo orquestrador); sem override, mostra a dica de perfil
+(`:preferred-backend' e/ou piso `:min-tier') — o modelo concreto só é
+resolvido em runtime."
   (when (fboundp '+carlos/magent-subagent-profile)
     (let* ((override-entry (and (boundp '+carlos/magent-subagent-model-overrides)
                                 (assoc agent-name +carlos/magent-subagent-model-overrides)))
-           (override (and override-entry (cdr override-entry)))
-           (profile (if (and override (stringp (car override)) (stringp (cdr override)))
-                        (list :backend (car override) :model (cdr override))
-                      (+carlos/magent-subagent-profile agent-name))))
-      (when-let* ((backend (plist-get profile :backend))
-                  (model (plist-get profile :model)))
-        (format "%s %s" backend model)))))
+           (override (and override-entry (cdr override-entry))))
+      (cond
+       ((and override (stringp (car override)) (stringp (cdr override)))
+        (format "%s %s" (car override) (cdr override)))
+       ((+carlos/magent-subagent-profile agent-name)
+        (let* ((hints (+carlos/magent-subagent-profile agent-name))
+               (min-tier (plist-get hints :min-tier))
+               (pref (plist-get hints :preferred-backend))
+               (label (cond (pref pref)
+                            (min-tier (format "min %s tier" min-tier))
+                            (t nil))))
+          (when label (format "(%s)" label))))
+       (t nil)))))
 
 (defun +carlos/magent-ui-tool-call-summary-a (orig-fn name args &rest r)
   "Advice que enriquece o resumo de tool call retornado por ORIG-FN.

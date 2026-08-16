@@ -12,6 +12,45 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-16 — [CONCLUÍDO] Roteamento de modelos dinâmico por perfil (melhor custo)
+   - **Objetivo:** substituir o modelo pinado (=gemini-3.1-pro-preview=) dos
+     perfis de subagente por seleção de modelo do orquestrador baseada na lista
+     de modelos + melhor custo, conforme decisão do usuário (2026-08-16):
+     fallback sem override → resolver dinâmico automático; "melhor custo" →
+     tier resolve a escada + mais barato dentro do tier; perfis carregam dicas.
+   - **Dicas por perfil (lisp/custom-magent-subagent.el):**
+     `+carlos/magent-subagent-profiles` deixou de pinar modelo: cada membro
+     declara `:min-tier` (piso que o roteamento nunca desce) e, opcionalmente,
+     `:preferred-backend`. Padrão: explore/general → `local`, tech-writer →
+     `free`, coder/sysadmin/planner/auditor/sec-ops/qa → `paid`.
+   - **Resolver com hints (lisp/custom-magent-tools.el):**
+     - `+carlos/magent-resolve-model` ganhou 5º arg `hints` (`:min-tier` vira
+       piso de rank; `:preferred-backend` desempata no tier).
+     - `+carlos/magent-model-cost-rank` (`backend model` → 0 free/local, 1
+       assinatura coberta, 2 metered, 99 desconhecido) +
+       `+carlos/magent--tier-sorted-entries` ordenam cada tier por custo
+       crescente (mais barato primeiro) — ex.: `paid` resolve OpenCode Zen
+       =gpt-5.6-sol= antes de =gemini-3.1-pro-preview=.
+     - `select_model` lê as dicas do perfil do agente em runtime (guard
+       `boundp`); rule 9 das directives menciona o piso mínimo por perfil.
+   - **Advice dinâmico:** `+carlos/magent-subagent-apply-profile` prioriza
+     override do `select_model` (pop) e no fallback chama
+     `+carlos/magent-subagent-resolve` (complexidade da tarefa + dicas);
+     agentes sem perfil ficam intocados (herança do pai).
+   - **UI:** `+carlos/magent-ui-subagent-model` mostra "(min paid tier)" etc.
+     (label por dica/override; sem backend/modelo pinado).
+   - **Bugs encontrados/corrigidos durante o trabalho:**
+     - Forward decl com docstring `(defvar V "doc")` LIGA o valor da variável à
+       string e corrompe o `defcustom` — forward decl agora é pelado
+       `(defvar V)` + guard `boundp`.
+     - `(setf gptel-tool-args)` desconhecido só sob compile estrito `-Q` (sem
+       gptel carregado) — pré-existente; gate real (`just rebuild`, init.el
+       carregado) compila 27/27 zero-warning.
+   - **Testes:** +6 (3 routing cost/min-tier/cheapest, 1 select_model com piso
+     de perfil, 1 resolve com hints, ajustes fsm/team/ui para dicas).
+   - **Gates:** `just rebuild` 27/27 zero-warning; `just lint` OK; `just check`
+     OK; suíte repo 295/287/0/8 (0 regressão; antes 289/281/0/8).
+
 ** 2026-08-16 — [CONCLUÍDO] D6 + D9 — Spinner de delegação e Equipe de Especialistas
    - **Objetivo:** completar o painel de atividade (Fase C+) com feedback visual
      durante a delegação e instanciar a equipe de especialistas do Magent.

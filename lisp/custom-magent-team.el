@@ -4,8 +4,9 @@
 ;; Instancia a equipe de especialistas do Magent (D9) como agentes subagentes
 ;; registrados no registry nativo (`magent-agent-registry').  Cada perfil tem
 ;; prompt base em Lisp conforme docs/magent-reference.org ("Custom Expert
-;; Team"), permissões restritas às tools do seu domínio e perfil de modelo
-;; forte na nuvem (via `+carlos/magent-subagent-profiles').
+;; Team"), permissões restritas às tools do seu domínio e dicas de roteamento
+;; de modelo (piso `:min-tier', via `+carlos/magent-subagent-profiles') — o
+;; modelo concreto é escolhido pelo orquestrador no runtime, nunca pinado.
 ;;
 ;; Os perfis vivem em `+carlos/magent-expert-team' (alist puro, testável
 ;; offline) e são materializados em `magent-agent-info' quando o registry do

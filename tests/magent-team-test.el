@@ -108,16 +108,17 @@
   (dolist (name myemacs-team-expected-members)
     (should (+carlos/magent-team-registered-p name))))
 
-;; ── Perfis de modelo (custom-magent-subagent.el) ─────────────────────────────
+;; ── Dicas de roteamento (custom-magent-subagent.el) ─────────────────────────
 (ert-deftest myemacs-magent-team-model-profiles-present ()
-  "Cada membro da equipe tem perfil de modelo em +carlos/magent-subagent-profiles."
+  "Cada membro da equipe tem dicas de roteamento (:min-tier) em
++carlos/magent-subagent-profiles — sem modelo concreto pinado."
   (skip-unless myemacs-team-available)
   (skip-unless (boundp '+carlos/magent-subagent-profiles))
   (dolist (name myemacs-team-expected-members)
     (let ((entry (assoc name +carlos/magent-subagent-profiles)))
       (should entry)
-      (should (stringp (plist-get (cdr entry) :backend)))
-      (should (stringp (plist-get (cdr entry) :model))))))
+      (should (stringp (plist-get (cdr entry) :min-tier)))
+      (should-not (plist-get (cdr entry) :model)))))
 
 (provide 'magent-team-test)
 ;;; magent-team-test.el ends here

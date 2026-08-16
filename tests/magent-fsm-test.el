@@ -395,45 +395,69 @@
     (should (string-match-p "absolute path" d))
     (should (string-match-p "do not receive the parent's attachments" d))))
 
-;; ── GRUPO 10: Subagentes com Modelo Forte (perfis por agente) ─────────────
+;; ── GRUPO 10: Subagentes com Modelo Forte (perfis → dicas de roteamento) ────
 ;; O pacote herda backend/modelo do pai e a herança vence o override do agente
 ;; (`(or inherited-backend gptel-backend)'). O advice
-;; `+carlos/magent-subagent-apply-profile' força o perfil declarado em
-;; `+carlos/magent-subagent-profiles' no request-state do filho.
+;; `+carlos/magent-subagent-apply-profile' resolve o modelo em runtime pela
+;; complexidade da tarefa respeitando as dicas (:min-tier) de
+;; `+carlos/magent-subagent-profiles' — override do `select_model' primeiro,
+;; resolução dinâmica como fallback (nunca modelo pinado).
 
 (ert-deftest myemacs-magent-subagent-profiles-defaults ()
-  "Os perfis padrão mapeiam explore/general para o modelo forte da nuvem."
+  "Perfis padrão declaram dicas (piso :min-tier) e nenhum modelo concreto."
   (skip-unless (boundp '+carlos/magent-subagent-profiles))
   (let ((explore (cdr (assoc "explore" +carlos/magent-subagent-profiles)))
-        (general (cdr (assoc "general" +carlos/magent-subagent-profiles))))
-    (should (equal (plist-get explore :backend) "Gemini"))
-    (should (equal (plist-get explore :model) "gemini-3.1-pro-preview"))
-    (should (equal (plist-get general :backend) "Gemini"))
-    (should (equal (plist-get general :model) "gemini-3.1-pro-preview"))))
+        (coder (cdr (assoc "coder" +carlos/magent-subagent-profiles))))
+    (should (equal (plist-get explore :min-tier) "local"))
+    (should (equal (plist-get coder :min-tier) "paid"))
+    (should-not (plist-get explore :model))
+    (should-not (plist-get explore :backend))))
 
 (ert-deftest myemacs-magent-subagent-profile-resolver ()
-  "O resolvedor devolve o perfil de agente conhecido e nil para desconhecido."
+  "O resolvedor devolve as dicas de agente conhecido e nil para desconhecido."
   (skip-unless (boundp '+carlos/magent-subagent-profiles))
   (should (fboundp '+carlos/magent-subagent-profile))
-  (should (plist-get (+carlos/magent-subagent-profile "explore") :model))
+  (should (plist-get (+carlos/magent-subagent-profile "explore") :min-tier))
   (should (null (+carlos/magent-subagent-profile "orchestrator-not-delegating"))))
 
+(ert-deftest myemacs-magent-subagent-resolve-honors-hints ()
+  "A resolução dinâmica classifica a tarefa e aplica as dicas do perfil."
+  (skip-unless (fboundp '+carlos/magent-subagent-resolve))
+  (cl-letf (((symbol-function '+carlos/magent-task-complexity) (lambda (_) 'simple))
+            ((symbol-function '+carlos/magent-resolve-model)
+             (lambda (complexity _ping &rest _)
+               (list :backend "Zen Claude" :model "claude-sonnet-5"
+                     :tier "paid" :reason (format "%s via hints" complexity))))
+            ((symbol-function '+carlos/local-ai-server-ping-p) (lambda () t)))
+    (let ((+carlos/magent-subagent-profiles
+           '(("coder" :min-tier "paid"))))
+      (should (equal (+carlos/magent-subagent-resolve "coder" "any task")
+                     '(:backend "Zen Claude" :model "claude-sonnet-5"))))
+    (should (null (+carlos/magent-subagent-resolve "no-such-agent" "any")))))
+
 (ert-deftest myemacs-magent-subagent-apply-profile-known-agent ()
-  "Advice aplica o perfil (backend/modelo forte) no request-state de agente com perfil."
+  "Advice resolve dinamicamente (fallback sem override) e aplica no request-state."
   (skip-unless (fboundp '+carlos/magent-subagent-apply-profile))
   (skip-unless (fboundp 'magent-request-context-create))
   (let* ((rc (magent-request-context-create :model 'gemma-local :backend 'local))
          (agent (and (fboundp 'magent-agent-info-create)
                      (magent-agent-info-create :name "explore" :mode 'subagent)))
          (called nil)
-         (orig (lambda (&rest _) (setq called t))))
-    (funcall #'+carlos/magent-subagent-apply-profile
-             orig "prompt" nil agent nil nil nil nil nil nil rc)
+         (orig (lambda (&rest _) (setq called t)))
+         (resolver-calls 0))
+    (cl-letf (((symbol-function '+carlos/magent-resolve-model)
+               (lambda (&rest _)
+                 (setq resolver-calls (1+ resolver-calls))
+                 '(:backend "Gemini" :model "gemini-3.5-flash"
+                   :tier "free" :reason "test"))))
+      (funcall #'+carlos/magent-subagent-apply-profile
+               orig "prompt" nil agent nil nil nil nil nil nil rc))
     (should called)
+    (should (= resolver-calls 1))
     (should (eq (cl-struct-slot-value 'magent-request-context 'backend rc)
                 (gptel-get-backend "Gemini")))
     (should (eq (cl-struct-slot-value 'magent-request-context 'model rc)
-                'gemini-3.1-pro-preview))))
+                'gemini-3.5-flash))))
 
 (ert-deftest myemacs-magent-subagent-apply-profile-unknown-agent ()
   "Advice não altera o request-state de agentes sem perfil (ex.: orquestrador)."

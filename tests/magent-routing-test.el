@@ -130,6 +130,54 @@ e match exato — modelo forte obrigatório."
         (should-not (equal (plist-get choice :tier) "paid"))
         (should-not (equal (plist-get choice :tier) "local"))))))
 
+(ert-deftest myemacs-magent-model-cost-rank ()
+  "Garante o rank de custo (mais barato primeiro dentro do tier)."
+  (should (= (+carlos/magent-model-cost-rank "OpenCode Zen" "big-pickle") 0))
+  (should (= (+carlos/magent-model-cost-rank "Gemini" "gemini-3.5-flash") 0))
+  (should (= (+carlos/magent-model-cost-rank "MLX Local" "gemma-4-e2b-it-4bit") 0))
+  (should (= (+carlos/magent-model-cost-rank "OpenCode Zen" "gpt-5.6-sol") 1))
+  (should (= (+carlos/magent-model-cost-rank "Gemini" "gemini-3.1-pro-preview") 2)))
+
+(ert-deftest myemacs-magent-resolve-model-min-tier-paid ()
+  "Dica :min-tier \"paid\" vira piso: simple + local online ainda resolve paid."
+  (let ((choice (+carlos/magent-resolve-model
+                 'simple t myemacs-routing-backends myemacs-routing-local-models
+                 '(:min-tier "paid"))))
+    (should (equal (plist-get choice :tier) "paid"))))
+
+(ert-deftest myemacs-magent-resolve-model-min-tier-free-skips-local ()
+  "Dica :min-tier \"free\" proíbe o tier local (subagente em nuvem)."
+  (let ((choice (+carlos/magent-resolve-model
+                 'simple t myemacs-routing-backends myemacs-routing-local-models
+                 '(:min-tier "free"))))
+    (should (equal (plist-get choice :tier) "free"))))
+
+(ert-deftest myemacs-magent-resolve-model-cheapest-in-tier ()
+  "Com piso paid, dentro do tier o mais barato vem primeiro (zen antes de metered)."
+  (let ((choice (+carlos/magent-resolve-model
+                 'deep nil myemacs-routing-backends myemacs-routing-local-models
+                 '(:min-tier "paid"))))
+    (should (equal (plist-get choice :tier) "paid"))
+    (should (equal (plist-get choice :model) "gpt-5.6-sol"))
+    (should (equal (plist-get choice :backend) "OpenCode Zen"))))
+
+(ert-deftest myemacs-magent-select-model-honors-profile-min-tier ()
+  "select_model respeita o piso :min-tier do perfil (coder → paid)."
+  (cl-letf (((symbol-function '+carlos/ai-local-backend)
+             (lambda () (cons "MLX Local" 'mlx-community/gemma-4-e2b-it-4bit)))
+            ((symbol-function '+carlos/local-ai-server-ping-p) (lambda () t))
+            ((symbol-function '+carlos/magent-local-installed-models)
+             (lambda () myemacs-routing-local-models)))
+    (let ((+carlos/magent-subagent-model-overrides nil)
+          (+carlos/magent-subagent-profiles
+           '(("coder" :min-tier "paid"))))
+      (let* ((out (myemacs-routing-result-output
+                   (+carlos/magent-tool-select-model
+                    "Fix a typo in a comment" "coder" "simple")))
+             (parsed (json-read-from-string out)))
+        (should (equal (alist-get 'status parsed) "success"))
+        (should (equal (alist-get 'tier parsed) "paid"))))))
+
 (ert-deftest myemacs-magent-system-directives-render ()
   "Garante que as directivas renderizadas incluem rule 9 e o menu."
   (cl-letf (((symbol-function '+carlos/ai-local-backend)
