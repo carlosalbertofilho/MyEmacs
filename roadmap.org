@@ -1,7 +1,7 @@
 #+TITLE: Roadmap — MyEmacs Configuration
 #+AUTHOR: Carlos Filho
 #+DATE: 2026-08-05
-#+LAST_MODIFIED: 2026-08-16
+#+LAST_MODIFIED: 2026-08-17
 #+OPTIONS: toc:2 num:t
 
 * Visão Geral
@@ -11,6 +11,28 @@ Este documento registra o histórico de ações realizadas no projeto MyEmacs
 entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
+
+** 2026-08-17 — [CONCLUÍDO] Fix: isolamento de eventos de subagente na FSM (turn-end-sink)
+   - **Problema:** o =turn-end-sink= é global — eventos de turno de subagentes
+     disparam no contexto do subagente, onde =magent-tools--parent-session=
+     retorna a sessão filha (sem jobs filhos), limpando o cache e forçando a
+     FSM para =idle= espuriamente durante a execução de subagentes.
+   - **Fix (=lisp/custom-magent-fsm.el=):** filtro =unless= no início do
+     =turn-end-sink= que verifica =:subagent-id= no contexto do evento
+     (=magent-lifecycle-events-context-subagent-id=).  Contextos de subagente
+     (=create-subagent-context=) têm =:subagent-id= preenchido; contextos do
+     orquestrador não.  Eventos de subagente são ignorados inteiramente.
+   - **Testes (=tests/magent-fsm-test.el=, GRUPO 11):**
+     =myemacs-magent-fsm-turn-end-subagent-event-ignored= (evento com
+     =:subagent-id= não transiciona a FSM) e
+     =myemacs-magent-fsm-turn-end-orchestrator-event-processed= (evento sem
+     =:subagent-id= continua processado normalmente).
+   - **Descoberta:** =cl-return-from= não funciona com .elc stale compilado
+     sem =lexical-binding=; reestruturado para =unless= + bloco condicionado
+     sem não-local exit.
+   - **Gates:** compile zero-warning; checkdoc limpo; suíte repo 297/290/0/7;
+     sync prod + compile-prod zero-warning + check-prod OK + suíte prod
+     297/290/0/7.  Commit 8a8566b.
 
 ** 2026-08-16 — [CONCLUÍDO] Roteamento de modelos dinâmico por perfil (melhor custo)
    - **Objetivo:** substituir o modelo pinado (=gemini-3.1-pro-preview=) dos

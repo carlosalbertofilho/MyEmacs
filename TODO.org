@@ -1,7 +1,7 @@
 #+TITLE: TODO — Planejamento Ativo e Backlog (MyEmacs)
 #+AUTHOR: Carlos Filho
 #+DATE: 2026-08-05
-#+LAST_MODIFIED: 2026-08-16
+#+LAST_MODIFIED: 2026-08-17
 #+FILETAGS: :PLANNING:
 #+OPTIONS: toc:2 num:t
 #+STARTUP: content
@@ -63,10 +63,11 @@ inteiro colado.
 
 * Backlog Ativo (Pendências e Planos Futuros)
 
-** TODO [#A] Corrigir FSM do Magent para Isolamento e Ciclo de Vida de Subagentes
+** DONE [#A] Corrigir FSM do Magent para Isolamento e Ciclo de Vida de Subagentes
     :PROPERTIES:
     :CREATED: 2026-08-16
-    :STATUS: em andamento
+    :RESOLVED: 2026-08-17
+    :STATUS: done
     :END:
 
 *Contexto e Causa-Raiz (Análise de Log):*
@@ -111,6 +112,15 @@ Diagnosticada a causa-raiz em =lisp/custom-magent-fsm.el=:
   - =just test= passa sem regressões (incluindo os novos testes da FSM).
   - =just compile= com zero warnings.
   - Ausência de transição espúria de =subagent-waiting= / =subagent-running= para =idle= durante a execução de subagentes.
+- *Execução (2026-08-17):* implementado em =lisp/custom-magent-fsm.el=
+  (filtro =unless= com =magent-lifecycle-events-context-subagent-id= no
+  contexto do evento, wrapping da lógica original) + dois testes de
+  regressão em =tests/magent-fsm-test.el= (=myemacs-magent-fsm-turn-end-subagent-event-ignored=
+  e =myemacs-magent-fsm-turn-end-orchestrator-event-processed=). Descoberta:
+  =cl-return-from= não funciona com .elc stale compilado sem lexical-binding;
+  reestruturado para =unless+when= sem não-local exit. Gates: compile zero-
+  warning, checkdoc limpo, suíte repo 297/290/0/7; sync prod + compile-prod
+  zero-warning + check-prod OK + suíte prod 297/290/0/7. Commit 8a8566b.
 
 ** TODO [#A] Liquidação da Dívida Técnica de Infraestrutura (Plano aprovado)
     :PROPERTIES:
