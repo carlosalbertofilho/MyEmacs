@@ -1,7 +1,7 @@
 #+TITLE: Magent Reference Guide
 #+AUTHOR: MyEmacs Documentation Generator
 #+DATE: 2026-08-06
-#+LAST_MODIFIED: 2026-08-16
+#+LAST_MODIFIED: 2026-08-17
 #+DESCRIPTION: Comprehensive reference for Magent native Emacs-Lisp AI coding agent and the MyEmacs orchestration layer (FSM, subagents, model routing, curated tools, expert team)
 #+FILETAGS: :RAG:AI:DOCS:
 #+OPTIONS: toc:2 num:t
@@ -267,6 +267,7 @@ A FSM adapta dinamicamente os backends e modelos do gptel dependendo de onde o E
 1. **Watchdog de Latência:** Um timer de contagem regressiva =+carlos/magent-watchdog-timer= monitora a requisição ativa de desenvolvimento local. Caso o tempo limite (8s no MacBook, 15s na aa102-006l) seja atingido devido ao carregamento de pesos (cold-start) ou lentidão na CPU, a FSM aborta a chamada e faz fallback transparente do turno para a nuvem.
 2. **Sanitizador de Reasoning:** Captura e acumula o fluxo do canal =reasoning= do gptel. Se o modelo tentar chamar uma ferramenta em formato de tag (Claude-XML ou DSML) dentro do pensamento, um parser regex extrai a chamada e a envia ao Emacs no canal nativo, contornando a falha nativa do gptel-request de descartar tool calls no reasoning.
 3. **Trava de Edição (Semáforo de Buffer):** Impede modificação manual pelo usuário no buffer ativo durante o estado =tool-executing=, garantindo a integridade dos pontos e marcações de cursor.
+4. **Fallback Inteligente com Retry (2026-08-17):** quando um subagente falha por timeout ou modelo indisponível, retry automático com modelo de tier acima (local→free→paid). Máx 1 retry por subagente (flag =:retried=). Se falha é =context_length_exceeded=, compacta antes de retry.
 
 ** Subagentes (spawn_agent / wait_agent) — contrato de orquestração (2026-08-13)
 
@@ -329,6 +330,10 @@ orquestrador leve (local) delegar a modelos fortes:
   Subagente de edição deve `read_file` o alvo antes de editar. Apenas
   correções de uma linha com o texto exato recém-lido podem ser feitas
   diretamente.
+
+- Novo padrão "spawn-and-forge" (2026-08-17): quando tarefas são
+  independentes, orquestrador deve fazer múltiplos `spawn_agent` antes de
+  `wait_agent` (sequência de spawns sem waits intermediários).
 
 Testes: GRUPO 10 em `tests/magent-fsm-test.el` (defaults, resolver, resolução
 com dicas, aplicação do advice com `magent-request-context` real, instalação do
@@ -468,6 +473,17 @@ Testes: `tests/context-test.el` (compaction-decision immediate/milestone,
 build-instruction-sections, sink subagent-stop conta, turn-tokens zero-safe,
 resolve-cheap-model free/local, session-total-tokens, guarda sucesso/falha + sink
 skip/retry, turn-closed-p, safe-boundary).
+
+- *B6 — Compactação seletiva algorítmica (2026-08-17):*
+  antes de usar `magent-runtime-session-compact` (compacta tudo),
+  `+carlos/magent-selective-compact-execute` analisa turns por peso:
+  candidatos = turns com tool results > 2000 tokens (read_file/grep
+  pesados); preservar = user prompts, syntheses do orquestrador,
+  turns < 1000 tokens; remover = tool results > 2000 tokens,
+  transcripts completos de subagentes. Usa `magent-thread-trim-turn`
+  para remover turns individuais. Algoritmo puramente algorítmico (sem
+  LLM) — mais performático que compactação por reasoning.
+
 * Loop de Eventos Informativo (Fase C — Painel de Atividade, 2026-08-14)
 
 O painel de atividade (lisp/custom-magent-ui.el) torna o loop de eventos do chat

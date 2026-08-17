@@ -167,6 +167,72 @@ compactação não referencia AGENTS.md, fallback de context window muito baixo.
   =myemacs-context-get-context-window= continua verde; =just test-all= verde.
 - *Arquivo:* =lisp/custom-magent-context.el= (1 linha).
 
+** TODO [#A] Otimização de Orquestração — 3 melhorias de pipeline
+    :PROPERTIES:
+    :CREATED: 2026-08-17
+    :STATUS: plano aprovado
+    :END:
+
+*Contexto:* análise de bottleneck do Magent identificou 3 melhorias com
+alto custo-benefício: delegação mais agressiva do orquestrador, fallback
+inteligente de modelo em falha, e compactação seletiva algorítmica (sem
+LLM). Discutido e aprovado em 2026-08-17.
+
+*** TODO [#A] Orquestrador mais agressivo
+    :PROPERTIES:
+    :ASSIGNEE: executor
+    :DUE: 2026-08-19
+    :STATUS: backlog
+    :END:
+- *Problema:* orquestrador faz 1 tool call por turno — consome tokens
+  com contextos repetidos e turns curtos demais.
+- *Abordagem:* reescrever regra 8 de =+carlos/magent-system-directives=
+  para: (a) padrão "spawn-and-forge" — múltiplos =spawn_agent= antes de
+  =wait_agent= quando tarefas independentes; (b) synthesis obrigatória
+  em ≤3 bullets após =wait_agent= (nunca colar transcript).
+- *Critério de saída:* =just compile= zero-warning; teste ERT que
+  verifica presença das novas regras nas directives; =just test-all=
+  verde; teste interativo com Flash mostrando turns mais curtos.
+- *Arquivo:* =lisp/custom-magent-tools.el= (regra 8, ~linhas 151-168).
+
+*** TODO [#B] Fallback de modelo inteligente
+    :PROPERTIES:
+    :ASSIGNEE: executor
+    :DUE: 2026-08-20
+    :STATUS: backlog
+    :END:
+- *Problema:* watchdog dispara → FSM vai para =idle= → turno perdido.
+  Subagente falha por timeout/modelo indisponível sem retry.
+- *Abordagem:* novo sink =+carlos/magent-fsm-retry-on-failure= no
+  =turn-end-sink=: se falha é "model_unavailable" ou "timeout",
+  selecionar modelo de tier acima (local→free→paid) e retry automático
+  (máx 1x por subagente, flag =:retried=). Se falha é
+  "context_length_exceeded", compactar antes de retry.
+- *Critério de saída:* =just compile= zero-warning; 2 testes ERT novos
+  (retry up-tier funciona, não loop infinito); =just test-all= verde.
+- *Arquivos:* =lisp/custom-magent-fsm.el=, =lisp/custom-magent-context.el=.
+
+*** TODO [#B] Compactação seletiva algorítmica
+    :PROPERTIES:
+    :ASSIGNEE: executor
+    :DUE: 2026-08-21
+    :STATUS: backlog
+    :END:
+- *Problema:* compactação atual é "tudo ou nada" — quando threshold é
+  atingido, compacta sessão inteira via
+  =magent-runtime-session-compact=. Perde contexto útil junto com lixo.
+- *Abordagem:* algoritmo puramente algorítmico (sem LLM) que analisa
+  turns por peso e valor: (a) candidatos = turns com tool results >
+  2000 tokens (read_file/grep pesados); (b) preservar: user prompts,
+  syntheses do orquestrador, turns < 1000 tokens; (c) remover: tool
+  results > 2000 tokens, transcripts completos de subagentes; (d)
+  mecanismo =+carlos/magent-selective-compact-execute= usando
+  =magent-thread-trim-turn= para remover turns individuais.
+- *Critério de saída:* =just compile= zero-warning; 3 testes ERT novos
+  (candidatos identificados, preserva user prompts, remove tool results
+  pesados); =just test-all= verde.
+- *Arquivo:* =lisp/custom-magent-context.el=.
+
 ** TODO Validação Interativa da Stack de IA (GUI)
     :PROPERTIES:
     :CREATED: 2026-08-12

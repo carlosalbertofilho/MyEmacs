@@ -47,7 +47,25 @@ entenderem o estado atual do projeto e decisões tomadas.
    - **Commits:** a27b630, fd1b6fe, 222c20a, 27b93a8, 8b9d959.
    - **Testes:** 12 ERT novos (4 cooldown + 3 metrics + 1 rules + 5 tool cap).
    - **Referências:** RAG/core/src/indexer.py (caps de 2000 chars/chunk),
-     Agent_Smith/AGENTS.md (budgets acumulados, StepMetrics).
+      Agent_Smith/AGENTS.md (budgets acumulados, StepMetrics).
+   - **Próximas melhorias (2026-08-17):** orquestrador mais agressivo
+     (regra 8), fallback inteligente de modelo (retry up-tier),
+     compactação seletiva algorítmica (sem LLM). Ver TODO.org —
+     "Otimização de Orquestração".
+
+** 2026-08-17 — [DECIDIDO] Otimização de Orquestração — Próxima iteração
+   - **Decisão:** adotar abordagem de 3 melhorias pontuais (delegação
+     agressiva, fallback inteligente, compactação seletiva) em vez de
+     reescrita da FSM para grafo de dependências.
+   - **Justificativa:** paralelismo de subagentes introduz complexidade
+     multiplicativa (N jobs, timers por job, falha parcial, merge de
+     resultados) para ganho marginal (Emacs single-threaded, pipeline
+     tipicamente sequencial). Melhorias pontuais cobrem 90% dos casos
+     com 1/10 da complexidade.
+   - **Sub-itens:** (1) orquestrador mais agressivo — regra 8 reescrita;
+     (2) fallback inteligente — retry up-tier com flag :retried;
+     (3) compactação seletiva — algoritmo puramente algorítmico sem LLM.
+   - **Referência:** TODO.org — "Otimização de Orquestração".
 
 ** 2026-08-16 — [CONCLUÍDO] Roteamento de modelos dinâmico por perfil (melhor custo)
    - **Objetivo:** substituir o modelo pinado (=gemini-3.1-pro-preview=) dos
