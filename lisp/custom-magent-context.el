@@ -45,8 +45,9 @@ percentual da janela do modelo."
   :type 'float
   :group '+carlos/ai)
 
-(defcustom +carlos/magent-context-window-fallback 16384
-  "Janela de contexto fallback caso o modelo gptel não declare :context-window."
+(defcustom +carlos/magent-context-window-fallback 131072
+  "Janela de contexto fallback caso o modelo gptel não declare :context-window.
+128K (131072) — maioria dos modelos free/locais modernos tem ≥128K."
   :type 'integer
   :group '+carlos/ai)
 
