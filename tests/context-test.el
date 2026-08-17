@@ -239,5 +239,39 @@ Skip quando o source do ambiente-alvo ainda não tem a forward declaration
             (should (string-match-p "ISOLATED-COMPILE-OK" (buffer-string)))))
       (when (file-exists-p elc) (delete-file elc)))))
 
+;; ── Cooldown entre compactações ──────────────────────────────────────
+(ert-deftest myemacs-context-cooldown-active ()
+  "Garante que a cooldown retorna t imediatamente após compactação."
+  (let ((+carlos/magent-last-compaction-time (float-time))
+        (+carlos/magent-compaction-cooldown-seconds 120))
+    (should (+carlos/magent-compaction-cooldown-active-p))))
+
+(ert-deftest myemacs-context-cooldown-expired ()
+  "Garante que a cooldown retorna nil após expirar."
+  (let ((+carlos/magent-last-compaction-time (- (float-time) 200))
+        (+carlos/magent-compaction-cooldown-seconds 120))
+    (should (null (+carlos/magent-compaction-cooldown-active-p)))))
+
+(ert-deftest myemacs-context-cooldown-nil-when-never-compacted ()
+  "Garante que a cooldown retorna nil quando last-compaction-time é nil."
+  (let ((+carlos/magent-last-compaction-time nil)
+        (+carlos/magent-compaction-cooldown-seconds 120))
+    (should (null (+carlos/magent-compaction-cooldown-active-p)))))
+
+(ert-deftest myemacs-context-cooldown-prevents-compact ()
+  "Garante que a cooldown impede auto-compactação mesmo com threshold excedido."
+  (let ((+carlos/magent-last-compaction-time (float-time))
+        (+carlos/magent-compaction-cooldown-seconds 120)
+        (+carlos/magent-context-estimated-tokens 0)
+        (+carlos/magent-subagent-completions-since-compact 0)
+        (+carlos/magent-last-compaction-failed nil)
+        compacted)
+    (cl-letf (((symbol-function '+carlos/magent-compact)
+               (lambda () (setq compacted t)))
+              ((symbol-function '+carlos/magent-turn-tokens)
+               (lambda (_) 99999)))
+      (+carlos/magent-auto-compact-check-and-run '(:type turn-end :status completed))
+      (should (null compacted)))))
+
 (provide 'context-test)
 ;;; context-test.el ends here

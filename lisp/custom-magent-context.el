@@ -59,6 +59,12 @@ resumem mal contexto grande."
   :type 'integer
   :group '+carlos/ai)
 
+(defcustom +carlos/magent-compaction-cooldown-seconds 120
+  "Intervalo mínimo (em segundos) entre duas compactações automáticas.
+Previne thrashing quando tokens crescem rápido pós-compactação."
+  :type 'integer
+  :group '+carlos/ai)
+
 (defvar +carlos/magent-preservation-instruction
   "Compactar a sessão preservando estruturadamente:
 1. Arquivos modificados ou criados (caminhos completos) e a razão da mudança;
@@ -358,6 +364,15 @@ Mede os tokens da sessão antes de disparar e valida o resultado em
            (get (intern (gptel--model-name gptel-model)) :context-window))
       +carlos/magent-context-window-fallback))
 
+(defun +carlos/magent-compaction-cooldown-active-p ()
+  "Non-nil se a cooldown entre compactações está ativa.
+Compara `float-time' atual com `+carlos/magent-last-compaction-time'
+mais `+carlos/magent-compaction-cooldown-seconds'."
+  (when (and +carlos/magent-last-compaction-time
+             (> +carlos/magent-compaction-cooldown-seconds 0))
+    (let ((elapsed (- (float-time) +carlos/magent-last-compaction-time)))
+      (< elapsed +carlos/magent-compaction-cooldown-seconds))))
+
 (defun +carlos/magent-auto-compact-check-and-run (event-data)
   "Sink de lifecycle da auto-compactação (Fase B).
 Dispacha por :type do EVENT-DATA: `subagent-stop' incrementa o contador
@@ -386,12 +401,16 @@ após `+carlos/magent-failure-retry-turn-ends' turnos (B5.3)."
                         +carlos/magent-context-estimated-tokens
                         (+carlos/magent-get-context-window)
                         +carlos/magent-subagent-completions-since-compact)))
-          (when (and decision (not +carlos/magent-last-compaction-failed))
-            (message (concat
-                      "[Magent Auto-Compact] Gatilho %s (%d tokens estimados). "
-                      "Compactando em segundo plano...")
-                     decision +carlos/magent-context-estimated-tokens)
-            (+carlos/magent-compact)))))))
+           (when (and decision
+                      (not +carlos/magent-last-compaction-failed)
+                      (not (+carlos/magent-compaction-cooldown-active-p)))
+             (message (concat
+                       "[Magent Auto-Compact] Gatilho %s (%d tokens estimados). "
+                       "Compactando em segundo plano...")
+                      decision +carlos/magent-context-estimated-tokens)
+             (+carlos/magent-compact))
+          (when (and decision (+carlos/magent-compaction-cooldown-active-p))
+            (message "[Magent Auto-Compact] Cooldown ativo, pulando compactação.")))))))
 
 (with-eval-after-load 'magent-lifecycle-events
   (when (fboundp 'magent-lifecycle-events-add-sink)
