@@ -66,7 +66,7 @@ inteiro colado.
 ** TODO [#A] Corrigir FSM do Magent para Isolamento e Ciclo de Vida de Subagentes
     :PROPERTIES:
     :CREATED: 2026-08-16
-    :STATUS: plano aprovado
+    :STATUS: em andamento
     :END:
 
 *Contexto e Causa-Raiz (Análise de Log):*
@@ -88,11 +88,25 @@ Diagnosticada a causa-raiz em =lisp/custom-magent-fsm.el=:
 3. *Transição indevida para =idle=:* Como =+carlos/magent-fsm-pending-subagent-p= passa a retornar =nil=, o sink de =turn-end= força a FSM do orquestrador de =subagent-waiting= para =idle= enquanto o subagente ainda está em execução.
 
 - *Objetivo:* Garantir que eventos de turno originados de subagentes não corrompam o estado da FSM do orquestrador principal nem transicionem a FSM prematuramente para =idle=.
-- *Abordagem de Implementação:*
-  1. *Filtro de Escopo de Sessão:* Atualizar os sinks em =custom-magent-fsm.el= para verificar se o evento pertence à sessão principal da FSM (comparando o ID da sessão do evento com =+carlos/magent-fsm-session= ou validando a sessão raiz).
-  2. *Preservação de Jobs Ativos:* Garantir que a consulta de jobs ativos em =+carlos/magent-fsm-subagent-session-jobs= inspecione a sessão raiz do orquestrador, e não a sessão filha do subagente.
-  3. *Manutenção de Estado:* Manter o estado da FSM em =subagent-running= / =subagent-waiting= até que TODOS os subagentes da sessão principal terminem (=completed= ou =failed=).
-  4. *Testes de Regressão ERT:* Adicionar testes em =tests/magent-fsm-test.el= simulando turnos de subagentes para validar que =+carlos/magent-fsm-state= permanece em =subagent-waiting= / =subagent-running= e não cai em =idle=.
+- *Abordagem de Implementação (executando 2026-08-17):*
+  1. *Filtro de Escopo no turn-end-sink:* Verificar o campo =:subagent-id= no
+     contexto do evento (=magent-lifecycle-events-context-subagent-id=). Se
+     presente, o evento é de subagente → retornar imediatamente sem processar.
+     O contexto de subagente (=create-subagent-context= em
+     =magent-lifecycle-events.el:133=) define =:subagent-id=; o contexto do
+     orquestrador não. Essa distinção é a fonte única de verdade.
+  2. *skip-safe no turn-start-sink (futuro):* O turn-start-sink é dead code
+     hoje (definido mas não registrado como sink na linha 313). Habilitá-lo
+     como follow-up permitiria transição para =subagent-running= e melhoria
+     de UI (spinner antecipado). Não é necessário para o fix do bug.
+  3. *Testes de Regressão ERT:* Adicionar em =tests/magent-fsm-test.el=:
+     - =myemacs-magent-fsm-turn-end-subagent-event-ignored=: evento com
+       =:subagent-id= não transiciona a FSM.
+     - Validar que o caso existente =turn-end-with-pending-subagent-waits=
+       continua verde (evento do orquestrador continua processado).
+  4. *Nota:* o filtro é idempotente — mesmo que o bug de session fallback
+     exista, o evento de subagente nunca chega ao =cond= que decide a
+     transição.
 - *Critério de saída:*
   - =just test= passa sem regressões (incluindo os novos testes da FSM).
   - =just compile= com zero warnings.

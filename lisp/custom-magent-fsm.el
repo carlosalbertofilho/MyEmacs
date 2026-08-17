@@ -9,6 +9,7 @@
 ;;; Code:
 
 (declare-function magent-lifecycle-events-add-sink "magent-lifecycle-events")
+(declare-function magent-lifecycle-events-context-subagent-id "magent-lifecycle-events")
 (declare-function magent-tools--parent-session "magent-tools")
 (declare-function magent-session-agent-jobs "magent-session")
 (declare-function magent-agent-job-status "magent-agent")
@@ -283,20 +284,33 @@ Se um subagente ainda estiver ativo (turno de retomada), entra em
 EVENT-DATA é o plist do lifecycle event do turno.
 Cancela o watchdog e verifica se há tool calls perdidas no reasoning.
 Se o turno terminou com subagentes pendentes (spawn_agent sem wait_agent
-concluído), entra em `subagent-waiting' em vez de `idle'."
-  (+carlos/magent-watchdog-cancel)
-  (+carlos/magent-fsm-refresh-subagent-jobs)
-  (let ((status (plist-get event-data :status)))
-    (cond
-     ((eq status 'completed)
-      (+carlos/magent-fsm-transition 'verifying)
-      ;; Tenta resgatar tool calls do reasoning (turn vazio)
-      (+carlos/magent-fsm-maybe-rescue-reasoning-tool-calls)
-      (if (+carlos/magent-fsm-pending-subagent-p)
-          (+carlos/magent-fsm-transition 'subagent-waiting)
-        (+carlos/magent-fsm-transition 'idle)))
-     (t
-      (+carlos/magent-fsm-transition 'idle)))))
+concluído), entra em `subagent-waiting' em vez de `idle'.
+
+EVENTOS DE SUBAGENTE SÃO IGNORADOS: o contexto do subagente tem
+`:subagent-id' preenchido (via
+`magent-lifecycle-events-create-subagent-context');
+o contexto do orquestrador não.  Sem esse filtro, o sink dispara
+no contexto do subagente, `magent-tools--parent-session' retorna
+a sessão filha (sem jobs filhos), o cache é limpo prematuramente
+e a FSM cai em `idle' espuriamente."
+  (let ((event-ctx (plist-get event-data :context)))
+    (unless (and event-ctx
+                 (fboundp 'magent-lifecycle-events-context-subagent-id)
+                 (magent-lifecycle-events-context-subagent-id event-ctx))
+      ;; ── Lógica original (apenas eventos do orquestrador) ──────────────
+      (+carlos/magent-watchdog-cancel)
+      (+carlos/magent-fsm-refresh-subagent-jobs)
+      (let ((status (plist-get event-data :status)))
+        (cond
+         ((eq status 'completed)
+          (+carlos/magent-fsm-transition 'verifying)
+          ;; Tenta resgatar tool calls do reasoning (turn vazio)
+          (+carlos/magent-fsm-maybe-rescue-reasoning-tool-calls)
+          (if (+carlos/magent-fsm-pending-subagent-p)
+              (+carlos/magent-fsm-transition 'subagent-waiting)
+            (+carlos/magent-fsm-transition 'idle)))
+         (t
+          (+carlos/magent-fsm-transition 'idle)))))))
 
 ;; Captura chunks de reasoning acumulando no buffer da FSM.
 ;; Advice leve em torno da callback do streaming do magent.

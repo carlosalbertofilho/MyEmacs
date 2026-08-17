@@ -501,6 +501,46 @@ Regressão: orquestrador local tentou editar TODO.org e alucinou old_text
     (should (string-match-p "read_file" d))
     (should (string-match-p "read the target file" d))))
 
+;; ── GRUPO 11: Isolamento de eventos de subagente na FSM ──────────────────────
+;; Regressão: o turn-end-sink é global — eventos de turno de subagentes disparam
+;; no contexto do subagente, onde `magent-tools--parent-session' retorna a sessão
+;; filha (sem jobs filhos), limpando o cache e forcando a FSM para idle
+;; espuriamente.  O filtro por :subagent-id no contexto do evento impede isso.
+
+(ert-deftest myemacs-magent-fsm-turn-end-subagent-event-ignored ()
+  "Evento turn-end com :subagent-id no contexto deve ser ignorado pela FSM.
+Regressão: subagente executava read_file/grep, turn-end-sink disparava no
+contexto do subagente, refresh-subagent-jobs limpava o cache e a FSM caía
+em idle prematuramente."
+  (skip-unless myemacs-fsm-available)
+  (skip-unless (fboundp '+carlos/magent-fsm-turn-end-sink))
+  (skip-unless (fboundp 'magent-lifecycle-events-context-create))
+  (myemacs-fsm-with-reset
+    ;; Simula FSM em subagent-waiting (orquestrador aguardando subagente)
+    (+carlos/magent-fsm-transition 'subagent-waiting)
+    (let* ((ctx (magent-lifecycle-events-context-create :subagent-id "test-abc123"))
+           (event (list :type 'turn-end :context ctx :status 'completed)))
+      (+carlos/magent-fsm-turn-end-sink event)
+      ;; Deve permanecer em subagent-waiting (evento ignorado)
+      (should (eq +carlos/magent-fsm-state 'subagent-waiting)))))
+
+(ert-deftest myemacs-magent-fsm-turn-end-orchestrator-event-processed ()
+  "Evento turn-end SEM :subagent-id (orquestrador) continua sendo processado.
+Garante que o filtro não bloqueia eventos legítimos do orquestrador."
+  (skip-unless myemacs-fsm-available)
+  (skip-unless (fboundp '+carlos/magent-fsm-turn-end-sink))
+  (skip-unless (fboundp 'magent-lifecycle-events-context-create))
+  (myemacs-fsm-with-reset
+    (+carlos/magent-fsm-transition 'thinking)
+    ;; Contexto do orquestrador: sem subagent-id
+    (let* ((ctx (magent-lifecycle-events-context-create))
+           (event (list :type 'turn-end :context ctx :status 'completed)))
+      ;; Sem subagentes pendentes → deve ir para idle
+      (cl-letf (((symbol-function '+carlos/magent-fsm-subagent-session-jobs)
+                 (lambda () nil)))
+        (+carlos/magent-fsm-turn-end-sink event))
+      (should (eq +carlos/magent-fsm-state 'idle)))))
+
 ;; ── GRUPO D6: Spinner de subagente (wiring FSM ↔ UI) ─────────────────────────
 ;; O wiring é mínimo: entrar em subagent-waiting inicia o spinner do painel e
 ;; sair (qualquer transição a partir dele) o para.  Stubs `cl-letf' nas funções
