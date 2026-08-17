@@ -32,7 +32,21 @@ entenderem o estado atual do projeto e decisões tomadas.
      sem não-local exit.
    - **Gates:** compile zero-warning; checkdoc limpo; suíte repo 297/290/0/7;
      sync prod + compile-prod zero-warning + check-prod OK + suíte prod
-     297/290/0/7.  Commit 8a8566b.
+      297/290/0/7.  Commit 8a8566b.
+
+** 2026-08-17 — [PLANO APROVADO] Controle de Contexto — Melhorias baseadas em RAG/Agent_Smith
+   - **Motivação:** análise comparativa dos projetos RAG (Rank04) e Agent_Smith
+     (Rank05) revelou padrões de controle de contexto ausentes no MyEmacs.
+     Observação do usuário: "estamos consumindo muito contexto".
+   - **Gaps identificados:**
+     1. Sem cooldown entre compactações (thrashing).
+     2. Sem métricas por turno (impossível diagnosticar desperdício).
+     3. read_file sem cap por resultado (arquivo grande = fração enorme da janela).
+     4. Instrução de compactação não referencia AGENTS.md (perda de regras pós-compactação).
+     5. Context window fallback 16K muito baixo para modelos modernos.
+   - **Sub-itens:** 5 itens no TODO.org (A/A/B/B/C), priorizados por impacto.
+   - **Referências:** RAG/core/src/indexer.py (caps de 2000 chars/chunk),
+     Agent_Smith/AGENTS.md (budgets acumulados, StepMetrics).
 
 ** 2026-08-16 — [CONCLUÍDO] Roteamento de modelos dinâmico por perfil (melhor custo)
    - **Objetivo:** substituir o modelo pinado (=gemini-3.1-pro-preview=) dos
