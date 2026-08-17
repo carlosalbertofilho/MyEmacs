@@ -296,5 +296,13 @@ Skip quando o source do ambiente-alvo ainda não tem a forward declaration
     (+carlos/magent-metrics-accumulate '(:type turn-end :turn-id "no-session"))
     (should (null +carlos/magent-turn-metrics))))
 
+;; ── Referência AGENTS.md na compactação ─────────────────────────────
+(ert-deftest myemacs-context-compaction-rules-present ()
+  "Garante que a instrução de compactação contém regras essenciais do AGENTS.md."
+  (let ((instr (+carlos/magent-build-compaction-instruction)))
+    (should (string-match-p "use-package" instr))
+    (should (string-match-p "just test-all" instr))
+    (should (string-match-p "fboundp" instr))))
+
 (provide 'context-test)
 ;;; context-test.el ends here

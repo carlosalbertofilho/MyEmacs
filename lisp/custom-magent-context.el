@@ -76,6 +76,16 @@ Previne thrashing quando tokens crescem rápido pós-compactação."
 NÃO replicar conteúdo lido que não tenha sido alterado."
   "Base de preservação estruturada para a auto-compactação do Magent.")
 
+(defconst +carlos/magent-compaction-rules
+  "Regras essenciais do projeto (extraído de AGENTS.md):
+- Use-package com :ensure para pacotes externos; :ensure nil para built-in.
+- Naming: +carlos/function-name para custom, +carlos/--helper para internal.
+- NÃO adicionar comments não-solicitados no código.
+- Sempre rodar just test-all após mudanças na config.
+- Guardas: (fboundp ...) antes de chamar funções de pacotes carregados via :defer.
+- require com nil t para carregamento seguro em batch."
+  "Regras essenciais do projeto para preservar pós-compactação.")
+
 (defvar +carlos/magent-context-estimated-tokens 0
   "Tokens estimados consumidos desde a última compactação.")
 
@@ -309,10 +319,11 @@ base de preservação estática e regras de descarte."
      "- Nomes de funções de testes ERT associadas às alterações;\n"
      "- Comandos e gates de compilação/teste válidos (`just ...`);\n"
      "- Restrições e preferências persistentes do usuário;\n"
-     "Regras de descarte: não replique transcripts de leitura reproduzíveis "
-     "(output de grep/ls/cat); preserve os últimos 3 turns crus e resuma apenas "
-     "o prefixo mais antigo; não duplique TODO.org nem roadmap.org (consulte-os).\n"
-     "\nBase de preservação:\n" +carlos/magent-preservation-instruction)))
+      "Regras de descarte: não replique transcripts de leitura reproduzíveis "
+      "(output de grep/ls/cat); preserve os últimos 3 turns crus e resuma apenas "
+      "o prefixo mais antigo; não duplique TODO.org nem roadmap.org (consulte-os).\n"
+      "\n" +carlos/magent-compaction-rules
+      "\n\nBase de preservação:\n" +carlos/magent-preservation-instruction)))
 
 ;; ── B4. Compactação manual + sink de lifecycle ──────────────────────
 (defun +carlos/magent-compaction-result-handler (status before &optional after)
