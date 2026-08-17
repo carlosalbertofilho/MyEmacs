@@ -79,10 +79,10 @@ guard jinx, epdfinfo, agent-shell) foram concluídos em 2026-08-16 e movidos
 para o roadmap.org. Este item permanece como referência para decisões de infra
 pendentes (ver Diagnóstico item 1–4 abaixo).
 
-** TODO [#A] Controle de Contexto — Melhorias baseadas em RAG/Agent_Smith
+** DONE [#A] Controle de Contexto — Melhorias baseadas em RAG/Agent_Smith
     :PROPERTIES:
     :CREATED: 2026-08-17
-    :STATUS: backlog
+    :STATUS: concluido
     :END:
 
 *Contexto:* análise dos projetos RAG (Rank04) e Agent_Smith (Rank05) revelou
@@ -91,11 +91,11 @@ muito contexto em sessões longas; gaps identificados: sem cooldown entre
 compactações, sem métricas por turno, sem cap por tool result, instrução de
 compactação não referencia AGENTS.md, fallback de context window muito baixo.
 
-*** TODO [#A] Cooldown entre compactações
+*** DONE [#A] Cooldown entre compactações
     :PROPERTIES:
     :ASSIGNEE: executor
     :DUE: 2026-08-19
-    :STATUS: backlog
+    :STATUS: concluido
     :END:
 - *Problema:* =+carlos/magent-last-compaction-time= é gravado mas nunca lido.
   Se tokens crescem rápido pós-compactação, thrashing.
@@ -106,11 +106,11 @@ compactação não referencia AGENTS.md, fallback de context window muito baixo.
   (cooldown ativo + cooldown expirado); =just test-all= verde.
 - *Arquivos:* =lisp/custom-magent-context.el=, =tests/context-test.el=.
 
-*** TODO [#A] Métricas por turno
+*** DONE [#A] Métricas por turno
     :PROPERTIES:
     :ASSIGNEE: executor
     :DUE: 2026-08-20
-    :STATUS: backlog
+    :STATUS: concluido
     :END:
 - *Problema:* não sabemos qual turno consumiu mais contexto. Impossível
   diagnosticar desperdício.
@@ -122,11 +122,11 @@ compactação não referencia AGENTS.md, fallback de context window muito baixo.
   (accumulation, top-N, comando); =just test-all= verde.
 - *Arquivos:* =lisp/custom-magent-context.el=, =tests/context-test.el=.
 
-*** TODO [#B] Cap por tool result
+*** DONE [#B] Cap por tool result
     :PROPERTIES:
     :ASSIGNEE: executor
     :DUE: 2026-08-20
-    :STATUS: backlog
+    :STATUS: concluido
     :END:
 - *Problema:* =read_file= retorna arquivo inteiro — arquivo de 500 linhas
   consome ~10K tokens de uma vez.
@@ -138,11 +138,11 @@ compactação não referencia AGENTS.md, fallback de context window muito baixo.
   (truncamento + preservação de buffer_read); =just test-all= verde.
 - *Arquivos:* =lisp/custom-magent-tools.el=, =tests/magent-tools-test.el=.
 
-*** TODO [#B] Referência a AGENTS.md na instrução de compactação
+*** DONE [#B] Referência a AGENTS.md na instrução de compactação
     :PROPERTIES:
     :ASSIGNEE: executor
     :DUE: 2026-08-19
-    :STATUS: backlog
+    :STATUS: concluido
     :END:
 - *Problema:* após compactação, modelo perde consciência das regras do projeto.
 - *Abordagem:* adicionar à =+carlos/magent-build-compaction-instruction= seção
@@ -153,11 +153,11 @@ compactação não referencia AGENTS.md, fallback de context window muito baixo.
   presença das regras na instrução; =just test-all= verde.
 - *Arquivo:* =lisp/custom-magent-context.el=.
 
-*** TODO [#C] Context window fallback maior
+*** DONE [#C] Context window fallback maior
     :PROPERTIES:
     :ASSIGNEE: executor
     :DUE: 2026-08-18
-    :STATUS: backlog
+    :STATUS: concluido
     :END:
 - *Problema:* fallback de 16K é muito baixo para modelos modernos (Gemini 1M,
   Claude 200K). Causa compactação prematura.

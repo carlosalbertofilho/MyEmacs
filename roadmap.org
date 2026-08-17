@@ -34,17 +34,18 @@ entenderem o estado atual do projeto e decisões tomadas.
      sync prod + compile-prod zero-warning + check-prod OK + suíte prod
       297/290/0/7.  Commit 8a8566b.
 
-** 2026-08-17 — [PLANO APROVADO] Controle de Contexto — Melhorias baseadas em RAG/Agent_Smith
+** 2026-08-17 — [CONCLUÍDO] Controle de Contexto — Melhorias baseadas em RAG/Agent_Smith
    - **Motivação:** análise comparativa dos projetos RAG (Rank04) e Agent_Smith
      (Rank05) revelou padrões de controle de contexto ausentes no MyEmacs.
      Observação do usuário: "estamos consumindo muito contexto".
-   - **Gaps identificados:**
-     1. Sem cooldown entre compactações (thrashing).
-     2. Sem métricas por turno (impossível diagnosticar desperdício).
-     3. read_file sem cap por resultado (arquivo grande = fração enorme da janela).
-     4. Instrução de compactação não referencia AGENTS.md (perda de regras pós-compactação).
-     5. Context window fallback 16K muito baixo para modelos modernos.
-   - **Sub-itens:** 5 itens no TODO.org (A/A/B/B/C), priorizados por impacto.
+   - **Gaps identificados e resolvidos:**
+     1. Cooldown entre compactações (120s default, defcustom).
+     2. Métricas por turno (alist + C-c A M + top-N).
+     3. Cap cumulativo de tool results por turno (8000 chars, skip buffer_read).
+     4. Referência a AGENTS.md na instrução de compactação.
+     5. Context window fallback 128K (era 16K).
+   - **Commits:** a27b630, fd1b6fe, 222c20a, 27b93a8, 8b9d959.
+   - **Testes:** 12 ERT novos (4 cooldown + 3 metrics + 1 rules + 5 tool cap).
    - **Referências:** RAG/core/src/indexer.py (caps de 2000 chars/chunk),
      Agent_Smith/AGENTS.md (budgets acumulados, StepMetrics).
 
