@@ -116,6 +116,11 @@ Cada PLIST contém :input, :output, :elapsed, :tool-names, :timestamp.
 (defvar +carlos/magent-turn-metrics-max-entries 50
   "Número máximo de entries em `+carlos/magent-turn-metrics'.")
 
+(defvar +carlos/magent-turn-tool-result-chars 0
+  "Acumulador de caracteres de tool results no turno atual.
+Resetado no início de cada turno (turn-end).  Usado pelo cap de
+resultados em `+carlos/magent-tool-result-cap-output'.")
+
 ;; ── Acesso à sessão (helpers compartilhados) ─────────────────────────
 (defun +carlos/magent-session-thread ()
   "Retorna o `magent-thread' da sessão Magent atual, ou nil.
@@ -419,6 +424,7 @@ após `+carlos/magent-failure-retry-turn-ends' turnos (B5.3)."
               (+ +carlos/magent-context-estimated-tokens
                  (+carlos/magent-turn-tokens event-data)))
         (+carlos/magent-metrics-accumulate event-data)
+        (setq +carlos/magent-turn-tool-result-chars 0)
         (let ((decision (+carlos/magent-compaction-decision
                         +carlos/magent-context-estimated-tokens
                         (+carlos/magent-get-context-window)

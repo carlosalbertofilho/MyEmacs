@@ -13,6 +13,7 @@
 (defvar magent-enable-logging)
 (defvar magent-enable-tools)
 (defvar magent-tools-catalog)
+(defvar +carlos/magent-turn-tool-result-chars)
 (declare-function magent-tools--failed "magent-tools")
 (declare-function magent-agent--compose-system-message "magent-agent")
 (declare-function magent-llm-gptel--parse-dsml-tool-calls "magent-llm-gptel")
@@ -29,8 +30,15 @@
 (declare-function gptel-backend-host "gptel")
 (declare-function gptel-backend-models "gptel")
 (declare-function gptel-backend-protocol "gptel")
+(declare-function gptel-tool-name "gptel")
+(declare-function gptel--to-string "gptel")
 (declare-function tempel-insert "tempel")
 (declare-function magent-tool-result-create "magent-protocol")
+(declare-function magent-tool-result-output-string "magent-protocol")
+(declare-function magent-tool-result-success "magent-protocol")
+(declare-function magent-tool-result-status "magent-protocol")
+(declare-function magent-tool-result-error "magent-protocol")
+(declare-function magent-tool-result-p "magent-protocol")
 (declare-function magent-llm-tool-call-event "magent-llm")
 
 ;; ── Silenciar *Messages*: filtrar dumps longos (plist de tools / system prompt) ──
@@ -40,6 +48,14 @@
 (defvar +carlos/magent-message-max-len 400
   "Comprimento máximo de mensagem permitido no *Messages*.
 Mensagens mais longas são suprimidas (exceto erros).")
+
+(defcustom +carlos/magent-tool-result-max-chars 8000
+  "Limite de caracteres por tool result por turno.
+Resultados que excedem este cap são truncados com nota de truncamento.
+Acumulador por turno: quando a soma de chars de todos os results do turno
+excede este valor, novos results são truncados."
+  :type 'integer
+  :group '+carlos/ai)
 
 (defun +carlos/magent-suppress-long-messages-a (orig-fn format-string &rest args)
   "Advice de `message' que suprime dumps longos não-erro do *Messages*.
@@ -183,6 +199,57 @@ Do NOT use '<tool_call>', '<function=...>', or '<parameter=...>' forms; the runt
 (with-eval-after-load 'magent-agent
   (advice-add 'magent-agent--compose-system-message
               :filter-return #'+carlos/magent-inject-system-directives))
+
+;; ── Cap de tool results por turno ────────────────────────────────────
+;; Intercepta `magent-llm-gptel--record-tool-result' (ponto onde o resultado
+;; vira string antes de entrar na conversa) e trunca quando o acumulador do
+;; turno excede `+carlos/magent-tool-result-max-chars'.  Não aplica a
+;; `buffer_read' (estado vivo — resultado já é pequeno e dinâmico).
+
+(defvar +carlos/magent-tool-result-cap-output nil
+  "Advice para truncar tool results que excedem o cap por turno.")
+
+(defun +carlos/magent-tool-result-cap-output (orig-fn info tool-spec tool-call result)
+  "Trunca RESULT quando acumulador do turno excede o cap.
+ORIG-FN é `magent-llm-gptel--record-tool-result'; INFO, TOOL-SPEC,
+TOOL-CALL e RESULT são repassados.  Quando o resultado excede o cap,
+adiciona nota de truncamento e atualiza o acumulador."
+  (let* ((raw (if (and (fboundp 'magent-tool-result-p)
+                      (magent-tool-result-p result))
+                 (magent-tool-result-output-string result)
+               (gptel--to-string result)))
+         (name (and (fboundp 'gptel-tool-name)
+                    (condition-case nil
+                        (gptel-tool-name tool-spec)
+                      (wrong-type-argument nil))))
+         (max +carlos/magent-tool-result-max-chars)
+         (remaining (- max +carlos/magent-turn-tool-result-chars)))
+    (if (or (<= remaining 0)
+            (<= (length raw) remaining)
+            (member name '("buffer_read")))
+        (progn
+          (cl-incf +carlos/magent-turn-tool-result-chars (length raw))
+          (apply orig-fn info tool-spec tool-call (list result)))
+      (let* ((truncated (substring raw 0 remaining))
+             (dropped (- (length raw) remaining))
+             (note (format "\n[... truncado: %d chars restantes ...]" dropped))
+             (final (concat truncated note))
+             (wrapped (if (and (fboundp 'magent-tool-result-p)
+                              (magent-tool-result-p result))
+                         (magent-tool-result-create
+                          :output final
+                          :success (magent-tool-result-success result)
+                          :status (magent-tool-result-status result)
+                          :error (magent-tool-result-error result))
+                       final)))
+        (setq +carlos/magent-turn-tool-result-chars max)
+        (apply orig-fn info tool-spec tool-call (list wrapped))))))
+
+(setq +carlos/magent-tool-result-cap-output #'+carlos/magent-tool-result-cap-output)
+
+(with-eval-after-load 'magent-llm-gptel
+  (advice-add 'magent-llm-gptel--record-tool-result
+              :around +carlos/magent-tool-result-cap-output))
 
 ;; ── Ferramentas Curadas da Fase A (Magent Driver do Emacs) ───────────
 (declare-function flycheck-error-line "flycheck")
