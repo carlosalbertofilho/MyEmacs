@@ -273,5 +273,28 @@ Skip quando o source do ambiente-alvo ainda não tem a forward declaration
       (+carlos/magent-auto-compact-check-and-run '(:type turn-end :status completed))
       (should (null compacted)))))
 
+;; ── Métricas por turno ──────────────────────────────────────────────
+(ert-deftest myemacs-context-metrics-top-tokens ()
+  "Garante que `+carlos/magent-top-tokens-turns' retorna top-N por tokens."
+  (let ((+carlos/magent-turn-metrics
+         '(("t1" :input 100 :output 50)
+           ("t2" :input 300 :output 200)
+           ("t3" :input 50 :output 10))))
+    (let ((top (funcall #'+carlos/magent-top-tokens-turns 2)))
+      (should (= (length top) 2))
+      (should (= (cdar top) 500))
+      (should (= (cdadr top) 150)))))
+
+(ert-deftest myemacs-context-metrics-show-exists ()
+  "Garante que `+carlos/magent-show-metrics' é um comando interativo."
+  (should (commandp #'+carlos/magent-show-metrics))
+  (should (eq (global-key-binding (kbd "C-c A M")) #'+carlos/magent-show-metrics)))
+
+(ert-deftest myemacs-context-metrics-accumulation-safe ()
+  "Garante que `+carlos/magent-metrics-accumulate' é segura sem sessão ativa."
+  (let ((+carlos/magent-turn-metrics nil))
+    (+carlos/magent-metrics-accumulate '(:type turn-end :turn-id "no-session"))
+    (should (null +carlos/magent-turn-metrics))))
+
 (provide 'context-test)
 ;;; context-test.el ends here

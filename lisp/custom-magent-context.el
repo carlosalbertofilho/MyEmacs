@@ -97,6 +97,15 @@ Permite que a auto-compactação tente novamente após uma falha.")
 (defvar +carlos/magent-turn-ends-since-failure 0
   "Turnos completados desde que `+carlos/magent-last-compaction-failed' foi setado.")
 
+;; ── Métricas por turno ──────────────────────────────────────────────
+(defvar +carlos/magent-turn-metrics nil
+  "Alist de (TURN-ID . PLIST) com métricas por turno.
+Cada PLIST contém :input, :output, :elapsed, :tool-names, :timestamp.
+Últimas 50 entries; entradas mais antigas são descartadas.")
+
+(defvar +carlos/magent-turn-metrics-max-entries 50
+  "Número máximo de entries em `+carlos/magent-turn-metrics'.")
+
 ;; ── Acesso à sessão (helpers compartilhados) ─────────────────────────
 (defun +carlos/magent-session-thread ()
   "Retorna o `magent-thread' da sessão Magent atual, ou nil.
@@ -356,6 +365,7 @@ Mede os tokens da sessão antes de disparar e valida o resultado em
       (message "[Magent Compact] magent-runtime-session-compact indisponível."))))
 
 (global-set-key (kbd "C-c A p") #'+carlos/magent-compact)
+(global-set-key (kbd "C-c A M") #'+carlos/magent-show-metrics)
 
 (defun +carlos/magent-get-context-window ()
   "Retorna o tamanho da janela de contexto do modelo gptel ativo."
@@ -394,10 +404,11 @@ após `+carlos/magent-failure-retry-turn-ends' turnos (B5.3)."
                    +carlos/magent-failure-retry-turn-ends)
            (setq +carlos/magent-last-compaction-failed nil
                  +carlos/magent-turn-ends-since-failure 0)))
-       (setq +carlos/magent-context-estimated-tokens
-             (+ +carlos/magent-context-estimated-tokens
-                (+carlos/magent-turn-tokens event-data)))
-       (let ((decision (+carlos/magent-compaction-decision
+        (setq +carlos/magent-context-estimated-tokens
+              (+ +carlos/magent-context-estimated-tokens
+                 (+carlos/magent-turn-tokens event-data)))
+        (+carlos/magent-metrics-accumulate event-data)
+        (let ((decision (+carlos/magent-compaction-decision
                         +carlos/magent-context-estimated-tokens
                         (+carlos/magent-get-context-window)
                         +carlos/magent-subagent-completions-since-compact)))
@@ -409,8 +420,98 @@ após `+carlos/magent-failure-retry-turn-ends' turnos (B5.3)."
                        "Compactando em segundo plano...")
                       decision +carlos/magent-context-estimated-tokens)
              (+carlos/magent-compact))
-          (when (and decision (+carlos/magent-compaction-cooldown-active-p))
-            (message "[Magent Auto-Compact] Cooldown ativo, pulando compactação.")))))))
+           (when (and decision (+carlos/magent-compaction-cooldown-active-p))
+             (message "[Magent Auto-Compact] Cooldown ativo, pulando compactação.")))))))
+
+;; ── Métricas: acumulação e exibição ─────────────────────────────────
+(defun +carlos/magent-metrics-accumulate (event-data)
+  "Acumula métricas do turno EVENT-DATA em `+carlos/magent-turn-metrics'.
+Extrai turn-id, tokens (input+output), elapsed e tool-names dos items
+do turno.  Limita o alist a `+carlos/magent-turn-metrics-max-entries'."
+  (when-let* ((turn-id (plist-get event-data :turn-id))
+              (session (and (fboundp 'magent-runtime-session-current)
+                            (magent-runtime-session-current)))
+              (msession (and (fboundp 'magent-runtime-session-magent-session)
+                             (magent-runtime-session-magent-session session)))
+              (thread (and (fboundp 'magent-session-thread)
+                           (magent-session-thread msession)))
+              (turn (and (fboundp 'magent-thread-find-turn)
+                         (magent-thread-find-turn thread turn-id))))
+    (let* ((usage (and (fboundp 'magent-thread-turn-usage)
+                       (magent-thread-turn-usage turn)))
+           (input (or (and (listp usage) (plist-get usage :input)) 0))
+           (output (or (and (listp usage) (plist-get usage :output)) 0))
+           (items (and (fboundp 'magent-thread-turn-items)
+                       (magent-thread-turn-items turn)))
+           (tool-names (when items
+                         (mapcar (lambda (it)
+                                   (and (fboundp 'magent-thread-item-name)
+                                        (magent-thread-item-name it)))
+                                 (cl-remove-if-not
+                                  (lambda (it)
+                                    (and (fboundp 'magent-thread-item-call-id)
+                                         (magent-thread-item-call-id it)
+                                         (not (eq (and (fboundp 'magent-thread-item-role)
+                                                       (magent-thread-item-role it))
+                                                  'tool))))
+                                  items))))
+           (elapsed (and (fboundp 'magent-thread-turn-elapsed)
+                         (magent-thread-turn-elapsed turn))))
+      (let ((entry (cons turn-id
+                         (list :input input
+                               :output output
+                               :elapsed elapsed
+                               :tool-names (delq nil tool-names)
+                               :timestamp (float-time)))))
+        (setq +carlos/magent-turn-metrics
+              (cons entry
+                    (cl-remove-if (lambda (e) (equal (car e) turn-id))
+                                  +carlos/magent-turn-metrics)))
+        (when (> (length +carlos/magent-turn-metrics)
+                 +carlos/magent-turn-metrics-max-entries)
+          (setcdr (nthcdr (1- +carlos/magent-turn-metrics-max-entries)
+                          +carlos/magent-turn-metrics)
+                  nil))))))
+
+(defun +carlos/magent-top-tokens-turns (&optional n)
+  "Retorna os N turnos com mais tokens (input+output).
+N default 5.  Retorna lista de (TURN-ID . TOTAL) ordenada decrescente."
+  (let* ((n (or n 5))
+         (sorted (cl-sort (copy-sequence +carlos/magent-turn-metrics)
+                          #'>
+                          :key (lambda (e)
+                                 (+ (or (plist-get (cdr e) :input) 0)
+                                    (or (plist-get (cdr e) :output) 0))))))
+    (mapcar (lambda (e) (cons (car e)
+                              (+ (or (plist-get (cdr e) :input) 0)
+                                 (or (plist-get (cdr e) :output) 0))))
+            (cl-subseq sorted 0 (min n (length sorted))))))
+
+(defun +carlos/magent-show-metrics ()
+  "Exibe métricas por turno no minibuffer.
+Mostra turn-id, tokens (input/output), elapsed e tools para cada turno."
+  (interactive)
+  (if (null +carlos/magent-turn-metrics)
+      (message "[Magent Metrics] Nenhuma métrica registrada ainda.")
+    (let ((lines (list "[Magent Metrics] Turnos registrados:")))
+      (dolist (entry (cl-sort (copy-sequence +carlos/magent-turn-metrics)
+                              #'> :key (lambda (e)
+                                         (+ (or (plist-get (cdr e) :input) 0)
+                                            (or (plist-get (cdr e) :output) 0)))))
+        (let* ((id (car entry))
+               (plist (cdr entry))
+               (input (or (plist-get plist :input) 0))
+               (output (or (plist-get plist :output) 0))
+               (tools (plist-get plist :tool-names))
+               (elapsed (plist-get plist :elapsed)))
+          (push (format "  %s: %d/%d tokens%s%s"
+                        id input output
+                        (if elapsed (format " (%.1fs)" elapsed) "")
+                        (if tools
+                            (format " [%s]" (mapconcat #'symbol-name tools ", "))
+                          ""))
+                lines)))
+      (message "%s" (mapconcat #'identity (nreverse lines) "\n")))))
 
 (with-eval-after-load 'magent-lifecycle-events
   (when (fboundp 'magent-lifecycle-events-add-sink)
