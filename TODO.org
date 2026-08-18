@@ -193,10 +193,9 @@ Em =custom-magent-fsm.el=:
 - =myemacs-magent-fsm-inject-pending-results-clears-after-injection=
 - =myemacs-magent-fsm-turn-start-injects-before-transition=
 
-*** Fase E3 — Orchestrator Resume (retomada do turno)
+*** DONE Fase E3 — Orchestrator Resume (retomada do turno)
     :PROPERTIES:
     :ASSIGNEE: coder
-    :STATUS: backlog
     :END:
 
 *Problema:* injetar a mensagem não basta — o orquestrador precisa ser

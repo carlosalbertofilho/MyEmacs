@@ -150,12 +150,18 @@ Chamado quando a FSM entra em `subagent-waiting'."
   "Non-nil quando há resultados de subagentes pendentes para injetar.
 Setado por `+carlos/magent-fsm-inject-pending-results'; resetado após uso.")
 
+(defvar +carlos/magent-fsm-pending-context-messages nil
+  "Lista de mensagens formatadas de subagentes para injetar no próximo turno.
+Preenchido por `+carlos/magent-fsm-inject-pending-results'; consumido por
+`+carlos/magent-fsm-consume-pending-context'.")
+
 (defun +carlos/magent-fsm-inject-pending-results ()
   "Formata resultados pendentes de subagentes como mensagens de contexto.
 Retorna a lista de mensagens formatadas para injetar no prompt do
 orquestrador.  Cada mensagem tem o formato:
   [Subagent <agent-name> (<status>)] <result-or-error>
-Limpa `+carlos/magent-fsm-pending-results' após formatação."
+Armazena mensagens em `+carlos/magent-fsm-pending-context-messages' e
+seta `+carlos/magent-fsm-resume-with-context'."
   (when +carlos/magent-fsm-pending-results
     (let ((messages nil))
       (dolist (entry +carlos/magent-fsm-pending-results)
@@ -173,8 +179,40 @@ Limpa `+carlos/magent-fsm-pending-results' após formatação."
                                (or result "No result")))))
           (push text messages)))
       (setq +carlos/magent-fsm-pending-results nil
+            +carlos/magent-fsm-pending-context-messages (nreverse messages)
             +carlos/magent-fsm-resume-with-context t)
-      (nreverse messages))))
+      +carlos/magent-fsm-pending-context-messages)))
+
+(defun +carlos/magent-fsm-consume-pending-context ()
+  "Retorna e limpa as mensagens de contexto pendentes.
+Chamado pelo handler de UI ou advice para injetar contexto no prompt.
+Retorna nil quando não há contexto pendente."
+  (when +carlos/magent-fsm-pending-context-messages
+    (let ((messages +carlos/magent-fsm-pending-context-messages))
+      (setq +carlos/magent-fsm-pending-context-messages nil
+            +carlos/magent-fsm-resume-with-context nil)
+      messages)))
+
+(defun +carlos/magent-fsm-inject-context-into-prompt (orig &rest args)
+  "Advice que injeta contexto de subagentes pendentes no prompt.
+Modifica o :prompt em ARGS para incluir resultados de subagentes
+coletados antes de delegar para ORIG."
+  (let* ((prompt (plist-get args :prompt))
+         (context-messages (+carlos/magent-fsm-consume-pending-context))
+         (new-args (copy-sequence args)))
+    (when (and prompt context-messages)
+      (let ((injected (concat (mapconcat #'identity context-messages "\n")
+                              "\n\n"
+                              prompt)))
+        (plist-put new-args :prompt injected)
+        (message "[Magent FSM] Injected %d subagent result(s) into prompt"
+                 (length context-messages))))
+    (apply orig new-args)))
+
+(unless (advice-member-p #'+carlos/magent-fsm-inject-context-into-prompt
+                         'agent-shell--send-command)
+  (advice-add 'agent-shell--send-command :around
+              #'+carlos/magent-fsm-inject-context-into-prompt))
 
 (defun +carlos/magent-fsm-healing-step (error-count)
   "Registra uma iteração do loop de auto-correção.
@@ -226,7 +264,8 @@ pela FSM."
         +carlos/magent-fsm-healing-attempts 0
         +carlos/magent-fsm-healing-last-error-count nil
         +carlos/magent-fsm-pending-results nil
-        +carlos/magent-fsm-resume-with-context nil)
+        +carlos/magent-fsm-resume-with-context nil
+        +carlos/magent-fsm-pending-context-messages nil)
   (+carlos/magent-fsm-cleanup-observers)
   (when (fboundp '+carlos/magent-buffer-reset-session)
     (+carlos/magent-buffer-reset-session))

@@ -796,5 +796,77 @@ Garante que o filtro não bloqueia eventos legítimos do orquestrador."
       (+carlos/magent-fsm-reset))
     (should (null +carlos/magent-fsm-resume-with-context))))
 
+;; ── Fase E3: Orchestrator Resume ────────────────────────────────────────────
+
+(ert-deftest myemacs-magent-fsm-consume-pending-context-returns-messages ()
+  "Garante que consume-pending-context retorna mensagens formatadas."
+  (skip-unless myemacs-fsm-available)
+  (let ((+carlos/magent-fsm-pending-context-messages
+         '("[Subagent explore (completed)] Found files"))
+        (+carlos/magent-fsm-resume-with-context t))
+    (let ((messages (+carlos/magent-fsm-consume-pending-context)))
+      (should (= (length messages) 1))
+      (should (string-match-p "explore" (nth 0 messages))))))
+
+(ert-deftest myemacs-magent-fsm-consume-pending-context-clears-after ()
+  "Garante que consume-pending-context limpa após consumo."
+  (skip-unless myemacs-fsm-available)
+  (let ((+carlos/magent-fsm-pending-context-messages
+         '("[Subagent coder (completed)] Done"))
+        (+carlos/magent-fsm-resume-with-context t))
+    (+carlos/magent-fsm-consume-pending-context)
+    (should (null +carlos/magent-fsm-pending-context-messages))
+    (should (null +carlos/magent-fsm-resume-with-context))))
+
+(ert-deftest myemacs-magent-fsm-consume-empty-returns-nil ()
+  "Garante que consume-pending-context retorna nil quando vazio."
+  (skip-unless myemacs-fsm-available)
+  (let ((+carlos/magent-fsm-pending-context-messages nil)
+        (+carlos/magent-fsm-resume-with-context nil))
+    (should (null (+carlos/magent-fsm-consume-pending-context)))))
+
+(ert-deftest myemacs-magent-fsm-reset-clears-context-messages ()
+  "Garante que reset limpa pending-context-messages."
+  (skip-unless myemacs-fsm-available)
+  (let ((+carlos/magent-fsm-pending-context-messages '("msg1" "msg2"))
+        (+carlos/magent-fsm-resume-with-context t))
+    (cl-letf (((symbol-function 'magent-agent-job-remove-observer) #'ignore))
+      (+carlos/magent-fsm-reset))
+    (should (null +carlos/magent-fsm-pending-context-messages))))
+
+(ert-deftest myemacs-magent-fsm-inject-context-into-prompt-advice ()
+  "Garante que advice injeta contexto no prompt."
+  (skip-unless myemacs-fsm-available)
+  (let ((+carlos/magent-fsm-pending-context-messages
+         '("[Subagent explore (completed)] Found 3 files"))
+        (+carlos/magent-fsm-resume-with-context t)
+        (captured-prompt nil))
+    (cl-letf (((symbol-function 'agent-shell--send-command)
+               (lambda (&rest args)
+                 (setq captured-prompt (plist-get args :prompt))
+                 (apply #'ignore args))))
+      (funcall #'+carlos/magent-fsm-inject-context-into-prompt
+               #'agent-shell--send-command
+               :prompt "Original prompt" :shell-buffer nil))
+    (should captured-prompt)
+    (should (string-match-p "explore" captured-prompt))
+    (should (string-match-p "Original prompt" captured-prompt))))
+
+(ert-deftest myemacs-magent-fsm-inject-context-empty-passthrough ()
+  "Garante que advice passa prompt sem contexto quando vazio."
+  (skip-unless myemacs-fsm-available)
+  (let ((+carlos/magent-fsm-pending-context-messages nil)
+        (+carlos/magent-fsm-resume-with-context nil)
+        (captured-prompt nil))
+    (cl-letf (((symbol-function 'agent-shell--send-command)
+               (lambda (&rest args)
+                 (setq captured-prompt (plist-get args :prompt))
+                 (apply #'ignore args))))
+      (funcall #'+carlos/magent-fsm-inject-context-into-prompt
+               #'agent-shell--send-command
+               :prompt "Original prompt" :shell-buffer nil))
+    (should captured-prompt)
+    (should (equal captured-prompt "Original prompt"))))
+
 (provide 'magent-fsm-test)
 ;;; magent-fsm-test.el ends here
