@@ -229,7 +229,7 @@ roteamento para backends locais fica apenas como fallback final.")
   ;; ficou impraticável em CPU; local agora é apenas fallback final do
   ;; roteador dinâmico.
   (setq-default gptel-backend (gptel-get-backend "Gemini"))
-  (setq-default gptel-model 'gemini-2.5-flash)
+  (setq-default gptel-model 'gemini-1.5-flash)
   (when (fboundp '+carlos/gptel-setup-defaults-by-host)
     (+carlos/gptel-setup-defaults-by-host)))
 
@@ -481,14 +481,14 @@ não esteja registrado (ex.: falha na instalação do gptel)."
   (let ((hostname (system-name)))
     (when-let* ((gemini (gptel-get-backend "Gemini")))
       (setq gptel-backend gemini
-            gptel-model 'gemini-2.5-flash
+            gptel-model 'gemini-1.5-flash
             +carlos/gptel-agent-backend "Zen Claude"
             +carlos/gptel-agent-model 'claude-sonnet-5
             +carlos/gptel-quick-local-backend "Gemini"
             +carlos/gptel-quick-local-model 'gemini-3.5-flash
             +carlos/gptel-grammar-backend "Gemini"
             +carlos/gptel-grammar-model 'gemini-3.5-flash)
-      (message "Emacs AI: Chat Gemini (gemini-2.5-flash) em %s — local só como fallback final" hostname))))
+      (message "Emacs AI: Chat Gemini (gemini-1.5-flash) em %s — local só como fallback final" hostname))))
 
 
 ;; ── Emergency Fallback & Latency Watchdog ───────────────────────────
