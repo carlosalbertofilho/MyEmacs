@@ -304,5 +304,37 @@ Skip quando o source do ambiente-alvo ainda não tem a forward declaration
     (should (string-match-p "just test-all" instr))
     (should (string-match-p "fboundp" instr))))
 
+;; ── Sub-item 3: Compactação Seletiva ───────────────────────────────
+(ert-deftest myemacs-context-selective-compact-threshold-exceeded ()
+  "Garante que seletiva é ativada quando thresholds são atingidos."
+  (let ((+carlos/magent-cumulative-tool-result-chars 25000)
+        (+carlos/magent-subagent-completions-since-compact 3))
+    (should (+carlos/magent-selective-compact-p))))
+
+(ert-deftest myemacs-context-selective-compact-threshold-not-exceeded ()
+  "Garante que seletiva NÃO é ativada quando thresholds não são atingidos."
+  (let ((+carlos/magent-cumulative-tool-result-chars 10000)
+        (+carlos/magent-subagent-completions-since-compact 2))
+    (should-not (+carlos/magent-selective-compact-p))))
+
+(ert-deftest myemacs-context-selective-compact-min-subagents-not-reached ()
+  "Garante que seletiva NÃO é ativada com subagentes insuficientes."
+  (let ((+carlos/magent-cumulative-tool-result-chars 25000)
+        (+carlos/magent-subagent-completions-since-compact 1))
+    (should-not (+carlos/magent-selective-compact-p))))
+
+(ert-deftest myemacs-context-selective-compaction-instruction-contains-preservation ()
+  "Garante que instrução seletiva preserva últimos 2 turns."
+  (let ((instr (+carlos/magent-build-selective-compaction-instruction)))
+    (should (string-match-p "Últimos 2 turns" instr))
+    (should (string-match-p "COMPACTAÇÃO SELETIVA" instr))
+    (should (string-match-p "tool results" instr))))
+
+(ert-deftest myemacs-context-cumulative-tool-result-reset ()
+  "Garante que cumulative-tool-result-chars é resetado na compactação bem-sucedida."
+  (let ((+carlos/magent-cumulative-tool-result-chars 50000))
+    (+carlos/magent-compaction-result-handler 'completed 1000 500)
+    (should (= +carlos/magent-cumulative-tool-result-chars 0))))
+
 (provide 'context-test)
 ;;; context-test.el ends here

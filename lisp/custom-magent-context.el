@@ -121,6 +121,75 @@ Cada PLIST contém :input, :output, :elapsed, :tool-names, :timestamp.
 Resetado no início de cada turno (turn-end).  Usado pelo cap de
 resultados em `+carlos/magent-tool-result-cap-output'.")
 
+;; ── Compactação Seletiva ──────────────────────────────────────────────
+(defcustom +carlos/magent-selective-compact-trigger-chars 20000
+  "Limiar de caracteres de tool results para ativar compactação seletiva.
+Quando o acumulador de tool results excede este valor, a compactação
+automática usa instrução seletiva (foco em tool results antigos) em
+vez da compactação completa padrão."
+  :type 'integer
+  :group '+carlos/ai)
+
+(defcustom +carlos/magent-selective-compact-min-subagents 3
+  "Número mínimo de subagentes completados para ativar compactação seletiva.
+Quando o contador de subagentes atinge este valor E o acumulador de
+tool results excede o limiar, a compactação seletiva é ativada."
+  :type 'integer
+  :group '+carlos/ai)
+
+(defvar +carlos/magent-cumulative-tool-result-chars 0
+  "Acumulador cumulativo de chars de tool results desde a última compactação.
+Incrementado a cada turno; resetado na compactação.  Usado para ativar
+compactação seletiva quando excede
+`+carlos/magent-selective-compact-trigger-chars'.")
+
+(defun +carlos/magent-selective-compact-p ()
+  "Retorna non-nil quando compactação seletiva deve ser ativada.
+Condição: tool results cumulativos > limiar E subagentes >= mínimo."
+  (and (>= +carlos/magent-cumulative-tool-result-chars
+           +carlos/magent-selective-compact-trigger-chars)
+       (>= +carlos/magent-subagent-completions-since-compact
+           +carlos/magent-selective-compact-min-subagents)))
+
+(defun +carlos/magent-build-selective-compaction-instruction ()
+  "Constrói instrução de compactação seletiva focada em tool results.
+Diferente da compactação completa, preserva: (a) últimos 2 turns crus,
+(b) decisões técnicas, (c) arquivos modificados. Descarta especificamente
+resultados de ferramentas antigos (read_file, search, list_files) dos
+turnos mais antigos."
+  (let* ((root (or (when-let* ((proj (and (fboundp 'project-current)
+                                          (project-current))))
+                     (project-root proj))
+                   default-directory))
+         (branch (ignore-errors
+                   (string-trim
+                    (shell-command-to-string
+                     "git rev-parse --abbrev-ref HEAD"))))
+         (rev (ignore-errors
+                (string-trim
+                 (shell-command-to-string
+                  "git rev-parse --short HEAD")))))
+    (concat
+     "COMPACTAÇÃO SELETIVA: foque em reduzir o tamanho dos tool results.\n"
+     "Preservar:\n"
+     "- Últimos 2 turns completos (reasoning + tool calls + resultados) — NÃO resumir.\n"
+     "- Decisões técnicas, arquivos modificados/criados (caminhos absolutos).\n"
+     "- Nomes de funções de testes ERT.\n"
+     "- Restrições e preferências persistentes do usuário.\n"
+     "Descartar (ORDEM DE PRIORIDADE — do mais antigo ao mais recente):\n"
+     "1. Resultados de read_file/list_files de turns anteriores ao penúltimo.\n"
+     "2. Resultados de search/grep de turns anteriores ao penúltimo.\n"
+     "3. Reasoning longo de turns anteriores ao penúltimo (resuma em 1-2 frases).\n"
+     "NÃO descartar:\n"
+     "- Tool calls e resultados dos últimos 2 turns.\n"
+     "- Edições de código (edit_file/patch) — presova o diff.\n"
+     "- Resultados de testes ERT (passou/falhou + nome do teste).\n"
+     "\nEstado do projeto: "
+     (or (and root (file-name-nondirectory (directory-file-name root))) "n/a")
+     (if (and branch rev) (format " (branch %s @ %s)" branch rev) "")
+     "\n\n" +carlos/magent-compaction-rules
+     "\n\nBase de preservação:\n" +carlos/magent-preservation-instruction)))
+
 ;; ── Acesso à sessão (helpers compartilhados) ─────────────────────────
 (defun +carlos/magent-session-thread ()
   "Retorna o `magent-thread' da sessão Magent atual, ou nil.
@@ -346,6 +415,7 @@ before→after."
         (progn
           (setq +carlos/magent-context-estimated-tokens 0
                 +carlos/magent-subagent-completions-since-compact 0
+                +carlos/magent-cumulative-tool-result-chars 0
                 +carlos/magent-last-compaction-failed nil
                 +carlos/magent-turn-ends-since-failure 0
                 +carlos/magent-last-compaction-time (float-time))
@@ -411,34 +481,42 @@ após `+carlos/magent-failure-retry-turn-ends' turnos (B5.3)."
     ('subagent-stop
      (setq +carlos/magent-subagent-completions-since-compact
            (1+ +carlos/magent-subagent-completions-since-compact)))
-    ('turn-end
-     (when (eq (plist-get event-data :status) 'completed)
-       (when +carlos/magent-last-compaction-failed
-         (setq +carlos/magent-turn-ends-since-failure
-               (1+ +carlos/magent-turn-ends-since-failure))
-         (when (>= +carlos/magent-turn-ends-since-failure
-                   +carlos/magent-failure-retry-turn-ends)
-           (setq +carlos/magent-last-compaction-failed nil
-                 +carlos/magent-turn-ends-since-failure 0)))
-        (setq +carlos/magent-context-estimated-tokens
-              (+ +carlos/magent-context-estimated-tokens
-                 (+carlos/magent-turn-tokens event-data)))
-        (+carlos/magent-metrics-accumulate event-data)
-        (setq +carlos/magent-turn-tool-result-chars 0)
-        (let ((decision (+carlos/magent-compaction-decision
-                        +carlos/magent-context-estimated-tokens
-                        (+carlos/magent-get-context-window)
-                        +carlos/magent-subagent-completions-since-compact)))
-           (when (and decision
-                      (not +carlos/magent-last-compaction-failed)
-                      (not (+carlos/magent-compaction-cooldown-active-p)))
-             (message (concat
-                       "[Magent Auto-Compact] Gatilho %s (%d tokens estimados). "
-                       "Compactando em segundo plano...")
-                      decision +carlos/magent-context-estimated-tokens)
-             (+carlos/magent-compact))
-           (when (and decision (+carlos/magent-compaction-cooldown-active-p))
-             (message "[Magent Auto-Compact] Cooldown ativo, pulando compactação.")))))))
+     ('turn-end
+      (when (eq (plist-get event-data :status) 'completed)
+        (when +carlos/magent-last-compaction-failed
+          (setq +carlos/magent-turn-ends-since-failure
+                (1+ +carlos/magent-turn-ends-since-failure))
+          (when (>= +carlos/magent-turn-ends-since-failure
+                    +carlos/magent-failure-retry-turn-ends)
+            (setq +carlos/magent-last-compaction-failed nil
+                  +carlos/magent-turn-ends-since-failure 0)))
+         (setq +carlos/magent-context-estimated-tokens
+               (+ +carlos/magent-context-estimated-tokens
+                  (+carlos/magent-turn-tokens event-data)))
+         (setq +carlos/magent-cumulative-tool-result-chars
+               (+ +carlos/magent-cumulative-tool-result-chars
+                  +carlos/magent-turn-tool-result-chars))
+         (+carlos/magent-metrics-accumulate event-data)
+         (setq +carlos/magent-turn-tool-result-chars 0)
+         (let ((decision (+carlos/magent-compaction-decision
+                         +carlos/magent-context-estimated-tokens
+                         (+carlos/magent-get-context-window)
+                         +carlos/magent-subagent-completions-since-compact)))
+            (when (and decision
+                       (not +carlos/magent-last-compaction-failed)
+                       (not (+carlos/magent-compaction-cooldown-active-p)))
+              (let ((selective (+carlos/magent-selective-compact-p)))
+                (message (concat
+                          "[Magent Auto-Compact] Gatilho %s (%d tokens, "
+                          "%d tool-result chars). %s")
+                         decision +carlos/magent-context-estimated-tokens
+                         +carlos/magent-cumulative-tool-result-chars
+                         (if selective "Compactação SELETIVA." "Compactando..."))
+                (+carlos/magent-compact
+                 (when selective
+                   (+carlos/magent-build-selective-compaction-instruction)))))
+            (when (and decision (+carlos/magent-compaction-cooldown-active-p))
+              (message "[Magent Auto-Compact] Cooldown ativo, pulando compactação.")))))))
 
 ;; ── Métricas: acumulação e exibição ─────────────────────────────────
 (defun +carlos/magent-metrics-accumulate (event-data)
