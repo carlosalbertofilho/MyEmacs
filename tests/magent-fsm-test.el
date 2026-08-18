@@ -589,5 +589,63 @@ Garante que o filtro não bloqueia eventos legítimos do orquestrador."
         (+carlos/magent-fsm-reset)
         (should (= stop-calls 1))))))
 
+;; ── Sub-item 2: Fallback Inteligente com Retry (2026-08-17) ───────────────
+
+(ert-deftest myemacs-magent-fsm-classify-failure-timeout ()
+  "Garante que timeout é classificado corretamente."
+  (skip-unless myemacs-fsm-available)
+  (should (eq (+carlos/magent-fsm-classify-failure '(:detail "request timeout after 120s"))
+              'timeout)))
+
+(ert-deftest myemacs-magent-fsm-classify-failure-model-unavailable ()
+  "Garante que modelo indisponível é classificado corretamente."
+  (skip-unless myemacs-fsm-available)
+  (should (eq (+carlos/magent-fsm-classify-failure '(:detail "model_unavailable: gemini-pro"))
+              'model-unavailable))
+  (should (eq (+carlos/magent-fsm-classify-failure '(:detail "429 rate limit exceeded"))
+              'model-unavailable)))
+
+(ert-deftest myemacs-magent-fsm-classify-failure-context-length ()
+  "Garante que context_length_exceeded é classificado corretamente."
+  (skip-unless myemacs-fsm-available)
+  (should (eq (+carlos/magent-fsm-classify-failure '(:detail "context_length_exceeded: too long"))
+              'context-length)))
+
+(ert-deftest myemacs-magent-fsm-record-and-check-retry ()
+  "Garante que retry info é registrado e verificado corretamente."
+  (skip-unless myemacs-fsm-available)
+  (let ((+carlos/magent-fsm-retry-info nil))
+    ;; Record failure
+    (+carlos/magent-fsm-record-failure "job-123" 'timeout "local-model")
+    (should (alist-get "job-123" +carlos/magent-fsm-retry-info nil nil #'string=))
+    (should (not (plist-get (alist-get "job-123" +carlos/magent-fsm-retry-info nil nil #'string=)
+                            :retried)))
+    ;; Mark as retried
+    (+carlos/magent-fsm-mark-retried "job-123")
+    (should (plist-get (alist-get "job-123" +carlos/magent-fsm-retry-info nil nil #'string=)
+                       :retried))))
+
+(ert-deftest myemacs-magent-fsm-resume-up-tier-no-double-retry ()
+  "Garante que não há retry duas vezes para o mesmo job."
+  (skip-unless myemacs-fsm-available)
+  (let ((+carlos/magent-fsm-retry-info nil))
+    (+carlos/magent-fsm-record-failure "job-456" 'timeout "local-model")
+    (+carlos/magent-fsm-mark-retried "job-456")
+    (should (null (+carlos/magent-fsm-resume-up-tier "job-456" "local-model")))))
+
+(ert-deftest myemacs-magent-fsm-reset-clears-retry-info ()
+  "Garante que reset limpa retry-info."
+  (skip-unless myemacs-fsm-available)
+  (let ((+carlos/magent-fsm-retry-info '(("job-789" . (:retried nil)))))
+    (+carlos/magent-fsm-reset)
+    (should (null +carlos/magent-fsm-retry-info))))
+
+(ert-deftest myemacs-magent-fsm-retry-max-customizable ()
+  "Garante que +carlos/magent-fsm-max-retries-per-subagent é customizável."
+  (skip-unless myemacs-fsm-available)
+  (should (boundp '+carlos/magent-fsm-max-retries-per-subagent))
+  (should (integerp +carlos/magent-fsm-max-retries-per-subagent))
+  (should (> +carlos/magent-fsm-max-retries-per-subagent 0)))
+
 (provide 'magent-fsm-test)
 ;;; magent-fsm-test.el ends here

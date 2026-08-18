@@ -16,6 +16,8 @@
 (declare-function +carlos/magent-buffer-reset-session "custom-magent-buffer")
 (declare-function +carlos/magent-ui-spinner-start "custom-magent-ui")
 (declare-function +carlos/magent-ui-spinner-stop "custom-magent-ui")
+(declare-function +carlos/magent-resolve-model "custom-magent-tools")
+(defvar +carlos/magent-model-tier-order)
 
 ;; ── ETAPA 1: Estado da FSM & Detecção de Perfil por Host ────────────────────
 ;; Variáveis de controle do loop de eventos assíncrono do Magent.
@@ -41,6 +43,19 @@ e consultada por `+carlos/magent-fsm-pending-subagent-p'.")
   "Acumulador de texto do canal `reasoning' do gptel.
 Usado pelo sanitizador para detectar tool calls emitidas dentro do pensamento.")
 
+;; ── ETAPA 2: Fallback Inteligente com Retry ───────────────────────────────
+;; Quando um subagente falha por timeout ou modelo indisponível, retry
+;; automático com modelo de tier acima. Máx 1 retry por subagente.
+
+(defvar +carlos/magent-fsm-retry-info nil
+  "Alist de (JOB-ID . PLIST) com info de retry de subagentes.
+PLIST contém :retried (boolean), :original-model, :failure-reason.")
+
+(defcustom +carlos/magent-fsm-max-retries-per-subagent 1
+  "Número máximo de retries por subagente quando falha."
+  :type 'integer
+  :group '+carlos/ai)
+
 (defun +carlos/magent-fsm-reset ()
   "Reseta o estado da FSM para o início de um novo turno.
 Também libera o contrato de sessão de buffers do driver (Fase B/D4) quando o
@@ -50,7 +65,8 @@ pela FSM."
         +carlos/magent-fsm-session nil
         +carlos/magent-fsm-retry-count 0
         +carlos/magent-fsm-reasoning-buffer ""
-        +carlos/magent-fsm-subagent-jobs nil)
+        +carlos/magent-fsm-subagent-jobs nil
+        +carlos/magent-fsm-retry-info nil)
   (when (fboundp '+carlos/magent-buffer-reset-session)
     (+carlos/magent-buffer-reset-session))
   (when (fboundp '+carlos/magent-ui-spinner-stop)
@@ -278,6 +294,62 @@ Se um subagente ainda estiver ativo (turno de retomada), entra em
       (+carlos/magent-fsm-transition 'subagent-running)
     (+carlos/magent-fsm-transition 'thinking))
   (+carlos/magent-watchdog-start))
+
+;; ── Fallback Inteligente: classificação de falha e retry up-tier ─────────
+
+(defun +carlos/magent-fsm-classify-failure (event-data)
+  "Classifica a falha de um subagente em EVENT-DATA.
+Retorna \\='timeout, \\='model-unavailable, \\='context-length, ou nil."
+  (let ((detail (or (plist-get event-data :detail) "")))
+    (cond
+     ((string-match-p "timeout" detail) 'timeout)
+     ((string-match-p "model.*unavailable\\|429\\|rate.limit" detail) 'model-unavailable)
+     ((string-match-p "context.*length\\|too.*long\\|maximum.*context" detail) 'context-length)
+     (t nil))))
+
+(defun +carlos/magent-fsm-resume-up-tier (job-id current-model)
+  "Retorna plist (:backend B :model M) para retry com tier acima, ou nil.
+JOB-ID é o job que falhou; CURRENT-MODEL é o modelo que causou a falha.
+Falha se já houve retry para JOB-ID ou se não há modelo disponível."
+  (let* ((info (alist-get job-id +carlos/magent-fsm-retry-info nil nil #'string=))
+         (retried (and info (plist-get info :retried))))
+    (unless retried
+      (let* ((model-str (if (stringp current-model) current-model
+                          (symbol-name current-model)))
+             (current-tier (cond
+                            ((string-match-p "MLX\\|Ollama" model-str) "local")
+                            ((string-match-p "flash\\|lite\\|free" model-str) "free")
+                            (t "paid")))
+             (tier-order +carlos/magent-model-tier-order)
+             (current-rank (cl-position current-tier tier-order :test #'equal))
+             (next-rank (and current-rank (1+ current-rank)))
+             (next-tier (and next-rank (< next-rank (length tier-order))
+                            (nth next-rank tier-order))))
+        (when (and next-tier (fboundp '+carlos/magent-resolve-model))
+          (let ((choice (+carlos/magent-resolve-model
+                         nil nil nil nil
+                         (list :min-tier next-tier))))
+            (when choice
+              (list :backend (plist-get choice :backend)
+                    :model (plist-get choice :model)))))))))
+
+(defun +carlos/magent-fsm-record-failure (job-id failure-type current-model)
+  "Registra falha de JOB-ID com FAILURE-TYPE e CURRENT-MODEL."
+  (let ((info (alist-get job-id +carlos/magent-fsm-retry-info nil nil #'string=)))
+    (if info
+        (setf (alist-get job-id +carlos/magent-fsm-retry-info nil nil #'string=)
+              (plist-put info :failure-reason failure-type))
+      (setf (alist-get job-id +carlos/magent-fsm-retry-info nil nil #'string=)
+            (list :retried nil
+                  :original-model current-model
+                  :failure-reason failure-type)))))
+
+(defun +carlos/magent-fsm-mark-retried (job-id)
+  "Marca JOB-ID como já retryado."
+  (let ((info (alist-get job-id +carlos/magent-fsm-retry-info nil nil #'string=)))
+    (when info
+      (setf (alist-get job-id +carlos/magent-fsm-retry-info nil nil #'string=)
+            (plist-put info :retried t)))))
 
 (defun +carlos/magent-fsm-turn-end-sink (event-data)
   "Sink chamado ao fim de cada turno da sessão do Magent.
