@@ -21,6 +21,7 @@
 - [[#roteamento-de-modelos-pelo-orquestrador-fase-a][Roteamento de Modelos pelo Orquestrador (Fase A)]]
 - [[#compactacao-estilo-opencode-fase-b][Compactação estilo opencode (Fase B)]]
 - [[#loop-de-eventos-informativo-fase-c][Loop de Eventos Informativo (Fase C)]]
+- [[#subagent-result-routing-fase-e][Subagent Result Routing (Fase E)]]
 - [[#entry-points--keybindings][Entry Points & Keybindings]]
 - [[#catalog-of-15-tools][Catalog of 15 Tools]]
 - [[#magent-driver-tools][Magent Driver Tools (Ferramentas Curadas)]]
@@ -825,6 +826,38 @@ A FSM fornece funções para controle do ciclo de auto-correção:
 
 ** Directiva 12: Buffer Self-Healing
 Quando o usuário pede "fix", "corrija", "arrume" ou "refactor code in this buffer", o orquestrador ativa a skill =buffer-driver-loop= automaticamente (regra 12 em =+carlos/magent-system-directives=).
+
+** Subagent Result Routing (Fase E, 2026-08-18)
+A FSM fornece um pipeline completo para coleta, injeção e retomada de
+resultados de subagentes de forma assíncrona:
+
+*** Variáveis de Estado
+- =+carlos/magent-fsm-pending-results= — alist =(job-id . plist)= com resultados coletados de jobs terminal (=:agent-name=, =:status=, =:result=, =:error=).
+- =+carlos/magent-fsm-pending-context-messages= — lista de mensagens formatadas prontas para injeção no prompt.
+- =+carlos/magent-fsm-resume-with-context= — flag =t= quando há contexto pendente.
+- =+carlos/magent-fsm-observer-tokens= — tokens de observers registrados para cleanup.
+
+*** API (E1: Collector)
+- =+carlos/magent-fsm-collect-completed-jobs= — itera jobs da sessão pai, extrai resultados de jobs com status =completed= ou =failed=.
+- =+carlos/magent-fsm-register-observer (job)= — registra callback de conclusão em um job individual.
+- =+carlos/magent-fsm-register-observers-for-pending= — registra observers para todos os jobs ativos.
+- =+carlos/magent-fsm-cleanup-observers= — remove todos os observers registrados.
+
+*** API (E2: Injection)
+- =+carlos/magent-fsm-inject-pending-results= — formata resultados como mensagens =[Subagent <name> (<status>)] <result>=, armazena em =pending-context-messages=, seta flag =resume-with-context=.
+
+*** API (E3: Resume)
+- =+carlos/magent-fsm-consume-pending-context= — retorna e limpa mensagens de contexto pendentes.
+- =+carlos/magent-fsm-inject-context-into-prompt (orig &rest args)= — advice em =agent-shell--send-command= que injeta contexto no prompt antes de delegar ao LLM.
+
+*** Fluxo
+1. Subagente conclui → observer detecta → =collect-completed-jobs= armazena em =pending-results=.
+2. Usuário envia mensagem → =turn-start-sink= chama =inject-pending-results=.
+3. Advice em =agent-shell--send-command= chama =consume-pending-context= e prepend no prompt.
+4. Orquestrador recebe contexto e pode agir sobre resultados.
+
+*** Reset
+=+carlos/magent-fsm-reset= limpa =pending-results=, =pending-context-messages=, =resume-with-context=, =observer-tokens= e =healing-attempts=.
 * Custom Agents
 
 Custom agents can be defined per project under ~.magent/agent/<name>.md~:
