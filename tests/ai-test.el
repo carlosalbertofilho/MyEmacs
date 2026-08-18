@@ -108,7 +108,7 @@ consome todo o orçamento e o `content' fica vazio (`empty-completion' =
             (cl-letf (((symbol-function 'system-name) (lambda () hostname)))
               (+carlos/gptel-setup-defaults-by-host)
               (should (equal "Gemini" (gptel-backend-name gptel-backend)))
-              (should (eq 'gemini-3.5-flash gptel-model))
+              (should (eq 'gemini-1.5-flash gptel-model))
               (should (equal "Zen Claude" +carlos/gptel-agent-backend))
               (should (eq 'claude-sonnet-5 +carlos/gptel-agent-model))
               (should (equal "Gemini" +carlos/gptel-quick-local-backend))

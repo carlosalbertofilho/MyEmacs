@@ -277,6 +277,48 @@ Flash documentando um arquivo =.el= existente.
 *Arquivos:* =lisp/custom-magent-subagent.el=, =lisp/custom-magent-tools.el=,
 =tests/magent-team-test.el=, =docs/magent-reference.org=.
 
+** TODO Teste de Delegação do Orquestrador (gemini-1.5-flash)
+    :PROPERTIES:
+    :CREATED: 2026-08-18
+    :ASSIGNEE: qa
+    :STATUS: backlog
+    :END:
+
+*Problema:* orquestrador com gemini-2.5-flash respondia diretamente
+em vez de delegar para subagentes via =spawn_agent=. Zero tool calls
+em 4 turnos (log session-20260818-183340).
+
+*Mudança:* modelo alterado para =gemini-1.5-flash= (mais barato,
+suficiente para coordenação).
+
+*** TO1 — Delegação básica
+Perguntar algo que requer leitura de arquivo: "leia o arquivo
+custom-ai.el e resuma as funções principais".
+*Esperado:* orquestrador chama =spawn_agent= com agente =explore=.
+*Critério:* log contém =tool-call-start= com =spawn_agent= no turno 1.
+
+*** TO2 — Delegação com edição
+"adicione um comentário no topo de custom-ui.el".
+*Esperado:* orquestrador chama =spawn_agent= com agente =general=.
+
+*** TO3 — Rejeição (tarefa sem subagente)
+"qual é a data de hoje?".
+*Esperado:* resposta direta, sem =spawn_agent=.
+
+*** TO4 — Múltiplas delegações
+"leia TODO.org e roadmap.org e compare os status".
+*Esperado:* 2 chamadas =spawn_agent= ou 1× com instrução para ler
+ambos.
+
+*** TO5 — Empty completion
+Prompt longo com múltiplos arquivos anexos.
+*Verificar:* =content= != =""=. Se vazio, reportar regressão.
+
+*Arquivos:* =lisp/custom-ai.el=, logs em
+=~/.config/emacs/magent/sessions/=.
+*Critério:* TO1-TO2 com spawn; TO3 sem; TO4 múltiplos; TO5 sem
+empty. =just compile-prod= zero warnings.
+
 * Concluído (referências ao roadmap)
 
 Planos concluídos e consolidados no [[file:roadmap.org][roadmap.org]]:
