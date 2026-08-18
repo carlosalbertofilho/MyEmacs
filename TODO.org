@@ -134,10 +134,9 @@ Pendências remanescentes do plano "FSM & Submodelos" (roadmap 2026-08-13):
 - Feedback de UI durante =wait_agent=: o sampling FSM fica em TOOL sem streaming
   durante o bloqueio — coberto pelo D6 (spinners no painel *Magent*).
 
-*** Fase E1 — Subagent Result Collector (monitor de conclusão)
+*** DONE Fase E1 — Subagent Result Collector (monitor de conclusão)
     :PROPERTIES:
     :ASSIGNEE: coder
-    :STATUS: backlog
     :END:
 
 *Problema:* quando o orquestrador termina o turno sem chamar =wait_agent=

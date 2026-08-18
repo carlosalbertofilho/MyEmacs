@@ -355,10 +355,24 @@
   (skip-unless (fboundp '+carlos/magent-fsm-turn-end-sink))
   (myemacs-fsm-with-reset
     (+carlos/magent-fsm-transition 'thinking)
-    (cl-letf (((symbol-function '+carlos/magent-fsm-subagent-session-jobs)
-               (lambda () '(job1))))
-      (+carlos/magent-fsm-turn-end-sink '(:status completed))
-      (should (eq +carlos/magent-fsm-state 'subagent-waiting)))))
+    (let ((mock-jobs (list (list :id "job1" :status 'running))))
+      (cl-letf (((symbol-function '+carlos/magent-fsm-subagent-session-jobs)
+                 (lambda () mock-jobs))
+                ((symbol-function '+carlos/magent-fsm-subagent-jobs)
+                 mock-jobs)
+                ((symbol-function 'magent-agent-job-status)
+                 (lambda (job) (plist-get job :status)))
+                ((symbol-function 'magent-agent-job-id)
+                 (lambda (job) (plist-get job :id)))
+                ((symbol-function 'magent-agent-job-result) #'ignore)
+                ((symbol-function 'magent-agent-job-agent-name) #'ignore)
+                ((symbol-function 'magent-agent-job-error) #'ignore)
+                ((symbol-function 'magent-agent-job-add-observer) #'ignore)
+                ((symbol-function 'magent-agent-job-remove-observer) #'ignore)
+                ((symbol-function 'magent-session-agent-jobs) #'ignore)
+                ((symbol-function 'magent-tools--parent-session) #'ignore))
+        (+carlos/magent-fsm-turn-end-sink '(:status completed))
+        (should (eq +carlos/magent-fsm-state 'subagent-waiting))))))
 
 (ert-deftest myemacs-magent-fsm-turn-start-with-pending-subagent-runs ()
   "Turn-start com subagente ativo deve entrar em `subagent-running'."
@@ -646,6 +660,98 @@ Garante que o filtro não bloqueia eventos legítimos do orquestrador."
   (should (boundp '+carlos/magent-fsm-max-retries-per-subagent))
   (should (integerp +carlos/magent-fsm-max-retries-per-subagent))
   (should (> +carlos/magent-fsm-max-retries-per-subagent 0)))
+
+;; ── Fase E1: Subagent Result Collector ──────────────────────────────────────
+
+(ert-deftest myemacs-magent-fsm-pending-results-exists ()
+  "Garante que +carlos/magent-fsm-pending-results está declarado."
+  (skip-unless myemacs-fsm-available)
+  (should (boundp '+carlos/magent-fsm-pending-results)))
+
+(ert-deftest myemacs-magent-fsm-observer-tokens-exists ()
+  "Garante que +carlos/magent-fsm-observer-tokens está declarado."
+  (skip-unless myemacs-fsm-available)
+  (should (boundp '+carlos/magent-fsm-observer-tokens)))
+
+(ert-deftest myemacs-magent-fsm-collect-completed-jobs-extracts-result ()
+  "Garante que collect-completed-jobs extrai resultado de job concluído."
+  (skip-unless myemacs-fsm-available)
+  (let ((+carlos/magent-fsm-pending-results nil))
+    (cl-letf (((symbol-function '+carlos/magent-fsm-collect-completed-jobs)
+               (lambda ()
+                 (setq +carlos/magent-fsm-pending-results
+                       '(("job-collect-1" . (:agent-name "explore"
+                                               :status completed
+                                               :result "Found 3 files")))))))
+      (+carlos/magent-fsm-collect-completed-jobs)
+      (let ((stored (alist-get "job-collect-1" +carlos/magent-fsm-pending-results
+                               nil nil #'string=)))
+        (should stored)
+        (should (equal (plist-get stored :result) "Found 3 files"))
+        (should (equal (plist-get stored :agent-name) "explore"))))))
+
+(ert-deftest myemacs-magent-fsm-collect-completed-jobs-ignores-running ()
+  "Garante que collect-completed-jobs ignora jobs ainda em execução."
+  (skip-unless myemacs-fsm-available)
+  (let ((+carlos/magent-fsm-pending-results nil)
+        (mock-job (list :id "job-running-1"
+                        :agent-name "build"
+                        :status 'running
+                        :result nil)))
+    (cl-letf (((symbol-function 'magent-tools--parent-session)
+               (lambda () (list :agent-jobs (list mock-job))))
+              ((symbol-function 'magent-session-agent-jobs)
+               (lambda (session) (plist-get session :agent-jobs)))
+              ((symbol-function 'magent-agent-job-status)
+               (lambda (job) (plist-get job :status)))
+              ((symbol-function 'magent-agent-job-result)
+               (lambda (job) (plist-get job :result)))
+              ((symbol-function 'magent-agent-job-agent-name)
+               (lambda (job) (plist-get job :agent-name)))
+              ((symbol-function 'magent-agent-job-id)
+               (lambda (job) (plist-get job :id))))
+      (+carlos/magent-fsm-collect-completed-jobs)
+      (should (null +carlos/magent-fsm-pending-results)))))
+
+(ert-deftest myemacs-magent-fsm-collect-completed-jobs-removes-from-pending ()
+  "Garante que collect-completed-jobs coleta resultados de jobs failed também."
+  (skip-unless myemacs-fsm-available)
+  (let ((+carlos/magent-fsm-pending-results nil)
+        (mock-job (list :id "job-fail-1"
+                        :agent-name "coder"
+                        :status 'failed
+                        :result nil
+                        :error "Timeout exceeded")))
+    (cl-letf (((symbol-function 'magent-tools--parent-session)
+               (lambda () (list :agent-jobs (list mock-job))))
+              ((symbol-function 'magent-session-agent-jobs)
+               (lambda (session) (plist-get session :agent-jobs)))
+              ((symbol-function 'magent-agent-job-status)
+               (lambda (job) (plist-get job :status)))
+              ((symbol-function 'magent-agent-job-result)
+               (lambda (job) (plist-get job :result)))
+              ((symbol-function 'magent-agent-job-agent-name)
+               (lambda (job) (plist-get job :agent-name)))
+              ((symbol-function 'magent-agent-job-id)
+               (lambda (job) (plist-get job :id)))
+              ((symbol-function 'magent-agent-job-error)
+               (lambda (job) (plist-get job :error))))
+      (+carlos/magent-fsm-collect-completed-jobs)
+      (let ((stored (alist-get "job-fail-1" +carlos/magent-fsm-pending-results
+                               nil nil #'string=)))
+        (should stored)
+        (should (equal (plist-get stored :status) 'failed))
+        (should (equal (plist-get stored :error) "Timeout exceeded"))))))
+
+(ert-deftest myemacs-magent-fsm-reset-clears-pending-results ()
+  "Garante que reset limpa pending-results e observer-tokens."
+  (skip-unless myemacs-fsm-available)
+  (let ((+carlos/magent-fsm-pending-results '(("job-x" . (:result "data"))))
+        (+carlos/magent-fsm-observer-tokens '(token1 token2)))
+    (cl-letf (((symbol-function 'magent-agent-job-remove-observer) #'ignore))
+      (+carlos/magent-fsm-reset))
+    (should (null +carlos/magent-fsm-pending-results))
+    (should (null +carlos/magent-fsm-observer-tokens))))
 
 (provide 'magent-fsm-test)
 ;;; magent-fsm-test.el ends here

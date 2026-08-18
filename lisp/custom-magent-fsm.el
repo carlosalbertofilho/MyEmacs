@@ -57,6 +57,91 @@ há progresso (error-count diminui) ou ao fim do ciclo.")
   "Número de erros da iteração anterior do loop de auto-correção.
 nil na primeira iteração (nenhumhistórico de comparação).")
 
+;; ── ETAPA 1e: Re-anexação Automática de Subagentes (Fase E) ────────────────
+;; Coleta resultados de subagentes que completaram sem wait_agent e injeta
+;; no próximo turno do orquestrador.
+
+(defvar +carlos/magent-fsm-pending-results nil
+  "Alist de (JOB-ID . PLIST) com resultados de subagentes concluídos.
+PLIST contém :agent-name (string), :result (string) ou :error (string),
+:either (symbol completed/failed).  Preenchido pelo observer ou pela
+varredura periódica; limpo após injeção no turno do orquestrador.")
+
+(defvar +carlos/magent-fsm-observer-tokens nil
+  "Lista de tokens de observer registrados em jobs de subagentes.
+Usado para limpar observers via `magent-agent-job-remove-observer'.")
+
+(defun +carlos/magent-fsm-collect-completed-jobs ()
+  "Coleta resultados de jobs de subagentes com status terminal.
+Itera os jobs pendentes da sessão pai; para cada job completed/failed,
+extrai o resultado e armazena em `+carlos/magent-fsm-pending-results'.
+Remove jobs concluídos da lista de pending da FSM."
+  (when (and (fboundp 'magent-tools--parent-session)
+             (fboundp 'magent-session-agent-jobs)
+             (fboundp 'magent-agent-job-status)
+             (fboundp 'magent-agent-job-result)
+             (fboundp 'magent-agent-job-agent-name)
+             (fboundp 'magent-agent-job-id))
+    (let ((session (magent-tools--parent-session)))
+      (when session
+        (dolist (job (magent-session-agent-jobs session))
+          (let ((status (magent-agent-job-status job))
+                (job-id (magent-agent-job-id job)))
+            (when (memq status '(completed failed))
+              ;; Armazenar resultado apenas se ainda não coletado
+              (unless (alist-get job-id +carlos/magent-fsm-pending-results
+                                 nil nil #'string=)
+                (let ((result (magent-agent-job-result job))
+                      (error-msg (when (fboundp 'magent-agent-job-error)
+                                   (magent-agent-job-error job))))
+                  (push (cons job-id
+                              (list :agent-name (magent-agent-job-agent-name job)
+                                    :status status
+                                    :result (or result "")
+                                    :error (or error-msg "")))
+                        +carlos/magent-fsm-pending-results))))))))))
+
+(defun +carlos/magent-fsm-register-observer (job)
+  "Registra um observer no JOB para coleta automática de resultado.
+O observer é chamado quando o status do job muda para terminal.
+Retorna o token do observer para remoção posterior."
+  (when (and (fboundp 'magent-agent-job-add-observer)
+             (fboundp 'magent-agent-job-id))
+    (let ((job-id (magent-agent-job-id job)))
+      (magent-agent-job-add-observer
+       job
+       (lambda (observed-job new-status)
+         (when (memq new-status '(completed failed))
+           (when (and (fboundp 'magent-agent-job-result)
+                      (fboundp 'magent-agent-job-agent-name))
+             (let ((result (magent-agent-job-result observed-job))
+                   (error-msg (when (fboundp 'magent-agent-job-error)
+                                (magent-agent-job-error observed-job))))
+               (unless (alist-get job-id +carlos/magent-fsm-pending-results
+                                  nil nil #'string=)
+                 (push (cons job-id
+                             (list :agent-name (magent-agent-job-agent-name observed-job)
+                                   :status new-status
+                                   :result (or result "")
+                                   :error (or error-msg "")))
+                       +carlos/magent-fsm-pending-results))))))))))
+
+(defun +carlos/magent-fsm-register-observers-for-pending ()
+  "Registra observers para todos os jobs de subagentes ativos.
+Chamado quando a FSM entra em `subagent-waiting'."
+  (let ((jobs (+carlos/magent-fsm-subagent-session-jobs)))
+    (dolist (job jobs)
+      (let ((token (+carlos/magent-fsm-register-observer job)))
+        (when token
+          (push token +carlos/magent-fsm-observer-tokens))))))
+
+(defun +carlos/magent-fsm-cleanup-observers ()
+  "Remove todos os observers registrados e limpa a lista de tokens."
+  (when (fboundp 'magent-agent-job-remove-observer)
+    (dolist (token +carlos/magent-fsm-observer-tokens)
+      (magent-agent-job-remove-observer token)))
+  (setq +carlos/magent-fsm-observer-tokens nil))
+
 (defun +carlos/magent-fsm-healing-step (error-count)
   "Registra uma iteração do loop de auto-correção.
 ERROR-COUNT é o número de erros restantes após a tentativa de fix.
@@ -105,7 +190,9 @@ pela FSM."
         +carlos/magent-fsm-subagent-jobs nil
         +carlos/magent-fsm-retry-info nil
         +carlos/magent-fsm-healing-attempts 0
-        +carlos/magent-fsm-healing-last-error-count nil)
+        +carlos/magent-fsm-healing-last-error-count nil
+        +carlos/magent-fsm-pending-results nil)
+  (+carlos/magent-fsm-cleanup-observers)
   (when (fboundp '+carlos/magent-buffer-reset-session)
     (+carlos/magent-buffer-reset-session))
   (when (fboundp '+carlos/magent-ui-spinner-stop)
@@ -411,6 +498,7 @@ e a FSM cai em `idle' espuriamente."
       ;; ── Lógica original (apenas eventos do orquestrador) ──────────────
       (+carlos/magent-watchdog-cancel)
       (+carlos/magent-fsm-refresh-subagent-jobs)
+      (+carlos/magent-fsm-collect-completed-jobs)
       (let ((status (plist-get event-data :status)))
         (cond
          ((eq status 'completed)
@@ -418,7 +506,9 @@ e a FSM cai em `idle' espuriamente."
           ;; Tenta resgatar tool calls do reasoning (turn vazio)
           (+carlos/magent-fsm-maybe-rescue-reasoning-tool-calls)
           (if (+carlos/magent-fsm-pending-subagent-p)
-              (+carlos/magent-fsm-transition 'subagent-waiting)
+              (progn
+                (+carlos/magent-fsm-register-observers-for-pending)
+                (+carlos/magent-fsm-transition 'subagent-waiting))
             (+carlos/magent-fsm-transition 'idle)))
          (t
           (+carlos/magent-fsm-transition 'idle)))))))
