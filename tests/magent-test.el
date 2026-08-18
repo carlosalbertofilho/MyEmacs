@@ -196,5 +196,20 @@ correta de tool-spec por `equal'."
       (should (stringp name))
       (should (equal name "read_file")))))
 
+;; ── Sub-item 1: Orquestrador mais agressivo (2026-08-17) ─────────────
+
+(ert-deftest myemacs-magent-directives-spawn-and-forge ()
+  "Garante que as directives contêm o padrão SPAWN-AND-FORGE."
+  (should (boundp '+carlos/magent-system-directives))
+  (should (string-match-p "SPAWN-AND-FORGE" +carlos/magent-system-directives))
+  (should (string-match-p "spawn MULTIPLE agents BEFORE waiting"
+                          +carlos/magent-system-directives)))
+
+(ert-deftest myemacs-magent-directives-synthesis-rule ()
+  "Garante que as directives contêm a regra de síntese (≤3 bullets)."
+  (should (boundp '+carlos/magent-system-directives))
+  (should (string-match-p "SYNTHESIS FORMAT" +carlos/magent-system-directives))
+  (should (string-match-p "≤3 bullet points" +carlos/magent-system-directives)))
+
 (provide 'magent-test)
 ;;; magent-test.el ends here
