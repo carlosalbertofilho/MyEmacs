@@ -79,11 +79,142 @@ Validar o fluxo interativo das integrações em modo GUI no ambiente
 
 ** TODO D5. Context Sharing Dinâmico para Subagentes
     :PROPERTIES:
-    :ASSIGNEE: orquestrador
+    :CREATED: 2026-08-18
+    :ASSIGNEE: coder
     :STATUS: backlog
     :END:
-    Injetar automaticamente contexto relevante nos prompts enviados a
-    subagentes (=spawn_agent= aprimorado).
+
+*Problema:* subagentes recebem apenas o prompt raw do orquestrador. Não
+recebem: histórico de conversa do pai, arquivos lidos/editados, decisões
+tomadas na sessão, nem o estado acumulado do orquestrador. Isso obriga o
+orquestrador a repetir contexto no prompt (gastando tokens) ou o subagente
+trabalha às cegas.
+
+*Solução:* coletar contexto dinâmico do orquestrador (arquivos tocados,
+ações recentes, estado do projeto) e injetar automaticamente no prompt
+do subagente antes de delegar. Abordagem: enrich do =user-prompt= no
+=+carlos/magent-subagent-apply-profile= (não modifica upstream).
+
+*** D5.1 — Context Collector (coletor de estado do orquestrador)
+    :PROPERTIES:
+    :ASSIGNEE: coder
+    :END:
+
+Em =custom-magent-subagent.el=:
+
+1. Nova variável =+carlos/magent-orchestrator-context= (alist):
+   - =:files-read= — lista de arquivos lidos via =read_file= (últimos 5).
+   - =:files-edited= — lista de arquivos editados (últimos 5).
+   - =:recent-actions= — resumo das últimas 3 ações (tool + resultado).
+   - =:project-state= — branch, arquivos modificados (via =git status=).
+   - =:task-context= — understandsão atual da tarefa (extraída do prompt).
+
+2. Função =+carlos/magent-collect-orchestrator-context=:
+   - Le =magent-tools--request-context= (dinâmico durante execução).
+   - Extrai =magent-session-thread= → =magent-thread-turn-items= →
+     itens de turno com tool-call-start/end.
+   - Filtra por tool name (=read_file=, =edit_file=, =write_file=,
+     =bash=) e extrai args + result summary.
+   - Armazena em =+carlos/magent-orchestrator-context=.
+
+3. Hook no =turn-end-sink= (ou advice em =magent-agent-loop-end-turn=)
+   para atualizar o contexto ao final de cada turno.
+
+*Testes ERT:*
+- =myemacs-d5-context-collector-extracts-files-read=
+- =myemacs-d5-context-collector-extracts-files-edited=
+- =myemacs-d5-context-collector-limits-history=
+- =myemacs-d5-context-collector-extracts-recent-actions=
+
+*** D5.2 — Context Formatter (formatação do contexto)
+    :PROPERTIES:
+    :ASSIGNEE: coder
+    :END:
+
+Em =custom-magent-subagent.el=:
+
+1. Função =+carlos/magent-format-orchestrator-context=:
+   - Recebe o alist de contexto.
+   - Formata como bloco compacto para prepender ao prompt:
+     #+BEGIN_EXAMPLE
+     [Orchestrator Context]
+     Files read: lisp/custom-magent-fsm.el, lisp/custom-magent-tools.el
+     Files edited: lisp/custom-magent-fsm.el
+     Recent: spawn_agent(explore) → completed, read_file(TODO.org) → 340 lines
+     Project: branch main, 2 modified files
+     Task: implement context sharing for subagents
+     [/Orchestrator Context]
+     #+END_EXAMPLE
+   - Cap: max 500 chars para não consumir tokens desnecessários.
+   - Se contexto vazio, retorna nil (não injeta nada).
+
+2. Função =+carlos/magent-build-subagent-prompt=:
+   - Recebe =original-prompt= e =context-block=.
+   - Se context-block não é nil, prepend ao prompt.
+   - Retorna prompt enriquecido.
+
+*Testes ERT:*
+- =myemacs-d5-context-formatter-creates-block=
+- =myemacs-d5-context-formatter-respects-cap=
+- =myemacs-d5-context-formatter-empty-returns-nil=
+- =myemacs-d5-context-formatter-builds-prompt=
+
+*** D5.3 — Context Injection (injeção no spawn)
+    :PROPERTIES:
+    :ASSIGNEE: coder
+    :END:
+
+Em =custom-magent-subagent.el=:
+
+1. Modificar =+carlos/magent-subagent-apply-profile=:
+   - Antes de =(funcall orig-fn user-prompt ...)=:
+     - Chamar =+carlos/magent-collect-orchestrator-context=.
+     - Chamar =+carlos/magent-format-orchestrator-context=.
+     - Chamar =+carlos/magent-build-subagent-prompt= com o prompt original.
+     - Usar o prompt enriquecido em vez do original.
+
+2. Variável =+carlos/magent-context-sharing-enabled= (defcustom, default t):
+   - Toggle global para ativar/desativar.
+   - Guard em =apply-profile=: se nil, não injeta contexto.
+
+3. Variável =+carlos/magent-context-sharing-max-chars= (defcustom, default 500):
+   - Teto de caracteres do bloco de contexto.
+
+*Testes ERT:*
+- =myemacs-d5-injection-enriches-prompt-when-enabled=
+- =myemacs-d5-injection-skips-when-disabled=
+- =myemacs-d5-injection-respects-max-chars=
+- =myemacs-d5-injection-preserves-original-prompt=
+
+*** D5.4 — Testes de integração e edge cases
+    :PROPERTIES:
+    :ASSIGNEE: qa
+    :END:
+
+*Cenários a testar:*
+1. Orquestrador leu 3 arquivos e editou 1 → subagente recebe contexto
+   com os 3 arquivos lidos e o editado.
+2. Orquestrador sem nenhuma tool call → contexto vazio, prompt preservado.
+3. Sessão com 10+ arquivos tocados → apenas últimos 5 no contexto.
+4. Contexto excede 500 chars → truncado com "..." no final.
+5. =context-sharing-enabled= nil → prompt passa sem modificação.
+6. Múltiplos subagentes na mesma sessão → cada um recebe o contexto
+   atualizado do orquestrador.
+
+*Testes ERT:*
+- =myemacs-d5-integration-full-context-flow=
+- =myemacs-d5-integration-empty-context=
+- =myemacs-d5-integration-history-limit=
+- =myemacs-d5-integration-cap-truncation=
+- =myemacs-d5-integration-disabled-toggle=
+- =myemacs-d5-integration-multiple-subagents=
+
+*Arquivos:* =lisp/custom-magent-subagent.el=, =tests/magent-subagent-test.el=,
+=docs/magent-reference.org=.
+
+*Critério de saída:* =just compile= zero-warning; 14+ testes ERT novos;
+=just test-all= verde; teste interativo com orquestrador delegando tarefa
+de leitura/edição e subagente recebendo contexto automaticamente.
 
 ** TODO D8. Criação das Ferramentas do Perfil =archeologist=
     :PROPERTIES:
