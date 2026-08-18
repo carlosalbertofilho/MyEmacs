@@ -1,7 +1,7 @@
 #+TITLE: Roadmap — MyEmacs Configuration
 #+AUTHOR: Carlos Filho
 #+DATE: 2026-08-05
-#+LAST_MODIFIED: 2026-08-17
+#+LAST_MODIFIED: 2026-08-18
 #+OPTIONS: toc:2 num:t
 
 * Visão Geral
@@ -50,10 +50,10 @@ entenderem o estado atual do projeto e decisões tomadas.
       Agent_Smith/AGENTS.md (budgets acumulados, StepMetrics).
    - **Próximas melhorias (2026-08-17):** orquestrador mais agressivo
      (regra 8), fallback inteligente de modelo (retry up-tier),
-     compactação seletiva algorítmica (sem LLM). Ver TODO.org —
-     "Otimização de Orquestração".
+     compactação seletiva algorítmica (sem LLM). CONCLUÍDO — ver entrada
+     "[CONCLUÍDO] Otimização de Orquestração" abaixo.
 
-** 2026-08-17 — [DECIDIDO] Otimização de Orquestração — Próxima iteração
+** 2026-08-17 — [CONCLUÍDO] Otimização de Orquestração — 3 melhorias de pipeline
    - **Decisão:** adotar abordagem de 3 melhorias pontuais (delegação
      agressiva, fallback inteligente, compactação seletiva) em vez de
      reescrita da FSM para grafo de dependências.
@@ -62,10 +62,17 @@ entenderem o estado atual do projeto e decisões tomadas.
      resultados) para ganho marginal (Emacs single-threaded, pipeline
      tipicamente sequencial). Melhorias pontuais cobrem 90% dos casos
      com 1/10 da complexidade.
-   - **Sub-itens:** (1) orquestrador mais agressivo — regra 8 reescrita;
-     (2) fallback inteligente — retry up-tier com flag :retried;
-     (3) compactação seletiva — algoritmo puramente algorítmico sem LLM.
-   - **Referência:** TODO.org — "Otimização de Orquestração".
+   - **Sub-item 1 (DONE):** Orquestrador mais agressivo — regra 8 reescrita
+     com padrão "spawn-and-forge" + regra 10 synthesis format. Commit 59400e0.
+     2 testes ERT (spawn-and-forge, synthesis-rule).
+   - **Sub-item 2 (DONE):** Fallback inteligente — retry up-tier com
+     classify-failure, record-failure, mark-retried, resume-up-tier.
+     Regra 11 nas directives. Commit 9df372b. 7 testes ERT.
+   - **Sub-item 3 (DONE):** Compactação seletiva algorítmica —
+     cumulative-tool-result-chars, selective-compact-p (20K chars + 3
+     subagentes), build-selective-compaction-instruction. Commit 6775acb.
+     5 testes ERT.
+   - **Total:** 3 commits, 12 testes ERT novos, 0 falhas. Suíte: 324/317/0/7.
 
 ** 2026-08-16 — [CONCLUÍDO] Roteamento de modelos dinâmico por perfil (melhor custo)
    - **Objetivo:** substituir o modelo pinado (=gemini-3.1-pro-preview=) dos
