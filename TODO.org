@@ -134,6 +134,122 @@ Pendências remanescentes do plano "FSM & Submodelos" (roadmap 2026-08-13):
 - Feedback de UI durante =wait_agent=: o sampling FSM fica em TOOL sem streaming
   durante o bloqueio — coberto pelo D6 (spinners no painel *Magent*).
 
+*** Fase E1 — Subagent Result Collector (monitor de conclusão)
+    :PROPERTIES:
+    :ASSIGNEE: coder
+    :STATUS: backlog
+    :END:
+
+*Problema:* quando o orquestrador termina o turno sem chamar =wait_agent=
+(modelo local viola a directiva 5), o job do subagente continua assíncrono.
+A FSM entra em =subagent-waiting= mas não há mecanismo para coletar o
+resultado quando o subagente completa.
+
+*Solução:* criar um collector que monitora jobs pendentes e coleta resultados.
+
+Em =custom-magent-fsm.el=:
+1. Nova variável =+carlos/magent-fsm-pending-results= (alist job-id → result-text).
+2. Função =+carlos/magent-fsm-collect-completed-jobs=:
+   - Itera =+carlos/magent-fsm-subagent-jobs= (cache da FSM).
+   - Para cada job com status =completed=, extrai =magent-agent-job-result=
+     e armazena em =+carlos/magent-fsm-pending-results=.
+   - Remove job da lista de pending (status terminal não é mais "pending").
+3. Registrar observer em cada job via =magent-agent-job-add-observer= quando
+   a FSM entra em =subagent-waiting= (no =turn-end-sink=).
+4. Observer callback: quando status =completed= ou =failed=, coleta resultado
+   e armazena em =+carlos/magent-fsm-pending-results=.
+
+*Testes ERT:*
+- =myemacs-magent-fsm-collect-completed-jobs-extracts-result=
+- =myemacs-magent-fsm-collect-completed-jobs-removes-from-pending=
+- =myemacs-magent-fsm-observer-callback-stores-result=
+
+*** Fase E2 — Deferred Result Injection (injeção pós-turno)
+    :PROPERTIES:
+    :ASSIGNEE: coder
+    :STATUS: backlog
+    :END:
+
+*Problema:* mesmo com o resultado coletado, não há mecanismo para injetá-lo
+no contexto do orquestrador após o turno ter terminado.
+
+*Solução:* quando a FSM detecta que há resultados pendentes no
+=turn-start-sink=, injeta o resultado como mensagem de sistema antes de
+iniciar o próximo turno.
+
+Em =custom-magent-fsm.el=:
+1. Função =+carlos/magent-fsm-inject-pending-results=:
+   - Verifica =+carlos/magent-fsm-pending-results=.
+   - Para cada resultado, formata como mensagem de contexto:
+     =[Subagent <agent-name> completed]: <result-text>=
+   - Retorna a lista de mensagens para injetar.
+2. Modificar =+carlos/magent-fsm-turn-start-sink=:
+   - Antes de transicionar para =thinking= ou =subagent-running=,
+     chamar =+carlos/magent-fsm-inject-pending-results=.
+   - Se houver resultados, adicionar ao prompt do orquestrador via
+     =magent-request-context= ou callback de UI.
+3. Limpar =+carlos/magent-fsm-pending-results= após injeção.
+
+*Testes ERT:*
+- =myemacs-magent-fsm-inject-pending-results-formats-correctly=
+- =myemacs-magent-fsm-inject-pending-results-clears-after-injection=
+- =myemacs-magent-fsm-turn-start-injects-before-transition=
+
+*** Fase E3 — Orchestrator Resume (retomada do turno)
+    :PROPERTIES:
+    :ASSIGNEE: coder
+    :STATUS: backlog
+    :END:
+
+*Problema:* injetar a mensagem não basta — o orquestrador precisa ser
+retomado para processar o resultado do subagente.
+
+*Solução:* quando há resultados injetados, o =turn-start-sink= deve
+sinalizar que o próximo turno deve começar com contexto enriquecido.
+
+Em =custom-magent-fsm.el=:
+1. Variável =+carlos/magent-fsm-resume-with-context= (flag booleano).
+2. Quando =+carlos/magent-fsm-inject-pending-results= retorna resultados
+   não-vazios, setar flag =t=.
+3. Em =+carlos/magent-fsm-turn-start-sink=, se flag está ativa:
+   - Transicionar para =thinking= (não =subagent-running=).
+   - A flag sinaliza para o handler de UI que o turno deve incluir
+     o contexto do subagente como mensagem de sistema.
+4. Reset da flag após uso.
+
+*Integração com UI:*
+- O =magent-agent-shell= (ou o handler de turno) verifica a flag e
+  adiciona as mensagens pendentes ao prompt antes de enviar ao LLM.
+- Alternativa: usar =magent-request-context= para injetar contexto
+  diretamente no request.
+
+*Testes ERT:*
+- =myemacs-magent-fsm-resume-flag-set-on-pending-results=
+- =myemacs-magent-fsm-resume-flag-cleared-after-use=
+- =myemacs-magent-fsm-turn-start-uses-resume-context=
+
+*** Fase E4 — Testes de integração e edge cases
+    :PROPERTIES:
+    :ASSIGNEE: qa
+    :STATUS: backlog
+    :END:
+
+*Cenários a testar:*
+1. Subagente completa antes do orquestrador chamar =wait_agent= (cenário ideal).
+2. Subagente completa após orquestrador terminar turno (cenário de falha).
+3. Múltiplos subagentes com tempos de conclusão diferentes.
+4. Subagente falha (=status= =failed=) — resultado de erro deve ser injetado.
+5. Timeout do subagente — resultado parcial ou timeout message.
+6. FSM já em =idle= quando subagente completa (usuário digitou algo novo).
+
+*Testes ERT:*
+- =myemacs-magent-fsm-subagent-completes-before-wait=
+- =myemacs-magent-fsm-subagent-completes-after-turn-end=
+- =myemacs-magent-fsm-multiple-subagents-different-completion-times=
+- =myemacs-magent-fsm-failed-subagent-injects-error=
+- =myemacs-magent-fsm-timeout-subagent-handled=
+- =myemacs-magent-fsm-idle-while-subagent-completes=
+
 ** TODO D5. Context Sharing Dinâmico para Subagentes
     :PROPERTIES:
     :ASSIGNEE: orquestrador
