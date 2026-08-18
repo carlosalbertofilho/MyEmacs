@@ -753,5 +753,48 @@ Garante que o filtro não bloqueia eventos legítimos do orquestrador."
     (should (null +carlos/magent-fsm-pending-results))
     (should (null +carlos/magent-fsm-observer-tokens))))
 
+;; ── Fase E2: Deferred Result Injection ──────────────────────────────────────
+
+(ert-deftest myemacs-magent-fsm-inject-pending-results-formats-correctly ()
+  "Garante que inject-pending-results formata mensagens corretamente."
+  (skip-unless myemacs-fsm-available)
+  (let ((+carlos/magent-fsm-pending-results
+         '(("job-1" . (:agent-name "explore" :status completed :result "Found files"))
+           ("job-2" . (:agent-name "coder" :status failed :error "Timeout"))))
+        (+carlos/magent-fsm-resume-with-context nil))
+    (let ((messages (+carlos/magent-fsm-inject-pending-results)))
+      (should (= (length messages) 2))
+      (should (string-match-p "explore.*completed" (nth 0 messages)))
+      (should (string-match-p "Found files" (nth 0 messages)))
+      (should (string-match-p "coder.*failed" (nth 1 messages)))
+      (should (string-match-p "Timeout" (nth 1 messages))))))
+
+(ert-deftest myemacs-magent-fsm-inject-pending-results-clears-after ()
+  "Garante que inject-pending-results limpa pending-results após formatação."
+  (skip-unless myemacs-fsm-available)
+  (let ((+carlos/magent-fsm-pending-results
+         '(("job-3" . (:agent-name "explore" :status completed :result "data"))))
+        (+carlos/magent-fsm-resume-with-context nil))
+    (+carlos/magent-fsm-inject-pending-results)
+    (should (null +carlos/magent-fsm-pending-results))
+    (should +carlos/magent-fsm-resume-with-context)))
+
+(ert-deftest myemacs-magent-fsm-inject-empty-returns-nil ()
+  "Garante que inject-pending-results retorna nil quando não há resultados."
+  (skip-unless myemacs-fsm-available)
+  (let ((+carlos/magent-fsm-pending-results nil)
+        (+carlos/magent-fsm-resume-with-context nil))
+    (should (null (+carlos/magent-fsm-inject-pending-results)))
+    (should (null +carlos/magent-fsm-resume-with-context))))
+
+(ert-deftest myemacs-magent-fsm-reset-clears-resume-flag ()
+  "Garante que reset limpa resume-with-context."
+  (skip-unless myemacs-fsm-available)
+  (let ((+carlos/magent-fsm-resume-with-context t)
+        (+carlos/magent-fsm-pending-results nil))
+    (cl-letf (((symbol-function 'magent-agent-job-remove-observer) #'ignore))
+      (+carlos/magent-fsm-reset))
+    (should (null +carlos/magent-fsm-resume-with-context))))
+
 (provide 'magent-fsm-test)
 ;;; magent-fsm-test.el ends here

@@ -163,10 +163,9 @@ Em =custom-magent-fsm.el=:
 - =myemacs-magent-fsm-collect-completed-jobs-removes-from-pending=
 - =myemacs-magent-fsm-observer-callback-stores-result=
 
-*** Fase E2 — Deferred Result Injection (injeção pós-turno)
+*** DONE Fase E2 — Deferred Result Injection (injeção pós-turno)
     :PROPERTIES:
     :ASSIGNEE: coder
-    :STATUS: backlog
     :END:
 
 *Problema:* mesmo com o resultado coletado, não há mecanismo para injetá-lo

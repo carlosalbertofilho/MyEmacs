@@ -142,6 +142,40 @@ Chamado quando a FSM entra em `subagent-waiting'."
       (magent-agent-job-remove-observer token)))
   (setq +carlos/magent-fsm-observer-tokens nil))
 
+;; ── ETAPA 2e: Deferred Result Injection (injeção pós-turno) ────────────────
+;; Quando a FSM detecta resultados pendentes no turn-start-sink, formata
+;; como mensagem de contexto para injetar no próximo turno do orquestrador.
+
+(defvar +carlos/magent-fsm-resume-with-context nil
+  "Non-nil quando há resultados de subagentes pendentes para injetar.
+Setado por `+carlos/magent-fsm-inject-pending-results'; resetado após uso.")
+
+(defun +carlos/magent-fsm-inject-pending-results ()
+  "Formata resultados pendentes de subagentes como mensagens de contexto.
+Retorna a lista de mensagens formatadas para injetar no prompt do
+orquestrador.  Cada mensagem tem o formato:
+  [Subagent <agent-name> (<status>)] <result-or-error>
+Limpa `+carlos/magent-fsm-pending-results' após formatação."
+  (when +carlos/magent-fsm-pending-results
+    (let ((messages nil))
+      (dolist (entry +carlos/magent-fsm-pending-results)
+        (let* ((info (cdr entry))
+               (agent-name (plist-get info :agent-name))
+               (status (plist-get info :status))
+               (result (plist-get info :result))
+               (error-msg (plist-get info :error))
+               (text (if (eq status 'failed)
+                         (format "[Subagent %s (failed)] %s"
+                                 (or agent-name "unknown")
+                                 (or error-msg "Unknown error"))
+                       (format "[Subagent %s (completed)] %s"
+                               (or agent-name "unknown")
+                               (or result "No result")))))
+          (push text messages)))
+      (setq +carlos/magent-fsm-pending-results nil
+            +carlos/magent-fsm-resume-with-context t)
+      (nreverse messages))))
+
 (defun +carlos/magent-fsm-healing-step (error-count)
   "Registra uma iteração do loop de auto-correção.
 ERROR-COUNT é o número de erros restantes após a tentativa de fix.
@@ -191,7 +225,8 @@ pela FSM."
         +carlos/magent-fsm-retry-info nil
         +carlos/magent-fsm-healing-attempts 0
         +carlos/magent-fsm-healing-last-error-count nil
-        +carlos/magent-fsm-pending-results nil)
+        +carlos/magent-fsm-pending-results nil
+        +carlos/magent-fsm-resume-with-context nil)
   (+carlos/magent-fsm-cleanup-observers)
   (when (fboundp '+carlos/magent-buffer-reset-session)
     (+carlos/magent-buffer-reset-session))
@@ -412,10 +447,16 @@ registra o evento de fallback no echo area."
 (defun +carlos/magent-fsm-turn-start-sink (_event-data)
   "Sink chamado no início de cada turno da sessão do Magent.
 Reseta o buffer de reasoning, incrementa a sessão e inicia o watchdog.
+Se há resultados de subagentes pendentes, formata e armazena para injeção.
 Se um subagente ainda estiver ativo (turno de retomada), entra em
 `subagent-running' em vez de `thinking'."
   (setq +carlos/magent-fsm-reasoning-buffer ""
         +carlos/magent-fsm-retry-count 0)
+  ;; Injetar resultados pendentes antes de transicionar
+  (let ((injected-messages (+carlos/magent-fsm-inject-pending-results)))
+    (when injected-messages
+      (message "[Magent FSM] Injecting %d subagent result(s)"
+               (length injected-messages))))
   (if (+carlos/magent-fsm-pending-subagent-p)
       (+carlos/magent-fsm-transition 'subagent-running)
     (+carlos/magent-fsm-transition 'thinking))
