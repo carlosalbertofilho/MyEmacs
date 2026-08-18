@@ -3,7 +3,7 @@
 #+DATE: 2026-08-07
 #+DESCRIPTION: Guia de referência para a suíte de testes de regressão ERT e práticas de controle de qualidade do MyEmacs.
 #+CREATED: 2026-08-07
-#+LAST_MODIFIED: 2026-08-16
+#+LAST_MODIFIED: 2026-08-18
 #+CATEGORY: quality
 
 * Visão Geral
@@ -32,7 +32,7 @@ Os testes residem na pasta =tests/= e são estruturados por área de responsabil
 | [[file:../tests/spell-test.el][spell-test.el]]                 | Módulo custom-jinx: dicionários pt_BR/en_US, hooks e binds =M-$=/=C-M-$=. |
 | [[file:../tests/dev-env-test.el][dev-env-test.el]]              | Ambiente de desenvolvimento: flycheck inline/wave, eldoc-box, apheleia, nerd-icons-corfu. |
 | [[file:../tests/dev-test.el][dev-test.el]]                   | Features Elisp interativas: ERT runners, geração de testes por IA, scratch blocks REPL. |
-| [[file:../tests/context-test.el][context-test.el]]             | Cache hit-rate, ratio de auto-compaction e preservação de instruções. |
+| [[file:../tests/context-test.el][context-test.el]]             | Cache hit-rate, auto-compaction, cooldown, métricas, compactação seletiva (5 testes novos) e preservação de instruções. |
 | [[file:../tests/magent-test.el][magent-test.el]]               | Pacote magent carrega, comandos existem, bind =C-c M m=, skills dir e agent-shell. |
 | [[file:../tests/magent-fsm-test.el][magent-fsm-test.el]]         | Estados da FSM de orquestração (idle→tool-executing→subagent-*) e hard rules. |
 | [[file:../tests/magent-routing-test.el][magent-routing-test.el]]     | Roteamento de modelo/backend por host e tier. |

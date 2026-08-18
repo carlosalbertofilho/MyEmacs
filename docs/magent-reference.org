@@ -1,7 +1,7 @@
 #+TITLE: Magent Reference Guide
 #+AUTHOR: MyEmacs Documentation Generator
 #+DATE: 2026-08-06
-#+LAST_MODIFIED: 2026-08-17
+#+LAST_MODIFIED: 2026-08-18
 #+DESCRIPTION: Comprehensive reference for Magent native Emacs-Lisp AI coding agent and the MyEmacs orchestration layer (FSM, subagents, model routing, curated tools, expert team)
 #+FILETAGS: :RAG:AI:DOCS:
 #+OPTIONS: toc:2 num:t
@@ -475,14 +475,17 @@ resolve-cheap-model free/local, session-total-tokens, guarda sucesso/falha + sin
 skip/retry, turn-closed-p, safe-boundary).
 
 - *B6 — Compactação seletiva algorítmica (2026-08-17):*
-  antes de usar `magent-runtime-session-compact` (compacta tudo),
-  `+carlos/magent-selective-compact-execute` analisa turns por peso:
-  candidatos = turns com tool results > 2000 tokens (read_file/grep
-  pesados); preservar = user prompts, syntheses do orquestrador,
-  turns < 1000 tokens; remover = tool results > 2000 tokens,
-  transcripts completos de subagentes. Usa `magent-thread-trim-turn`
-  para remover turns individuais. Algoritmo puramente algorítmico (sem
-  LLM) — mais performático que compactação por reasoning.
+  quando o acumulador cumulativo de tool results (=+carlos/magent-cumulative-tool-result-chars=)
+  excede 20K chars E ≥3 subagentes completaram, a compactação automática
+  usa instrução seletiva (foco em tool results antigos) em vez da
+  compactação completa padrão. Condição verificada por
+  `+carlos/magent-selective-compact-p`. Instrução gerada por
+  `+carlos/magent-build-selective-compaction-instruction` preserva:
+  últimos 2 turns crus, decisões técnicas, arquivos modificados, testes
+  ERT. Descarta (por prioridade): resultados de read_file/search de
+  turns antigos, reasoning longo. Não usa `magent-thread-trim-turn`
+  (não existe na API pública); compacta via `magent-runtime-session-compact`
+  com instrução seletiva. Contadores resetados na compactação bem-sucedida.
 
 * Loop de Eventos Informativo (Fase C — Painel de Atividade, 2026-08-14)
 

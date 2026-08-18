@@ -12,6 +12,22 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-18 — [CONCLUÍDO] Reorganização do TODO.org
+   - **Objetivo:** otimizar tokens e claridade removendo redundâncias e DONEs
+     do arquivo de planejamento ativo.
+   - **Mudanças:**
+     - Removida seção "Liquidação da Dívida Técnica" (redundante com
+       "Diagnóstico e Decisões Pendentes").
+     - Removida seção "Diagnóstico e Decisões Pendentes" (4 itens todos
+       RESOLVIDO, já cobertos por其他 seções).
+     - DONEs (Controle de Contexto, Otimização de Orquestração, Fase D+
+       parcial) movidos para seção "Concluído" com referências ao roadmap.
+     - Seção "Histórico Concluído" removida (duplicava referências).
+     - Backlog Ativo limpo: 7 TODOs ativos restantes.
+   - **Resultado:** arquivo reduzido de ~500 para ~180 linhas (~64%).
+   - **Docs atualizados:** magent-reference.org (B6 seletiva corrigida),
+     testing-suite.org (context-test.el描述更新).
+
 ** 2026-08-17 — [CONCLUÍDO] Fix: isolamento de eventos de subagente na FSM (turn-end-sink)
    - **Problema:** o =turn-end-sink= é global — eventos de turno de subagentes
      disparam no contexto do subagente, onde =magent-tools--parent-session=
