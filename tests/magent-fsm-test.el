@@ -868,5 +868,113 @@ Garante que o filtro não bloqueia eventos legítimos do orquestrador."
     (should captured-prompt)
     (should (equal captured-prompt "Original prompt"))))
 
+;; ── Fase E4: Integration Tests ──────────────────────────────────────────────
+
+(ert-deftest myemacs-magent-fsm-e4-full-flow-spawn-collect-inject ()
+  "Testa fluxo completo: pending-results → inject → contexto no prompt."
+  (skip-unless myemacs-fsm-available)
+  (let ((+carlos/magent-fsm-pending-results nil)
+        (+carlos/magent-fsm-pending-context-messages nil)
+        (+carlos/magent-fsm-resume-with-context nil))
+    ;; Simular job completado (coleta manual, sem dependência de magent-session)
+    (setq +carlos/magent-fsm-pending-results
+          '(("job-1" . (:agent-name "explore" :status completed :result "Found 3 files"))))
+    ;; Injetar resultados (formata + limpa pending-results)
+    (+carlos/magent-fsm-inject-pending-results)
+    ;; Verificar que results foram movidos para context-messages
+    (should (null +carlos/magent-fsm-pending-results))
+    (should +carlos/magent-fsm-pending-context-messages)
+    (should (string-match-p "explore" (car +carlos/magent-fsm-pending-context-messages)))
+    ;; Injetar no prompt via advice
+    (let ((captured-prompt nil))
+      (cl-letf (((symbol-function 'agent-shell--send-command)
+                 (lambda (&rest args)
+                   (setq captured-prompt (plist-get args :prompt))
+                   (apply #'ignore args))))
+        (funcall #'+carlos/magent-fsm-inject-context-into-prompt
+                 #'agent-shell--send-command
+                 :prompt "User question" :shell-buffer nil))
+      (should captured-prompt)
+      (should (string-match-p "explore" captured-prompt))
+      (should (string-match-p "User question" captured-prompt)))))
+
+(ert-deftest myemacs-magent-fsm-e4-partial-results-before-timeout ()
+  "Testa timeout com resultado parcial armazenado."
+  (skip-unless myemacs-fsm-available)
+  (let ((+carlos/magent-fsm-pending-results nil)
+        (+carlos/magent-fsm-pending-context-messages nil))
+    ;; Simular timeout com resultado parcial
+    (setq +carlos/magent-fsm-pending-results
+          '(("job-timeout" . (:agent-name "coder" :status failed :error "Timeout after 30s"))))
+    ;; Injetar
+    (+carlos/magent-fsm-inject-pending-results)
+    ;; Verificar que erro foi preservado
+    (should +carlos/magent-fsm-pending-context-messages)
+    (let ((msg (car +carlos/magent-fsm-pending-context-messages)))
+      (should (string-match-p "coder" msg))
+      (should (string-match-p "failed" msg))
+      (should (string-match-p "Timeout" msg)))))
+
+(ert-deftest myemacs-magent-fsm-e4-multiple-jobs-ordering ()
+  "Testa que múltiplos jobs mantêm ordem."
+  (skip-unless myemacs-fsm-available)
+  (let ((+carlos/magent-fsm-pending-results nil)
+        (+carlos/magent-fsm-pending-context-messages nil))
+    (setq +carlos/magent-fsm-pending-results
+          '(("j1" . (:agent-name "agent-a" :status completed :result "Result A"))
+            ("j2" . (:agent-name "agent-b" :status completed :result "Result B"))
+            ("j3" . (:agent-name "agent-c" :status failed :error "Error C"))))
+    (+carlos/magent-fsm-inject-pending-results)
+    (should (= (length +carlos/magent-fsm-pending-context-messages) 3))
+    (should (string-match-p "agent-a" (nth 0 +carlos/magent-fsm-pending-context-messages)))
+    (should (string-match-p "agent-b" (nth 1 +carlos/magent-fsm-pending-context-messages)))
+    (should (string-match-p "agent-c" (nth 2 +carlos/magent-fsm-pending-context-messages)))))
+
+(ert-deftest myemacs-magent-fsm-e4-reset-clears-all-e1-e2-e3-state ()
+  "Testa que reset limpa todo o estado de E1+E2+E3."
+  (skip-unless myemacs-fsm-available)
+  (let ((+carlos/magent-fsm-pending-results '("r1"))
+        (+carlos/magent-fsm-pending-context-messages '("m1"))
+        (+carlos/magent-fsm-resume-with-context t)
+        (+carlos/magent-fsm-observer-tokens '(tok1)))
+    (cl-letf (((symbol-function 'magent-agent-job-remove-observer) #'ignore))
+      (+carlos/magent-fsm-reset))
+    (should (null +carlos/magent-fsm-pending-results))
+    (should (null +carlos/magent-fsm-pending-context-messages))
+    (should (null +carlos/magent-fsm-resume-with-context))
+    (should (null +carlos/magent-fsm-observer-tokens))
+    (should (eq +carlos/magent-fsm-state 'idle))))
+
+(ert-deftest myemacs-magent-fsm-e4-empty-pending-does-nothing ()
+  "Testa que pending vazio não produz contexto."
+  (skip-unless myemacs-fsm-available)
+  (let ((+carlos/magent-fsm-pending-results nil)
+        (+carlos/magent-fsm-pending-context-messages nil)
+        (+carlos/magent-fsm-resume-with-context nil))
+    (+carlos/magent-fsm-collect-completed-jobs)
+    (should (null +carlos/magent-fsm-pending-results))
+    (should (null +carlos/magent-fsm-pending-context-messages))
+    (should (null +carlos/magent-fsm-resume-with-context))))
+
+(ert-deftest myemacs-magent-fsm-e4-context-injection-multiple-results ()
+  "Testa injeção com múltiplos resultados no prompt."
+  (skip-unless myemacs-fsm-available)
+  (let ((+carlos/magent-fsm-pending-context-messages
+         '("[Subagent explore (completed)] Found 5 files"
+           "[Subagent coder (completed)] Fixed 2 bugs"))
+        (+carlos/magent-fsm-resume-with-context t)
+        (captured-prompt nil))
+    (cl-letf (((symbol-function 'agent-shell--send-command)
+               (lambda (&rest args)
+                 (setq captured-prompt (plist-get args :prompt))
+                 (apply #'ignore args))))
+      (funcall #'+carlos/magent-fsm-inject-context-into-prompt
+               #'agent-shell--send-command
+               :prompt "Next question" :shell-buffer nil))
+    (should captured-prompt)
+    (should (string-match-p "explore" captured-prompt))
+    (should (string-match-p "coder" captured-prompt))
+    (should (string-match-p "Next question" captured-prompt))))
+
 (provide 'magent-fsm-test)
 ;;; magent-fsm-test.el ends here

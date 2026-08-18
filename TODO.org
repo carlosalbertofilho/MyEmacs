@@ -225,10 +225,9 @@ Em =custom-magent-fsm.el=:
 - =myemacs-magent-fsm-resume-flag-cleared-after-use=
 - =myemacs-magent-fsm-turn-start-uses-resume-context=
 
-*** Fase E4 — Testes de integração e edge cases
+*** DONE Fase E4 — Testes de integração e edge cases
     :PROPERTIES:
-    :ASSIGNEE: qa
-    :STATUS: backlog
+    :ASSIGNEE: coder
     :END:
 
 *Cenários a testar:*
