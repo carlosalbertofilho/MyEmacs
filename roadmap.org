@@ -39,6 +39,42 @@ entenderem o estado atual do projeto e decisões tomadas.
        permissões por arquivo (glob), interseção, merge e disponibilidade.
    - **Gates:** =just compile-prod= zero warnings, =just test= 338/0/9.
 
+** 2026-08-18 — [CONCLUÍDO] Fase E — Subagent Result Routing (coleta + injeção + retomada)
+   - **Objetivo:** quando o orquestrador termina o turno sem chamar =wait_agent=
+     (modelo local viola a directiva 5), o job do subagente continua assíncrono.
+     A FSM entra em =subagent-waiting= mas não há mecanismo para coletar e
+     injetar o resultado no contexto do orquestrador. Fase E resolve o ciclo
+     completo: coleta → formatação → injeção no prompt via advice.
+   - **E1 — Subagent Result Collector (=custom-magent-fsm.el=):**
+     - =+carlos/magent-fsm-pending-results= (alist job-id → plist com
+       =:agent-name=, =:status=, =:result=, =:error=).
+     - =+carlos/magent-fsm-collect-completed-jobs= — itera jobs da sessão pai,
+       extrai resultados de jobs terminal (=completed= / =failed=).
+     - =+carlos/magent-fsm-register-observer= — callback de conclusão em job.
+     - =+carlos/magent-fsm-register-observers-for-pending= — registra observers
+       para todos os jobs ativos (chamado no =turn-end-sink=).
+     - =+carlos/magent-fsm-cleanup-observers= — remove observers registrados.
+   - **E2 — Deferred Result Injection:**
+     - =+carlos/magent-fsm-inject-pending-results= — formata como mensagens
+       =[Subagent <name> (<status>)] <result>=, armazena em
+       =+carlos/magent-fsm-pending-context-messages=.
+     - =+carlos/magent-fsm-resume-with-context= — flag para sinalizar contexto
+       pendente.
+   - **E3 — Orchestrator Resume via advice:**
+     - =+carlos/magent-fsm-consume-pending-context= — retorna e limpa contexto.
+     - =+carlos/magent-fsm-inject-context-into-prompt= — advice em
+       =agent-shell--send-command= que injeta contexto no prompt antes de
+       delegar ao LLM.
+   - **E4 — Integration tests (6 cenários):**
+     - Fluxo completo pending → inject → prompt.
+     - Timeout parcial, ordenação de múltiplos jobs, reset de estado,
+       pending vazio, injeção múltipla.
+   - **Commits:** 90729f7 (E1), 67f1a6c (E2), 49e3151 (E3), 2d652b0 (E4),
+     2403362 (docs).
+   - **Docs:** magent-reference.org — seção "Subagent Result Routing (Fase E)"
+     com API completa, variáveis, fluxo e reset.
+   - **Gates:** =just compile-prod= zero warnings, =just test= 360/0/9.
+
 ** 2026-08-17 — [CONCLUÍDO] Fix: isolamento de eventos de subagente na FSM (turn-end-sink)
    - **Problema:** o =turn-end-sink= é global — eventos de turno de subagentes
      disparam no contexto do subagente, onde =magent-tools--parent-session=

@@ -61,49 +61,6 @@ inteiro colado.
 
 * Backlog Ativo
 
-** DONE Fase C — Loop de Auto-correção como Skill/Workflow
-    :PROPERTIES:
-    :CREATED: 2026-08-18
-    :END:
-
-Skill =buffer-driver-loop= e 5 tools do buffer driver já existem (Fase B).
-Faltam: integração FSM, directiva ao orquestrador e testes do loop completo.
-
-*** DONE C1+C2 — Contador de iterações + critério de parada (FSM)
-    :PROPERTIES:
-    :ASSIGNEE: coder
-    :END:
-    Em =custom-magent-fsm.el=:
-    - =+carlos/magent-fsm-healing-attempts= (contador de tentativas)
-    - =+carlos/magent-fsm-healing-progress= (flag de progresso)
-    - =+carlos/magent-fsm-healing-step= (função: retorna =stop= ou =continue=)
-    - Critério: para quando zero erros OU 2 tentativas sem progresso.
-
-*** DONE C3 — Directiva regra 12 ao orquestrador
-    :PROPERTIES:
-    :ASSIGNEE: coder
-    :END:
-    Em =custom-magent-tools.el=, adicionar regra em
-    =+carlos/magent-system-directives=:
-    "When user asks to 'fix', 'corrija', 'arrume', or 'refactor code in this
-    buffer', activate the buffer-driver-loop skill."
-
-*** DONE C4 — Testes ERT do loop completo
-    :PROPERTIES:
-    :ASSIGNEE: qa
-    :END:
-    Em =tests/magent-buffer-test.el=:
-    - =myemacs-magent-buffer-driver-loop-stopping-condition=
-    - =myemacs-magent-buffer-driver-loop-stops-on-zero-errors=
-    - =myemacs-magent-buffer-driver-loop-resets-on-turn-end=
-
-*** DONE C5 — Integração FSM↔skill no turn-end-sink
-    :PROPERTIES:
-    :ASSIGNEE: coder
-    :END:
-    No =turn-end-sink=, detectar se skill está ativo e gerenciar ciclo.
-    Reset do contador em =+carlos/magent-fsm-reset=.
-
 ** TODO Fase C — Validação Interativa da Stack de IA (GUI)
     :PROPERTIES:
     :CREATED: 2026-08-12
@@ -120,132 +77,6 @@ Validar o fluxo interativo das integrações em modo GUI no ambiente
 - gptel-org integrado em arquivos =.org=.
 - Troca dinâmica de backend e modelo no buffer e verificação de streaming.
 
-** TODO Re-anexação automática de subagentes (herança da FSM & Submodelos)
-    :PROPERTIES:
-    :CREATED: 2026-08-16
-    :STATUS: backlog
-    :END:
-
-Pendências remanescentes do plano "FSM & Submodelos" (roadmap 2026-08-13):
-
-- Quando um job de subagente completa com o turno do pai já encerrado, o
-  resultado ainda não é injetado automaticamente na conversa pai (exigiria sink
-  de =magent-lifecycle-events= no =agent-job=).
-- Feedback de UI durante =wait_agent=: o sampling FSM fica em TOOL sem streaming
-  durante o bloqueio — coberto pelo D6 (spinners no painel *Magent*).
-
-*** DONE Fase E1 — Subagent Result Collector (monitor de conclusão)
-    :PROPERTIES:
-    :ASSIGNEE: coder
-    :END:
-
-*Problema:* quando o orquestrador termina o turno sem chamar =wait_agent=
-(modelo local viola a directiva 5), o job do subagente continua assíncrono.
-A FSM entra em =subagent-waiting= mas não há mecanismo para coletar o
-resultado quando o subagente completa.
-
-*Solução:* criar um collector que monitora jobs pendentes e coleta resultados.
-
-Em =custom-magent-fsm.el=:
-1. Nova variável =+carlos/magent-fsm-pending-results= (alist job-id → result-text).
-2. Função =+carlos/magent-fsm-collect-completed-jobs=:
-   - Itera =+carlos/magent-fsm-subagent-jobs= (cache da FSM).
-   - Para cada job com status =completed=, extrai =magent-agent-job-result=
-     e armazena em =+carlos/magent-fsm-pending-results=.
-   - Remove job da lista de pending (status terminal não é mais "pending").
-3. Registrar observer em cada job via =magent-agent-job-add-observer= quando
-   a FSM entra em =subagent-waiting= (no =turn-end-sink=).
-4. Observer callback: quando status =completed= ou =failed=, coleta resultado
-   e armazena em =+carlos/magent-fsm-pending-results=.
-
-*Testes ERT:*
-- =myemacs-magent-fsm-collect-completed-jobs-extracts-result=
-- =myemacs-magent-fsm-collect-completed-jobs-removes-from-pending=
-- =myemacs-magent-fsm-observer-callback-stores-result=
-
-*** DONE Fase E2 — Deferred Result Injection (injeção pós-turno)
-    :PROPERTIES:
-    :ASSIGNEE: coder
-    :END:
-
-*Problema:* mesmo com o resultado coletado, não há mecanismo para injetá-lo
-no contexto do orquestrador após o turno ter terminado.
-
-*Solução:* quando a FSM detecta que há resultados pendentes no
-=turn-start-sink=, injeta o resultado como mensagem de sistema antes de
-iniciar o próximo turno.
-
-Em =custom-magent-fsm.el=:
-1. Função =+carlos/magent-fsm-inject-pending-results=:
-   - Verifica =+carlos/magent-fsm-pending-results=.
-   - Para cada resultado, formata como mensagem de contexto:
-     =[Subagent <agent-name> completed]: <result-text>=
-   - Retorna a lista de mensagens para injetar.
-2. Modificar =+carlos/magent-fsm-turn-start-sink=:
-   - Antes de transicionar para =thinking= ou =subagent-running=,
-     chamar =+carlos/magent-fsm-inject-pending-results=.
-   - Se houver resultados, adicionar ao prompt do orquestrador via
-     =magent-request-context= ou callback de UI.
-3. Limpar =+carlos/magent-fsm-pending-results= após injeção.
-
-*Testes ERT:*
-- =myemacs-magent-fsm-inject-pending-results-formats-correctly=
-- =myemacs-magent-fsm-inject-pending-results-clears-after-injection=
-- =myemacs-magent-fsm-turn-start-injects-before-transition=
-
-*** DONE Fase E3 — Orchestrator Resume (retomada do turno)
-    :PROPERTIES:
-    :ASSIGNEE: coder
-    :END:
-
-*Problema:* injetar a mensagem não basta — o orquestrador precisa ser
-retomado para processar o resultado do subagente.
-
-*Solução:* quando há resultados injetados, o =turn-start-sink= deve
-sinalizar que o próximo turno deve começar com contexto enriquecido.
-
-Em =custom-magent-fsm.el=:
-1. Variável =+carlos/magent-fsm-resume-with-context= (flag booleano).
-2. Quando =+carlos/magent-fsm-inject-pending-results= retorna resultados
-   não-vazios, setar flag =t=.
-3. Em =+carlos/magent-fsm-turn-start-sink=, se flag está ativa:
-   - Transicionar para =thinking= (não =subagent-running=).
-   - A flag sinaliza para o handler de UI que o turno deve incluir
-     o contexto do subagente como mensagem de sistema.
-4. Reset da flag após uso.
-
-*Integração com UI:*
-- O =magent-agent-shell= (ou o handler de turno) verifica a flag e
-  adiciona as mensagens pendentes ao prompt antes de enviar ao LLM.
-- Alternativa: usar =magent-request-context= para injetar contexto
-  diretamente no request.
-
-*Testes ERT:*
-- =myemacs-magent-fsm-resume-flag-set-on-pending-results=
-- =myemacs-magent-fsm-resume-flag-cleared-after-use=
-- =myemacs-magent-fsm-turn-start-uses-resume-context=
-
-*** DONE Fase E4 — Testes de integração e edge cases
-    :PROPERTIES:
-    :ASSIGNEE: coder
-    :END:
-
-*Cenários a testar:*
-1. Subagente completa antes do orquestrador chamar =wait_agent= (cenário ideal).
-2. Subagente completa após orquestrador terminar turno (cenário de falha).
-3. Múltiplos subagentes com tempos de conclusão diferentes.
-4. Subagente falha (=status= =failed=) — resultado de erro deve ser injetado.
-5. Timeout do subagente — resultado parcial ou timeout message.
-6. FSM já em =idle= quando subagente completa (usuário digitou algo novo).
-
-*Testes ERT:*
-- =myemacs-magent-fsm-subagent-completes-before-wait=
-- =myemacs-magent-fsm-subagent-completes-after-turn-end=
-- =myemacs-magent-fsm-multiple-subagents-different-completion-times=
-- =myemacs-magent-fsm-failed-subagent-injects-error=
-- =myemacs-magent-fsm-timeout-subagent-handled=
-- =myemacs-magent-fsm-idle-while-subagent-completes=
-
 ** TODO D5. Context Sharing Dinâmico para Subagentes
     :PROPERTIES:
     :ASSIGNEE: orquestrador
@@ -253,12 +84,6 @@ Em =custom-magent-fsm.el=:
     :END:
     Injetar automaticamente contexto relevante nos prompts enviados a
     subagentes (=spawn_agent= aprimorado).
-
-** DONE D7. Testes Unitários de Permissão (ERT)
-    :PROPERTIES:
-    :ASSIGNEE: qa
-    :END:
-    Adicionar testes em =tests/magent-routing-test.el= simulando =agent-info=.
 
 ** TODO D8. Criação das Ferramentas do Perfil =archeologist=
     :PROPERTIES:
@@ -316,7 +141,7 @@ pipeline de dois estágios automaticamente (sem keybinding).
 *Critério de saída:* =just compile= zero-warning; 3 testes ERT novos
 (perfil logic-extractor registrado, instruções não-vazias, regra 12
 presente nas directives); =just test-all= verde; teste interativo com
- Flash documentando um arquivo =.el= existente.
+Flash documentando um arquivo =.el= existente.
 
 *Arquivos:* =lisp/custom-magent-subagent.el=, =lisp/custom-magent-tools.el=,
 =tests/magent-team-test.el=, =docs/magent-reference.org=.
@@ -325,6 +150,12 @@ presente nas directives); =just test-all= verde; teste interativo com
 
 Planos concluídos e consolidados no [[file:roadmap.org][roadmap.org]]:
 
+- *Fase E — Subagent Result Routing* (2026-08-18) — Collector, injection,
+  advice, integration tests. 4 commits, 21 testes ERT.
+- *Fase C — Loop de Auto-correção* (2026-08-18) — FSM healing step,
+  directiva 12, 5 testes ERT.
+- *D7 — Testes Unitários de Permissão* (2026-08-18) — 8 testes em
+  magent-routing-test.el.
 - *Liquidação da Dívida Técnica* (2026-08-16) — Elpaca [:ensure (:wait t)],
   guard jinx, epdfinfo, agent-shell. Todos resolvidos.
 - *Controle de Contexto* (2026-08-17) — cooldown, métricas, cap tool results,
