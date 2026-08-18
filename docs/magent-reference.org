@@ -814,6 +814,17 @@ Skill de auto-correção declarativa (Fase C, 2026-08-16):
 =buffer_conflict= → =flycheck_errors= → fix (=lsp_navigation= / =lsp_hover= /
 =describe_elisp_symbol=) → =buffer_undo= → critério de parada (zero erros ou 2
 tentativas sem progresso).
+
+** FSM Healing Step (Fase C, 2026-08-18)
+A FSM fornece funções para controle do ciclo de auto-correção:
+
+- =+carlos/magent-fsm-healing-attempts= — contador de tentativas sem progresso.
+- =+carlos/magent-fsm-healing-last-error-count= — número de erros da iteração anterior (=nil= na primeira).
+- =+carlos/magent-fsm-healing-step (error-count)= — compara com iteração anterior. Retorna =stop= quando zero erros OU 2 tentativas sem progresso, =continue= caso contrário.
+- Reset automático em =+carlos/magent-fsm-reset=.
+
+** Directiva 12: Buffer Self-Healing
+Quando o usuário pede "fix", "corrija", "arrume" ou "refactor code in this buffer", o orquestrador ativa a skill =buffer-driver-loop= automaticamente (regra 12 em =+carlos/magent-system-directives=).
 * Custom Agents
 
 Custom agents can be defined per project under ~.magent/agent/<name>.md~:

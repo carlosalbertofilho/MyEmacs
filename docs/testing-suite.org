@@ -35,9 +35,10 @@ Os testes residem na pasta =tests/= e são estruturados por área de responsabil
 | [[file:../tests/context-test.el][context-test.el]]             | Cache hit-rate, auto-compaction, cooldown, métricas, compactação seletiva (5 testes novos) e preservação de instruções. |
 | [[file:../tests/magent-test.el][magent-test.el]]               | Pacote magent carrega, comandos existem, bind =C-c M m=, skills dir e agent-shell. |
 | [[file:../tests/magent-fsm-test.el][magent-fsm-test.el]]         | Estados da FSM de orquestração (idle→tool-executing→subagent-*) e hard rules. |
-| [[file:../tests/magent-routing-test.el][magent-routing-test.el]]     | Roteamento de modelo/backend por host e tier. |
+| [[file:../tests/magent-routing-test.el][magent-routing-test.el]]     | Roteamento de modelo/backend por host e tier + testes de permissão (D7). |
 | [[file:../tests/magent-driver-test.el][magent-driver-test.el]]       | Tools curadas (flycheck_errors, lsp_navigation, snippet_expand) e select_model. |
 | [[file:../tests/magent-tools-test.el][magent-tools-test.el]]       | Cap de tool results por turno, truncamento e preservação de buffer_read. |
+| [[file:../tests/magent-buffer-test.el][magent-buffer-test.el]]     | Buffer driver tools, loop de auto-correção (Fase C) e healing step. |
 | [[file:../tests/magent-ui-test.el][magent-ui-test.el]]           | UI do Magent (transient, chaveamento de sessão). |
 | [[file:../tests/local-ai-automation-test.el][local-ai-automation-test.el]] | Pipeline Ollama CPU: docstrings e testes gerados por IA. |
 | [[file:../tests/ai-network-test.el][ai-network-test.el]]            | Testes de rede (live API requests) para provedores de nuvem (opt-in). |
