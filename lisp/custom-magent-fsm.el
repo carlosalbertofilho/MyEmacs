@@ -43,6 +43,43 @@ e consultada por `+carlos/magent-fsm-pending-subagent-p'.")
   "Acumulador de texto do canal `reasoning' do gptel.
 Usado pelo sanitizador para detectar tool calls emitidas dentro do pensamento.")
 
+;; ── ETAPA 1d: Loop de Auto-Correção (Fase C — buffer-driver-loop) ─────────
+;; Contador de iterações e detecção de progresso para o ciclo
+;; read → write → flycheck → fix → re-validate.
+;; Critério de parada: zero erros OU 2 tentativas sem progresso.
+
+(defvar +carlos/magent-fsm-healing-attempts 0
+  "Contador de tentativas sem progresso no ciclo de auto-correção.
+Incrementado quando error-count não diminui.  Resetado a 0 quando
+há progresso (error-count diminui) ou ao fim do ciclo.")
+
+(defvar +carlos/magent-fsm-healing-last-error-count nil
+  "Número de erros da iteração anterior do loop de auto-correção.
+nil na primeira iteração (nenhumhistórico de comparação).")
+
+(defun +carlos/magent-fsm-healing-step (error-count)
+  "Registra uma iteração do loop de auto-correção.
+ERROR-COUNT é o número de erros restantes após a tentativa de fix.
+Compara com `+carlos/magent-fsm-healing-last-error-count' para detectar
+progresso.  Retorna \\='stop quando zero erros OU 2 tentativas sem
+progresso, ou \\='continue quando deve prosseguir."
+  (let ((prev +carlos/magent-fsm-healing-last-error-count))
+    (setq +carlos/magent-fsm-healing-last-error-count error-count)
+    (cond
+     ((zerop error-count)
+      (setq +carlos/magent-fsm-healing-attempts 0)
+      'stop)
+     ((and prev (>= +carlos/magent-fsm-healing-attempts 2)
+           (>= error-count prev))
+      (setq +carlos/magent-fsm-healing-attempts 0)
+      'stop)
+     ((or (null prev) (< error-count prev))
+      (setq +carlos/magent-fsm-healing-attempts 0)
+      'continue)
+     (t
+      (cl-incf +carlos/magent-fsm-healing-attempts)
+      'continue))))
+
 ;; ── ETAPA 2: Fallback Inteligente com Retry ───────────────────────────────
 ;; Quando um subagente falha por timeout ou modelo indisponível, retry
 ;; automático com modelo de tier acima. Máx 1 retry por subagente.
@@ -66,7 +103,9 @@ pela FSM."
         +carlos/magent-fsm-retry-count 0
         +carlos/magent-fsm-reasoning-buffer ""
         +carlos/magent-fsm-subagent-jobs nil
-        +carlos/magent-fsm-retry-info nil)
+        +carlos/magent-fsm-retry-info nil
+        +carlos/magent-fsm-healing-attempts 0
+        +carlos/magent-fsm-healing-last-error-count nil)
   (when (fboundp '+carlos/magent-buffer-reset-session)
     (+carlos/magent-buffer-reset-session))
   (when (fboundp '+carlos/magent-ui-spinner-stop)

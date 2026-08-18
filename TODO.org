@@ -54,11 +54,55 @@ inteiro colado.
 
 5. *Fase A — Tools curadas* (DONE 2026-08-12) — catálogo enxuto (3 tools):
    =flycheck_errors=, =lsp_navigation=, =snippet_expand=; com testes na suíte ERT.
-6. *Fase B — Driver do buffer vivo* (TODO) — =buffer_edit= + workflow
-   snippet → lacunas → flycheck → corrigir (o "preencher só as lacunas").
-7. *Fase C — Loop de auto-correção como skill/workflow* (TODO).
+6. *Fase B — Driver do buffer vivo* (DONE 2026-08-16) — =buffer_insert=,
+   =buffer_replace_region=, =buffer_undo=, =lsp_hover=,
+   =describe_elisp_symbol=; 16 testes ERT, skill =buffer-driver-loop=.
+7. *Fase C — Loop de auto-correção como skill/workflow* (DONE 2026-08-18).
 
 * Backlog Ativo
+
+** DONE Fase C — Loop de Auto-correção como Skill/Workflow
+    :PROPERTIES:
+    :CREATED: 2026-08-18
+    :END:
+
+Skill =buffer-driver-loop= e 5 tools do buffer driver já existem (Fase B).
+Faltam: integração FSM, directiva ao orquestrador e testes do loop completo.
+
+*** DONE C1+C2 — Contador de iterações + critério de parada (FSM)
+    :PROPERTIES:
+    :ASSIGNEE: coder
+    :END:
+    Em =custom-magent-fsm.el=:
+    - =+carlos/magent-fsm-healing-attempts= (contador de tentativas)
+    - =+carlos/magent-fsm-healing-progress= (flag de progresso)
+    - =+carlos/magent-fsm-healing-step= (função: retorna =stop= ou =continue=)
+    - Critério: para quando zero erros OU 2 tentativas sem progresso.
+
+*** DONE C3 — Directiva regra 12 ao orquestrador
+    :PROPERTIES:
+    :ASSIGNEE: coder
+    :END:
+    Em =custom-magent-tools.el=, adicionar regra em
+    =+carlos/magent-system-directives=:
+    "When user asks to 'fix', 'corrija', 'arrume', or 'refactor code in this
+    buffer', activate the buffer-driver-loop skill."
+
+*** DONE C4 — Testes ERT do loop completo
+    :PROPERTIES:
+    :ASSIGNEE: qa
+    :END:
+    Em =tests/magent-buffer-test.el=:
+    - =myemacs-magent-buffer-driver-loop-stopping-condition=
+    - =myemacs-magent-buffer-driver-loop-stops-on-zero-errors=
+    - =myemacs-magent-buffer-driver-loop-resets-on-turn-end=
+
+*** DONE C5 — Integração FSM↔skill no turn-end-sink
+    :PROPERTIES:
+    :ASSIGNEE: coder
+    :END:
+    No =turn-end-sink=, detectar se skill está ativo e gerenciar ciclo.
+    Reset do contador em =+carlos/magent-fsm-reset=.
 
 ** TODO Fase C — Validação Interativa da Stack de IA (GUI)
     :PROPERTIES:
@@ -98,10 +142,9 @@ Pendências remanescentes do plano "FSM & Submodelos" (roadmap 2026-08-13):
     Injetar automaticamente contexto relevante nos prompts enviados a
     subagentes (=spawn_agent= aprimorado).
 
-** TODO D7. Testes Unitários de Permissão (ERT)
+** DONE D7. Testes Unitários de Permissão (ERT)
     :PROPERTIES:
     :ASSIGNEE: qa
-    :STATUS: backlog
     :END:
     Adicionar testes em =tests/magent-routing-test.el= simulando =agent-info=.
 

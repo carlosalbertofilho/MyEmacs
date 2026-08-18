@@ -14,6 +14,12 @@
 (require 'json)
 (require 'custom-magent)
 
+(declare-function +carlos/magent-fsm-healing-step "custom-magent-fsm")
+(declare-function +carlos/magent-fsm-reset "custom-magent-fsm")
+(defvar +carlos/magent-fsm-healing-attempts)
+(defvar +carlos/magent-fsm-healing-last-error-count)
+(defvar +carlos/magent-system-directives)
+
 (defun myemacs-buffer-result-output (res)
   "Extrai o output (string) de RES — struct `magent-tool-result' ou string."
   (if (and (fboundp 'magent-tool-result-p) (magent-tool-result-p res))
@@ -266,6 +272,54 @@
     (let ((entry (magent-tools-catalog-entry name)))
       (should entry)
       (should (eq (plist-get entry :permission) 'buffer)))))
+
+;; ── Fase C: Loop de Auto-Correção (buffer-driver-loop) ──────────────────
+
+(ert-deftest myemacs-magent-buffer-driver-loop-stops-on-zero-errors ()
+  "healing-step retorna 'stop quando error-count é zero."
+  (let ((+carlos/magent-fsm-healing-attempts 0)
+        (+carlos/magent-fsm-healing-last-error-count 5))
+    (should (eq (+carlos/magent-fsm-healing-step 0) 'stop))
+    (should (= +carlos/magent-fsm-healing-attempts 0))))
+
+(ert-deftest myemacs-magent-buffer-driver-loop-stopping-condition ()
+  "healing-step para após 2 tentativas sem progresso consecutivo."
+  (let ((+carlos/magent-fsm-healing-attempts 0)
+        (+carlos/magent-fsm-healing-last-error-count 5))
+    ;; Tentativa 1: sem progresso (erros=3, anterior=5, mas 3<5 → progresso!)
+    ;; Na verdade 3 < 5 é progresso → attempts reseta
+    ;; Vamos usar cenário onde erros NÃO diminuem
+    (let ((+carlos/magent-fsm-healing-last-error-count 3))
+      ;; Tentativa 1: erros=3, anterior=3 → sem progresso, attempts=1
+      (should (eq (+carlos/magent-fsm-healing-step 3) 'continue))
+      (should (= +carlos/magent-fsm-healing-attempts 1))
+      ;; Tentativa 2: erros=3, anterior=3 → sem progresso, attempts=2
+      (should (eq (+carlos/magent-fsm-healing-step 3) 'continue))
+      (should (= +carlos/magent-fsm-healing-attempts 2))
+      ;; Tentativa 3: erros=3, anterior=3 → attempts>=2 → stop
+      (should (eq (+carlos/magent-fsm-healing-step 3) 'stop))
+      (should (= +carlos/magent-fsm-healing-attempts 0)))))
+
+(ert-deftest myemacs-magent-buffer-driver-loop-progress-resets-counter ()
+  "healing-step reseta o contador quando erros diminuem."
+  (let ((+carlos/magent-fsm-healing-attempts 2)
+        (+carlos/magent-fsm-healing-last-error-count 5))
+    ;; Progresso: erros caíram de 5 para 1 → reseta counter, continua
+    (should (eq (+carlos/magent-fsm-healing-step 1) 'continue))
+    (should (= +carlos/magent-fsm-healing-attempts 0))))
+
+(ert-deftest myemacs-magent-buffer-driver-loop-resets-on-fsm-reset ()
+  "FSM reset limpa estado do loop de auto-correção."
+  (let ((+carlos/magent-fsm-healing-attempts 2)
+        (+carlos/magent-fsm-healing-last-error-count 3))
+    (+carlos/magent-fsm-reset)
+    (should (= +carlos/magent-fsm-healing-attempts 0))
+    (should (null +carlos/magent-fsm-healing-last-error-count))))
+
+(ert-deftest myemacs-magent-buffer-driver-loop-directive-present ()
+  "Directiva 12 (BUFFER SELF-HEALING) existe nas directives do sistema."
+  (should (string-match-p "BUFFER SELF-HEALING" +carlos/magent-system-directives))
+  (should (string-match-p "buffer-driver-loop" +carlos/magent-system-directives)))
 
 (provide 'magent-buffer-test)
 ;;; magent-buffer-test.el ends here

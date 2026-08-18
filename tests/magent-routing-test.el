@@ -280,5 +280,74 @@ e match exato — modelo forte obrigatório."
                (cl-struct-slot-value 'magent-request-context 'backend request-state)
                (gptel-get-backend "OpenCode Zen"))))))
 
+;; ── D7: Testes Unitários de Permissão (ERT) ─────────────────────────
+
+(ert-deftest myemacs-magent-permission-resolve-basic ()
+  "Garante que magent-permission-resolve resolve regras simples."
+  (should (eq (magent-permission-resolve '((read . allow)) 'read) 'allow))
+  (should (eq (magent-permission-resolve '((read . deny)) 'read) 'deny))
+  (should (eq (magent-permission-resolve '((read . ask)) 'read) 'ask))
+  ;; Default para tool não listada: allow (via *)
+  (should (eq (magent-permission-resolve '((read . allow)) 'write) 'allow)))
+
+(ert-deftest myemacs-magent-permission-allow-p ()
+  "Garante que magent-permission-allow-p retorna t apenas para allow."
+  (should (magent-permission-allow-p '((read . allow)) 'read))
+  (should-not (magent-permission-allow-p '((read . deny)) 'read))
+  (should-not (magent-permission-allow-p '((read . ask)) 'read)))
+
+(ert-deftest myemacs-magent-permission-deny-p ()
+  "Garante que magent-permission-deny-p retorna t apenas para deny."
+  (should (magent-permission-deny-p '((read . deny)) 'read))
+  (should-not (magent-permission-deny-p '((read . allow)) 'read))
+  (should-not (magent-permission-deny-p '((read . ask)) 'read)))
+
+(ert-deftest myemacs-magent-permission-ask-p ()
+  "Garante que magent-permission-ask-p retorna t apenas para ask."
+  (should (magent-permission-ask-p '((read . ask)) 'read))
+  (should-not (magent-permission-ask-p '((read . allow)) 'read))
+  (should-not (magent-permission-ask-p '((read . deny)) 'read)))
+
+(ert-deftest myemacs-magent-permission-file-specific ()
+  "Garante que permissões por arquivo são resolvidas corretamente."
+  (let ((rules '((read . ((* . allow)
+                          ("*.env.example" . allow)
+                          ("*.env" . deny))))))
+    (should (eq (magent-permission-resolve rules 'read "/project/file.el" "/project/") 'allow))
+    (should (eq (magent-permission-resolve rules 'read "/project/config.env" "/project/") 'deny))
+    (should (eq (magent-permission-resolve rules 'read "/project/config.env.example" "/project/") 'allow))))
+
+(ert-deftest myemacs-magent-permission-intersect ()
+  "Garante que interseção de perfis retorna a regra mais restritiva."
+  (let ((profile1 '((read . allow) (write . allow)))
+        (profile2 '((read . deny) (write . ask))))
+    (let ((result (magent-permission-intersect profile1 profile2)))
+      (should (eq (magent-permission-resolve result 'read) 'deny))
+      (should (eq (magent-permission-resolve result 'write) 'ask)))))
+
+(ert-deftest myemacs-magent-permission-merge ()
+  "Garante que merge de regras usa última regra vencedora."
+  (let ((rules1 '((read . allow)))
+        (rules2 '((read . deny))))
+    (let ((result (magent-permission-merge rules1 rules2)))
+      (should (eq (magent-permission-resolve result 'read) 'deny)))))
+
+(ert-deftest myemacs-magent-permission-tool-available ()
+  "Garante que magent-permission-tool-available-p verifica disponibilidade."
+  ;; allow → disponível
+  (should (magent-permission-tool-available-p '((read . allow)) 'read))
+  ;; ask → disponível (precisa confirmação mas existe)
+  (should (magent-permission-tool-available-p '((read . ask)) 'read))
+  ;; deny → não disponível
+  (should-not (magent-permission-tool-available-p '((read . deny)) 'read)))
+
+(ert-deftest myemacs-magent-permission-defaults ()
+  "Garante que magent-permission-defaults retorna regras sensatas."
+  (let ((defaults (magent-permission-defaults)))
+    (should (listp defaults))
+    (should (magent-permission-allow-p defaults 'read))
+    (should (magent-permission-ask-p defaults 'bash))
+    (should (magent-permission-ask-p defaults 'emacs_eval))))
+
 (provide 'magent-routing-test)
 ;;; magent-routing-test.el ends here

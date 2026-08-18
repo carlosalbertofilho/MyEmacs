@@ -28,6 +28,17 @@ entenderem o estado atual do projeto e decisões tomadas.
    - **Docs atualizados:** magent-reference.org (B6 seletiva corrigida),
      testing-suite.org (context-test.el描述更新).
 
+** 2026-08-18 — [CONCLUÍDO] Fase C (auto-correção) + D7 (testes permissão)
+   - **Fase C — Loop de Auto-correção como Skill/Workflow:**
+     - FSM: =+carlos/magent-fsm-healing-attempts=, =+carlos/magent-fsm-healing-last-error-count=,
+       =+carlos/magent-fsm-healing-step= (comparação direta error-count anterior vs atual).
+     - Directiva 12 (BUFFER SELF-HEALING) no orquestrador.
+     - 5 testes ERT em =tests/magent-buffer-test.el=.
+   - **D7 — Testes Unitários de Permissão (ERT):**
+     - 8 testes em =tests/magent-routing-test.el= cobrindo resolução, predicates,
+       permissões por arquivo (glob), interseção, merge e disponibilidade.
+   - **Gates:** =just compile-prod= zero warnings, =just test= 338/0/9.
+
 ** 2026-08-17 — [CONCLUÍDO] Fix: isolamento de eventos de subagente na FSM (turn-end-sink)
    - **Problema:** o =turn-end-sink= é global — eventos de turno de subagentes
      disparam no contexto do subagente, onde =magent-tools--parent-session=
