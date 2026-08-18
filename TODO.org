@@ -10,12 +10,9 @@
 * Visão Geral
 
 Este arquivo é o artefato único de planejamento do MyEmacs (AGENTS.md,
-política de multiagentes). Mantém apenas pendências ativas, backlog futuro e
-decisões registradas. O histórico de planos concluídos (0.5–1.0) é arquivado no
+política de multiagentes). Mantém apenas pendências ativas e backlog futuro.
+O histórico de planos concluídos é arquivado no
 [[file:roadmap.org][roadmap.org]] (Linha do Tempo).
-
-Última revisão e arquivamento: 2026-08-16 (refatorado para AST org nativa;
-histórico consolidado no roadmap.org).
 
 * Plano Diretor — Ambição e Pipeline de Execução
 
@@ -61,177 +58,9 @@ inteiro colado.
    snippet → lacunas → flycheck → corrigir (o "preencher só as lacunas").
 7. *Fase C — Loop de auto-correção como skill/workflow* (TODO).
 
-* Backlog Ativo (Pendências e Planos Futuros)
+* Backlog Ativo
 
-** TODO [#A] Liquidação da Dívida Técnica de Infraestrutura (Plano aprovado)
-    :PROPERTIES:
-    :CREATED: 2026-08-16
-    :STATUS: plano aprovado
-    :END:
-
-*Contexto:* decisões de infra em aberto há mais de 4 dias (item Diagnóstico e
-Decisões Pendentes de Infraestrutura + Etapa A2 do Plano Diretor). Plano criado
-na revisão do planejamento (roadmap 2026-08-16, [DECIDIDO]). Cada sub-item tem
-executor, prazo, critério de saída e abordagem concreta.
-
-*Nota (2026-08-17):* os 4 sub-itens originais (Elpaca [:ensure (:wait t)],
-guard jinx, epdfinfo, agent-shell) foram concluídos em 2026-08-16 e movidos
-para o roadmap.org. Este item permanece como referência para decisões de infra
-pendentes (ver Diagnóstico item 1–4 abaixo).
-
-** DONE [#A] Controle de Contexto — Melhorias baseadas em RAG/Agent_Smith
-    :PROPERTIES:
-    :CREATED: 2026-08-17
-    :STATUS: concluido
-    :END:
-
-*Contexto:* análise dos projetos RAG (Rank04) e Agent_Smith (Rank05) revelou
-padrões de controle de contexto ausentes no MyEmacs. A suíte atual consome
-muito contexto em sessões longas; gaps identificados: sem cooldown entre
-compactações, sem métricas por turno, sem cap por tool result, instrução de
-compactação não referencia AGENTS.md, fallback de context window muito baixo.
-
-*** DONE [#A] Cooldown entre compactações
-    :PROPERTIES:
-    :ASSIGNEE: executor
-    :DUE: 2026-08-19
-    :STATUS: concluido
-    :END:
-- *Problema:* =+carlos/magent-last-compaction-time= é gravado mas nunca lido.
-  Se tokens crescem rápido pós-compactação, thrashing.
-- *Abordagem:* defcustom =+carlos/magent-compaction-cooldown-seconds= (default
-  120s); verificar no sink antes de chamar =+carlos/magent-compact=; log quando
-  pular por cooldown.
-- *Critério de saída:* =just compile= zero-warning; 2 testes ERT novos
-  (cooldown ativo + cooldown expirado); =just test-all= verde.
-- *Arquivos:* =lisp/custom-magent-context.el=, =tests/context-test.el=.
-
-*** DONE [#A] Métricas por turno
-    :PROPERTIES:
-    :ASSIGNEE: executor
-    :DUE: 2026-08-20
-    :STATUS: concluido
-    :END:
-- *Problema:* não sabemos qual turno consumiu mais contexto. Impossível
-  diagnosticar desperdício.
-- *Abordagem:* alist =+carlos/magent-turn-metrics= (turn-id → input/output
-  tokens + elapsed + tool-name); acumular no sink =turn-end=; novo comando
-  =+carlos/magent-show-metrics= (=C-c A M=) mostra tabela; função
-  =+carlos/magent-top-tokens-turns= retorna top-5.
-- *Critério de saída:* =just compile= zero-warning; 3 testes ERT novos
-  (accumulation, top-N, comando); =just test-all= verde.
-- *Arquivos:* =lisp/custom-magent-context.el=, =tests/context-test.el=.
-
-*** DONE [#B] Cap por tool result
-    :PROPERTIES:
-    :ASSIGNEE: executor
-    :DUE: 2026-08-20
-    :STATUS: concluido
-    :END:
-- *Problema:* =read_file= retorna arquivo inteiro — arquivo de 500 linhas
-  consome ~10K tokens de uma vez.
-- *Abordagem:* defcustom =+carlos/magent-tool-result-max-chars= (default 8000);
-  hook no lifecycle events que trunca resultado de =read_file= e =grep= quando
-  exceder o cap (nota = [... truncado: N linhas restantes ...]=); não aplicar
-  a =buffer_read= (estado vivo).
-- *Critério de saída:* =just compile= zero-warning; 2 testes ERT novos
-  (truncamento + preservação de buffer_read); =just test-all= verde.
-- *Arquivos:* =lisp/custom-magent-tools.el=, =tests/magent-tools-test.el=.
-
-*** DONE [#B] Referência a AGENTS.md na instrução de compactação
-    :PROPERTIES:
-    :ASSIGNEE: executor
-    :DUE: 2026-08-19
-    :STATUS: concluido
-    :END:
-- *Problema:* após compactação, modelo perde consciência das regras do projeto.
-- *Abordagem:* adicionar à =+carlos/magent-build-compaction-instruction= seção
-  com regras críticas: convenções Elisp (use-package, naming +carlos/), sem
-  comments não-solicitados, executar =just test-all= após mudanças. Não incluir
-  AGENTS.md inteiro (grande demais).
-- *Critério de saída:* =just compile= zero-warning; teste ERT que verifica
-  presença das regras na instrução; =just test-all= verde.
-- *Arquivo:* =lisp/custom-magent-context.el=.
-
-*** DONE [#C] Context window fallback maior
-    :PROPERTIES:
-    :ASSIGNEE: executor
-    :DUE: 2026-08-18
-    :STATUS: concluido
-    :END:
-- *Problema:* fallback de 16K é muito baixo para modelos modernos (Gemini 1M,
-  Claude 200K). Causa compactação prematura.
-- *Abordagem:* mudar =+carlos/magent-context-window-fallback= de 16384 para
-  131072 (128K). Racional: maioria dos modelos free/locais modernos tem ≥128K.
-- *Critério de saída:* =just compile= zero-warning; teste existente
-  =myemacs-context-get-context-window= continua verde; =just test-all= verde.
-- *Arquivo:* =lisp/custom-magent-context.el= (1 linha).
-
-** TODO [#A] Otimização de Orquestração — 3 melhorias de pipeline
-    :PROPERTIES:
-    :CREATED: 2026-08-17
-    :STATUS: plano aprovado
-    :END:
-
-*Contexto:* análise de bottleneck do Magent identificou 3 melhorias com
-alto custo-benefício: delegação mais agressiva do orquestrador, fallback
-inteligente de modelo em falha, e compactação seletiva algorítmica (sem
-LLM). Discutido e aprovado em 2026-08-17.
-
-*** DONE [#A] Orquestrador mais agressivo
-    :PROPERTIES:
-    :ASSIGNEE: executor
-    :DUE: 2026-08-19
-    :STATUS: concluido
-    :END:
-- *Problema:* orquestrador faz 1 tool call por turno — consome tokens
-  com contextos repetidos e turns curtos demais.
-- *Abordagem:* reescrever regra 8 de =+carlos/magent-system-directives=
-  para: (a) padrão "spawn-and-forge" — múltiplos =spawn_agent= antes de
-  =wait_agent= quando tarefas independentes; (b) synthesis obrigatória
-  em ≤3 bullets após =wait_agent= (nunca colar transcript).
-- *Execução (2026-08-17):* commit 59400e0 (regra 8 reescrita + regra
-  10 synthesis format); 2 testes ERT novos (spawn-and-forge, synthesis).
-  Suíte: 312/305/0/7.
-
-*** DONE [#B] Fallback de modelo inteligente
-    :PROPERTIES:
-    :ASSIGNEE: executor
-    :DUE: 2026-08-20
-    :STATUS: concluido
-    :END:
-- *Problema:* watchdog dispara → FSM vai para =idle= → turno perdido.
-  Subagente falha por timeout/modelo indisponível sem retry.
-- *Abordagem:* novo sink =+carlos/magent-fsm-retry-on-failure= no
-  =turn-end-sink=: se falha é "model_unavailable" ou "timeout",
-  selecionar modelo de tier acima (local→free→paid) e retry automático
-  (máx 1x por subagente, flag =:retried=). Se falha é
-  "context_length_exceeded", compactar antes de retry.
-- *Execução (2026-08-17):* commit 9df372b (classify-failure,
-  record-failure, mark-retried, resume-up-tier, regra 11 directives);
-  7 testes ERT novos. Suíte: 319/312/0/7.
-
-*** DONE [#B] Compactação seletiva algorítmica
-    :PROPERTIES:
-    :ASSIGNEE: executor
-    :DUE: 2026-08-21
-    :STATUS: concluido
-    :END:
-- *Problema:* compactação atual é "tudo ou nada" — quando threshold é
-  atingido, compacta sessão inteira via
-  =magent-runtime-session-compact=. Perde contexto útil junto com lixo.
-- *Abordagem:* algoritmo puramente algorítmico (sem LLM) que analisa
-  turns por peso e valor: (a) candidatos = turns com tool results >
-  2000 tokens (read_file/grep pesados); (b) preservar: user prompts,
-  syntheses do orquestrador, turns < 1000 tokens; (c) remover: tool
-  results > 2000 tokens, transcripts completos de subagentes; (d)
-  mecanismo =+carlos/magent-selective-compact-execute= usando
-  =magent-thread-trim-turn= para remover turns individuais.
-- *Execução (2026-08-17):* commit 6775acb (cumulative-tool-result-chars,
-  selective-compact-p, build-selective-compaction-instruction,
-  integração auto-compact); 5 testes ERT novos. Suíte: 324/317/0/7.
-
-** TODO Validação Interativa da Stack de IA (GUI)
+** TODO Fase C — Validação Interativa da Stack de IA (GUI)
     :PROPERTIES:
     :CREATED: 2026-08-12
     :STATUS: backlog
@@ -247,65 +76,6 @@ Validar o fluxo interativo das integrações em modo GUI no ambiente
 - gptel-org integrado em arquivos =.org=.
 - Troca dinâmica de backend e modelo no buffer e verificação de streaming.
 
-** TODO Diagnóstico e Decisões Pendentes de Infraestrutura
-    :PROPERTIES:
-    :CREATED: 2026-08-12
-    :STATUS: backlog
-    :END:
-
-*Nota (2026-08-16):* os 4 itens abaixo são cobertos pelo plano priorizado
-"Liquidação da Dívida Técnica de Infraestrutura" (item [#A] no topo do Backlog
-Ativo) — não duplicar; o plano define executor, prazo e critério de saída.
-
-1. *Elpaca 0.2.0 e Ativação Síncrona (=:ensure (:wait t)=):* o plano de migrar
-   os pacotes de inicialização crítica para =:ensure (:wait t)= foi adiado
-   porque suíte e boot estão estáveis após as políticas de limpeza de build
-   stale. *RESOLVIDO 2026-08-16* (item [#B] do plano de liquidação) — migrados
-   reformatter/flycheck/compat/transient/treesit-auto; wait redundante de
-   flycheck em custom-42 removido; mantidos bootstrap, grupo de completion e
-   catch-all final (rede de segurança). Validação interativa pendente.
-2. *Guarda de Runtime para Módulo Nativo Jinx:* encapsular a inicialização do
-   =jinx-mode= em =+carlos/jinx-mode-if-available= (evitando erro de compilação
-   do =.dylib= em builds parciais do repo que quebram hooks de =prog-mode=).
-   *RESOLVIDO 2026-08-16* (item [#A] acima) — guard implementado, hooks
-   atualizados, teste de regressão na suíte.
-3. *epdfinfo Nix aborta ao ser spawnado pelo Emacs no macOS:* *RESOLVIDO
-   2026-08-16* (item [#C] acima) — a causa-raiz era o poppler 26.06.0 do Nix
-   sem o fix do mutex (Issue #1743 / commit 08f4bca6 / release 26.07.0),
-   patcheado via overlay darwin no MyMachine (commit f4f6ffc); o binário
-   abortava também no shell, não era problema de =fork()= do Emacs.
-4. *agent-shell como subagente do Magent:* usar o agent-shell standalone
-   (Aider, Cursor, Claude Code) como subagente especializado delegado pelo
-   Magent (=spawn_agent= / =wait_agent=) apenas para refatorações complexas de
-   múltiplos arquivos. *ARQUIVADO/DECIDIDO 2026-08-16* — mantém o FinOps local
-   e o roteador de custo zero (item [#C] do plano de liquidação). Gatilho de
-   retomada: refatoração multi-arquivo virar gargalo real na prática.
-
-** TODO Fase C — Loop de eventos do chat mais informativo (painel de atividade)
-    :PROPERTIES:
-    :CREATED: 2026-08-14
-    :STATUS: em andamento (C1–C5 implementados; aguarda validação interativa no prod)
-    :END:
-
-*Contexto:* o pipeline já emite eventos ricos, mas o buffer *Magent* mostra
-pouco. Implementação C1–C5 (sink de atividade, detalhe de tool call, ciclo de
-vida do subagente, badge de modelo, reasoning colapsável) em
-=lisp/custom-magent-ui.el=; testes em =tests/magent-ui-test.el= (suíte repo
-248/241/0/7; deploy =df524b7=). Detalhes completos no roadmap.org (2026-08-14).
-
-*Restante:*
-
-- Validar interativamente no prod o painel de atividade (buffer *Magent*).
-- Rodar =just sync= + =just compile-prod= (zero-warning) + =just check-prod= +
-  =just test-all=.
-- Atualizar roadmap.org e marcar esta seção como DONE.
-
-*Nota (2026-08-16):* a seção de UI/eventos do painel (C1–C5) já está
-documentada em =docs/magent-reference.org= ("Loop de eventos informativo") —
-passo antes listado aqui já cumprido. Deploy do painel =df524b7= presente no
-prod; prod aguarda o próximo =just sync= para incluir o gate =org-lint= e os
-novos testes desta rodada.
-
 ** TODO Re-anexação automática de subagentes (herança da FSM & Submodelos)
     :PROPERTIES:
     :CREATED: 2026-08-16
@@ -320,33 +90,7 @@ Pendências remanescentes do plano "FSM & Submodelos" (roadmap 2026-08-13):
 - Feedback de UI durante =wait_agent=: o sampling FSM fica em TOOL sem streaming
   durante o bloqueio — coberto pelo D6 (spinners no painel *Magent*).
 
-** TODO Fase D+ — Evolução da Orquestração e Equipe de Especialistas
-    :PROPERTIES:
-    :CREATED: 2026-08-13
-    :STATUS: backlog
-    :END:
-
-*** DONE D4. Codificar Ferramentas do Perfil =coder= (Operador de Buffer Vivo)
-    :PROPERTIES:
-    :ASSIGNEE: coder
-    :STATUS: done
-    :TAGS: :magent:tools:
-    :END:
-    Implementar as mutações =buffer_insert=, =buffer_replace_region=,
-    =buffer_undo= e sensores =lsp_hover=, =describe_elisp_symbol=. (Ver
-    docs/magent-reference.org para a arquitetura completa).
-
-*Nota (2026-08-16, revisão do planejamento):* sobrepõe-se à Etapa C6 / Fase B
-(Driver do buffer vivo) — executar em conjunto; a Etapa C6 é o objetivo e este
-D4 é a implementação concreta das ferramentas.
-
-*Execução (2026-08-16):* concluído junto com a Fase B — módulo
-=lisp/custom-magent-buffer.el=, permissões `:permission buffer`,
-orquestrador esconde `buffer` (custom-magent-subagent.el), registro em
-`magent-enable-tools` via `custom-magent-config`. 16 testes ERT em
-=tests/magent-buffer-test.el=.
-
-*** TODO D5. Context Sharing Dinâmico para Subagentes
+** TODO D5. Context Sharing Dinâmico para Subagentes
     :PROPERTIES:
     :ASSIGNEE: orquestrador
     :STATUS: backlog
@@ -354,75 +98,21 @@ orquestrador esconde `buffer` (custom-magent-subagent.el), registro em
     Injetar automaticamente contexto relevante nos prompts enviados a
     subagentes (=spawn_agent= aprimorado).
 
-*** DONE D6. Feedback de UI Visual para Delegação (Fase C+)
-    :PROPERTIES:
-    :ASSIGNEE: coder
-    :STATUS: done
-    :END:
-    Enriquecer o painel *Magent* com spinners enquanto a FSM bloqueia em
-    =subagent-waiting=.
-
-*Execução (2026-08-16):* spinner braille animado por timer no buffer *Magent*
-em =custom-magent-ui.el= (=+carlos/magent-ui-spinner-start/-tick/-stop=,
-frames ⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏). Wiring na FSM: entrar em `subagent-waiting`
-inicia; sair do estado ou reset da sessão para. Guards `fboundp` (UI carrega
-depois da FSM). 3 testes de UI + 3 de wiring FSM em =tests/magent-ui-test.el=
-e =tests/magent-fsm-test.el=.
-
-*** TODO D7. Testes Unitários de Permissão (ERT)
+** TODO D7. Testes Unitários de Permissão (ERT)
     :PROPERTIES:
     :ASSIGNEE: qa
     :STATUS: backlog
     :END:
     Adicionar testes em =tests/magent-routing-test.el= simulando =agent-info=.
 
-*** TODO D8. Criação das Ferramentas do Perfil =archeologist=
+** TODO D8. Criação das Ferramentas do Perfil =archeologist=
     :PROPERTIES:
     :ASSIGNEE: coder
     :STATUS: backlog
     :END:
     Implementar =git_blame_line=, =forge_read_issue= e =magit_commit_semantic=.
 
-*** DONE D9. Instanciar a Equipe de Especialistas (Sysadmin, Planner, Tech Writer, Auditor, Sec-Ops, QA)
-    :PROPERTIES:
-    :ASSIGNEE: planner
-    :STATUS: done
-    :END:
-    Criar o prompt base de cada subagente em Lisp conforme as especificações
-    arquiteturais (movidas para =docs/magent-reference.org=).
-
-*Execução (2026-08-16):* módulo novo =lisp/custom-magent-team.el= — 7 perfis
-subagente (coder + sysadmin, planner, tech-writer, auditor, sec-ops, qa) em
-`+carlos/magent-expert-team` (alist name → description/prompt/permission),
-registrados no `magent-agent-registry` via `+carlos/magent-team-register`
-(garante `ensure-initialized` antes — a init lazy do Magent faz `clrhash` e
-apagaria perfis registrados antes dela). Entradas de roteamento para os 7
-membros em `+carlos/magent-subagent-profiles` (dicas `:min-tier` desde
-2026-08-16; antes modelo forte pinado — ver nó seguinte). 6 testes ERT em
-=#tests/magent-team-test.el=.
-
-*** DONE D9.1. Roteamento de modelos dinâmico por perfil (melhor custo, sem pin)
-    :PROPERTIES:
-    :ASSIGNEE: planner
-    :STATUS: done
-    :END:
-    Substituir o modelo pinado (=gemini-3.1-pro-preview=) dos perfis por
-    seleção do orquestrador baseada na lista de modelos + melhor custo.
-
-*Execução (2026-08-16):* perfis em `+carlos/magent-subagent-profiles` agora
-são dicas-only (`:min-tier`: explore/general → local, tech-writer → free,
-coder/sysadmin/planner/auditor/sec-ops/qa → paid; `:preferred-backend`
-opcional). `+carlos/magent-resolve-model` ganhou arg `hints` (piso + backend
-preferido); `+carlos/magent-model-cost-rank` (0 free/local, 1 assinatura, 2
-metered) + `+carlos/magent--tier-sorted-entries` ordenam o tier por custo
-crescente (ex.: paid → OpenCode Zen =gpt-5.6-sol= antes de
-=gemini-3.1-pro-preview=). Advice aplica override do `select_model` primeiro,
-senão `+carlos/magent-subagent-resolve` (complexidade + dicas); agentes sem
-perfil intocados. UI mostra "(min paid tier)". Bugs: forward decl com docstring
-ligava a variável → decl pelado `(defvar V)` + guard `boundp`. Gates: repo
-295/287/0/8; docs magent-reference.org Fase A atualizado.
-
-*** TODO D10. Integrar Pacote =rfc-mode= e Ferramentas Lisp
+** TODO D10. Integrar Pacote =rfc-mode= e Ferramentas Lisp
     :PROPERTIES:
     :ASSIGNEE: coder
     :STATUS: backlog
@@ -432,7 +122,7 @@ ligava a variável → decl pelado `(defvar V)` + guard `boundp`. Gates: repo
     =rfc_search_topic= e =rfc_read_section= no =custom-magent-tools.el= para
     equipar o Auditor e o Sec-Ops.
 
-*** TODO D11. Pipeline de Documentação via Chat (Logic Extractor + Tech-Writer)
+** TODO D11. Pipeline de Documentação via Chat (Logic Extractor + Tech-Writer)
     :PROPERTIES:
     :CREATED: 2026-08-18
     :ASSIGNEE: planner
@@ -476,25 +166,21 @@ presente nas directives); =just test-all= verde; teste interativo com
 *Arquivos:* =lisp/custom-magent-subagent.el=, =lisp/custom-magent-tools.el=,
 =tests/magent-team-test.el=, =docs/magent-reference.org=.
 
+* Concluído (referências ao roadmap)
+
+Planos concluídos e consolidados no [[file:roadmap.org][roadmap.org]]:
+
+- *Liquidação da Dívida Técnica* (2026-08-16) — Elpaca [:ensure (:wait t)],
+  guard jinx, epdfinfo, agent-shell. Todos resolvidos.
+- *Controle de Contexto* (2026-08-17) — cooldown, métricas, cap tool results,
+  AGENTS.md na compactação, context window fallback. 5 sub-itens DONE.
+- *Otimização de Orquestração* (2026-08-17) — orquestrador agressivo,
+  fallback inteligente, compactação seletiva. 3 commits, 12 testes ERT.
+- *Fase D+ (parcial)* (2026-08-16) — D4 (coder tools), D6 (spinners),
+  D9 (equipe), D9.1 (roteamento dinâmico). Todos DONE.
+
 * Decisões Registradas
 
-O histórico de decisões registradas (antiga seção 2, incluindo o roteamento de
-IA de 2026-08-10, as decisões de 2026-08-13 e o log completo) foi consolidado no
+O histórico de decisões registradas é consolidado no
 [[file:roadmap.org][roadmap.org]] (Linha do Tempo e Decisões Arquiteturais).
 Este arquivo não duplica histórico — apenas planejamento ativo.
-
-* Histórico Concluído (Arquivado)
-
-Planos concluídos e arquivados a partir desta refatoração (2026-08-16):
-
-- Plano Diretor — Fases A/B/B.5/D implementadas (roadmap 2026-08-12/13/16).
-- Fase D — Ocultação de ferramentas de edição do orquestrador (roadmap
-  2026-08-16).
-- Loop de eventos FSM do Magent — o FSM antigo (THINK/DECIDE/RETRY, 2026-08-10)
-  foi superado; a FSM de *orquestração* atual (8 estados) vive em
-  =lisp/custom-magent-fsm.el= (roadmap 2026-08-10/12/13/16).
-- FSM & Submodelos =spawn_agent=/=wait_agent= (roadmap 2026-08-13) — pendências
-  movidas para o Backlog Ativo.
-- Subagentes com Modelo Forte — perfis por agente (roadmap 2026-08-13).
-- Controle de contexto estilo opencode + roteamento de modelos pelo
-  orquestrador — Fases A/B/B.5 (roadmap 2026-08-13).
