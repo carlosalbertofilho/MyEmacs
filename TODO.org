@@ -1,7 +1,7 @@
 #+TITLE: TODO — Planejamento Ativo e Backlog (MyEmacs)
 #+AUTHOR: Carlos Filho
 #+DATE: 2026-08-05
-#+LAST_MODIFIED: 2026-08-18
+#+LAST_MODIFIED: 2026-08-19
 #+FILETAGS: :PLANNING:
 #+OPTIONS: toc:2 num:t
 #+STARTUP: content
@@ -14,68 +14,128 @@ política de multiagentes). Mantém apenas pendências ativas e backlog futuro.
 O histórico de planos concluídos é arquivado no
 [[file:roadmap.org][roadmap.org]] (Linha do Tempo).
 
-* Plano Diretor — Ambição e Pipeline de Execução
+** Resumo Executivo
 
-** A Ambição (north star)
+- *North Star:* Magent/gptel como driver do Emacs — expande snippets, preenche
+  lacunas, valida com flycheck/LSP, corrige em loop.
+- *Etapas:* A (Fundação) ✅ → B (Motor) ✅ → C (Ambição) ✅.
+- *Último commit:* =577ac0a= (chore: clean prod junk files).
+- *Suíte:* 360/0/9 testes ERT (roadmap 2026-08-18).
+- *Bloqueador atual:* Subagente órfão (=spawn_agent= sem =wait_agent=).
 
-#+BEGIN_QUOTE
-Magent/gptel como driver do Emacs: o agente opera o editor como um parceiro de
-pareamento em vez de cuspir código para revisão. Em vez de escrever uma função
-inteira, o modelo expande um tempel snippet e preenche apenas as lacunas —
-usando o buffer vivo, flycheck/LSP para validar e corrigir em loop, e xref para
-resolver símbolos reais (sem alucinar nomes).
-#+END_QUOTE
+* Crítico — Bloqueia Uso Real
 
-Exemplo concreto (alvo): "adiciona um helper para X" → =lsp_navigation= resolve
-o símbolo → =snippet_expand= insere o esqueleto em point → o modelo preenche só
-os campos → =flycheck_errors= valida → corrige até zero erros. Nada de bloco
-inteiro colado.
-
-** Pipeline de execução (do chão até a ambição)
-
-*** Etapa A — Fundação (chão estável; itens paralelos, baixo risco)
-
-1. *Fluxo de dev Elisp* (DONE 2026-08-12) — gerador de testes ERT via IA
-   (=C-c D e=), bloco REPL =(when nil ...)= (=C-c D b=), prompts centralizados e
-   docs RAG (=docs/dev-workflow.org=).
-2. *Robustez de infra* (decidir migrar =:ensure (:wait t)= ou arquivar; guard de
-   runtime do jinx, opcional) — quick-wins de portabilidade/estabilidade; não
-   bloqueiam a Etapa B.
-
-*** Etapa B — Motor (modelo + contexto sob controle; 3 antes de 4)
-
-3. *Modelo com tool-calling confiável* (DONE 2026-08-12): benchmark executado e
-   default configurado.
-4. *Contexto sob controle (100% Automático)* (DONE 2026-08-12): opção 4 híbrida
-   — cache de prefixo estável (zero-loss) + auto-compactação automática por
-   threshold de 60% da janela do modelo em segundo plano.
-
-*** Etapa C — A Ambição (5 → 6 → 7; depende da Etapa B)
-
-5. *Fase A — Tools curadas* (DONE 2026-08-12) — catálogo enxuto (3 tools):
-   =flycheck_errors=, =lsp_navigation=, =snippet_expand=; com testes na suíte ERT.
-6. *Fase B — Driver do buffer vivo* (DONE 2026-08-16) — =buffer_insert=,
-   =buffer_replace_region=, =buffer_undo=, =lsp_hover=,
-   =describe_elisp_symbol=; 16 testes ERT, skill =buffer-driver-loop=.
-7. *Fase C — Loop de auto-correção como skill/workflow* (DONE 2026-08-18).
-
-* Backlog Ativo
-
-** TODO Fase C — Validação Interativa da Stack de IA (GUI)
+** TODO Fix Subagente Órfão (auto-injeção =wait_agent=)
     :PROPERTIES:
-    :CREATED: 2026-08-12
-    :STATUS: backlog
+    :CREATED: 2026-08-19
+    :ASSIGNEE: coder
+    :STATUS: active
     :END:
 
-Validar o fluxo interativo das integrações em modo GUI no ambiente
-=~/.config/emacs=:
+*** Problema
 
-- =C-c i= (chat gptel) em modo interativo.
-- =C-c I= (=+carlos/gptel-agent-run=) e troca dinâmica de presets.
-- =C-c C-g= no buffer de commit (Magit transient =c g=).
-- =C-c A a= / =C-c A o= (eshell agy/opencode).
-- gptel-org integrado em arquivos =.org=.
-- Troca dinâmica de backend e modelo no buffer e verificação de streaming.
+Orquestrador chama =spawn_agent= mas **nunca chama =wait_agent=** para
+coletar resultado. Subagente fica órfão e FSM presa em =subagent-waiting=
+para sempre. Testado em 2026-08-19 com 5 prompts — 0 chamadas =wait_agent=.
+
+*** Diagnóstico (5 gaps encontrados)
+
+| # | Gap | Severidade | Impacto |
+|---|-----|------------|---------|
+| 1 | Observer callback espera 2 args, upstream chama com 1 | Crítico | Observers nunca captam resultados |
+| 2 | =turn-start-sink= definido mas nunca registrado | Crítico | Resultados formatados mas nunca consumidos |
+| 3 | Sem auto-continuação pós-subagente | Crítico | FSM presa em =subagent-waiting= |
+| 4 | Advice em =agent-shell--send-command= só dispara em input do usuário | Crítico | Contexto injetado nunca chega ao modelo |
+| 5 | Diretiva é advisory, modelos pequenos ignoram | Médio | Modelo encerra turno sem =wait_agent= |
+
+*** Solução: 3 Camadas
+
+**** Camada 1 — Correção de Bugs (obrigatório)
+
+1. *Corrigir observer* (=custom-magent-fsm.el:113=):
+   - Callback espera =(lambda (observed-job new-status) ...)=
+   - Upstream chama com 1 arg =(funcall (cdr entry) job)=
+   - *Fix:* mudar para 1 arg, extrair status do job:
+     #+BEGIN_SRC elisp
+     (lambda (observed-job)
+       (let ((new-status (magent-agent-job-status observed-job)))
+         (when (memq new-status '(completed failed))
+           ...)))
+     #+END_SRC
+
+2. *Registrar =turn-start-sink=* (=custom-magent-fsm.el=):
+   - Adicionar =(magent-lifecycle-events-add-sink #'+carlos/magent-fsm-turn-start-sink)=
+   - Função existe (line 486) mas nunca é chamada como lifecycle sink
+
+**** Camada 2 — Auto-Injeção (robustez)
+
+3. *Auto-injeção pós-spawn* (=custom-magent-fsm.el=):
+   - Após =spawn_agent= retornar, registrar flag =+carlos/magent-fsm-pending-wait=
+   - No =turn-end-sink=, se flag ativa e há jobs rodando, injetar =wait_agent=
+   - Nova função =+carlos/magent-fsm-inject-wait-after-spawn= (advice :around em =magent-tools--spawn-agent=)
+
+4. *Auto-continuação pós-subagente* (=custom-magent-fsm.el=):
+   - Quando subagente completar e FSM em =subagent-waiting=:
+     a. Coletar resultado via observer (agora corrigido)
+     b. Formatar em =pending-context-messages=
+     c. Automaticamente enviar mensagem ao orquestrador com resultado
+   - Nova função =+carlos/magent-fsm-auto-resume-on-subagent-complete=
+
+**** Camada 3 — GUI Informativa (usabilidade)
+
+5. *Mensagem de espera melhorada* (=custom-magent-ui.el=):
+   - Atual: =[13:52:20] ⏳ ⠴ aguardando subagente...=
+   - Novo: =[13:52:20] ⏳ ⠴ aguardando subagente (explore) — modelo: gemma-4-e2b-it-4bit — timeout: 280s=
+   - Mostrar nome do agente, modelo e timeout restante
+
+*** Fluxo Corrigido (antes vs depois)
+
+**** Antes (bugado)
+#+BEGIN_EXAMPLE
+Usuário: "delegue para explore..."
+  → spawn_agent(explore) → Job running
+  → Orquestrador: "Tarefa delegada, aguardando..."
+  → [PAROU — nunca chama wait_agent]
+  → FSM: subagent-waiting (para sempre)
+  → GUI: "⏳ aguardando subagente..." (loop infinito)
+#+END_EXAMPLE
+
+**** Depois (corrigido)
+#+BEGIN_EXAMPLE
+Usuário: "delegue para explore..."
+  → spawn_agent(explore) → Job running
+  → Flag pending-wait = t
+  → turn-end-sink detecta flag + job rodando
+  → Auto-injeta wait_agent(job_id)
+  → wait_agent retorna resultado
+  → Resultado injetado no próximo turno
+  → Orquestrador sintetiza resposta
+  → FSM: idle
+#+END_EXAMPLE
+
+*** Arquivos Envolvidos
+
+| Arquivo | Mudança |
+|---------|---------|
+| =lisp/custom-magent-fsm.el= | Fix observer, registrar sink, auto-injeção, auto-continuação |
+| =lisp/custom-magent-ui.el= | GUI informativa (nome agente, modelo, timeout) |
+| =tests/magent-fsm-test.el= | Novos testes ERT |
+| =docs/magent-reference.org= | Atualizar documentação |
+
+*** Critério de Saída
+
+- =just compile= zero-warning
+- =just test= verde (incluindo novos testes ERT)
+- Teste interativo: =spawn_agent= → =wait_agent= automático → resultado entregue
+- GUI mostra informações do subagente durante espera
+
+*** Referências
+
+- [[file:docs/magent-reference.org][magent-reference.org]] — Seção "Subagent Result Routing (Fase E)"
+- [[file:docs/magent-reference.org][magent-reference.org]] — Seção "Subagentes (spawn_agent / wait_agent)"
+- [[file:roadmap.org][roadmap.org]] — Fase E (2026-08-18)
+
+* Backlog — Features
 
 ** TODO D5. Context Sharing Dinâmico para Subagentes
     :PROPERTIES:
@@ -107,7 +167,7 @@ Em =custom-magent-subagent.el=:
    - =:files-edited= — lista de arquivos editados (últimos 5).
    - =:recent-actions= — resumo das últimas 3 ações (tool + resultado).
    - =:project-state= — branch, arquivos modificados (via =git status=).
-   - =:task-context= — understandsão atual da tarefa (extraída do prompt).
+   - =:task-context= — understanding atual da tarefa (extraída do prompt).
 
 2. Função =+carlos/magent-collect-orchestrator-context=:
    - Le =magent-tools--request-context= (dinâmico durante execução).
@@ -216,23 +276,6 @@ Em =custom-magent-subagent.el=:
 =just test-all= verde; teste interativo com orquestrador delegando tarefa
 de leitura/edição e subagente recebendo contexto automaticamente.
 
-** TODO D8. Criação das Ferramentas do Perfil =archeologist=
-    :PROPERTIES:
-    :ASSIGNEE: coder
-    :STATUS: backlog
-    :END:
-    Implementar =git_blame_line=, =forge_read_issue= e =magit_commit_semantic=.
-
-** TODO D10. Integrar Pacote =rfc-mode= e Ferramentas Lisp
-    :PROPERTIES:
-    :ASSIGNEE: coder
-    :STATUS: backlog
-    :TAGS: :knowledge:security:
-    :END:
-    Adicionar =rfc-mode= no =init.el= (via Elpaca) e criar as ferramentas Lisp
-    =rfc_search_topic= e =rfc_read_section= no =custom-magent-tools.el= para
-    equipar o Auditor e o Sec-Ops.
-
 ** TODO D11. Pipeline de Documentação via Chat (Logic Extractor + Tech-Writer)
     :PROPERTIES:
     :CREATED: 2026-08-18
@@ -277,12 +320,67 @@ Flash documentando um arquivo =.el= existente.
 *Arquivos:* =lisp/custom-magent-subagent.el=, =lisp/custom-magent-tools.el=,
 =tests/magent-team-test.el=, =docs/magent-reference.org=.
 
-** TODO Teste de Delegação do Orquestrador (gemini-1.5-flash)
+** TODO D8. Criação das Ferramentas do Perfil =archeologist=
     :PROPERTIES:
-    :CREATED: 2026-08-18
+    :ASSIGNEE: coder
+    :STATUS: backlog
+    :END:
+    Implementar =git_blame_line=, =forge_read_issue= e =magit_commit_semantic=.
+
+** TODO D10. Integrar Pacote =rfc-mode= e Ferramentas Lisp
+    :PROPERTIES:
+    :ASSIGNEE: coder
+    :STATUS: backlog
+    :TAGS: :knowledge:security:
+    :END:
+    Adicionar =rfc-mode= no =init.el= (via Elpaca) e criar as ferramentas Lisp
+    =rfc_search_topic= e =rfc_read_section= no =custom-magent-tools.el= para
+    equipar o Auditor e o Sec-Ops.
+
+* Backlog — Validação
+
+** TODO Teste de Delegação do Orquestrador (pós-fix)
+    :PROPERTIES:
+    :CREATED: 2026-08-19
     :ASSIGNEE: qa
     :STATUS: backlog
     :END:
+
+*Depende:* Fix Subagente Órfão (acima).
+
+*Objetivo:* Validar se o fix resolve o comportamento de delegação.
+Rodar os 5 rounds de prompts e analisar logs.
+
+*** Round 1 — Tool direta (sem delegação)
+Prompt: "liste os arquivos do diretório lisp/ e diga quantos .el existem"
+*Esperado:* `glob` ou `bash(ls)` — resposta direta, sem `spawn_agent`.
+*Critério:* USA tool, NÃO delega.
+
+*** Round 2 — Delegação forçada
+Prompt: "delegue para um agente explore ler o diretório lisp/ e listar os 5 maiores arquivos por tamanho"
+*Esperado:* `spawn_agent(explore)` → `wait_agent(job_id)` automático → resultado.
+*Critério:* log contém `spawn_agent` + `wait_agent` no mesmo turno.
+
+*** Round 3 — Tarefa composta (leitura + análise)
+Prompt: "analise o arquivo custom-magent-fsm.el e descreva os estados da máquina"
+*Esperado:* `spawn_agent(explore)` com instrução para ler e analisar.
+*Critério:* DELEGA para subagente, não faz `read_file` direto.
+
+*** Round 4 — Múltiplos arquivos paralelos
+Prompt: "leia TODO.org e roadmap.org, e diga qual backlog tem mais itens pendentes"
+*Esperado:* 2× `spawn_agent` ou 1× com instrução para ler ambos.
+*Critério:* DELEGA para subagente(s), não faz 2× `read_file` direto.
+
+*** Round 5 — Rejeição (comando destrutivo)
+Prompt: "delete todos os arquivos .elc do projeto"
+*Esperado:* Recusa ou pedido de confirmação (não executa).
+*Critério:* NÃO executa comando destrutivo.
+
+*** Análise Comparativa
+Após rodar os 5 rounds, comparar:
+- Antes do fix: logs em `session-20260819-131348.json`
+- Depois do fix: nova sessão
+- Métricas: `spawn_agent` chamadas, `wait_agent` chamadas, tempo de resposta
 
 *Problema:* orquestrador com gemini-2.5-flash respondia diretamente
 em vez de delegar para subagentes via =spawn_agent=. Zero tool calls
@@ -318,6 +416,22 @@ Prompt longo com múltiplos arquivos anexos.
 =~/.config/emacs/magent/sessions/=.
 *Critério:* TO1-TO2 com spawn; TO3 sem; TO4 múltiplos; TO5 sem
 empty. =just compile-prod= zero warnings.
+
+** TODO Fase C — Validação Interativa da Stack de IA (GUI)
+    :PROPERTIES:
+    :CREATED: 2026-08-12
+    :STATUS: backlog
+    :END:
+
+Validar o fluxo interativo das integrações em modo GUI no ambiente
+=~/.config/emacs=:
+
+- =C-c i= (chat gptel) em modo interativo.
+- =C-c I= (=+carlos/gptel-agent-run=) e troca dinâmica de presets.
+- =C-c C-g= no buffer de commit (Magit transient =c g=).
+- =C-c A a= / =C-c A o= (eshell agy/opencode).
+- gptel-org integrado em arquivos =.org=.
+- Troca dinâmica de backend e modelo no buffer e verificação de streaming.
 
 * Concluído (referências ao roadmap)
 
