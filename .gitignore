@@ -19,6 +19,7 @@ places
 bookmarks
 agent/
 magent/sessions/
+scratch/
 
 # OS
 .DS_Store
