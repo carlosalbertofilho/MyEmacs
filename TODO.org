@@ -44,6 +44,28 @@ do histórico da sessão pai, arquivos lidos ou projeto atual.
 
 *Arquivos:* =lisp/custom-magent-subagent.el=, =tests/magent-subagent-test.el=.
 
+** TODO Integração rfc-mode & Ferramentas IETF para Auditor e Sec-Ops
+    :PROPERTIES:
+    :CREATED: 2026-08-20
+    :ASSIGNEE: auditor
+    :STATUS: plano aprovado
+    :END:
+
+*** Infraestrutura base do rfc-mode
+Configurar o pacote =rfc-mode= no ecossistema Elpaca em =lisp/custom-files.el=
+usando =:ensure t= e =(setq rfc-mode-directory (expand-file-name "rfc/" user-emacs-directory))=
+para cache local offline de RFCs IETF.
+
+*** Ferramentas Curadas do Magent
+Em =lisp/custom-magent-tools.el=, criar:
+- =rfc_search_topic= (=topic=): Pesquisa o índice local de RFCs por termo e retorna números, títulos e resumos.
+- =rfc_read_section= (=rfc_number=, =section_name=): Carrega a RFC do cache e extrai exclusivamente o conteúdo da seção solicitada (ex: "Security Considerations", "OAuth 2.0") via parsing de texto para economia rigorosa de tokens.
+
+*** Permissões & Suíte de Testes
+Em =lisp/custom-magent-team.el=, adicionar permissão =allow= para =rfc_search_topic= e =rfc_read_section= nos perfis =auditor= e =sec-ops=. Criar testes ERT para busca de índice, extração de seção e fallback offline.
+
+*Arquivos:* =lisp/custom-files.el=, =lisp/custom-magent-tools.el=, =lisp/custom-magent-team.el=, =tests/magent-tools-test.el=.
+
 ** TODO Teste de Delegação (12 rounds de regressão)
     :PROPERTIES:
     :CREATED: 2026-08-19
