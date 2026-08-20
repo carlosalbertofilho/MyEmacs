@@ -27,6 +27,27 @@ Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=
 
 * Pendente — Motor & Backlog (Plano Mestre Opus)
 
+** TODO Integracao do Forge (Magit) e Ferramentas Git/Forge
+    :PROPERTIES:
+    :CREATED: 2026-08-20
+    :ASSIGNEE: coder
+    :STATUS: plano aprovado
+    :END:
+
+*** Configuracao do Forge no Emacs
+Configurar =(use-package forge :ensure t :after magit)= em =lisp/custom-git.el= para permitir navegação, abertura, comentários e revisões de Issues e PRs no Magit (=C-c g= -> =N= ou =@=).
+
+*** Ferramentas Curadas do Magent para Forge
+Implementar as ferramentas em =lisp/custom-magent-tools.el=:
+- =forge_read_issue= (=issue_number_or_url=): Lê o conteúdo estruturado, histórico de comentários e estado de uma Issue ou Pull Request sem alucinação e com economia de tokens.
+- =forge_list_pull_requests= (=state=): Lista PRs e Issues abertos/pendentes do repositório ativo via Forge DB/API.
+
+*** Permissoes na Equipe
+Conceder acesso =allow= para =forge_read_issue= e =forge_list_pull_requests= nos perfis =coder=, =tech-writer= e =qa= em =lisp/custom-magent-team.el=.
+
+*** Suite de Testes Forge
+Adicionar testes ERT em =tests/git-test.el= e =tests/magent-tools-test.el= para garantir parsing de URLs do GitHub, leitura de issues e fallback offline.
+
 ** TODO Permissoes e UI
     :PROPERTIES:
     :CREATED: 2026-08-20
@@ -110,18 +131,18 @@ Matriz executável dos 12 rounds de regressão do Magent.
 
 | Round | Prompt de Teste                                           | Perfil Esperado         | Tools Esperadas                               | Status |
 |-------+-----------------------------------------------------------+-------------------------+-----------------------------------------------+--------|
-|     1 | Encontre a definição de `+carlos/magent-subagent-profile`  | `explore` / `general`   | `grep_search`, `read_file`                    | TODO   |
-|     2 | Quais pacotes são carregados com `:demand t` em init.el?  | `explore`               | `read_file`                                   | TODO   |
-|     3 | analise custom-magent-fsm.el e descreva FSM               | `tech-writer`/`planner` | `read_file`                                   | PASSED |
-|     4 | Altere referências de 'old-var' para 'new-var' em scratch | `coder`                 | `buffer_replace`, `edit_file`                 | TODO   |
-|     5 | Mova função X de file-a.el para file-b.el                 | `coder`                 | `read_file`, `edit_file`, `flycheck_errors`   | TODO   |
-|     6 | adicione '; TODO: review' no topo de custom-ui.el        | `coder` / `general`     | `edit_file`                                   | PASSED |
-|     7 | Crie um card 'Bateria 12 Rounds' no TODO.org sob Pendente | `planner`               | `read_file`, `edit_file`, `org-lint`          | TODO   |
-|     8 | Resuma status dos bugs resolvidos em AGENTS.md            | `qa` / `tech-writer`    | `read_file`                                   | TODO   |
-|     9 | Crie um arquivo denote documentando a nova FSM           | `tech-writer`           | `run_command` / tool denote                   | TODO   |
-|    10 | Qual é o status git atual? Existem arquivos unstaged?     | `sysadmin` / `coder`    | `run_command` (`git status`)                  | TODO   |
-|    11 | Rode o just compile e me diga se há warnings             | `qa`                    | `run_command` (`just compile`)                | TODO   |
-|    12 | Execute a suíte test-ai e relate as falhas, se houver     | `qa`                    | `run_command` (`just test-ai`)                | TODO   |
+|     1 | Encontre a definição de =+carlos/magent-subagent-profile= | =explore= / =general=   | =grep_search=, =read_file=                    | TODO   |
+|     2 | Quais pacotes são carregados com =:demand t= em init.el?  | =explore=               | =read_file=                                   | TODO   |
+|     3 | analise custom-magent-fsm.el e descreva FSM               | =tech-writer=/=planner= | =read_file=                                   | PASSED |
+|     4 | Altere referências de 'old-var' para 'new-var' em scratch | =coder=                 | =buffer_replace=, =edit_file=                 | TODO   |
+|     5 | Mova função X de file-a.el para file-b.el                 | =coder=                 | =read_file=, =edit_file=, =flycheck_errors=   | TODO   |
+|     6 | adicione '; TODO: review' no topo de custom-ui.el         | =coder= / =general=     | =edit_file=                                   | PASSED |
+|     7 | Crie um card 'Bateria 12 Rounds' no TODO.org sob Pendente | =planner=               | =read_file=, =edit_file=, =org-lint=          | TODO   |
+|     8 | Resuma status dos bugs resolvidos em AGENTS.md            | =qa= / =tech-writer=    | =read_file=                                   | TODO   |
+|     9 | Crie um arquivo denote documentando a nova FSM            | =tech-writer=           | =run_command= / tool denote                   | TODO   |
+|    10 | Qual é o status git atual? Existem arquivos unstaged?     | =sysadmin= / =coder=    | =run_command= (=git status=)                  | TODO   |
+|    11 | Rode o just compile e me diga se há warnings              | =qa=                    | =run_command= (=just compile=)                | TODO   |
+|    12 | Execute a suíte test-ai e relate as falhas, se houver     | =qa=                    | =run_command= (=just test-ai=)                | TODO   |
 
 * Concluído (referências ao roadmap)
 
