@@ -23,13 +23,24 @@ Histórico consolidado no [[file:roadmap.org][roadmap.org]].
     :PROPERTIES:
     :CREATED: 2026-08-18
     :ASSIGNEE: coder
-    :STATUS: backlog
+    :STATUS: plano aprovado
     :END:
 
-Subagentes recebem apenas o prompt raw. Não recebem: histórico do pai,
-arquivos lidos/editados, decisões da sessão. Solução: coletor de contexto
-do orquestrador + injeção automática no prompt do subagente via
-`+carlos/magent-subagent-apply-profile`.
+*** Problema
+Subagentes recebem apenas a instrução bruta do `spawn_agent`, sem visibilidade
+do histórico da sessão pai, arquivos lidos ou projeto atual.
+
+*** Plano de Solução (Opus)
+1. *Coletor de Contexto (`lisp/custom-magent-subagent.el`):*
+   - Implementar `+carlos/magent-collect-parent-context` retornando o bloco conciso
+     `<parent_context>` (limite de 300-500 tokens): `project-root`, 3-5 arquivos
+     recentes abertos e resumo transiente de intenção.
+2. *Injeção no Advice (`+carlos/magent-subagent-apply-profile`):*
+   - Prepender `<parent_context>` ao `user-prompt` exclusivamente quando
+     `(not is-orchestrator)`.
+3. *Suíte ERT (`tests/magent-subagent-test.el`):*
+   - Adicionar testes `myemacs-magent-collect-parent-context-format`,
+     `myemacs-magent-subagent-prompt-injection` e `myemacs-magent-orchestrator-no-injection`.
 
 *Arquivos:* =lisp/custom-magent-subagent.el=, =tests/magent-subagent-test.el=.
 
@@ -37,18 +48,25 @@ do orquestrador + injeção automática no prompt do subagente via
     :PROPERTIES:
     :CREATED: 2026-08-19
     :ASSIGNEE: qa
-    :STATUS: backlog
+    :STATUS: plano aprovado
     :END:
 
-Validação sistemática dos 12 prompts de regressão. Round 3 (FSM) concluído com 100% de sucesso pós-fix.
+Matriz executável dos 12 rounds de regressão do Magent.
 
-| Round | Prompt                                           | Status |
-|-------+--------------------------------------------------+--------|
-|     3 | analise custom-magent-fsm.el e descreva FSM       | PASSED |
-|     6 | adicione '; TODO: review' no topo de custom-ui.el | PASSED |
-|   1-2 | Prompts de leitura/busca simples                 | TODO   |
-|   4-5 | Prompts de refatoração multi-arquivo             | TODO   |
-|  7-12 | Prompts de org-mode / denote / git               | TODO   |
+| Round | Prompt de Teste                                           | Perfil Esperado         | Tools Esperadas                               | Status |
+|-------+-----------------------------------------------------------+-------------------------+-----------------------------------------------+--------|
+|     1 | Encontre a definição de `+carlos/magent-subagent-profile`  | `explore` / `general`   | `grep_search`, `read_file`                    | TODO   |
+|     2 | Quais pacotes são carregados com `:demand t` em init.el?  | `explore`               | `read_file`                                   | TODO   |
+|     3 | analise custom-magent-fsm.el e descreva FSM               | `tech-writer`/`planner` | `read_file`                                   | PASSED |
+|     4 | Altere referências de 'old-var' para 'new-var' em scratch | `coder`                 | `buffer_replace`, `edit_file`                 | TODO   |
+|     5 | Mova função X de file-a.el para file-b.el                 | `coder`                 | `read_file`, `edit_file`, `flycheck_errors`   | TODO   |
+|     6 | adicione '; TODO: review' no topo de custom-ui.el        | `coder` / `general`     | `edit_file`                                   | PASSED |
+|     7 | Crie um card 'Bateria 12 Rounds' no TODO.org sob Pendente | `planner`               | `read_file`, `edit_file`, `org-lint`          | TODO   |
+|     8 | Resuma status dos bugs resolvidos em AGENTS.md            | `qa` / `tech-writer`    | `read_file`                                   | TODO   |
+|     9 | Crie um arquivo denote documentando a nova FSM           | `tech-writer`           | `run_command` / tool denote                   | TODO   |
+|    10 | Qual é o status git atual? Existem arquivos unstaged?     | `sysadmin` / `coder`    | `run_command` (`git status`)                  | TODO   |
+|    11 | Rode o just compile e me diga se há warnings             | `qa`                    | `run_command` (`just compile`)                | TODO   |
+|    12 | Execute a suíte test-ai e relate as falhas, se houver     | `qa`                    | `run_command` (`just test-ai`)                | TODO   |
 
 * Concluído (referências ao roadmap)
 
