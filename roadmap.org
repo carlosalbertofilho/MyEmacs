@@ -12,6 +12,28 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-20 — [CONCLUÍDO] Fix Tier Escalation — select_model aceita min_tier
+   - **Problema:** =select_model= ignorava =min_tier=, retornando sempre
+     tier local. Subagentes locais faziam timeout.
+   - **Causa raiz:** schema JSON e handler não expunham o parâmetro.
+   - **Fix:** schema com =min_tier= opcional, handler com 5º parâmetro
+     que faz override do piso do perfil via =plist-put=.
+   - **Testes:** 2 novos ERT (=accepts-min-tier=, =escalates-tier=).
+   - **Gates:** =just compile-prod= 0 warnings, =just test= 362/0/10.
+
+** 2026-08-20 — [BLOQUEADO] Round 3 — Subagentes Sem Tools (leitura falhou)
+   - **Prompt:** "analise custom-magent-fsm.el e descreva os estados da máquina".
+   - **Resultado:** 5 spawns, 0 leituras de arquivo. Tier escalation
+     funciona (local → free → paid), mas subagentes não conseguem executar:
+     - local (qwen2.5-coder:3b): timeout 120s.
+     - free (gemini-3.5-flash): timeout 120s.
+     - paid (gpt-5.6-sol): "subagent tools unavailable" / "Could not parse HTTP response".
+   - **Diagnóstico:** =magent-enable-tools= só contém tools customizadas
+     (=flycheck_errors=, =lsp_navigation=, =buffer=, =select_model=).
+     Tools upstream (=read_file=, =bash=, =write_file=) não estão na lista.
+     Subagentes podem não receber tools upstream do magent core.
+   - **Ação:** registrar no TODO.org como bloqueador crítico para Opus planejar.
+
 ** 2026-08-20 — [CONCLUÍDO] Fix Subagente Órfão (Auto-Resume Pós-Subagente)
    - **Problema:** orquestrador chamava =spawn_agent= mas encerrava o turno sem
      =wait_agent=. FSM presa em =subagent-waiting=, 0 chamadas =wait_agent= em
