@@ -93,5 +93,37 @@
                (make-string 20 ?b))
       (should (= +carlos/magent-turn-tool-result-chars 50)))))
 
+;; ── select_model min_tier escalation ──────────────────────────────────
+
+(ert-deftest myemacs-select-model-accepts-min-tier ()
+  "Garante que select_model aceita min_tier e força tier >= min_tier."
+  (cl-letf (((symbol-function '+carlos/ai-local-backend)
+             (lambda () (cons "MLX Local" 'mlx-community/Qwen3.5-9B-MLX-4bit)))
+            ((symbol-function '+carlos/local-ai-server-ping-p) (lambda () t))
+            ((symbol-function '+carlos/magent-local-installed-models)
+             (lambda () '("mlx-community/Qwen3.5-9B-MLX-4bit"))))
+    (let ((+carlos/magent-subagent-model-overrides nil))
+      (let* ((out (myemacs-routing-result-output
+                   (+carlos/magent-tool-select-model
+                    "test task" "explore" "simple" "free" "test")))
+             (parsed (json-read-from-string out)))
+        (should (equal (alist-get 'status parsed) "success"))
+        (should (member (alist-get 'tier parsed) '("free" "paid")))))))
+
+(ert-deftest myemacs-select-model-escalates-tier ()
+  "Garante que min_tier='free' força tier >= free mesmo com local disponível."
+  (cl-letf (((symbol-function '+carlos/ai-local-backend)
+             (lambda () (cons "MLX Local" 'mlx-community/Qwen3.5-9B-MLX-4bit)))
+            ((symbol-function '+carlos/local-ai-server-ping-p) (lambda () t))
+            ((symbol-function '+carlos/magent-local-installed-models)
+             (lambda () '("mlx-community/Qwen3.5-9B-MLX-4bit"))))
+    (let ((+carlos/magent-subagent-model-overrides nil))
+      (let* ((out (myemacs-routing-result-output
+                   (+carlos/magent-tool-select-model
+                    "simple task" "explore" "simple" "free" "escalation test")))
+             (parsed (json-read-from-string out)))
+        (should (equal (alist-get 'status parsed) "success"))
+        (should (equal (alist-get 'tier parsed) "free"))))))
+
 (provide 'magent-tools-test)
 ;;; magent-tools-test.el ends here

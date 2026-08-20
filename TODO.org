@@ -19,25 +19,20 @@ Histórico consolidado no [[file:roadmap.org][roadmap.org]].
 
 * Crítico — Bloqueia Uso Real
 
-** TODO Tier Escalation — select_model ignora min_tier
-    :PROPERTIES:
-    :CREATED: 2026-08-20
-    :ASSIGNEE: opus
-    :STATUS: planejamento
-    :END:
+** DONE Tier Escalation — select_model aceita min_tier
+     :PROPERTIES:
+     :CREATED: 2026-08-20
+     :ASSIGNEE: opus
+     :STATUS: concluido
+     :END:
 
-*Problema:* =select_model= com =min_tier='free'= retorna modelo local
-\(`qwen2.5-coder:3b`\) em vez de cloud (Gemini free tier). Subagentes
-locais fazem timeout em 120s, orquestrador cai em fallback =bash=.
+*Causa:* schema JSON e handler não expunham `min_tier`. Fix: schema com
+`min_tier` opcional, handler com 5º parâmetro `min-tier-arg` que faz
+override do piso do perfil via `plist-put`. 2 testes ERT novos.
 
-*Evidência:* sessão =session-20260820-110758= — 4× spawn, 4× timeout,
-fallback =bash(cat)+bash(echo)= para completar tarefa.
-
-*Diagnóstico:* função =+carlos/magent-resolve-model= não respeita
-=min_tier= quando modelo local está online.
-
-*Arquivos:* =lisp/custom-magent-tools.el= (=+carlos/magent-resolve-model=),
-=lisp/custom-magent-context.el= (=+carlos/magent-resolve-cheap-model=).
+*Arquivos:* =lisp/custom-magent-tools.el=, =tests/magent-tools-test.el=,
+=tests/magent-routing-test.el=. *Gates:* =just compile-prod= 0 warnings,
+=just test= 362/0/10.
 
 ** TODO D5. Context Sharing Dinâmico para Subagentes
     :PROPERTIES:

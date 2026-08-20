@@ -45,6 +45,15 @@ entenderem o estado atual do projeto e decisões tomadas.
    - **Novo bug identificado:** =select_model= com =min_tier='free'= retorna
      modelo local → registrado no TODO.org.
 
+** 2026-08-20 — [CONCLUÍDO] Fix Tier Escalation — select_model aceita min_tier
+   - **Problema:** =select_model= ignorava =min_tier=, retornando sempre
+     tier local. Subagentes locais faziam timeout.
+   - **Causa raiz:** schema JSON e handler não expunham o parâmetro.
+   - **Fix:** schema com =min_tier= opcional, handler com 5º parâmetro
+     que faz override do piso do perfil via =plist-put=.
+   - **Testes:** 2 novos ERT (=accepts-min-tier=, =escalates-tier=).
+   - **Gates:** =just compile-prod= 0 warnings, =just test= 362/0/10.
+
 ** 2026-08-18 — [CONCLUÍDO] Reorganização do TODO.org
    - **Objetivo:** otimizar tokens e claridade removendo redundâncias e DONEs
      do arquivo de planejamento ativo.

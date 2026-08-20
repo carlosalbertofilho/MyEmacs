@@ -766,18 +766,23 @@ disponível."
                                       (car entry)))))))))))
 
 (defun +carlos/magent-tool-select-model
-    (task-description &optional agent complexity _reason)
+    (task-description &optional agent complexity min-tier-arg _reason)
   "Handler da tool `select_model' (Fase A).
 TASK-DESCRIPTION descreve a tarefa do subagente; AGENT é o nome do
 subagente alvo (default \"general\"); COMPLEXITY é opcional, \"simple\",
-\"moderate\" ou \"deep\" (senão inferido de TASK-DESCRIPTION); _REASON é
-display-only e descartado.  Resolve o modelo na escada de tiers, registra
-um override transiente em `+carlos/magent-subagent-model-overrides' e
-retorna um `magent-tool-result' com o payload JSON (backend, model, tier,
-reason)."
+\"moderate\" ou \"deep\" (senão inferido de TASK-DESCRIPTION); MIN-TIER-ARG
+é opcional, \"local\", \"free\" ou \"paid\" (piso mínimo do tier — força
+escalation acima deste nível); _REASON é display-only e descartado.
+Resolve o modelo na escada de tiers, registra um override transiente em
+`+carlos/magent-subagent-model-overrides' e retorna um `magent-tool-result'
+com o payload JSON (backend, model, tier, reason)."
   (let* ((agent (or agent "general"))
          (hints (and (boundp '+carlos/magent-subagent-profiles)
                      (cdr (assoc agent +carlos/magent-subagent-profiles))))
+         ;; Merge min-tier-arg into hints (override profile floor)
+         (hints (if (and min-tier-arg (stringp min-tier-arg))
+                    (plist-put (copy-sequence hints) :min-tier min-tier-arg)
+                  hints))
          (complexity-sym (pcase complexity
                            ("deep" 'deep)
                            ("moderate" 'moderate)
@@ -858,10 +863,11 @@ reason)."
           (gptel-make-tool
            :name "select_model"
            :description "Select and commit the model for a spawned subagent. Call BEFORE spawn_agent. Provide the task description and the target agent name ('explore' or 'general'); the runtime resolves the model by complexity and the user's tier cap and applies it to the subagent automatically."
-           :args '((:name "task_description" :type string :description "The task the subagent will perform")
-                   (:name "agent" :type string :description "Target agent name (e.g. 'explore' or 'general')")
-                   (:name "complexity" :type string :description "Optional: 'simple', 'moderate' or 'deep'. Inferred from task_description when omitted.")
-                   (:name "reason" :type string :description "Reason for this tool call"))
+            :args '((:name "task_description" :type string :description "The task the subagent will perform")
+                    (:name "agent" :type string :description "Target agent name (e.g. 'explore' or 'general')")
+                    (:name "complexity" :type string :description "Optional: 'simple', 'moderate' or 'deep'. Inferred from task_description when omitted.")
+                    (:name "min_tier" :type string :description "Optional minimum tier floor: 'local', 'free' or 'paid'. Forces escalation above this tier.")
+                    (:name "reason" :type string :description "Reason for this tool call"))
            :function #'+carlos/magent-tool-select-model
            :category "magent"))
 

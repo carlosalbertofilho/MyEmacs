@@ -261,7 +261,7 @@ e match exato — modelo forte obrigatório."
                     (gptel-tool-p +carlos/magent-tool-select-model)))
   (let ((args (gptel-tool-args +carlos/magent-tool-select-model)))
     (should (equal (mapcar (lambda (a) (plist-get a :name)) args)
-                   '("task_description" "agent" "complexity" "reason")))))
+                   '("task_description" "agent" "complexity" "min_tier" "reason")))))
 
 (ert-deftest myemacs-magent-subagent-override-consumed ()
   "Garante que o override da select_model é consumido (pop) e aplicado."
