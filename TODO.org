@@ -414,12 +414,12 @@ Prompt longo com múltiplos arquivos anexos.
 *Critério:* TO1-TO2 com spawn; TO3 sem; TO4 múltiplos; TO5 sem
 empty. =just compile-prod= zero warnings.
 
-** TODO Reescrita da Diretiva #3 — Resolver Conflito de Delegação & Operação de Buffer Vivo
-    :PROPERTIES:
-    :CREATED: 2026-08-20
-    :ASSIGNEE: opus
-    :STATUS: plano aprovado
-    :END:
+** DONE Reescrita da Diretiva #3 — Resolver Conflito de Delegação & Operação de Buffer Vivo
+     :PROPERTIES:
+     :CREATED: 2026-08-20
+     :ASSIGNEE: opus
+     :STATUS: concluido
+     :END:
 
 *Diagnóstico (2026-08-20):* Rodada de testes de delegação com
 =gemini-2.5-flash= no host =aa102-006l= (logs =session-20260820-100240=)
@@ -515,6 +515,9 @@ Planos concluídos e consolidados no [[file:roadmap.org][roadmap.org]]:
   fallback inteligente, compactação seletiva. 3 commits, 12 testes ERT.
 - *Fase D+ (parcial)* (2026-08-16) — D4 (coder tools), D6 (spinners),
   D9 (equipe), D9.1 (roteamento dinâmico). Todos DONE.
+- *Reescrita Diretiva #3 + Buffer Save* (2026-08-20) — Directive
+  rewrite (DELEGATION FIRST), buffer_save tool, orchestrator tool
+  restriction, planner/tech-writer buffer permissions. 4 commits.
 
 * Decisões Registradas
 
