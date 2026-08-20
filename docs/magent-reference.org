@@ -363,23 +363,23 @@ em vez de herdar o próprio modelo:
     retorna alist `(TIER . ((BACKEND . MODEL)...))`. Sem gptel carregado,
     usa `+carlos/magent-model-menu-default` (menu estático de fallback).
 - `+carlos/magent-model-max-tier` (default `paid`): teto do usuário.
-- `+carlos/magent-model-menu-render`: tabela (tier, backend, modelo, custo,
-  disponibilidade local via ping) injetada na regra **9. MODEL SELECTION** de
-  `+carlos/magent-system-directives`. O prompt é montado em runtime por
-  `+carlos/magent-system-directives-render` (usado por
-  `+carlos/magent-inject-system-directives`).
-- Tool `select_model` (args `task_description`/`agent`/`complexity`): heurística
+- Diretivas de Sistema e Injeção Dinâmica por Papel (2026-08-20):
+  As diretivas foram reestruturadas para evitar a poluição de diretivas de orquestrador em subagentes executores:
+  - `+carlos/magent-system-directives` (alias `+carlos/magent-common-directives`): regras técnicas sanitizadas (Caminhos Absolutos, Parâmetros Não-Vazios, DSML Tool Call Format, Prevenção de SIGPIPE exit 141, Shell Não-Interativo).
+  - `+carlos/magent-orchestrator-extra`: injetado **exclusivamente no Orquestrador** (`+carlos/magent-current-agent-is-orchestrator` `t`). Contém a regra de expansão obrigatória de caminhos absolutos nos prompts de `spawn_agent`, delegação estrita ("DELEGATION FIRST"), PADE *Spawn-and-Forge*, síntese em ≤3 tópicos e retries.
+  - `+carlos/magent-subagent-extra`: injetado **exclusivamente nos Subagentes** (`+carlos/magent-current-agent-is-orchestrator` `nil`). Declara o papel executor sem capacidade de delegação (proíbe `spawn_agent`), leitura prévia via `read_file` e substituição exata byte-a-byte.
+  - `+carlos/magent-inject-system-directives`: anexa as diretivas comuns e o addendum específico do papel em runtime.
+- Tool `select_model` (args `task_description`/`agent`/`complexity`/`min_tier`/`reason`): heurística
   `+carlos/magent-task-complexity` (keywords deep: refactor/architecture/debug/
   plan/schema/review **+ verbos de edição edit/update/rewrite/implement/
   planning desde 2026-08-14** — toda alteração de arquivo vira `deep`, nunca
   local); escada `+carlos/magent-resolve-model` — `deep` → free →
   paid (nunca local); `simple`/`moderate` → local (se ping online) → free →
-  paid; teto respeita `+carlos/magent-model-max-tier`. Desde 2026-08-16 a
-  escada também respeita o **piso `:min-tier` das dicas do perfil** do agente
-  (`select_model` lê `+carlos/magent-subagent-profiles` em runtime com guard
-  `boundp`; ex.: `coder` com local online ainda resolve paid). Retorna JSON
-  `{:backend B :model M :tier T :reason R}` e registra override transiente em
-  `+carlos/magent-subagent-model-overrides` (alist `agent-name → (backend . model)`).
+  paid; teto respeita `+carlos/magent-model-max-tier`. Desde 2026-08-20 a
+  ferramenta aceita o parâmetro opcional `min_tier` (`local`/`free`/`paid`) para
+  escalação dinâmica de subagentes após timeout, mesclando o argumento com o piso
+  do perfil via `plist-put`. Retorna JSON `{:backend B :model M :tier T :reason R}`
+  e registra override transiente em `+carlos/magent-subagent-model-overrides`.
 - Custo dentro do tier (2026-08-16): `+carlos/magent-model-cost-rank`
   (`backend model` → `0` free/local, `1` assinatura já coberta pelo plano,
   `2` assinatura metered, `99` desconhecido) + `+carlos/magent--tier-sorted-entries`

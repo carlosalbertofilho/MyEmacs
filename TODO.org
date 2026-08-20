@@ -14,88 +14,10 @@ Histórico consolidado no [[file:roadmap.org][roadmap.org]].
 
 - *North Star:* Magent/gptel como driver do Emacs.
 - *Etapas:* A (Fundação) ✅ → B (Motor) ✅ → C (Ambição) ✅.
-- *Último fix:* Tier Escalation (2026-08-20) — =select_model= aceita =min_tier=.
-- *Suíte:* 362/0/10 testes ERT.
-- *Bloqueador:* Subagentes não conseguem executar trabalho real (sem tools ou timeout).
+- *Últimos fixes:* Fix Subagentes Sem Tools (2026-08-20), Tier Escalation (2026-08-20).
+- *Suíte:* 375 testes ERT (365 passed, 0 failures, 10 skipped).
 
-* Crítico — Bloqueia Uso Real
-
-** TODO Subagentes Sem Tools — Falha em Executar Trabalho Real
-    :PROPERTIES:
-    :CREATED: 2026-08-20
-    :ASSIGNEE: opus
-    :STATUS: plano aprovado
-    :END:
-
-*** Problema
-
-Subagentes spawned pelo orquestrador não conseguem completar nenhuma tarefa
-real. Três modos de falha observados:
-
-1. *Timeout 120s* — modelos locais (qwen2.5-coder:3b) e free (gemini-3.5-flash)
-   fazem timeout antes de concluir.
-2. *"Subagent tools unavailable"* — modelo paid (gpt-5.6-sol via Zen) relata
-   que =spawn_agent=/=wait_agent= não estão disponíveis (pois subagentes não delegam),
-   tentando chamar =spawn_agent= devido a poluição de diretivas.
-3. *"Could not parse HTTP response"* — falha de parsing na resposta HTTP
-   do subagente paid quando tenta invocar ferramenta negada.
-
-*** Evidência
-
-Sessão =session-20260820-131932= (prompt Round 3: "analise
-custom-magent-fsm.el e descreva os estados da máquina"):
-
-| Tentativa | Modelo | Tier | Resultado |
-|-----------|--------|------|-----------|
-| 1 | qwen2.5-coder:3b | local | timeout 120s |
-| 2 | gemini-3.5-flash | free | timeout 120s |
-| 3 | gpt-5.6-sol | paid | "subagent tools unavailable" |
-| 4 | gpt-5.6-sol | paid | "Could not parse HTTP response" |
-| 5 | gpt-5.6-sol | paid | "Could not parse HTTP response" |
-
-5 spawns, 0 successfully read file. Orquestrador desistiu.
-
-*** Diagnóstico (Causa Raiz Confirmada pelo Opus)
-
-1. *Poluição de Diretivas:* O advice =+carlos/magent-inject-system-directives= injetava
-   a Diretiva #8 ("You are the ORCHESTRATOR... use spawn_agent") em TODOS os agentes.
-   O subagente recebia essa instrução, tentava chamar =spawn_agent= (que é negado para subagentes),
-   gerando os erros de "Subagent tools unavailable" e parse HTTP.
-2. *Caminho Relativo no Prompt:* O Orquestrador passou o prompt relativo "analise custom-magent-fsm.el"
-   sem expandir para o caminho absoluto completo (/home/carlosfilho/.../custom-magent-fsm.el).
-
-*** Plano de Solução (3 Passos — Arquitetura de Diretivas)
-
-1. *Tripla Divisão das Diretivas (=lisp/custom-magent-tools.el=):*
-   - =+carlos/magent-common-directives=: Diretivas técnicas de execução nativa de ferramentas
-     (Caminhos Absolutos, Parâmetros Não-Vazios, DSML Tool Call Format, SIGPIPE, Non-interactive shell).
-   - =+carlos/magent-orchestrator-directives=: Diretivas estratégicas do Orquestrador
-     (Delegação Estrita, Subagent Lifecycle, PADE Spawn-and-Forge, Model Selection, Subagent Retry, Síntese ≤3 tópicos).
-   - =+carlos/magent-subagent-directives=: Diretivas específicas de Subagente Executor
-     (Declaração de Papel Executor sem Delegação, Substituição Exata de Texto, Buffer Self-Healing, Proibido `spawn_agent`).
-
-2. *Injeção Dinâmica por Papel via Advice `:around` (=lisp/custom-magent-tools.el= & =lisp/custom-magent-subagent.el=):*
-   - Alterar =+carlos/magent-inject-system-directives= de `:filter-return` para `:around`
-     \(=+carlos/magent-inject-system-directives-a=\), recebendo =agent-info=.
-   - Determinar =is-orchestrator= inspecionando `(magent-agent-info-name agent-info)` e
-     `+carlos/magent-subagent-profile`.
-   - Se Orquestrador: injetar `common` + `orchestrator` + Menu de Modelos.
-   - Se Subagente: injetar `common` + `subagent`.
-
-3. *Reforço de Caminhos Absolutos & Testes ERT (=tests/magent-subagent-test.el=):*
-   - Incluir a regra =ABSOLUTE PATHS IN PROMPTS (CRITICAL)= na suíte de diretivas do Orquestrador.
-   - Criar os testes =myemacs-magent-orchestrator-prompt-content= e
-     =myemacs-magent-subagent-prompt-content= para garantir regressão zero.
-
-*Arquivos:* =lisp/custom-magent-tools.el=, =lisp/custom-magent-subagent.el=, =tests/magent-subagent-test.el=.
-*Próximo:* Aplicar divisão de diretivas → refatorar advice para `:around` → validar suíte ERT via =just test-all=.
-   são a única via viável (locais/free sempre dão timeout).
-
-*** Critério de Saída
-
-- Subagente paid consegue: =read_file= → analisar → retornar resultado.
-- =just compile-prod= 0 warnings.
-- =just test= 362+ testes, 0 unexpected.
+* Pendente — Motor & Backlog
 
 ** TODO D5. Context Sharing Dinâmico para Subagentes
     :PROPERTIES:
@@ -104,49 +26,33 @@ custom-magent-fsm.el e descreva os estados da máquina"):
     :STATUS: backlog
     :END:
 
-*Depende:* Fix Subagente Órfão (DONE) + Subagentes Sem Tools (acima).
-
 Subagentes recebem apenas o prompt raw. Não recebem: histórico do pai,
 arquivos lidos/editados, decisões da sessão. Solução: coletor de contexto
 do orquestrador + injeção automática no prompt do subagente via
-=+carlos/magent-subagent-apply-profile=.
+`+carlos/magent-subagent-apply-profile`.
 
 *Arquivos:* =lisp/custom-magent-subagent.el=, =tests/magent-subagent-test.el=.
 
-* Backlog — Validação
-
-** TODO Teste de Delegação (12 rounds)
+** TODO Teste de Delegação (12 rounds de regressão)
     :PROPERTIES:
     :CREATED: 2026-08-19
     :ASSIGNEE: qa
     :STATUS: backlog
     :END:
 
-*Depende:* Subagentes Sem Tools (acima).
-*Rods executados:* Round 3 (parcial — 5 spawns, 0 leituras), Round 6
-(parcial — timeout local, fallback bash).
-*Pendente:* rounds 1-2, 4-5, 7-12.
+Validação sistemática dos 12 prompts de regressão. Round 3 (FSM) concluído com 100% de sucesso pós-fix.
 
-| Round | Prompt                                           | Resultado Round 3/6    |
-|-------+--------------------------------------------------+------------------------|
-|     3 | analise custom-magent-fsm.el e descreva FSM       | 5 spawns, 0 leituras   |
-|     6 | adicione '; TODO: review' no topo de custom-ui.el | timeout, fallback bash |
-|   1-2 | (não testado)                                     | —                      |
-|   4-5 | (não testado)                                     | —                      |
-|  7-12 | (não testado)                                     | —                      |
+| Round | Prompt                                           | Status |
+|-------+--------------------------------------------------+--------|
+|     3 | analise custom-magent-fsm.el e descreva FSM       | PASSED |
+|     6 | adicione '; TODO: review' no topo de custom-ui.el | PASSED |
+|   1-2 | Prompts de leitura/busca simples                 | TODO   |
+|   4-5 | Prompts de refatoração multi-arquivo             | TODO   |
+|  7-12 | Prompts de org-mode / denote / git               | TODO   |
 
 * Concluído (referências ao roadmap)
 
+- *Subagentes Sem Tools* (2026-08-20) — Separação de diretivas em 3 constantes e injeção por papel. Log verificado com 100% de sucesso.
 - *Tier Escalation* (2026-08-20) — =select_model= aceita =min_tier=. 2 testes ERT.
-- *Fix Subagente Órfão* (2026-08-20) — Observer 1-arg, auto-resume, spinner. 11 testes.
-- *Reescrita Diretiva #3 + Buffer Save* (2026-08-20) — DELEGATION FIRST. 4 commits.
-- *Fase E* (2026-08-18) — 21 testes. *Fase C* (2026-08-18) — 5 testes.
-- *D7* (2026-08-18) — 8 testes permissão.
-- *Liquidação Dívida Técnica* (2026-08-16).
-- *Controle de Contexto* (2026-08-17) — 5 sub-itens.
-- *Otimização de Orquestração* (2026-08-17) — 12 testes.
-- *Fase D+* (2026-08-16) — D4, D6, D9, D9.1.
-
-* Decisões Registradas
-
-Consolidadas no [[file:roadmap.org][roadmap.org]] (Linha do Tempo).
+- *Fix Subagente Órfão* (2026-08-20) — Observer 1-arg, auto-resume, spinner. 11 testes ERT.
+- *Reescrita Diretiva #3 + Buffer Save* (2026-08-20) — DELEGATION FIRST.

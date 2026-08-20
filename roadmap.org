@@ -21,18 +21,15 @@ entenderem o estado atual do projeto e decisões tomadas.
    - **Testes:** 2 novos ERT (=accepts-min-tier=, =escalates-tier=).
    - **Gates:** =just compile-prod= 0 warnings, =just test= 362/0/10.
 
-** 2026-08-20 — [BLOQUEADO] Round 3 — Subagentes Sem Tools (leitura falhou)
-   - **Prompt:** "analise custom-magent-fsm.el e descreva os estados da máquina".
-   - **Resultado:** 5 spawns, 0 leituras de arquivo. Tier escalation
-     funciona (local → free → paid), mas subagentes não conseguem executar:
-     - local (qwen2.5-coder:3b): timeout 120s.
-     - free (gemini-3.5-flash): timeout 120s.
-     - paid (gpt-5.6-sol): "subagent tools unavailable" / "Could not parse HTTP response".
-   - **Diagnóstico:** =magent-enable-tools= só contém tools customizadas
-     (=flycheck_errors=, =lsp_navigation=, =buffer=, =select_model=).
-     Tools upstream (=read_file=, =bash=, =write_file=) não estão na lista.
-     Subagentes podem não receber tools upstream do magent core.
-   - **Ação:** registrar no TODO.org como bloqueador crítico para Opus planejar.
+** 2026-08-20 — [CONCLUÍDO] Fix Subagentes Sem Tools (Separação de Diretivas & Injeção por Papel)
+   - **Problema:** Subagentes recebiam a Diretiva #8 ("You are the ORCHESTRATOR"), tentando invocar =spawn_agent= e falhando com "Subagent tools unavailable" / erro de parse DSML. Prompts do Orquestrador continham nomes relativos de arquivo.
+   - **Solução (3 Passos):**
+     1. Tripla divisão de diretivas: =+carlos/magent-common-directives= (regras técnicas), =+carlos/magent-orchestrator-extra= (caminhos absolutos obrigatórios + delegação estrita), =+carlos/magent-subagent-extra= (papel executor + leitura antes de editar).
+     2. Injeção dinâmica por papel via variável =+carlos/magent-current-agent-is-orchestrator= em =custom-magent-subagent.el= e =custom-magent-tools.el=.
+     3. Validação ERT (=myemacs-orchestrator-prompt-content= e =myemacs-subagent-prompt-content=).
+   - **Verificação Prática (Log):** Sessão =session-20260820-165301.json= (Orquestrador delegou com caminho absoluto) e =session-20260820-165319.json= (Subagente =general= executou 4 =read_file= nativas e analisou 5 estados da FSM com 100% de sucesso).
+   - **Commits:** =f5ea8cf=, =6c30d50=, =9d31ff8=.
+   - **Gates:** =just compile-prod= 0 warnings, =just test= 375 testes (365 passed, 0 failures, 10 skipped).
 
 ** 2026-08-20 — [CONCLUÍDO] Fix Subagente Órfão (Auto-Resume Pós-Subagente)
    - **Problema:** orquestrador chamava =spawn_agent= mas encerrava o turno sem
