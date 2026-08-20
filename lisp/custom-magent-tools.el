@@ -148,6 +148,13 @@ Accept &rest ARGS for Gemini streaming 5th argument."
                     (gptel-tool-args tool))))))
 
 ;; ── Tool Sanitization & Path Auto-Expansion ──────────────────────────
+
+(defvar +carlos/magent-current-agent-is-orchestrator nil
+  "Non-nil when the active agent is the orchestrator.
+Set dynamically by `+carlos/magent-subagent-apply-profile' before calling
+`magent-agent-process'; consumed by `+carlos/magent-inject-system-directives'
+to select the correct directive set (orchestrator vs. subagent).")
+
 (defconst +carlos/magent-system-directives
   "CRITICAL MAGENT TOOL DIRECTIVES:
 1. ABSOLUTE PATHS: Use full absolute paths starting with '/' (e.g. '/home/carlosfilho/...').
@@ -187,9 +194,34 @@ Do NOT use '<tool_call>', '<function=...>', or '<parameter=...>' forms; the runt
  12. BUFFER SELF-HEALING: When user asks to 'fix', 'correct', 'corrija', 'arrume', 'refactor code in this buffer', or 'make this compile', activate the buffer-driver-loop skill. Read the buffer first, make atomic fixes, validate with flycheck_errors after each change, and stop when zero errors remain or after two consecutive fix attempts that make no progress (report remaining diagnostics). Never guess symbol names — resolve with lsp_navigation or describe_elisp_symbol first."
   "Instruções estritas de uso de ferramentas para os modelos do Magent.")
 
+(defvaralias '+carlos/magent-common-directives '+carlos/magent-system-directives
+  "Alias para +carlos/magent-system-directives (compatibilidade de testes).")
+
+;; ── Role-specific extras ──────────────────────────────────────────────
+
+(defconst +carlos/magent-orchestrator-extra
+  "\n\nORCHESTRATOR ADDENDUM:
+1. ABSOLUTE PATHS IN PROMPTS (CRITICAL): ALWAYS expand relative paths to absolute paths (starting with '/') before passing them to subagents via spawn_agent. Subagents do NOT inherit the orchestrator's working directory -- they receive only the prompt text. Example: say '/home/carlosfilho/.../file.el' NEVER 'file.el' or 'this file'.
+2. DELEGATION FIRST: You are the ORCHESTRATOR -- you do NOT read files directly. Delegate ALL file reading, analysis, and editing to subagents via 'spawn_agent'. The ONLY exception is 'grep' and 'glob' for quick path/name searches."
+  "Extra directives injected ONLY into the orchestrator's system prompt.")
+
+(defconst +carlos/magent-subagent-extra
+  "\n\nSUBAGENT ADDENDUM:
+You are a SUBAGENT EXECUTOR -- you receive a specific task and execute it. You do NOT orchestrate, you do NOT delegate, you do NOT call spawn_agent or wait_agent.
+1. READ BEFORE EDIT: Always use 'read_file' to read the target file before editing. Edit with exact text copied from the actual file content -- NEVER guess or hallucinate file contents.
+2. EXACT TEXT SUBSTITUTION: When using edit_file, old_text must match the file byte-for-byte. Copy directly from read_file output. If the edit fails, re-read the file and try again with the correct text.
+3. RETURN CLEAR RESULTS: When done, report: (a) what was done, (b) files modified (with absolute paths), (c) any errors encountered. Keep your report concise -- the orchestrator will synthesize for the user."
+  "Extra directives injected ONLY into subagent system prompts.")
+
 (defun +carlos/magent-inject-system-directives (composed &rest _)
-  "Append Magent system directives and model menu to COMPOSED message."
-  (concat composed "\n\n" (+carlos/magent-system-directives-render)))
+  "Append Magent system directives and model menu to COMPOSED message.
+Selects role-specific extras based on
+`+carlos/magent-current-agent-is-orchestrator' (set by
+`+carlos/magent-subagent-apply-profile')."
+  (let ((role-extra (if +carlos/magent-current-agent-is-orchestrator
+                        +carlos/magent-orchestrator-extra
+                      +carlos/magent-subagent-extra)))
+    (concat composed "\n\n" (+carlos/magent-system-directives-render) role-extra)))
 
 (defun +carlos/magent-resolve-path-advice (orig-fun path)
   "Expande PATH para absoluto com ORIG-FUN usando `default-directory'."

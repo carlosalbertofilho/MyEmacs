@@ -125,5 +125,47 @@
         (should (equal (alist-get 'status parsed) "success"))
         (should (equal (alist-get 'tier parsed) "free"))))))
 
+;; ── Directive Injection (role-aware) ─────────────────────────────────
+
+(ert-deftest myemacs-orchestrator-prompt-content ()
+  "Orchestrator receives common + orchestrator-extra directives, NOT subagent-extra."
+  (let ((+carlos/magent-current-agent-is-orchestrator t))
+    (let ((result (+carlos/magent-inject-system-directives "SYSTEM_MSG")))
+      ;; Common directives present
+      (should (string-match-p "NON-EMPTY PARAMETERS" result))
+      (should (string-match-p "TOOL CALL FORMAT" result))
+      (should (string-match-p "AVOID SIGPIPE" result))
+      ;; Orchestrator extras present
+      (should (string-match-p "ORCHESTRATOR ADDENDUM" result))
+      (should (string-match-p "ABSOLUTE PATHS IN PROMPTS" result))
+      (should (string-match-p "DELEGATION FIRST" result))
+      ;; Subagent extras NOT present
+      (should-not (string-match-p "SUBAGENT ADDENDUM" result))
+      (should-not (string-match-p "READ BEFORE EDIT" result)))))
+
+(ert-deftest myemacs-subagent-prompt-content ()
+  "Subagent receives common + subagent-extra directives, NOT orchestrator-extra."
+  (let ((+carlos/magent-current-agent-is-orchestrator nil))
+    (let ((result (+carlos/magent-inject-system-directives "SYSTEM_MSG")))
+      ;; Common directives present
+      (should (string-match-p "NON-EMPTY PARAMETERS" result))
+      (should (string-match-p "TOOL CALL FORMAT" result))
+      (should (string-match-p "AVOID SIGPIPE" result))
+      ;; Subagent extras present
+      (should (string-match-p "SUBAGENT ADDENDUM" result))
+      (should (string-match-p "READ BEFORE EDIT" result))
+      (should (string-match-p "EXACT TEXT SUBSTITUTION" result))
+      ;; Orchestrator extras NOT present
+      (should-not (string-match-p "ORCHESTRATOR ADDENDUM" result))
+      (should-not (string-match-p "ABSOLUTE PATHS IN PROMPTS" result))
+      (should-not (string-match-p "DELEGATION FIRST" result)))))
+
+(ert-deftest myemacs-directive-injection-defaults-to-subagent ()
+  "When role variable is nil (default), injects subagent directives."
+  (let ((+carlos/magent-current-agent-is-orchestrator nil))
+    (let ((result (+carlos/magent-inject-system-directives "TEST")))
+      (should (string-match-p "SUBAGENT ADDENDUM" result))
+      (should-not (string-match-p "ORCHESTRATOR ADDENDUM" result)))))
+
 (provide 'magent-tools-test)
 ;;; magent-tools-test.el ends here

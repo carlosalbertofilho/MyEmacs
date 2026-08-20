@@ -13,6 +13,7 @@
 (require 'cl-lib)
 
 (defvar +carlos/magent-subagent-model-overrides)
+(defvar +carlos/magent-current-agent-is-orchestrator)
 (defvar magent-enable-tools)
 (declare-function magent-agent-info-name "magent-agent-info")
 (declare-function magent-agent-process "magent-agent")
@@ -131,6 +132,7 @@ chamada a função vazia no .elc."
          (is-orchestrator (and agent-name
                                (not (equal agent-name "compaction"))
                                (not (+carlos/magent-subagent-profile agent-name))))
+         (+carlos/magent-current-agent-is-orchestrator is-orchestrator)
          (magent-enable-tools (if (and is-orchestrator (boundp 'magent-enable-tools))
                                   (remq 'read (remq 'write (remq 'edit (remq 'snippet_expand (remq 'buffer magent-enable-tools)))))
                                 (when (boundp 'magent-enable-tools) magent-enable-tools))))

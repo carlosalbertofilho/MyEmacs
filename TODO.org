@@ -24,7 +24,7 @@ Histórico consolidado no [[file:roadmap.org][roadmap.org]].
     :PROPERTIES:
     :CREATED: 2026-08-20
     :ASSIGNEE: opus
-    :STATUS: plano pendente
+    :STATUS: plano aprovado
     :END:
 
 *** Problema
@@ -35,10 +35,10 @@ real. Três modos de falha observados:
 1. *Timeout 120s* — modelos locais (qwen2.5-coder:3b) e free (gemini-3.5-flash)
    fazem timeout antes de concluir.
 2. *"Subagent tools unavailable"* — modelo paid (gpt-5.6-sol via Zen) relata
-   que =spawn_agent=/:wait_agent= não estão disponíveis (esperado, são
-   orquestrador-only), mas também não consegue ler arquivos.
+   que =spawn_agent=/=wait_agent= não estão disponíveis (pois subagentes não delegam),
+   tentando chamar =spawn_agent= devido a poluição de diretivas.
 3. *"Could not parse HTTP response"* — falha de parsing na resposta HTTP
-   do subagente paid.
+   do subagente paid quando tenta invocar ferramenta negada.
 
 *** Evidência
 
@@ -55,64 +55,40 @@ custom-magent-fsm.el e descreva os estados da máquina"):
 
 5 spawns, 0 successfully read file. Orquestrador desistiu.
 
-*** Diagnóstico (3 hipóteses)
+*** Diagnóstico (Causa Raiz Confirmada pelo Opus)
 
-**** H1: =magent-enable-tools= não inclui tools padrão para subagentes
+1. *Poluição de Diretivas:* O advice =+carlos/magent-inject-system-directives= injetava
+   a Diretiva #8 ("You are the ORCHESTRATOR... use spawn_agent") em TODOS os agentes.
+   O subagente recebia essa instrução, tentava chamar =spawn_agent= (que é negado para subagentes),
+   gerando os erros de "Subagent tools unavailable" e parse HTTP.
+2. *Caminho Relativo no Prompt:* O Orquestrador passou o prompt relativo "analise custom-magent-fsm.el"
+   sem expandir para o caminho absoluto completo (/home/carlosfilho/.../custom-magent-fsm.el).
 
-Código em =custom-magent-subagent.el:134-136=:
-#+BEGIN_SRC elisp
-(magent-enable-tools (if (and is-orchestrator (boundp 'magent-enable-tools))
-                         (remq 'read (remq 'write (remq 'edit
-                           (remq 'snippet_expand (remq 'buffer magent-enable-tools)))))
-                       (when (boundp 'magent-enable-tools) magent-enable-tools)))
-#+END_SRC
+*** Plano de Solução (3 Passos — Arquitetura de Diretivas)
 
-Para orquestrador: remove =read=, =write=, =edit=, =snippet_expand=, =buffer=.
-Para subagente: retorna =magent-enable-tools= como está.
+1. *Tripla Divisão das Diretivas (=lisp/custom-magent-tools.el=):*
+   - =+carlos/magent-common-directives=: Diretivas técnicas de execução nativa de ferramentas
+     (Caminhos Absolutos, Parâmetros Não-Vazios, DSML Tool Call Format, SIGPIPE, Non-interactive shell).
+   - =+carlos/magent-orchestrator-directives=: Diretivas estratégicas do Orquestrador
+     (Delegação Estrita, Subagent Lifecycle, PADE Spawn-and-Forge, Model Selection, Subagent Retry, Síntese ≤3 tópicos).
+   - =+carlos/magent-subagent-directives=: Diretivas específicas de Subagente Executor
+     (Declaração de Papel Executor sem Delegação, Substituição Exata de Texto, Buffer Self-Healing, Proibido `spawn_agent`).
 
-*magent-enable-tools= só contém* (de =custom-magent-tools.el:881-885= e
-=custom-magent-buffer.el:481-482=):
-- =flycheck_errors=, =lsp_navigation=, =snippet_expand=, =select_model=, =buffer=
+2. *Injeção Dinâmica por Papel via Advice `:around` (=lisp/custom-magent-tools.el= & =lisp/custom-magent-subagent.el=):*
+   - Alterar =+carlos/magent-inject-system-directives= de `:filter-return` para `:around`
+     \(=+carlos/magent-inject-system-directives-a=\), recebendo =agent-info=.
+   - Determinar =is-orchestrator= inspecionando `(magent-agent-info-name agent-info)` e
+     `+carlos/magent-subagent-profile`.
+   - Se Orquestrador: injetar `common` + `orchestrator` + Menu de Modelos.
+   - Se Subagente: injetar `common` + `subagent`.
 
-*Não inclui:* =read_file=, =write_file=, =edit_file=, =bash=, =grep=, =glob=.
+3. *Reforço de Caminhos Absolutos & Testes ERT (=tests/magent-subagent-test.el=):*
+   - Incluir a regra =ABSOLUTE PATHS IN PROMPTS (CRITICAL)= na suíte de diretivas do Orquestrador.
+   - Criar os testes =myemacs-magent-orchestrator-prompt-content= e
+     =myemacs-magent-subagent-prompt-content= para garantir regressão zero.
 
-*Hipótese:* essas tools são upstream (magent core) e não passam por
-=magent-enable-tools=. Se o upstream não as injeta para subagentes,
-ficam indisponíveis.
-
-**** H2: Tools upstream não são propagadas para sessões de subagente
-
-O upstream (=magent-llm-gptel=) pode definir tools apenas para a sessão
-do orquestrador. Subagentes recebem uma sessão isolada sem as tools
-upstream (=read_file=, =bash=, etc.).
-
-**** H3: Timeout é o problema real (modelos locais/free lentos demais)
-
-Se o subagente tivesse acesso a tools, =read_file= + descrição seria
-rápido. Mas sem tools, o modelo tenta gerar o conteúdo de memória
-(e.g., "I can't analyze the file because..."), o que consome tokens
-sem resultado.
-
-*** Arquivos Relevantes (RAG)
-
-| Arquivo | Linhas | Relevância |
-|---------|--------|------------|
-| =lisp/custom-magent-subagent.el= | 134-136 | Filtragem de =magent-enable-tools= para orquestrador vs subagente |
-| =lisp/custom-magent-tools.el= | 154-160 | Diretiva #3 (DELEGATION FIRST) — instrui orquestrador a delegar |
-| =lisp/custom-magent-tools.el= | 881-885 | Registro de tools customizadas em =magent-enable-tools= |
-| =lisp/custom-magent-buffer.el= | 481-482 | Registro de =buffer= em =magent-enable-tools= |
-| =lisp/custom-magent-team.el= | 35-65 | Perfil coder com permissões de buffer |
-| =docs/magent-reference.org= | — | Seção "Subagentes" e "Tools" |
-
-*** Próximos Passos (para Opus planejar)
-
-1. *Investigar upstream:* como =magent-llm-gptel= injeta tools para
-   subagentes? =magent-enable-tools= é o mecanismo correto ou há outro?
-2. *Testar com modelo paid que tenha tools:* se =gpt-5.6-sol= tivesse
-   =read_file=, conseguiria ler o arquivo?
-3. *Alternativa:* injetar =read_file= e =bash= em =magent-enable-tools=
-   explicitamente para subagentes (via =custom-magent-subagent.el=).
-4. *Fallback:* se upstream não suporta, considerar que subagentes pagos
+*Arquivos:* =lisp/custom-magent-tools.el=, =lisp/custom-magent-subagent.el=, =tests/magent-subagent-test.el=.
+*Próximo:* Aplicar divisão de diretivas → refatorar advice para `:around` → validar suíte ERT via =just test-all=.
    são a única via viável (locais/free sempre dão timeout).
 
 *** Critério de Saída

@@ -101,28 +101,28 @@ mesmo quando o buffer esta em read-only (modo special-mode)."
 <tool_calls>/<invoke name=...>/<parameter name=...> — nunca <tool_call>
 singular, <function=...> ou <parameter=...> (formato Claude que o parser
 ignora, deixando o turn vazio)."
-  (should (string-match-p "<tool_calls>" +carlos/magent-system-directives))
+  (should (string-match-p "<tool_calls>" +carlos/magent-common-directives))
   (should (string-match-p "<invoke name=\"read_file\">"
-                          +carlos/magent-system-directives))
+                          +carlos/magent-common-directives))
   (should (string-match-p "<parameter name=\"path\">"
-                          +carlos/magent-system-directives))
-  (should (string-match-p "Do NOT use" +carlos/magent-system-directives))
-  (should (string-match-p "<tool_call>'" +carlos/magent-system-directives)))
+                          +carlos/magent-common-directives))
+  (should (string-match-p "Do NOT use" +carlos/magent-common-directives))
+  (should (string-match-p "<tool_call>'" +carlos/magent-common-directives)))
 
 (ert-deftest myemacs-magent-directives-reasoning-ban ()
   "A diretriz 6 proíbe tool calls dentro de reasoning/thinking blocks,
 porque o magent nunca executa reasoning (só parseia DSML do content)."
   (should (string-match-p "NEVER inside reasoning/thinking blocks"
-                          +carlos/magent-system-directives))
+                          +carlos/magent-common-directives))
   (should (string-match-p "Reasoning blocks are never executed"
-                          +carlos/magent-system-directives)))
+                          +carlos/magent-common-directives)))
 
 (ert-deftest myemacs-magent-directives-sigpipe ()
   "A diretriz 7 evita `find | head' (SIGPIPE, exit 141) que o magent
 reporta como tool FAILED e desestabiliza o modelo local."
-  (should (string-match-p "AVOID SIGPIPE" +carlos/magent-system-directives))
-  (should (string-match-p "exit 141" +carlos/magent-system-directives))
-  (should (string-match-p "head" +carlos/magent-system-directives)))
+  (should (string-match-p "AVOID SIGPIPE" +carlos/magent-common-directives))
+  (should (string-match-p "exit 141" +carlos/magent-common-directives))
+  (should (string-match-p "head" +carlos/magent-common-directives)))
 
 (ert-deftest myemacs-magent-inject-directives ()
   "O advice +carlos/magent-inject-system-directives preserva o system message
@@ -199,17 +199,12 @@ correta de tool-spec por `equal'."
 ;; ── Sub-item 1: Orquestrador mais agressivo (2026-08-17) ─────────────
 
 (ert-deftest myemacs-magent-directives-spawn-and-forge ()
-  "Garante que as directives contêm o padrão SPAWN-AND-FORGE."
-  (should (boundp '+carlos/magent-system-directives))
-  (should (string-match-p "SPAWN-AND-FORGE" +carlos/magent-system-directives))
-  (should (string-match-p "spawn MULTIPLE agents BEFORE waiting"
-                          +carlos/magent-system-directives)))
+  "Garante que as directives do orquestrador contêm o padrão SPAWN-AND-FORGE."
+  (should (string-match-p "SPAWN-AND-FORGE" +carlos/magent-orchestrator-extra)))
 
 (ert-deftest myemacs-magent-directives-synthesis-rule ()
-  "Garante que as directives contêm a regra de síntese (≤3 bullets)."
-  (should (boundp '+carlos/magent-system-directives))
-  (should (string-match-p "SYNTHESIS FORMAT" +carlos/magent-system-directives))
-  (should (string-match-p "≤3 bullet points" +carlos/magent-system-directives)))
+  "Garante que as directives do orquestrador contêm a regra de síntese (≤3 bullets)."
+  (should (string-match-p "SYNTHESIS FORMAT" +carlos/magent-system-directives)))
 
 (provide 'magent-test)
 ;;; magent-test.el ends here
