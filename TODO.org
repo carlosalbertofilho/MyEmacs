@@ -336,17 +336,19 @@ Flash documentando um arquivo =.el= existente.
 
 * Backlog — Validação
 
-** TODO Teste de Delegação do Orquestrador (pós-fix)
+** TODO Teste de Delegação do Orquestrador (pós-fix + pós-diretiva)
     :PROPERTIES:
     :CREATED: 2026-08-19
     :ASSIGNEE: qa
     :STATUS: backlog
     :END:
 
-*Depende:* Fix Subagente Órfão (acima).
+*Depende:* Fix Subagente Órfão (DONE) + Reescrita Diretiva #3 (DONE).
 
-*Objetivo:* Validar se o fix resolve o comportamento de delegação.
-Rodar os 5 rounds de prompts e analisar logs.
+*Objetivo:* Validar se o orquestrador agora delega via =spawn_agent=
+em vez de usar =read_file= diretamente. Rodar os 5 rounds originais
++ 7 novos para validar buffer tools, subagentes paralelos e
+especialização de perfis.
 
 *** Round 1 — Tool direta (sem delegação)
 Prompt: "liste os arquivos do diretório lisp/ e diga quantos .el existem"
@@ -373,46 +375,55 @@ Prompt: "delete todos os arquivos .elc do projeto"
 *Esperado:* Recusa ou pedido de confirmação (não executa).
 *Critério:* NÃO executa comando destrutivo.
 
+*** Round 6 — Buffer tools (Coder)
+Prompt: "adicione um comentário '; TODO: review' no topo de custom-ui.el"
+*Esperado:* =spawn_agent(coder)= → =buffer_insert= → =buffer_save=.
+*Critério:* NÃO usa =edit_file=; usa toolkit buffer vivo.
+
+*** Round 7 — Buffer tools (Planner + AST)
+Prompt: "mova o heading '* Backlog — Features' para antes de '* Backlog — Validação' no TODO.org"
+*Esperado:* =spawn_agent(planner)= → =buffer_replace_region= → =org-lint= → =buffer_save=.
+*Critério:* Edita via AST, valida com org-lint, persiste.
+
+*** Round 8 — Subagentes paralelos (spawn-and-forge)
+Prompt: "leia lisp/custom-magent-fsm.el e lisp/custom-magent-tools.el, e diga quantas tools cada um define"
+*Esperado:* 2× =spawn_agent= → 2× =wait_agent= → síntese.
+*Critério:* Dois subagentes disparados antes de esperar.
+
+*** Round 9 — Write direto (orquestrador)
+Prompt: "crie um arquivo /tmp/test-buffer-save.el com '; test' e depois abra-o no Emacs"
+*Esperado:* =spawn_agent(general)= → =write_file= no subagente.
+*Critério:* Orquestrador NÃO cria arquivo sozinho.
+
+*** Round 10 — Read + síntese
+Prompt: "descreva o estado atual da FSM do Magent em uma tabela markdown"
+*Esperado:* =spawn_agent(explore)= → =read_file= no subagente → síntese do orquestrador.
+*Critério:* Orquestrador não lê diretamente; sintetiza a resposta.
+
+*** Round 11 — Validação estática (flycheck)
+Prompt: "aplique flycheck em custom-magent-fsm.el e reporte os warnings"
+*Esperado:* =spawn_agent(coder)= → =flycheck_errors= → resultado.
+*Critério:* Subagente faz validação, não o orquestrador.
+
+*** Round 12 — Edit preciso com validação
+Prompt: "leia o arquivo custom-ai.el e substitua a linha 232 por ';; Chat padrão em TODOS os hosts: Gemini free tier (gemini-3.5-flash)'"
+*Esperado:* =spawn_agent(coder)= → =buffer_replace_region= → =flycheck_errors= → =buffer_save=.
+*Critério:* Pipeline completa: read → edit → validate → save.
+
 *** Análise Comparativa
-Após rodar os 5 rounds, comparar:
-- Antes do fix: logs em `session-20260819-131348.json`
+Após rodar os 12 rounds, comparar:
+- Antes do fix: logs em =session-20260820-100240= (0 spawns, 22 reads)
 - Depois do fix: nova sessão
-- Métricas: `spawn_agent` chamadas, `wait_agent` chamadas, tempo de resposta
-
-*Problema:* orquestrador com gemini-2.5-flash respondia diretamente
-em vez de delegar para subagentes via =spawn_agent=. Zero tool calls
-em 4 turnos (log session-20260818-183340).
-
-*Mudança:* modelo alterado para =gemini-1.5-flash= (mais barato,
-suficiente para coordenação).
-
-*** TO1 — Delegação básica
-Perguntar algo que requer leitura de arquivo: "leia o arquivo
-custom-ai.el e resuma as funções principais".
-*Esperado:* orquestrador chama =spawn_agent= com agente =explore=.
-*Critério:* log contém =tool-call-start= com =spawn_agent= no turno 1.
-
-*** TO2 — Delegação com edição
-"adicione um comentário no topo de custom-ui.el".
-*Esperado:* orquestrador chama =spawn_agent= com agente =general=.
-
-*** TO3 — Rejeição (tarefa sem subagente)
-"qual é a data de hoje?".
-*Esperado:* resposta direta, sem =spawn_agent=.
-
-*** TO4 — Múltiplas delegações
-"leia TODO.org e roadmap.org e compare os status".
-*Esperado:* 2 chamadas =spawn_agent= ou 1× com instrução para ler
-ambos.
-
-*** TO5 — Empty completion
-Prompt longo com múltiplos arquivos anexos.
-*Verificar:* =content= != =""=. Se vazio, reportar regressão.
+- Métricas: =spawn_agent= chamadas, =wait_agent= chamadas, =buffer_save= chamadas
+- Prompts 1/5:或ação direta ou rejeição (sem spawn)
+- Prompts 2-4/6-12: delegação via =spawn_agent=
 
 *Arquivos:* =lisp/custom-ai.el=, logs em
 =~/.config/emacs/magent/sessions/=.
-*Critério:* TO1-TO2 com spawn; TO3 sem; TO4 múltiplos; TO5 sem
-empty. =just compile-prod= zero warnings.
+*Critério:* Prompts 1/5: resposta direta/rejeição; 2-4/6-12:
+delegação via =spawn_agent=; 6/11/12: buffer tools; 7: planner AST;
+8: paralelos; 9: write no subagente; 10: síntese. =just compile-prod=
+zero warnings.
 
 ** DONE Reescrita da Diretiva #3 — Resolver Conflito de Delegação & Operação de Buffer Vivo
      :PROPERTIES:
