@@ -17,7 +17,34 @@ Histórico consolidado no [[file:roadmap.org][roadmap.org]].
 - *Últimos fixes:* Fix Subagentes Sem Tools (2026-08-20), Tier Escalation (2026-08-20).
 - *Suíte:* 375 testes ERT (365 passed, 0 failures, 10 skipped).
 
+* Contexto de Arquitetura Oficial do Magent (Referência RAG)
+
+Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=, =docs/AGENT_WORKFLOW.org=, =docs/ONBOARDING.org=):
+
+- *Modelo de Subagentes (AGENT_JOBS.org):* Jobs duráveis com a struct =magent-agent-job= (=queued=, =running=, =waiting=, =completed=, =failed=, =closed=, =cancelled=). O =wait_agent= assina observadores de transição com deadline timer (sem polling). Herança de contexto delimitada por =magent-child-agent-max-depth= (padrão 1 nível).
+- *Ledger & State Machine (AGENT_WORKFLOW.org):* Hierarquia Codex =thread -> turn -> item=. Turno gerenciado em =magent-ledger.el=. Itens de ferramenta unificados (=tool-call= e =tool-output= no mesmo registro por =call-id=). Persistência dupla via =Snapshot= (restauração rápida de thread) + =Journal= (log append-only).
+- *Camadas de Arquitetura (ONBOARDING.org):* 7 camadas. Camada 2 (Sessão & Ledger), Camada 3 (Agentes e Permissões =allow=/=deny=/=ask=), Camada 4 (15 ferramentas nativas em =magent-tools.el= + aprovações em =magent-approval.el=), Camada 5 (Loop Magent e transport fino =gptel-request= em =magent-llm-gptel.el=), Camada 6 (Frontend =agent-shell= + protocolo ACP em =magent-acp.el=).
+
 * Pendente — Motor & Backlog
+
+** TODO Roteamento de Aprovação de Permissões de Subagente via Botões Gráficos na UI
+    :PROPERTIES:
+    :CREATED: 2026-08-20
+    :ASSIGNEE: coder
+    :STATUS: backlog
+    :END:
+
+*** Problema
+Quando subagentes solicitam ferramentas com permissão `:ask` (ex: `bash`, `write_file`),
+o pedido cai no fallback do minibuffer do Emacs (prompt de texto no rodapé) em vez
+de renderizar os botões estilizados da interface gráfica do Magent (`[ Aprovar ] [ Negar ]` no buffer `*Magent*`).
+
+*** Solução
+Redirecionar os pedidos de confirmação de permissão de subagentes em sessões secundárias
+para o manipulador de UI principal do `agent-shell` (`+carlos/magent-ui-sink`), garantindo
+que a interface com botões estilizados seja usada em todas as aprovações.
+
+*Arquivos:* =lisp/custom-magent-ui.el=, =lisp/custom-magent-team.el=, =tests/magent-ui-test.el=.
 
 ** TODO D5. Context Sharing Dinâmico para Subagentes
     :PROPERTIES:
