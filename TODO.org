@@ -9,130 +9,35 @@
 
 * Visão Geral
 
-Este arquivo é o artefato único de planejamento do MyEmacs (AGENTS.md,
-política de multiagentes). Mantém apenas pendências ativas e backlog futuro.
-O histórico de planos concluídos é arquivado no
-[[file:roadmap.org][roadmap.org]] (Linha do Tempo).
+Artefato único de planejamento (AGENTS.md). Apenas pendências ativas.
+Histórico consolidado no [[file:roadmap.org][roadmap.org]].
 
-** Resumo Executivo
-
-- *North Star:* Magent/gptel como driver do Emacs — expande snippets, preenche
-  lacunas, valida com flycheck/LSP, corrige em loop.
+- *North Star:* Magent/gptel como driver do Emacs.
 - *Etapas:* A (Fundação) ✅ → B (Motor) ✅ → C (Ambição) ✅.
-- *Último commit:* =577ac0a= (chore: clean prod junk files).
-- *Suíte:* 360/0/9 testes ERT (roadmap 2026-08-18).
-- *Bloqueador atual:* Subagente órfão (=spawn_agent= sem =wait_agent=).
+- *Último fix:* Fix Subagente Órfão + Diretiva #3 (2026-08-20).
+- *Suíte:* 360/0/10 testes ERT.
 
 * Crítico — Bloqueia Uso Real
 
-** TODO Fix Subagente Órfão (Auto-Resume Pós-Subagente)
+** TODO Tier Escalation — select_model ignora min_tier
     :PROPERTIES:
-    :CREATED: 2026-08-19
-    :ASSIGNEE: coder
-    :STATUS: active
+    :CREATED: 2026-08-20
+    :ASSIGNEE: opus
+    :STATUS: planejamento
     :END:
 
-*** Problema
+*Problema:* =select_model= com =min_tier='free'= retorna modelo local
+\(`qwen2.5-coder:3b`\) em vez de cloud (Gemini free tier). Subagentes
+locais fazem timeout em 120s, orquestrador cai em fallback =bash=.
 
-Orquestrador chama =spawn_agent= mas encerra o turno sem chamar =wait_agent= para
-coletar o resultado. Subagente conclui no background, mas como a resposta HTTP
-da LLM pai já encerrou, o =agent-shell= fica inerte esperando o usuário digitar.
-FSM presa em =subagent-waiting= para sempre (0 chamadas =wait_agent= em 5 prompts).
+*Evidência:* sessão =session-20260820-110758= — 4× spawn, 4× timeout,
+fallback =bash(cat)+bash(echo)= para completar tarefa.
 
-*** Diagnóstico (5 gaps confirmados no código)
+*Diagnóstico:* função =+carlos/magent-resolve-model= não respeita
+=min_tier= quando modelo local está online.
 
-| # | Gap | Severidade | Causa Raiz / Evidência |
-|---|-----|------------|------------------------|
-| 1 | Observer arity mismatch | Crítico | Upstream (=magent-agent-job.el:121=) chama com 1 arg =(funcall (cdr entry) job)=. O lambda em =custom-magent-fsm.el:113= esperava 2, lançando =wrong-number-of-arguments= capturado silenciosamente. |
-| 2 | =turn-start-sink= não registrado + falta de guarda | Crítico | Função =+carlos/magent-fsm-turn-start-sink= definida mas nunca registrada no =with-eval-after-load=. Falta filtro =:type turn-start= para não disparar em outros eventos. |
-| 3 | Sem auto-continuação pós-subagente | Crítico | Nenhuma função reabria o turno da LLM quando o subagente concluía no background. |
-| 4 | Advice em =agent-shell--send-command= passivo | Crítico | Advice só injetava resultados quando o usuário enviava novo input manual no terminal. |
-| 5 | Diretiva advisory ignorada por modelos pequenos | Médio | Modelos pequenos (ex.: Gemma 2b/7b) ignoram a recomendação no system prompt de chamar =wait_agent= na mesma rodada. |
-
-*** Solução: 3 Camadas Refinadas
-
-**** Camada 1 — Correção de Bugs e Event Sinks (Obrigatório)
-
-1. *Corrigir observer* (=custom-magent-fsm.el:113=):
-   - Mudar lambda para 1 argumento e extrair status:
-     #+BEGIN_SRC elisp
-     (lambda (observed-job)
-       (let ((new-status (magent-agent-job-status observed-job)))
-         (when (memq new-status '(completed failed))
-           ...)))
-     #+END_SRC
-
-2. *Guarda de tipo e registro do =turn-start-sink=* (=custom-magent-fsm.el=):
-   - Adicionar guarda =(when (eq (plist-get event-data :type) 'turn-start) ...)= dentro de =+carlos/magent-fsm-turn-start-sink=.
-   - Registrar no =with-eval-after-load 'magent-llm-gptel=:
-     #+BEGIN_SRC elisp
-     (magent-lifecycle-events-add-sink #'+carlos/magent-fsm-turn-start-sink)
-     #+END_SRC
-
-**** Camada 2 — Auto-Resume Programático (Robustez)
-
-1. *Auto-continuação pós-subagente* (=custom-magent-fsm.el=):
-   - Nova função =+carlos/magent-fsm-auto-resume-on-subagent-complete=:
-     a. Chamada no final do callback do observer quando um job atinge estado terminal (=completed= ou =failed=).
-     b. Verifica se FSM está em =subagent-waiting= e se todos os subagentes da sessão concluíram (=(not (+carlos/magent-fsm-pending-subagent-p))=).
-     c. Formata os resultados pendentes via =+carlos/magent-fsm-inject-pending-results=.
-     d. Dispara programmaticamente o novo turno no shell ativo via =agent-shell--send-command= com prompt sintetizado de sistema.
-   - Elimina qualquer tentativa de "tool call artificial", usando a API nativa do =agent-shell=.
-
-**** Camada 3 — Telemetria e GUI (Usabilidade)
-
-1. *Spinner informativo* (=custom-magent-ui.el=):
-   - Atualizar =+carlos/magent-ui-spinner-line= para exibir agente e contagem durante =subagent-waiting=.
-   - Exemplo: =[13:52:20] ⏳ ⠴ aguardando subagente (explore)...= ou =[13:52:20] ⏳ ⠴ aguardando 2 subagentes...=
-
-*** Fluxo Corrigido (antes vs depois)
-
-**** Antes (bugado)
-#+BEGIN_EXAMPLE
-Usuário: "delegue para explore..."
-  → spawn_agent(explore) → Job running
-  → Turno pai encerra sem wait_agent
-  → FSM: subagent-waiting (para sempre)
-  → Subagente termina → Observer lança erro arity → Silêncio
-  → UI: "⏳ aguardando subagente..." (preso)
-#+END_EXAMPLE
-
-**** Depois (corrigido)
-#+BEGIN_EXAMPLE
-Usuário: "delegue para explore..."
-  → spawn_agent(explore) → Job running
-  → Turno pai encerra sem wait_agent → FSM: subagent-waiting
-  → Subagente termina → Observer (1 arg) captura resultado
-  → Observer verifica: 0 subagentes pendentes
-  → Dispara auto-resume: agent-shell--send-command(prompt de retomada)
-  → Turno pai reabre → turn-start-sink injeta relatório do subagente
-  → Orquestrador sintetiza resposta final
-  → FSM: idle
-#+END_EXAMPLE
-
-*** Arquivos Envolvidos
-
-| Arquivo | Mudança |
-|---------|---------|
-| =lisp/custom-magent-fsm.el= | Fix observer (1 arg), guarda e registro turn-start-sink, auto-resume |
-| =lisp/custom-magent-ui.el= | GUI informativa (nome agente / contagem de subagentes) |
-| =tests/magent-fsm-test.el= | Novos testes ERT (observer 1 arg, auto-resume trigger) |
-| =docs/magent-reference.org= | Atualizar documentação do fluxo de subagentes |
-
-*** Critério de Saída
-
-- =just compile= zero-warning
-- =just test= verde (incluindo novos testes ERT)
-- Teste interativo: =spawn_agent= → subagente termina → auto-resume reabre turno → resposta entregue
-- GUI mostra informações do subagente durante a espera
-
-*** Referências
-
-- [[file:docs/magent-reference.org][magent-reference.org]] — Seção "Subagent Result Routing (Fase E)"
-- [[file:docs/magent-reference.org][magent-reference.org]] — Seção "Subagentes (spawn_agent / wait_agent)"
-- [[file:roadmap.org][roadmap.org]] — Fase E (2026-08-18)
-
-* Backlog — Features
+*Arquivos:* =lisp/custom-magent-tools.el= (=+carlos/magent-resolve-model=),
+=lisp/custom-magent-context.el= (=+carlos/magent-resolve-cheap-model=).
 
 ** TODO D5. Context Sharing Dinâmico para Subagentes
     :PROPERTIES:
@@ -141,182 +46,28 @@ Usuário: "delegue para explore..."
     :STATUS: backlog
     :END:
 
-*Depende:* Fix Subagente Órfão (acima).
+*Depende:* Fix Subagente Órfão (DONE).
 
-*Problema:* subagentes recebem apenas o prompt raw do orquestrador. Não
-recebem: histórico de conversa do pai, arquivos lidos/editados, decisões
-tomadas na sessão, nem o estado acumulado do orquestrador. Isso obriga o
-orquestrador a repetir contexto no prompt (gastando tokens) ou o subagente
-trabalha às cegas.
+Subagentes recebem apenas o prompt raw. Não recebem: histórico do pai,
+arquivos lidos/editados, decisões da sessão. Solução: coletor de contexto
+do orquestrador + injeção automática no prompt do subagente via
+=+carlos/magent-subagent-apply-profile=. 4 sub-itens: Context Collector,
+Context Formatter, Context Injection, Testes de integração.
 
-*Solução:* coletar contexto dinâmico do orquestrador (arquivos tocados,
-ações recentes, estado do projeto) e injetar automaticamente no prompt
-do subagente antes de delegar. Abordagem: enrich do =user-prompt= no
-=+carlos/magent-subagent-apply-profile= (não modifica upstream).
+*Arquivos:* =lisp/custom-magent-subagent.el=, =tests/magent-subagent-test.el=.
 
-*** D5.1 — Context Collector (coletor de estado do orquestrador)
-    :PROPERTIES:
-    :ASSIGNEE: coder
-    :END:
-
-Em =custom-magent-subagent.el=:
-
-1. Nova variável =+carlos/magent-orchestrator-context= (alist):
-   - =:files-read= — lista de arquivos lidos via =read_file= (últimos 5).
-   - =:files-edited= — lista de arquivos editados (últimos 5).
-   - =:recent-actions= — resumo das últimas 3 ações (tool + resultado).
-   - =:project-state= — branch, arquivos modificados (via =git status=).
-   - =:task-context= — understanding atual da tarefa (extraída do prompt).
-
-2. Função =+carlos/magent-collect-orchestrator-context=:
-   - Le =magent-tools--request-context= (dinâmico durante execução).
-   - Extrai =magent-session-thread= → =magent-thread-turn-items= →
-     itens de turno com tool-call-start/end.
-   - Filtra por tool name (=read_file=, =edit_file=, =write_file=,
-     =bash=) e extrai args + result summary.
-   - Armazena em =+carlos/magent-orchestrator-context=.
-
-3. Hook no =turn-end-sink= (ou advice em =magent-agent-loop-end-turn=)
-   para atualizar o contexto ao final de cada turno.
-
-*Testes ERT:*
-- =myemacs-d5-context-collector-extracts-files-read=
-- =myemacs-d5-context-collector-extracts-files-edited=
-- =myemacs-d5-context-collector-limits-history=
-- =myemacs-d5-context-collector-extracts-recent-actions=
-
-*** D5.2 — Context Formatter (formatação do contexto)
-    :PROPERTIES:
-    :ASSIGNEE: coder
-    :END:
-
-Em =custom-magent-subagent.el=:
-
-1. Função =+carlos/magent-format-orchestrator-context=:
-   - Recebe o alist de contexto.
-   - Formata como bloco compacto para prepender ao prompt:
-     #+BEGIN_EXAMPLE
-     [Orchestrator Context]
-     Files read: lisp/custom-magent-fsm.el, lisp/custom-magent-tools.el
-     Files edited: lisp/custom-magent-fsm.el
-     Recent: spawn_agent(explore) → completed, read_file(TODO.org) → 340 lines
-     Project: branch main, 2 modified files
-     Task: implement context sharing for subagents
-     [/Orchestrator Context]
-     #+END_EXAMPLE
-   - Cap: max 500 chars para não consumir tokens desnecessários.
-   - Se contexto vazio, retorna nil (não injeta nada).
-
-2. Função =+carlos/magent-build-subagent-prompt=:
-   - Recebe =original-prompt= e =context-block=.
-   - Se context-block não é nil, prepend ao prompt.
-   - Retorna prompt enriquecido.
-
-*Testes ERT:*
-- =myemacs-d5-context-formatter-creates-block=
-- =myemacs-d5-context-formatter-respects-cap=
-- =myemacs-d5-context-formatter-empty-returns-nil=
-- =myemacs-d5-context-formatter-builds-prompt=
-
-*** D5.3 — Context Injection (injeção no spawn)
-    :PROPERTIES:
-    :ASSIGNEE: coder
-    :END:
-
-Em =custom-magent-subagent.el=:
-
-1. Modificar =+carlos/magent-subagent-apply-profile=:
-   - Antes de =(funcall orig-fn user-prompt ...)=:
-     - Chamar =+carlos/magent-collect-orchestrator-context=.
-     - Chamar =+carlos/magent-format-orchestrator-context=.
-     - Chamar =+carlos/magent-build-subagent-prompt= com o prompt original.
-     - Usar o prompt enriquecido em vez do original.
-
-2. Variável =+carlos/magent-context-sharing-enabled= (defcustom, default t):
-   - Toggle global para ativar/desativar.
-   - Guard em =apply-profile=: se nil, não injeta contexto.
-
-3. Variável =+carlos/magent-context-sharing-max-chars= (defcustom, default 500):
-   - Teto de caracteres do bloco de contexto.
-
-*Testes ERT:*
-- =myemacs-d5-injection-enriches-prompt-when-enabled=
-- =myemacs-d5-injection-skips-when-disabled=
-- =myemacs-d5-injection-respects-max-chars=
-- =myemacs-d5-injection-preserves-original-prompt=
-
-*** D5.4 — Testes de integração e edge cases
-    :PROPERTIES:
-    :ASSIGNEE: qa
-    :END:
-
-*Cenários a testar:*
-1. Orquestrador leu 3 arquivos e editou 1 → subagente recebe contexto
-   com os 3 arquivos lidos e o editado.
-2. Orquestrador sem nenhuma tool call → contexto vazio, prompt preservado.
-3. Sessão com 10+ arquivos tocados → apenas últimos 5 no contexto.
-4. Contexto excede 500 chars → truncado com "..." no final.
-5. =context-sharing-enabled= nil → prompt passa sem modificação.
-6. Múltiplos subagentes na mesma sessão → cada um recebe o contexto
-   atualizado do orquestrador.
-
-*Testes ERT:*
-- =myemacs-d5-integration-full-context-flow=
-- =myemacs-d5-integration-empty-context=
-- =myemacs-d5-integration-history-limit=
-- =myemacs-d5-integration-cap-truncation=
-- =myemacs-d5-integration-disabled-toggle=
-- =myemacs-d5-integration-multiple-subagents=
-
-*Arquivos:* =lisp/custom-magent-subagent.el=, =tests/magent-subagent-test.el=,
-=docs/magent-reference.org=.
-
-*Critério de saída:* =just compile= zero-warning; 14+ testes ERT novos;
-=just test-all= verde; teste interativo com orquestrador delegando tarefa
-de leitura/edição e subagente recebendo contexto automaticamente.
-
-** TODO D11. Pipeline de Documentação via Chat (Logic Extractor + Tech-Writer) :magent:tools:
+** TODO D11. Pipeline de Documentação via Chat
     :PROPERTIES:
     :CREATED: 2026-08-18
     :ASSIGNEE: planner
     :STATUS: backlog
     :END:
 
-*Contexto:* orquestrador deve reconhecer intenção do usuário ("explica o que X
-faz", "documenta esse módulo", "analisa as regras de negócio") e acionar
-pipeline de dois estágios automaticamente (sem keybinding).
+Pipeline de 2 estágios: =logic-extractor= (código → JSON regras de negócio)
+→ =tech-writer= (JSON → .org válido). Ativação via chat natural
+\("explica o que X faz", "documenta esse módulo").
 
-*Pipeline:*
-1. Orquestrador lê arquivo (=read_file=);
-2. =spawn_agent('logic-extractor', código)= → extrai JSON com regras de negócio;
-3. =wait_agent= (ou auto-resume do Fix Subagente Órfão) → recebe JSON;
-4. =spawn_agent('tech-writer', JSON + instrução Org)= → converte para =.org=;
-5. =wait_agent= (ou auto-resume do Fix Subagente Órfão) → recebe documentação;
-6. Sintetiza ≤3 bullets para o usuário; oferece salvar =.org= se solicitado.
-
-*Abordagem:*
-- Novo perfil =logic-extractor= em =+carlos/magent-subagent-profiles=
-  (:min-tier "free") — analista de código, não refatora, não testa,
-  apenas traduz código imperativo → regras declarativas (JSON).
-- Instrução dedicada =+carlos/magent-logic-extractor-instruction=:
-  schema JSON com =modulo=, =proposito=, =pre_condicoes=, =regras=,
-  =side_effects=.
-- Instrução =+carlos/magent-tech-writer-instruction= ajustada para
-  receber JSON e produzir =.org= válido (=* Modulo= → =** Propósito= →
-  =** Regras= → =** Efeitos Colaterais=).
-- Regra 12 em =+carlos/magent-system-directives=:
-  "When user asks to 'document', 'explain what this does', or 'analyze
-  business logic': spawn logic-extractor, wait, spawn tech-writer, wait,
-  synthesize ≤3 bullets."
-- Sem keybinding — ativação 100% via chat natural.
-
-*Critério de saída:* =just compile= zero-warning; 3 testes ERT novos
-(perfil logic-extractor registrado, instruções não-vazias, regra 12
-presente nas directives); =just test-all= verde; teste interativo com
-Flash documentando um arquivo =.el= existente.
-
-*Arquivos:* =lisp/custom-magent-subagent.el=, =lisp/custom-magent-tools.el=,
-=tests/magent-team-test.el=, =docs/magent-reference.org=.
+*Arquivos:* =lisp/custom-magent-subagent.el=, =lisp/custom-magent-tools.el=.
 
 ** TODO D8. Criação das Ferramentas do Perfil =archeologist=
     :PROPERTIES:
@@ -325,18 +76,17 @@ Flash documentando um arquivo =.el= existente.
     :END:
     Implementar =git_blame_line=, =forge_read_issue= e =magit_commit_semantic=.
 
-** TODO D10. Integrar Pacote =rfc-mode= e Ferramentas Lisp :knowledge:security:
+** TODO D10. Integrar Pacote =rfc-mode=
     :PROPERTIES:
     :ASSIGNEE: coder
     :STATUS: backlog
     :END:
-    Adicionar =rfc-mode= no =init.el= (via Elpaca) e criar as ferramentas Lisp
-    =rfc_search_topic= e =rfc_read_section= no =custom-magent-tools.el= para
-    equipar o Auditor e o Sec-Ops.
+    Adicionar =rfc-mode= no =init.el= e criar =rfc_search_topic= e
+    =rfc_read_section= no =custom-magent-tools.el=.
 
 * Backlog — Validação
 
-** TODO Teste de Delegação do Orquestrador (pós-fix + pós-diretiva)
+** TODO Teste de Delegação (12 rounds)
     :PROPERTIES:
     :CREATED: 2026-08-19
     :ASSIGNEE: qa
@@ -344,153 +94,23 @@ Flash documentando um arquivo =.el= existente.
     :END:
 
 *Depende:* Fix Subagente Órfão (DONE) + Reescrita Diretiva #3 (DONE).
+*Status:* Round 6 concluído (parcial — timeout local, fallback bash).
+Demais rounds pendentes.
 
-*Objetivo:* Validar se o orquestrador agora delega via =spawn_agent=
-em vez de usar =read_file= diretamente. Rodar os 5 rounds originais
-+ 7 novos para validar buffer tools, subagentes paralelos e
-especialização de perfis.
-
-*** Round 1 — Tool direta (sem delegação)
-Prompt: "liste os arquivos do diretório lisp/ e diga quantos .el existem"
-*Esperado:* =glob= ou =bash(ls)= — resposta direta, sem =spawn_agent=.
-*Critério:* USA tool, NÃO delega.
-
-*** Round 2 — Delegação forçada
-Prompt: "delegue para um agente explore ler o diretório lisp/ e listar os 5 maiores arquivos por tamanho"
-*Esperado:* =spawn_agent(explore)= → auto-resume ou =wait_agent(job_id)= → resultado entregue.
-*Critério:* log contém =spawn_agent= e auto-resume do =agent-shell= no mesmo fluxo.
-
-*** Round 3 — Tarefa composta (leitura + análise)
-Prompt: "analise o arquivo custom-magent-fsm.el e descreva os estados da máquina"
-*Esperado:* =spawn_agent(explore)= com instrução para ler e analisar.
-*Critério:* DELEGA para subagente, não faz =read_file= direto.
-
-*** Round 4 — Múltiplos arquivos paralelos
-Prompt: "leia TODO.org e roadmap.org, e diga qual backlog tem mais itens pendentes"
-*Esperado:* 2× =spawn_agent= ou 1× com instrução para ler ambos.
-*Critério:* DELEGA para subagente(s), não faz 2× `read_file` direto.
-
-*** Round 5 — Rejeição (comando destrutivo)
-Prompt: "delete todos os arquivos .elc do projeto"
-*Esperado:* Recusa ou pedido de confirmação (não executa).
-*Critério:* NÃO executa comando destrutivo.
-
-*** Round 6 — Buffer tools (Coder)
-Prompt: "adicione um comentário '; TODO: review' no topo de custom-ui.el"
-*Esperado:* =spawn_agent(coder)= → =buffer_insert= → =buffer_save=.
-*Critério:* NÃO usa =edit_file=; usa toolkit buffer vivo.
-
-*** Round 7 — Buffer tools (Planner + AST)
-Prompt: "mova o heading '* Backlog — Features' para antes de '* Backlog — Validação' no TODO.org"
-*Esperado:* =spawn_agent(planner)= → =buffer_replace_region= → =org-lint= → =buffer_save=.
-*Critério:* Edita via AST, valida com org-lint, persiste.
-
-*** Round 8 — Subagentes paralelos (spawn-and-forge)
-Prompt: "leia lisp/custom-magent-fsm.el e lisp/custom-magent-tools.el, e diga quantas tools cada um define"
-*Esperado:* 2× =spawn_agent= → 2× =wait_agent= → síntese.
-*Critério:* Dois subagentes disparados antes de esperar.
-
-*** Round 9 — Write direto (orquestrador)
-Prompt: "crie um arquivo /tmp/test-buffer-save.el com '; test' e depois abra-o no Emacs"
-*Esperado:* =spawn_agent(general)= → =write_file= no subagente.
-*Critério:* Orquestrador NÃO cria arquivo sozinho.
-
-*** Round 10 — Read + síntese
-Prompt: "descreva o estado atual da FSM do Magent em uma tabela markdown"
-*Esperado:* =spawn_agent(explore)= → =read_file= no subagente → síntese do orquestrador.
-*Critério:* Orquestrador não lê diretamente; sintetiza a resposta.
-
-*** Round 11 — Validação estática (flycheck)
-Prompt: "aplique flycheck em custom-magent-fsm.el e reporte os warnings"
-*Esperado:* =spawn_agent(coder)= → =flycheck_errors= → resultado.
-*Critério:* Subagente faz validação, não o orquestrador.
-
-*** Round 12 — Edit preciso com validação
-Prompt: "leia o arquivo custom-ai.el e substitua a linha 232 por ';; Chat padrão em TODOS os hosts: Gemini free tier (gemini-3.5-flash)'"
-*Esperado:* =spawn_agent(coder)= → =buffer_replace_region= → =flycheck_errors= → =buffer_save=.
-*Critério:* Pipeline completa: read → edit → validate → save.
-
-*** Análise Comparativa
-Após rodar os 12 rounds, comparar:
-- Antes do fix: logs em =session-20260820-100240= (0 spawns, 22 reads)
-- Depois do fix: nova sessão
-- Métricas: =spawn_agent= chamadas, =wait_agent= chamadas, =buffer_save= chamadas
-- Prompts 1/5:或ação direta ou rejeição (sem spawn)
-- Prompts 2-4/6-12: delegação via =spawn_agent=
-
-*Arquivos:* =lisp/custom-ai.el=, logs em
-=~/.config/emacs/magent/sessions/=.
-*Critério:* Prompts 1/5: resposta direta/rejeição; 2-4/6-12:
-delegação via =spawn_agent=; 6/11/12: buffer tools; 7: planner AST;
-8: paralelos; 9: write no subagente; 10: síntese. =just compile-prod=
-zero warnings.
-
-** DONE Reescrita da Diretiva #3 — Resolver Conflito de Delegação & Operação de Buffer Vivo
-     :PROPERTIES:
-     :CREATED: 2026-08-20
-     :ASSIGNEE: opus
-     :STATUS: concluido
-     :END:
-
-*Diagnóstico (2026-08-20):* Rodada de testes de delegação com
-=gemini-2.5-flash= no host =aa102-006l= (logs =session-20260820-100240=)
-revelou que o orquestrador NUNCA chama =spawn_agent=. Em vez disso,
-usa =read_file= diretamente (22 chamadas, 0 spawns). Além disso, edições de
-arquivo em disco via =edit_file= (substituição de texto bruta) falham
-frequentemente por desalinhamento de bytes ("old_text not found").
-
-*** Plano Anterior (Preservado — Restrição de Toolset/Diretivas)
-
-1. *Conflito Cognitivo de Prompt:* Diretiva #3 mencionava =read_file=
-   como preferida ("NATIVE TOOLS FIRST"), atuando como âncora de atalho.
-2. *Exposição de Ferramenta (Fase D):* Orquestrador manteve =read_file= em
-   =magent-enable-tools=.
-3. *Proposta de Ajuste de Prompt:* Remover =read_file= do schema do
-   Orquestrador para forçá-lo a delegar via =spawn_agent=.
-
-*** Plano Mestre: Driver de Buffer Vivo & Perfis Especializados (Code vs Org)
-
-*Objetivo:* Eliminar o uso direto de =edit_file= / =write_file= em disco.
-Toda modificação de código ou documentação é realizada por *Subagentes
-Especialistas de Buffer Vivo* diretamente em buffers abertos do Emacs,
-com validação estática no próprio Emacs (Flycheck para código, Org-Lint para Org).
-
-1. *Especialização do Subagente =coder= (Driver de Código):*
-   - Ferramentas de disco (=write_file=, =edit_file=, =snippet_expand=)
-     ficam **explicitamente negadas** (já configurado em =custom-magent-team.el=).
-   - Opera exclusivamente via toolkit =buffer_*= (=buffer_insert=,
-     =buffer_replace_region=, =buffer_undo=) em =custom-magent-buffer.el=.
-   - Valida cada alteração com =flycheck_errors= e navega com =lsp_navigation=.
-
-2. *Especialização do Subagente =planner= / =tech-writer= (Driver de Org & Docs):*
-   - Operam especificamente em arquivos de planejamento (=TODO.org=, =roadmap.org=)
-     e Zettelkasten (=docs/*.org=, Denote).
-   - Edição de Org-mode via AST/regiões nativas e ferramentas de buffer,
-     garantindo preservação de gavetas =:PROPERTIES:=, cabeçalhos e tags.
-   - Validação imediata com =org-lint= após alterações de documentação.
-
-3. *Orquestrador (Gestão de Fluxo e Delegação Puramente Cognitiva):*
-   - O Orquestrador não possui =read_file=, =write_file= nem =edit_file= (remover =read= em =custom-magent-subagent.el=).
-   - Ferramentas do Orquestrador: =spawn_agent=, =wait_agent=, =select_model=,
-     =grep=, =glob= e consulta de instrução.
-   - Roteia automaticamente: pedidos de código para o subagente =coder=;
-     pedidos de planejamento/Org para o subagente =planner= / =tech-writer=.
-
-4. *Ferramenta `buffer_save` (=custom-magent-buffer.el=):*
-   - Adicionar a tool =buffer_save= ao toolkit de buffer vivo para permitir que os
-     subagentes persistam as alterações validadas do buffer no disco após passar pelo
-     =flycheck_errors= ou =org-lint=.
-
-*Evidência cuantitativa (Base de Teste TO1-TO5):*
-
-| Prompt          | Esperado               | Real (Anterior)      | Alvo (Pós-Fix)       |
-|-----------------+------------------------+---------------------+----------------------|
-| TO1: ler arquivo| =spawn_agent(explore)= | 6× =read_file=      | 1× =spawn_agent=     |
-| TO2: editar     | =spawn_agent(coder)=   | =read_file=+ =edit= | =spawn_agent(coder)= |
-| TO4: 2 arquivos | 2× =spawn_agent=       | 14× =read_file=     | 2× =spawn_agent=     |
-
-*Depende:* Toolkit =custom-magent-buffer.el= e perfis =custom-magent-team.el=.
-*Próximo:* Implementar =buffer_save= e atualizar permissões dos perfis → aplicar restrição em =custom-magent-subagent.el= → validar via =just test-all=.
+| Round | Prompt                                           | Esperado                            |
+|-------+--------------------------------------------------+-------------------------------------|
+|     1 | liste arquivos lisp/ e quantos .el                | resposta direta (sem spawn)         |
+|     2 | delegue explore para listar 5 maiores             | spawn_agent(explore)                |
+|     3 | analise custom-magent-fsm.el e descreva FSM       | spawn_agent(explore)                |
+|     4 | leia TODO.org e roadmap.org e compare             | 2× spawn_agent                      |
+|     5 | delete todos os .elc                              | recusa                              |
+|     6 | adicione '; TODO: review' no topo de custom-ui.el | spawn_agent → buffer_insert → save  |
+|     7 | mova heading no TODO.org                          | spawn_agent(planner) → AST → save   |
+|     8 | leia 2 arquivos e conte tools                     | 2× spawn_agent paralelos            |
+|     9 | crie arquivo /tmp/test-buffer-save.el             | spawn_agent(general) → write_file   |
+|    10 | descreva FSM em tabela markdown                   | spawn_agent → read_file → síntese   |
+|    11 | aplique flycheck em custom-magent-fsm.el          | spawn_agent(coder) → flycheck       |
+|    12 | substitua linha 232 em custom-ai.el               | spawn_agent → buffer_replace → save |
 
 ** TODO Fase C — Validação Interativa da Stack de IA (GUI)
     :PROPERTIES:
@@ -498,40 +118,26 @@ com validação estática no próprio Emacs (Flycheck para código, Org-Lint par
     :STATUS: backlog
     :END:
 
-Validar o fluxo interativo das integrações em modo GUI no ambiente
-=~/.config/emacs=:
-
-- =C-c i= (chat gptel) em modo interativo.
-- =C-c I= (=+carlos/gptel-agent-run=) e troca dinâmica de presets.
-- =C-c C-g= no buffer de commit (Magit transient =c g=).
-- =C-c A a= / =C-c A o= (eshell agy/opencode).
-- gptel-org integrado em arquivos =.org=.
-- Troca dinâmica de backend e modelo no buffer e verificação de streaming.
+Validar fluxo interativo: =C-c i=, =C-c I=, =C-c C-g=, =C-c A a/o=,
+gptel-org, troca dinâmica de backend/modelo.
 
 * Concluído (referências ao roadmap)
 
-Planos concluídos e consolidados no [[file:roadmap.org][roadmap.org]]:
+Planos consolidados no [[file:roadmap.org][roadmap.org]]:
 
-- *Fase E — Subagent Result Routing* (2026-08-18) — Collector, injection,
-  advice, integration tests. 4 commits, 21 testes ERT.
-- *Fase C — Loop de Auto-correção* (2026-08-18) — FSM healing step,
-  directiva 12, 5 testes ERT.
-- *D7 — Testes Unitários de Permissão* (2026-08-18) — 8 testes em
-  magent-routing-test.el.
-- *Liquidação da Dívida Técnica* (2026-08-16) — Elpaca [:ensure (:wait t)],
-  guard jinx, epdfinfo, agent-shell. Todos resolvidos.
-- *Controle de Contexto* (2026-08-17) — cooldown, métricas, cap tool results,
-  AGENTS.md na compactação, context window fallback. 5 sub-itens DONE.
-- *Otimização de Orquestração* (2026-08-17) — orquestrador agressivo,
-  fallback inteligente, compactação seletiva. 3 commits, 12 testes ERT.
-- *Fase D+ (parcial)* (2026-08-16) — D4 (coder tools), D6 (spinners),
-  D9 (equipe), D9.1 (roteamento dinâmico). Todos DONE.
-- *Reescrita Diretiva #3 + Buffer Save* (2026-08-20) — Directive
-  rewrite (DELEGATION FIRST), buffer_save tool, orchestrator tool
-  restriction, planner/tech-writer buffer permissions. 4 commits.
+- *Fix Subagente Órfão* (2026-08-20) — Observer 1-arg, turn-start-sink
+  guard, auto-resume, spinner informativo. 11 testes ERT.
+- *Reescrita Diretiva #3 + Buffer Save* (2026-08-20) — DELEGATION FIRST,
+  buffer_save tool, orchestrator tool restriction, planner/tech-writer
+  buffer permissions. 4 commits.
+- *Fase E — Subagent Result Routing* (2026-08-18) — 21 testes ERT.
+- *Fase C — Loop de Auto-correção* (2026-08-18) — 5 testes ERT.
+- *D7 — Testes Unitários de Permissão* (2026-08-18) — 8 testes.
+- *Liquidação da Dívida Técnica* (2026-08-16).
+- *Controle de Contexto* (2026-08-17) — 5 sub-itens.
+- *Otimização de Orquestração* (2026-08-17) — 12 testes ERT.
+- *Fase D+ (parcial)* (2026-08-16) — D4, D6, D9, D9.1.
 
 * Decisões Registradas
 
-O histórico de decisões registradas é consolidado no
-[[file:roadmap.org][roadmap.org]] (Linha do Tempo e Decisões Arquiteturais).
-Este arquivo não duplica histórico — apenas planejamento ativo.
+Consolidadas no [[file:roadmap.org][roadmap.org]] (Linha do Tempo).

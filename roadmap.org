@@ -1,7 +1,7 @@
 #+TITLE: Roadmap — MyEmacs Configuration
 #+AUTHOR: Carlos Filho
 #+DATE: 2026-08-05
-#+LAST_MODIFIED: 2026-08-18
+#+LAST_MODIFIED: 2026-08-20
 #+OPTIONS: toc:2 num:t
 
 * Visão Geral
@@ -11,6 +11,39 @@ Este documento registra o histórico de ações realizadas no projeto MyEmacs
 entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
+
+** 2026-08-20 — [CONCLUÍDO] Fix Subagente Órfão (Auto-Resume Pós-Subagente)
+   - **Problema:** orquestrador chamava =spawn_agent= mas encerrava o turno sem
+     =wait_agent=. FSM presa em =subagent-waiting=, 0 chamadas =wait_agent= em
+     5 prompts reais.
+   - **5 gaps:** observer arity mismatch, =turn-start-sink= não registrado,
+     sem auto-continuação, advice passivo, diretiva ignorada por modelos
+     pequenos.
+   - **Solução (3 camadas):**
+     - Camada 1: fix observer (1 arg), guarda de tipo + registro do
+       =turn-start-sink=.
+     - Camada 2: =+carlos/magent-fsm-auto-resume-on-subagent-complete= com
+       anti-reentrance via =agent-shell--send-command=.
+     - Camada 3: GUI informativa com =+carlos/magent-fsm-active-subagent-names=.
+   - **Commits:** =43f2583= (3-layer fix), =c3ad565= (buffer_save + tools).
+   - **Testes:** 11 novos ERT (observer, guard, auto-resume, reentrance,
+     active-names, spinner).
+   - **Arquivos:** =custom-magent-fsm.el=, =custom-magent-ui.el=,
+     =magent-fsm-test.el=.
+
+** 2026-08-20 — [CONCLUÍDO] Reescrita da Diretiva #3 + Buffer Save
+   - **Diagnóstico:** orquestrador usava =read_file= diretamente (22 chamadas,
+     0 spawns) e edições =edit_file= falhavam por desalinhamento de bytes.
+   - **Mudanças:**
+     - Diretiva #3 reescrita: "NATIVE TOOLS FIRST" → "DELEGATION FIRST".
+     - =read= removido de =magent-enable-tools= em =custom-magent-subagent.el=.
+     - =buffer_save= adicionada em =custom-magent-buffer.el=.
+     - Perfis =planner= e =tech-writer= com permissão =(buffer . allow)=.
+   - **Teste interativo (sessão 110758):** orquestrador delega corretamente
+     via =spawn_agent= (4 spawns, 0 reads). Subagentes locais fazem timeout
+     → fallback =bash=.
+   - **Novo bug identificado:** =select_model= com =min_tier='free'= retorna
+     modelo local → registrado no TODO.org.
 
 ** 2026-08-18 — [CONCLUÍDO] Reorganização do TODO.org
    - **Objetivo:** otimizar tokens e claridade removendo redundâncias e DONEs
