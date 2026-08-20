@@ -1,4 +1,3 @@
-; TODO: review
 ;;; custom-ui.el --- UI theme and appearance -*- lexical-binding: t; -*-
 
 ;;; Commentary:
@@ -51,7 +50,7 @@
 ;; ── Visual tweaks ───────────────────────────────────────────────────
 ;; Highlight matching parens
 (show-paren-mode 1)
-(setq show-paren-style \'expression)
+(setq show-paren-style 'expression)
 
 ;; Smooth scrolling
 (setq scroll-conservatively 101)
