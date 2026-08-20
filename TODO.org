@@ -25,73 +25,79 @@ Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=
 - *Ledger & State Machine (AGENT_WORKFLOW.org):* Hierarquia Codex =thread -> turn -> item=. Turno gerenciado em =magent-ledger.el=. Itens de ferramenta unificados (=tool-call= e =tool-output= no mesmo registro por =call-id=). Persistência dupla via =Snapshot= (restauração rápida de thread) + =Journal= (log append-only).
 - *Camadas de Arquitetura (ONBOARDING.org):* 7 camadas. Camada 2 (Sessão & Ledger), Camada 3 (Agentes e Permissões =allow=/=deny=/=ask=), Camada 4 (15 ferramentas nativas em =magent-tools.el= + aprovações em =magent-approval.el=), Camada 5 (Loop Magent e transport fino =gptel-request= em =magent-llm-gptel.el=), Camada 6 (Frontend =agent-shell= + protocolo ACP em =magent-acp.el=).
 
-* Pendente — Motor & Backlog
+* Pendente — Motor & Backlog (Plano Mestre Opus)
 
-** TODO Roteamento de Aprovação de Permissões de Subagente via Botões Gráficos na UI
+** TODO Permissoes e UI
     :PROPERTIES:
     :CREATED: 2026-08-20
     :ASSIGNEE: coder
-    :STATUS: backlog
+    :STATUS: plano aprovado
     :END:
 
-*** Problema
-Quando subagentes solicitam ferramentas com permissão `:ask` (ex: `bash`, `write_file`),
-o pedido cai no fallback do minibuffer do Emacs (prompt de texto no rodapé) em vez
-de renderizar os botões estilizados da interface gráfica do Magent (`[ Aprovar ] [ Negar ]` no buffer `*Magent*`).
+*** Centralizar aprovacoes no magent-approval
+Implementar hooks em =magent-approval.el= utilizando =magent-approval-provider-function=.
 
-*** Solução
-Redirecionar os pedidos de confirmação de permissão de subagentes em sessões secundárias
-para o manipulador de UI principal do `agent-shell` (`+carlos/magent-ui-sink`), garantindo
-que a interface com botões estilizados seja usada em todas as aprovações.
+*** Integrar ACP visual no chat
+Renderizar botões visuais =[[ Allow ]] [[ Deny ]]= através de =magent-acp.el= e =magent-agent-shell.el=, eliminando o fallback do minibuffer para subagentes em sessões secundárias.
 
 *Arquivos:* =lisp/custom-magent-ui.el=, =lisp/custom-magent-team.el=, =tests/magent-ui-test.el=.
 
-** TODO D5. Context Sharing Dinâmico para Subagentes
+** TODO D5. Context Sharing Dinamico e Estruturas Duraveis
     :PROPERTIES:
     :CREATED: 2026-08-18
     :ASSIGNEE: coder
     :STATUS: plano aprovado
     :END:
 
-*** Problema
-Subagentes recebem apenas a instrução bruta do `spawn_agent`, sem visibilidade
-do histórico da sessão pai, arquivos lidos ou projeto atual.
+*** Persistencia de Jobs de Subagente
+Persistir histórico de subagentes utilizando a estrutura =magent-agent-job= em =magent-agent-job.el=, armazenando-os sob a chave =:agent-jobs= na sessão pai.
 
-*** Plano de Solução (Opus)
-1. *Coletor de Contexto (`lisp/custom-magent-subagent.el`):*
-   - Implementar `+carlos/magent-collect-parent-context` retornando o bloco conciso
-     `<parent_context>` (limite de 300-500 tokens): `project-root`, 3-5 arquivos
-     recentes abertos e resumo transiente de intenção.
-2. *Injeção no Advice (`+carlos/magent-subagent-apply-profile`):*
-   - Prepender `<parent_context>` ao `user-prompt` exclusivamente quando
-     `(not is-orchestrator)`.
-3. *Suíte ERT (`tests/magent-subagent-test.el`):*
-   - Adicionar testes `myemacs-magent-collect-parent-context-format`,
-     `myemacs-magent-subagent-prompt-injection` e `myemacs-magent-orchestrator-no-injection`.
+*** Integracao do magent-ledger
+Unificar o rastreamento em =magent-ledger.el=, ligando rigidamente =tool-call= e =tool-output= através da chave comum =:call-id=.
+
+*** Parser de regras locais do projeto
+Finalizar módulo =magent-project-instructions.el= para descobrir e injetar regras nativas do arquivo =AGENTS.md=.
+
+*** Extracao de contexto pai
+Implementar =+carlos/magent-collect-parent-context= para herdar contexto da raiz e da sessão primária, encapsulando a extração em bloco =<parent_context>= restrito a 300-500 tokens.
 
 *Arquivos:* =lisp/custom-magent-subagent.el=, =tests/magent-subagent-test.el=.
 
-** TODO Integração rfc-mode & Ferramentas IETF para Auditor e Sec-Ops
+** TODO Normas IETF e Extensoes (rfc-mode)
     :PROPERTIES:
     :CREATED: 2026-08-20
     :ASSIGNEE: auditor
     :STATUS: plano aprovado
     :END:
 
-*** Infraestrutura base do rfc-mode
-Configurar o pacote =rfc-mode= no ecossistema Elpaca em =lisp/custom-files.el=
-usando =:ensure t= e =(setq rfc-mode-directory (expand-file-name "rfc/" user-emacs-directory))=
-para cache local offline de RFCs IETF.
+*** Integracao do rfc-mode
+Declarar =use-package rfc-mode= e apontar o cache local para =~/.config/emacs/rfc/=.
 
-*** Ferramentas Curadas do Magent
-Em =lisp/custom-magent-tools.el=, criar:
-- =rfc_search_topic= (=topic=): Pesquisa o índice local de RFCs por termo e retorna números, títulos e resumos.
-- =rfc_read_section= (=rfc_number=, =section_name=): Carrega a RFC do cache e extrai exclusivamente o conteúdo da seção solicitada (ex: "Security Considerations", "OAuth 2.0") via parsing de texto para economia rigorosa de tokens.
+*** Ferramentas de parser e pesquisa
+Implementar =rfc_search_topic= e =rfc_read_section=, garantindo extração inteligente particionada por seções de texto para economia de tokens.
 
-*** Permissões & Suíte de Testes
-Em =lisp/custom-magent-team.el=, adicionar permissão =allow= para =rfc_search_topic= e =rfc_read_section= nos perfis =auditor= e =sec-ops=. Criar testes ERT para busca de índice, extração de seção e fallback offline.
+*** Regras de acesso IETF
+Registrar políticas de aprovação default como =allow= para instâncias com perfis =auditor= e =sec-ops=.
 
 *Arquivos:* =lisp/custom-files.el=, =lisp/custom-magent-tools.el=, =lisp/custom-magent-team.el=, =tests/magent-tools-test.el=.
+
+** TODO Resiliencia e Robustez FSM
+    :PROPERTIES:
+    :CREATED: 2026-08-20
+    :ASSIGNEE: coder
+    :STATUS: plano aprovado
+    :END:
+
+*** Circuit Breaker de nuvem
+Implementar bloqueio preventivo (circuit breaker) em =custom-magent-tools.el= contra APIs e LLMs instáveis.
+
+*** Sanitizacao ANSI e XML
+Aplicar filtro sanitizador para limpar saídas ANSI/XML quebradas em =+carlos/magent-tool-result=, assegurando que o seletor =:call-id= não sofra corrupção sintática.
+
+*** Otimizacao de turnos e bloqueios
+Programar threshold de GC dinâmico durante turnos ativos da FSM em =custom-magent-fsm.el= e auto-resync para estados de =buffer_conflict=.
+
+*Arquivos:* =lisp/custom-magent-fsm.el=, =lisp/custom-magent-tools.el=, =lisp/custom-magent-buffer.el=.
 
 ** TODO Teste de Delegação (12 rounds de regressão)
     :PROPERTIES:
