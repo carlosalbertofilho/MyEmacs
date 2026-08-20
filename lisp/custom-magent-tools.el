@@ -155,6 +155,9 @@ Set dynamically by `+carlos/magent-subagent-apply-profile' before calling
 `magent-agent-process'; consumed by `+carlos/magent-inject-system-directives'
 to select the correct directive set (orchestrator vs. subagent).")
 
+(defvaralias '+carlos/magent-common-directives '+carlos/magent-system-directives
+  "Alias para +carlos/magent-system-directives (compatibilidade de testes).")
+
 (defconst +carlos/magent-system-directives
   "CRITICAL MAGENT TOOL DIRECTIVES:
 1. ABSOLUTE PATHS: Use full absolute paths starting with '/' (e.g. '/home/carlosfilho/...').
@@ -194,8 +197,6 @@ Do NOT use '<tool_call>', '<function=...>', or '<parameter=...>' forms; the runt
  12. BUFFER SELF-HEALING: When user asks to 'fix', 'correct', 'corrija', 'arrume', 'refactor code in this buffer', or 'make this compile', activate the buffer-driver-loop skill. Read the buffer first, make atomic fixes, validate with flycheck_errors after each change, and stop when zero errors remain or after two consecutive fix attempts that make no progress (report remaining diagnostics). Never guess symbol names — resolve with lsp_navigation or describe_elisp_symbol first."
   "Instruções estritas de uso de ferramentas para os modelos do Magent.")
 
-(defvaralias '+carlos/magent-common-directives '+carlos/magent-system-directives
-  "Alias para +carlos/magent-system-directives (compatibilidade de testes).")
 
 ;; ── Role-specific extras ──────────────────────────────────────────────
 
