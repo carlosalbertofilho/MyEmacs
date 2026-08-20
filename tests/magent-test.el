@@ -200,7 +200,7 @@ correta de tool-spec por `equal'."
 
 (ert-deftest myemacs-magent-directives-spawn-and-forge ()
   "Garante que as directives do orquestrador contêm o padrão SPAWN-AND-FORGE."
-  (should (string-match-p "SPAWN-AND-FORGE" +carlos/magent-orchestrator-extra)))
+  (should (string-match-p "SPAWN-AND-FORGE" +carlos/magent-system-directives)))
 
 (ert-deftest myemacs-magent-directives-synthesis-rule ()
   "Garante que as directives do orquestrador contêm a regra de síntese (≤3 bullets)."

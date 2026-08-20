@@ -157,8 +157,7 @@
       (should (string-match-p "EXACT TEXT SUBSTITUTION" result))
       ;; Orchestrator extras NOT present
       (should-not (string-match-p "ORCHESTRATOR ADDENDUM" result))
-      (should-not (string-match-p "ABSOLUTE PATHS IN PROMPTS" result))
-      (should-not (string-match-p "DELEGATION FIRST" result)))))
+      (should-not (string-match-p "ABSOLUTE PATHS IN PROMPTS" result)))))
 
 (ert-deftest myemacs-directive-injection-defaults-to-subagent ()
   "When role variable is nil (default), injects subagent directives."
