@@ -1,7 +1,7 @@
 #+TITLE: TODO — Planejamento Ativo e Backlog (MyEmacs)
 #+AUTHOR: Carlos Filho
 #+DATE: 2026-08-05
-#+LAST_MODIFIED: 2026-08-19
+#+LAST_MODIFIED: 2026-08-20
 #+FILETAGS: :PLANNING:
 #+OPTIONS: toc:2 num:t
 #+STARTUP: content
@@ -413,6 +413,73 @@ Prompt longo com múltiplos arquivos anexos.
 =~/.config/emacs/magent/sessions/=.
 *Critério:* TO1-TO2 com spawn; TO3 sem; TO4 múltiplos; TO5 sem
 empty. =just compile-prod= zero warnings.
+
+** TODO Reescrita da Diretiva #3 — Resolver Conflito de Delegação & Operação de Buffer Vivo
+    :PROPERTIES:
+    :CREATED: 2026-08-20
+    :ASSIGNEE: opus
+    :STATUS: plano aprovado
+    :END:
+
+*Diagnóstico (2026-08-20):* Rodada de testes de delegação com
+=gemini-2.5-flash= no host =aa102-006l= (logs =session-20260820-100240=)
+revelou que o orquestrador NUNCA chama =spawn_agent=. Em vez disso,
+usa =read_file= diretamente (22 chamadas, 0 spawns). Além disso, edições de
+arquivo em disco via =edit_file= (substituição de texto bruta) falham
+frequentemente por desalinhamento de bytes ("old_text not found").
+
+*** Plano Anterior (Preservado — Restrição de Toolset/Diretivas)
+
+1. *Conflito Cognitivo de Prompt:* Diretiva #3 mencionava =read_file=
+   como preferida ("NATIVE TOOLS FIRST"), atuando como âncora de atalho.
+2. *Exposição de Ferramenta (Fase D):* Orquestrador manteve =read_file= em
+   =magent-enable-tools=.
+3. *Proposta de Ajuste de Prompt:* Remover =read_file= do schema do
+   Orquestrador para forçá-lo a delegar via =spawn_agent=.
+
+*** Plano Mestre: Driver de Buffer Vivo & Perfis Especializados (Code vs Org)
+
+*Objetivo:* Eliminar o uso direto de =edit_file= / =write_file= em disco.
+Toda modificação de código ou documentação é realizada por *Subagentes
+Especialistas de Buffer Vivo* diretamente em buffers abertos do Emacs,
+com validação estática no próprio Emacs (Flycheck para código, Org-Lint para Org).
+
+1. *Especialização do Subagente =coder= (Driver de Código):*
+   - Ferramentas de disco (=write_file=, =edit_file=, =snippet_expand=)
+     ficam **explicitamente negadas** (já configurado em =custom-magent-team.el=).
+   - Opera exclusivamente via toolkit =buffer_*= (=buffer_insert=,
+     =buffer_replace_region=, =buffer_undo=) em =custom-magent-buffer.el=.
+   - Valida cada alteração com =flycheck_errors= e navega com =lsp_navigation=.
+
+2. *Especialização do Subagente =planner= / =tech-writer= (Driver de Org & Docs):*
+   - Operam especificamente em arquivos de planejamento (=TODO.org=, =roadmap.org=)
+     e Zettelkasten (=docs/*.org=, Denote).
+   - Edição de Org-mode via AST/regiões nativas e ferramentas de buffer,
+     garantindo preservação de gavetas =:PROPERTIES:=, cabeçalhos e tags.
+   - Validação imediata com =org-lint= após alterações de documentação.
+
+3. *Orquestrador (Gestão de Fluxo e Delegação Puramente Cognitiva):*
+   - O Orquestrador não possui =read_file=, =write_file= nem =edit_file= (remover =read= em =custom-magent-subagent.el=).
+   - Ferramentas do Orquestrador: =spawn_agent=, =wait_agent=, =select_model=,
+     =grep=, =glob= e consulta de instrução.
+   - Roteia automaticamente: pedidos de código para o subagente =coder=;
+     pedidos de planejamento/Org para o subagente =planner= / =tech-writer=.
+
+4. *Ferramenta `buffer_save` (=custom-magent-buffer.el=):*
+   - Adicionar a tool =buffer_save= ao toolkit de buffer vivo para permitir que os
+     subagentes persistam as alterações validadas do buffer no disco após passar pelo
+     =flycheck_errors= ou =org-lint=.
+
+*Evidência cuantitativa (Base de Teste TO1-TO5):*
+
+| Prompt          | Esperado               | Real (Anterior)      | Alvo (Pós-Fix)       |
+|-----------------+------------------------+---------------------+----------------------|
+| TO1: ler arquivo| =spawn_agent(explore)= | 6× =read_file=      | 1× =spawn_agent=     |
+| TO2: editar     | =spawn_agent(coder)=   | =read_file=+ =edit= | =spawn_agent(coder)= |
+| TO4: 2 arquivos | 2× =spawn_agent=       | 14× =read_file=     | 2× =spawn_agent=     |
+
+*Depende:* Toolkit =custom-magent-buffer.el= e perfis =custom-magent-team.el=.
+*Próximo:* Implementar =buffer_save= e atualizar permissões dos perfis → aplicar restrição em =custom-magent-subagent.el= → validar via =just test-all=.
 
 ** TODO Fase C — Validação Interativa da Stack de IA (GUI)
     :PROPERTIES:

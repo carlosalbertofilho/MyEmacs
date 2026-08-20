@@ -132,7 +132,7 @@ chamada a função vazia no .elc."
                                (not (equal agent-name "compaction"))
                                (not (+carlos/magent-subagent-profile agent-name))))
          (magent-enable-tools (if (and is-orchestrator (boundp 'magent-enable-tools))
-                                  (remq 'write (remq 'edit (remq 'snippet_expand (remq 'buffer magent-enable-tools))))
+                                  (remq 'read (remq 'write (remq 'edit (remq 'snippet_expand (remq 'buffer magent-enable-tools)))))
                                 (when (boundp 'magent-enable-tools) magent-enable-tools))))
     (funcall orig-fn user-prompt callback agent-info skill-names event-context
              request-context capability-resolution text-callback request-live-p

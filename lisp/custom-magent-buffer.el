@@ -230,7 +230,33 @@ e descartado."
           (+carlos/magent-tool-result
            (list (cons "status" "success")
                  (cons "buffer" (buffer-name buf))
-                 (cons "message" "Última mudança desfeita.")))))
+                 (cons "message" "Desfazido.")))))
+    (error (+carlos/magent-tool-result nil (error-message-string err)))))
+
+(defun +carlos/magent-tool-buffer-save (&optional buffer _reason)
+  "Handler da tool `buffer_save'.
+Persiste o conteúdo validado do buffer vivo no disco.  BUFFER é o buffer
+alvo (ou o atual quando nil).  O buffer DEVE estar visitando um arquivo
+\(=buffer-file-name= não-nil\); buffers scratch/ephemeral não podem ser
+ salvos.  Retorna o caminho do arquivo salvo e o tamanho em bytes.
+_REASON é display-only e descartado."
+  (condition-case err
+      (let ((buf (+carlos/magent-buffer-resolve buffer)))
+        (if (not (buffer-file-name buf))
+            (+carlos/magent-tool-result
+             (list (cons "status" "error")
+                   (cons "buffer" (buffer-name buf))
+                   (cons "message" "Buffer não está associado a um arquivo. Use write_file para arquivos novos.")))
+          (+carlos/magent-buffer-ensure-ownership buf)
+          (let ((file (buffer-file-name buf))
+                (bytes (with-current-buffer buf (buffer-size))))
+            (with-current-buffer buf
+              (save-buffer))
+            (+carlos/magent-tool-result
+             (list (cons "status" "success")
+                   (cons "buffer" (buffer-name buf))
+                   (cons "file" file)
+                   (cons "bytes" bytes))))))
     (error (+carlos/magent-tool-result nil (error-message-string err)))))
 
 (defun +carlos/magent-eglot-hover-contents (hover)
@@ -339,6 +365,8 @@ docstring, valor atual (truncado), arglist e arquivo de definição.  _REASON
   "Gptel tool struct de buffer_replace_region.")
 (defvar +carlos/magent-tool-buffer-undo nil
   "Gptel tool struct de buffer_undo.")
+(defvar +carlos/magent-tool-buffer-save nil
+  "Gptel tool struct de buffer_save.")
 (defvar +carlos/magent-tool-lsp-hover nil
   "Gptel tool struct de lsp_hover.")
 (defvar +carlos/magent-tool-describe-elisp-symbol nil
@@ -352,6 +380,7 @@ de buffer vivo por agente de forma independente de `read'/'write'/'edit'."
     (let ((tools (list (cons "buffer_insert" +carlos/magent-tool-buffer-insert)
                        (cons "buffer_replace_region" +carlos/magent-tool-buffer-replace-region)
                        (cons "buffer_undo" +carlos/magent-tool-buffer-undo)
+                       (cons "buffer_save" +carlos/magent-tool-buffer-save)
                        (cons "lsp_hover" +carlos/magent-tool-lsp-hover)
                        (cons "describe_elisp_symbol" +carlos/magent-tool-describe-elisp-symbol))))
       (dolist (tool tools)
@@ -394,6 +423,15 @@ de buffer vivo por agente de forma independente de `read'/'write'/'edit'."
            :args '((:name "buffer" :type string :description "Target buffer name (optional; defaults to the current buffer)" :optional t)
                    (:name "reason" :type string :description "Reason for this tool call"))
            :function #'+carlos/magent-tool-buffer-undo
+           :category "magent"))
+
+    (setq +carlos/magent-tool-buffer-save
+          (gptel-make-tool
+           :name "buffer_save"
+           :description "Persist the validated content of a live Emacs buffer to disk. The buffer MUST be visiting a file (buffer-file-name non-nil); use write_file for new files. Ownership contract: call flycheck_errors or org-lint first to validate, then buffer_save to commit. Returns the file path and byte count on success."
+           :args '((:name "buffer" :type string :description "Target buffer name (optional; defaults to the current buffer)" :optional t)
+                   (:name "reason" :type string :description "Reason for this tool call"))
+           :function #'+carlos/magent-tool-buffer-save
            :category "magent"))
 
     (setq +carlos/magent-tool-lsp-hover
