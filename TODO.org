@@ -25,7 +25,7 @@ O histórico de planos concluídos é arquivado no
 
 * Crítico — Bloqueia Uso Real
 
-** TODO Fix Subagente Órfão (auto-injeção =wait_agent=)
+** TODO Fix Subagente Órfão (Auto-Resume Pós-Subagente)
     :PROPERTIES:
     :CREATED: 2026-08-19
     :ASSIGNEE: coder
@@ -34,28 +34,27 @@ O histórico de planos concluídos é arquivado no
 
 *** Problema
 
-Orquestrador chama =spawn_agent= mas **nunca chama =wait_agent=** para
-coletar resultado. Subagente fica órfão e FSM presa em =subagent-waiting=
-para sempre. Testado em 2026-08-19 com 5 prompts — 0 chamadas =wait_agent=.
+Orquestrador chama =spawn_agent= mas encerra o turno sem chamar =wait_agent= para
+coletar o resultado. Subagente conclui no background, mas como a resposta HTTP
+da LLM pai já encerrou, o =agent-shell= fica inerte esperando o usuário digitar.
+FSM presa em =subagent-waiting= para sempre (0 chamadas =wait_agent= em 5 prompts).
 
-*** Diagnóstico (5 gaps encontrados)
+*** Diagnóstico (5 gaps confirmados no código)
 
-| # | Gap | Severidade | Impacto |
-|---|-----|------------|---------|
-| 1 | Observer callback espera 2 args, upstream chama com 1 | Crítico | Observers nunca captam resultados |
-| 2 | =turn-start-sink= definido mas nunca registrado | Crítico | Resultados formatados mas nunca consumidos |
-| 3 | Sem auto-continuação pós-subagente | Crítico | FSM presa em =subagent-waiting= |
-| 4 | Advice em =agent-shell--send-command= só dispara em input do usuário | Crítico | Contexto injetado nunca chega ao modelo |
-| 5 | Diretiva é advisory, modelos pequenos ignoram | Médio | Modelo encerra turno sem =wait_agent= |
+| # | Gap | Severidade | Causa Raiz / Evidência |
+|---|-----|------------|------------------------|
+| 1 | Observer arity mismatch | Crítico | Upstream (=magent-agent-job.el:121=) chama com 1 arg =(funcall (cdr entry) job)=. O lambda em =custom-magent-fsm.el:113= esperava 2, lançando =wrong-number-of-arguments= capturado silenciosamente. |
+| 2 | =turn-start-sink= não registrado + falta de guarda | Crítico | Função =+carlos/magent-fsm-turn-start-sink= definida mas nunca registrada no =with-eval-after-load=. Falta filtro =:type turn-start= para não disparar em outros eventos. |
+| 3 | Sem auto-continuação pós-subagente | Crítico | Nenhuma função reabria o turno da LLM quando o subagente concluía no background. |
+| 4 | Advice em =agent-shell--send-command= passivo | Crítico | Advice só injetava resultados quando o usuário enviava novo input manual no terminal. |
+| 5 | Diretiva advisory ignorada por modelos pequenos | Médio | Modelos pequenos (ex.: Gemma 2b/7b) ignoram a recomendação no system prompt de chamar =wait_agent= na mesma rodada. |
 
-*** Solução: 3 Camadas
+*** Solução: 3 Camadas Refinadas
 
-**** Camada 1 — Correção de Bugs (obrigatório)
+**** Camada 1 — Correção de Bugs e Event Sinks (Obrigatório)
 
 1. *Corrigir observer* (=custom-magent-fsm.el:113=):
-   - Callback espera =(lambda (observed-job new-status) ...)=
-   - Upstream chama com 1 arg =(funcall (cdr entry) job)=
-   - *Fix:* mudar para 1 arg, extrair status do job:
+   - Mudar lambda para 1 argumento e extrair status:
      #+BEGIN_SRC elisp
      (lambda (observed-job)
        (let ((new-status (magent-agent-job-status observed-job)))
@@ -63,30 +62,28 @@ para sempre. Testado em 2026-08-19 com 5 prompts — 0 chamadas =wait_agent=.
            ...)))
      #+END_SRC
 
-2. *Registrar =turn-start-sink=* (=custom-magent-fsm.el=):
-   - Adicionar =(magent-lifecycle-events-add-sink #'+carlos/magent-fsm-turn-start-sink)=
-   - Função existe (line 486) mas nunca é chamada como lifecycle sink
+2. *Guarda de tipo e registro do =turn-start-sink=* (=custom-magent-fsm.el=):
+   - Adicionar guarda =(when (eq (plist-get event-data :type) 'turn-start) ...)= dentro de =+carlos/magent-fsm-turn-start-sink=.
+   - Registrar no =with-eval-after-load 'magent-llm-gptel=:
+     #+BEGIN_SRC elisp
+     (magent-lifecycle-events-add-sink #'+carlos/magent-fsm-turn-start-sink)
+     #+END_SRC
 
-**** Camada 2 — Auto-Injeção (robustez)
+**** Camada 2 — Auto-Resume Programático (Robustez)
 
-3. *Auto-injeção pós-spawn* (=custom-magent-fsm.el=):
-   - Após =spawn_agent= retornar, registrar flag =+carlos/magent-fsm-pending-wait=
-   - No =turn-end-sink=, se flag ativa e há jobs rodando, injetar =wait_agent=
-   - Nova função =+carlos/magent-fsm-inject-wait-after-spawn= (advice :around em =magent-tools--spawn-agent=)
+1. *Auto-continuação pós-subagente* (=custom-magent-fsm.el=):
+   - Nova função =+carlos/magent-fsm-auto-resume-on-subagent-complete=:
+     a. Chamada no final do callback do observer quando um job atinge estado terminal (=completed= ou =failed=).
+     b. Verifica se FSM está em =subagent-waiting= e se todos os subagentes da sessão concluíram (=(not (+carlos/magent-fsm-pending-subagent-p))=).
+     c. Formata os resultados pendentes via =+carlos/magent-fsm-inject-pending-results=.
+     d. Dispara programmaticamente o novo turno no shell ativo via =agent-shell--send-command= com prompt sintetizado de sistema.
+   - Elimina qualquer tentativa de "tool call artificial", usando a API nativa do =agent-shell=.
 
-4. *Auto-continuação pós-subagente* (=custom-magent-fsm.el=):
-   - Quando subagente completar e FSM em =subagent-waiting=:
-     a. Coletar resultado via observer (agora corrigido)
-     b. Formatar em =pending-context-messages=
-     c. Automaticamente enviar mensagem ao orquestrador com resultado
-   - Nova função =+carlos/magent-fsm-auto-resume-on-subagent-complete=
+**** Camada 3 — Telemetria e GUI (Usabilidade)
 
-**** Camada 3 — GUI Informativa (usabilidade)
-
-5. *Mensagem de espera melhorada* (=custom-magent-ui.el=):
-   - Atual: =[13:52:20] ⏳ ⠴ aguardando subagente...=
-   - Novo: =[13:52:20] ⏳ ⠴ aguardando subagente (explore) — modelo: gemma-4-e2b-it-4bit — timeout: 280s=
-   - Mostrar nome do agente, modelo e timeout restante
+1. *Spinner informativo* (=custom-magent-ui.el=):
+   - Atualizar =+carlos/magent-ui-spinner-line= para exibir agente e contagem durante =subagent-waiting=.
+   - Exemplo: =[13:52:20] ⏳ ⠴ aguardando subagente (explore)...= ou =[13:52:20] ⏳ ⠴ aguardando 2 subagentes...=
 
 *** Fluxo Corrigido (antes vs depois)
 
@@ -94,22 +91,22 @@ para sempre. Testado em 2026-08-19 com 5 prompts — 0 chamadas =wait_agent=.
 #+BEGIN_EXAMPLE
 Usuário: "delegue para explore..."
   → spawn_agent(explore) → Job running
-  → Orquestrador: "Tarefa delegada, aguardando..."
-  → [PAROU — nunca chama wait_agent]
+  → Turno pai encerra sem wait_agent
   → FSM: subagent-waiting (para sempre)
-  → GUI: "⏳ aguardando subagente..." (loop infinito)
+  → Subagente termina → Observer lança erro arity → Silêncio
+  → UI: "⏳ aguardando subagente..." (preso)
 #+END_EXAMPLE
 
 **** Depois (corrigido)
 #+BEGIN_EXAMPLE
 Usuário: "delegue para explore..."
   → spawn_agent(explore) → Job running
-  → Flag pending-wait = t
-  → turn-end-sink detecta flag + job rodando
-  → Auto-injeta wait_agent(job_id)
-  → wait_agent retorna resultado
-  → Resultado injetado no próximo turno
-  → Orquestrador sintetiza resposta
+  → Turno pai encerra sem wait_agent → FSM: subagent-waiting
+  → Subagente termina → Observer (1 arg) captura resultado
+  → Observer verifica: 0 subagentes pendentes
+  → Dispara auto-resume: agent-shell--send-command(prompt de retomada)
+  → Turno pai reabre → turn-start-sink injeta relatório do subagente
+  → Orquestrador sintetiza resposta final
   → FSM: idle
 #+END_EXAMPLE
 
@@ -117,17 +114,17 @@ Usuário: "delegue para explore..."
 
 | Arquivo | Mudança |
 |---------|---------|
-| =lisp/custom-magent-fsm.el= | Fix observer, registrar sink, auto-injeção, auto-continuação |
-| =lisp/custom-magent-ui.el= | GUI informativa (nome agente, modelo, timeout) |
-| =tests/magent-fsm-test.el= | Novos testes ERT |
-| =docs/magent-reference.org= | Atualizar documentação |
+| =lisp/custom-magent-fsm.el= | Fix observer (1 arg), guarda e registro turn-start-sink, auto-resume |
+| =lisp/custom-magent-ui.el= | GUI informativa (nome agente / contagem de subagentes) |
+| =tests/magent-fsm-test.el= | Novos testes ERT (observer 1 arg, auto-resume trigger) |
+| =docs/magent-reference.org= | Atualizar documentação do fluxo de subagentes |
 
 *** Critério de Saída
 
 - =just compile= zero-warning
 - =just test= verde (incluindo novos testes ERT)
-- Teste interativo: =spawn_agent= → =wait_agent= automático → resultado entregue
-- GUI mostra informações do subagente durante espera
+- Teste interativo: =spawn_agent= → subagente termina → auto-resume reabre turno → resposta entregue
+- GUI mostra informações do subagente durante a espera
 
 *** Referências
 
@@ -143,6 +140,8 @@ Usuário: "delegue para explore..."
     :ASSIGNEE: coder
     :STATUS: backlog
     :END:
+
+*Depende:* Fix Subagente Órfão (acima).
 
 *Problema:* subagentes recebem apenas o prompt raw do orquestrador. Não
 recebem: histórico de conversa do pai, arquivos lidos/editados, decisões
@@ -276,12 +275,11 @@ Em =custom-magent-subagent.el=:
 =just test-all= verde; teste interativo com orquestrador delegando tarefa
 de leitura/edição e subagente recebendo contexto automaticamente.
 
-** TODO D11. Pipeline de Documentação via Chat (Logic Extractor + Tech-Writer)
+** TODO D11. Pipeline de Documentação via Chat (Logic Extractor + Tech-Writer) :magent:tools:
     :PROPERTIES:
     :CREATED: 2026-08-18
     :ASSIGNEE: planner
     :STATUS: backlog
-    :TAGS: :magent:tools:
     :END:
 
 *Contexto:* orquestrador deve reconhecer intenção do usuário ("explica o que X
@@ -291,9 +289,9 @@ pipeline de dois estágios automaticamente (sem keybinding).
 *Pipeline:*
 1. Orquestrador lê arquivo (=read_file=);
 2. =spawn_agent('logic-extractor', código)= → extrai JSON com regras de negócio;
-3. =wait_agent= → recebe JSON;
+3. =wait_agent= (ou auto-resume do Fix Subagente Órfão) → recebe JSON;
 4. =spawn_agent('tech-writer', JSON + instrução Org)= → converte para =.org=;
-5. =wait_agent= → recebe documentação;
+5. =wait_agent= (ou auto-resume do Fix Subagente Órfão) → recebe documentação;
 6. Sintetiza ≤3 bullets para o usuário; oferece salvar =.org= se solicitado.
 
 *Abordagem:*
@@ -327,11 +325,10 @@ Flash documentando um arquivo =.el= existente.
     :END:
     Implementar =git_blame_line=, =forge_read_issue= e =magit_commit_semantic=.
 
-** TODO D10. Integrar Pacote =rfc-mode= e Ferramentas Lisp
+** TODO D10. Integrar Pacote =rfc-mode= e Ferramentas Lisp :knowledge:security:
     :PROPERTIES:
     :ASSIGNEE: coder
     :STATUS: backlog
-    :TAGS: :knowledge:security:
     :END:
     Adicionar =rfc-mode= no =init.el= (via Elpaca) e criar as ferramentas Lisp
     =rfc_search_topic= e =rfc_read_section= no =custom-magent-tools.el= para
@@ -353,22 +350,22 @@ Rodar os 5 rounds de prompts e analisar logs.
 
 *** Round 1 — Tool direta (sem delegação)
 Prompt: "liste os arquivos do diretório lisp/ e diga quantos .el existem"
-*Esperado:* `glob` ou `bash(ls)` — resposta direta, sem `spawn_agent`.
+*Esperado:* =glob= ou =bash(ls)= — resposta direta, sem =spawn_agent=.
 *Critério:* USA tool, NÃO delega.
 
 *** Round 2 — Delegação forçada
 Prompt: "delegue para um agente explore ler o diretório lisp/ e listar os 5 maiores arquivos por tamanho"
-*Esperado:* `spawn_agent(explore)` → `wait_agent(job_id)` automático → resultado.
-*Critério:* log contém `spawn_agent` + `wait_agent` no mesmo turno.
+*Esperado:* =spawn_agent(explore)= → auto-resume ou =wait_agent(job_id)= → resultado entregue.
+*Critério:* log contém =spawn_agent= e auto-resume do =agent-shell= no mesmo fluxo.
 
 *** Round 3 — Tarefa composta (leitura + análise)
 Prompt: "analise o arquivo custom-magent-fsm.el e descreva os estados da máquina"
-*Esperado:* `spawn_agent(explore)` com instrução para ler e analisar.
-*Critério:* DELEGA para subagente, não faz `read_file` direto.
+*Esperado:* =spawn_agent(explore)= com instrução para ler e analisar.
+*Critério:* DELEGA para subagente, não faz =read_file= direto.
 
 *** Round 4 — Múltiplos arquivos paralelos
 Prompt: "leia TODO.org e roadmap.org, e diga qual backlog tem mais itens pendentes"
-*Esperado:* 2× `spawn_agent` ou 1× com instrução para ler ambos.
+*Esperado:* 2× =spawn_agent= ou 1× com instrução para ler ambos.
 *Critério:* DELEGA para subagente(s), não faz 2× `read_file` direto.
 
 *** Round 5 — Rejeição (comando destrutivo)

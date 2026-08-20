@@ -382,7 +382,7 @@
     (cl-letf (((symbol-function '+carlos/magent-fsm-subagent-session-jobs)
                (lambda () '(job1)))
               ((symbol-function '+carlos/magent-watchdog-start) #'ignore))
-      (+carlos/magent-fsm-turn-start-sink nil)
+      (+carlos/magent-fsm-turn-start-sink '(:type turn-start))
       (should (eq +carlos/magent-fsm-state 'subagent-running)))))
 
 (ert-deftest myemacs-magent-fsm-watchdog-suppressed-while-subagent-pending ()
@@ -975,6 +975,158 @@ Garante que o filtro não bloqueia eventos legítimos do orquestrador."
     (should (string-match-p "explore" captured-prompt))
     (should (string-match-p "coder" captured-prompt))
     (should (string-match-p "Next question" captured-prompt))))
+
+;; ── Fix Subagente Orfão: Observer arity + turn-start-sink guard + auto-resume ──
+
+(ert-deftest myemacs-magent-fsm-turn-start-sink-ignores-non-turn-start ()
+  "turn-start-sink deve ignorar eventos que não são :type turn-start."
+  (skip-unless myemacs-fsm-available)
+  (skip-unless (fboundp '+carlos/magent-fsm-turn-start-sink))
+  (myemacs-fsm-with-reset
+    (cl-letf (((symbol-function '+carlos/magent-watchdog-start) #'ignore)
+              ((symbol-function '+carlos/magent-fsm-subagent-session-jobs)
+               (lambda () '(job1)))
+              ((symbol-function '+carlos/magent-fsm-inject-pending-results)
+               (lambda () nil)))
+      ;; Evento nil (sem :type) — deve ser ignorado
+      (+carlos/magent-fsm-turn-start-sink nil)
+      (should (eq +carlos/magent-fsm-state 'idle))
+      ;; Evento do tipo diferente — deve ser ignorado
+      (+carlos/magent-fsm-turn-start-sink '(:type turn-end))
+      (should (eq +carlos/magent-fsm-state 'idle)))))
+
+(ert-deftest myemacs-magent-fsm-turn-start-sink-accepts-turn-start ()
+  "turn-start-sink deve processar eventos :type turn-start."
+  (skip-unless myemacs-fsm-available)
+  (skip-unless (fboundp '+carlos/magent-fsm-turn-start-sink))
+  (myemacs-fsm-with-reset
+    (cl-letf (((symbol-function '+carlos/magent-watchdog-start) #'ignore)
+              ((symbol-function '+carlos/magent-fsm-subagent-session-jobs)
+               (lambda () nil))
+              ((symbol-function '+carlos/magent-fsm-inject-pending-results)
+               (lambda () nil)))
+      (+carlos/magent-fsm-turn-start-sink '(:type turn-start))
+      (should (eq +carlos/magent-fsm-state 'thinking)))))
+
+(ert-deftest myemacs-magent-fsm-observer-calls-maybe-auto-resume ()
+  "O observer registrado deve chamar maybe-auto-resume ao detectar conclusão."
+  (skip-unless myemacs-fsm-available)
+  (skip-unless (fboundp '+carlos/magent-fsm-register-observer))
+  (let ((resume-called nil))
+    (cl-letf (((symbol-function 'magent-agent-job-add-observer)
+               (lambda (_job fn)
+                 ;; Chamar o fn diretamente para testar
+                 (let ((mock-job (list :id "obs-1" :agent-name "explore"
+                                       :status 'completed :result "ok")))
+                   (funcall fn mock-job))
+                 'token-1))
+              ((symbol-function 'magent-agent-job-id)
+               (lambda (job) (plist-get job :id)))
+              ((symbol-function 'magent-agent-job-status)
+               (lambda (job) (plist-get job :status)))
+              ((symbol-function 'magent-agent-job-result)
+               (lambda (job) (plist-get job :result)))
+              ((symbol-function 'magent-agent-job-agent-name)
+               (lambda (job) (plist-get job :agent-name)))
+              ((symbol-function 'magent-agent-job-error) #'ignore)
+              ((symbol-function '+carlos/magent-fsm-maybe-auto-resume)
+               (lambda () (setq resume-called t)))
+              ((symbol-function '+carlos/magent-fsm-subagent-session-jobs)
+               (lambda () nil)))
+      (+carlos/magent-fsm-register-observer
+       (list :id "obs-1" :status 'running))
+      (should resume-called))))
+
+(ert-deftest myemacs-magent-fsm-auto-resume-only-fires-in-subagent-waiting ()
+  "maybe-auto-resume não deve disparar quando FSM não está em subagent-waiting."
+  (skip-unless myemacs-fsm-available)
+  (skip-unless (fboundp '+carlos/magent-fsm-maybe-auto-resume))
+  (let ((cmd-called nil)
+        (+carlos/magent-fsm-auto-resume-in-progress nil))
+    (cl-letf (((symbol-function 'agent-shell--send-command)
+               (lambda (&rest _args) (setq cmd-called t))))
+      ;; Estado thinking — não deve disparar
+      (let ((+carlos/magent-fsm-state 'thinking))
+        (+carlos/magent-fsm-maybe-auto-resume)
+        (should-not cmd-called))
+      ;; Estado idle — não deve disparar
+      (let ((+carlos/magent-fsm-state 'idle))
+        (+carlos/magent-fsm-maybe-auto-resume)
+        (should-not cmd-called)))))
+
+(ert-deftest myemacs-magent-fsm-auto-resume-respects-reentrance-flag ()
+  "maybe-auto-resume não deve disparar quando já está em progresso."
+  (skip-unless myemacs-fsm-available)
+  (skip-unless (fboundp '+carlos/magent-fsm-maybe-auto-resume))
+  (let ((cmd-called nil)
+        (+carlos/magent-fsm-auto-resume-in-progress t))
+    (cl-letf (((symbol-function 'agent-shell--send-command)
+               (lambda (&rest _args) (setq cmd-called t)))
+              ((symbol-function '+carlos/magent-fsm-pending-subagent-p)
+               (lambda () nil)))
+      (let ((+carlos/magent-fsm-state 'subagent-waiting))
+        (+carlos/magent-fsm-maybe-auto-resume)
+        (should-not cmd-called)))))
+
+(ert-deftest myemacs-magent-fsm-auto-resume-sends-command ()
+  "maybe-auto-resume deve chamar agent-shell--send-command com prompt de retomada."
+  (skip-unless myemacs-fsm-available)
+  (skip-unless (fboundp '+carlos/magent-fsm-maybe-auto-resume))
+  (let ((captured-prompt nil)
+        (+carlos/magent-fsm-auto-resume-in-progress nil)
+        (+carlos/magent-fsm-pending-results nil))
+    (cl-letf (((symbol-function 'agent-shell--send-command)
+               (lambda (&rest args)
+                 (setq captured-prompt (plist-get args :prompt))))
+              ((symbol-function '+carlos/magent-fsm-pending-subagent-p)
+               (lambda () nil))
+              ((symbol-function '+carlos/magent-fsm-inject-pending-results)
+               (lambda () nil))
+              ((symbol-function '+carlos/magent-fsm-active-subagent-names)
+               (lambda () '("explore" "coder"))))
+      (let ((+carlos/magent-fsm-state 'subagent-waiting))
+        (+carlos/magent-fsm-maybe-auto-resume)
+        (should captured-prompt)
+        (should (string-match-p "explore" captured-prompt))
+        (should (string-match-p "coder" captured-prompt))))))
+
+(ert-deftest myemacs-magent-fsm-reset-clears-auto-resume-flag ()
+  "O reset deve limpar o flag de auto-resume em progresso."
+  (skip-unless myemacs-fsm-available)
+  (skip-unless (fboundp '+carlos/magent-fsm-reset))
+  (let ((+carlos/magent-fsm-auto-resume-in-progress t))
+    (cl-letf (((symbol-function 'magent-agent-job-remove-observer) #'ignore))
+      (+carlos/magent-fsm-reset))
+    (should-not +carlos/magent-fsm-auto-resume-in-progress)))
+
+(ert-deftest myemacs-magent-fsm-active-subagent-names-returns-names ()
+  "active-subagent-names deve retornar nomes únicos dos subagentes ativos."
+  (skip-unless myemacs-fsm-available)
+  (skip-unless (fboundp '+carlos/magent-fsm-active-subagent-names))
+  (cl-letf (((symbol-function '+carlos/magent-fsm-subagent-session-jobs)
+             (lambda ()
+               (list (list :id "j1" :agent-name "explore")
+                     (list :id "j2" :agent-name "coder")
+                     (list :id "j3" :agent-name "explore"))))
+            ((symbol-function 'magent-agent-job-agent-name)
+             (lambda (job) (plist-get job :agent-name))))
+    (let ((names (+carlos/magent-fsm-active-subagent-names)))
+      (should (= (length names) 2))
+      (should (member "explore" names))
+      (should (member "coder" names)))))
+
+(ert-deftest myemacs-magent-fsm-active-subagent-names-empty-when-no-jobs ()
+  "active-subagent-names deve retornar nil quando não há jobs."
+  (skip-unless myemacs-fsm-available)
+  (skip-unless (fboundp '+carlos/magent-fsm-active-subagent-names))
+  (cl-letf (((symbol-function '+carlos/magent-fsm-subagent-session-jobs)
+             (lambda () nil)))
+    (should (null (+carlos/magent-fsm-active-subagent-names)))))
+
+(ert-deftest myemacs-magent-ui-spinner-waiting-info-var-exists ()
+  "A variável waiting-info do spinner deve estar declarada."
+  (skip-unless (boundp '+carlos/magent-ui-spinner-waiting-info))
+  (should (boundp '+carlos/magent-ui-spinner-waiting-info)))
 
 (provide 'magent-fsm-test)
 ;;; magent-fsm-test.el ends here

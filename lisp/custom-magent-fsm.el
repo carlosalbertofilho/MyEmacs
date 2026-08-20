@@ -8,6 +8,7 @@
 
 ;;; Code:
 
+(require 'cl-lib)
 (declare-function magent-lifecycle-events-add-sink "magent-lifecycle-events")
 (declare-function magent-lifecycle-events-context-subagent-id "magent-lifecycle-events")
 (declare-function magent-tools--parent-session "magent-tools")
@@ -17,6 +18,7 @@
 (declare-function +carlos/magent-ui-spinner-start "custom-magent-ui")
 (declare-function +carlos/magent-ui-spinner-stop "custom-magent-ui")
 (declare-function +carlos/magent-resolve-model "custom-magent-tools")
+(declare-function agent-shell--send-command "agent-shell")
 (defvar +carlos/magent-model-tier-order)
 
 ;; ── ETAPA 1: Estado da FSM & Detecção de Perfil por Host ────────────────────
@@ -103,28 +105,34 @@ Remove jobs concluídos da lista de pending da FSM."
 
 (defun +carlos/magent-fsm-register-observer (job)
   "Registra um observer no JOB para coleta automática de resultado.
-O observer é chamado quando o status do job muda para terminal.
+O observer é chamado com 1 arg (o job) quando o status muda para
+terminal.  Extrai o status via `magent-agent-job-status' para
+compatibilidade com o upstream (=magent-agent-job.el:121=).
 Retorna o token do observer para remoção posterior."
   (when (and (fboundp 'magent-agent-job-add-observer)
              (fboundp 'magent-agent-job-id))
     (let ((job-id (magent-agent-job-id job)))
       (magent-agent-job-add-observer
        job
-       (lambda (observed-job new-status)
-         (when (memq new-status '(completed failed))
-           (when (and (fboundp 'magent-agent-job-result)
-                      (fboundp 'magent-agent-job-agent-name))
-             (let ((result (magent-agent-job-result observed-job))
-                   (error-msg (when (fboundp 'magent-agent-job-error)
-                                (magent-agent-job-error observed-job))))
-               (unless (alist-get job-id +carlos/magent-fsm-pending-results
-                                  nil nil #'string=)
-                 (push (cons job-id
-                             (list :agent-name (magent-agent-job-agent-name observed-job)
-                                   :status new-status
-                                   :result (or result "")
-                                   :error (or error-msg "")))
-                       +carlos/magent-fsm-pending-results))))))))))
+       (lambda (observed-job)
+         (let ((new-status (magent-agent-job-status observed-job)))
+           (when (memq new-status '(completed failed))
+             (when (and (fboundp 'magent-agent-job-result)
+                        (fboundp 'magent-agent-job-agent-name))
+               (let ((result (magent-agent-job-result observed-job))
+                     (error-msg (when (fboundp 'magent-agent-job-error)
+                                  (magent-agent-job-error observed-job))))
+                 (unless (alist-get job-id +carlos/magent-fsm-pending-results
+                                    nil nil #'string=)
+                   (push (cons job-id
+                               (list :agent-name (magent-agent-job-agent-name observed-job)
+                                     :status new-status
+                                     :result (or result "")
+                                     :error (or error-msg "")))
+                         +carlos/magent-fsm-pending-results))
+                 ;; Auto-resume: quando todos os subagentes concluíram,
+                 ;; reabre o turno do orquestrador automaticamente.
+                 (+carlos/magent-fsm-maybe-auto-resume))))))))))
 
 (defun +carlos/magent-fsm-register-observers-for-pending ()
   "Registra observers para todos os jobs de subagentes ativos.
@@ -141,6 +149,49 @@ Chamado quando a FSM entra em `subagent-waiting'."
     (dolist (token +carlos/magent-fsm-observer-tokens)
       (magent-agent-job-remove-observer token)))
   (setq +carlos/magent-fsm-observer-tokens nil))
+
+;; ── ETAPA 2f: Auto-Resume Pós-Subagente ──────────────────────────────────────
+;; Quando um observer detecta que o subagente concluiu e não há mais jobs
+;; pendentes, reabre programaticamente o turno do orquestrador via
+;; `agent-shell--send-command' com um prompt de retomada.
+
+(defvar +carlos/magent-fsm-auto-resume-in-progress nil
+  "Flag para prevenir re-entrância no auto-resume.
+Setado durante a execução do auto-resume e resetado ao fim.")
+
+(defun +carlos/magent-fsm-active-subagent-names ()
+  "Retorna uma lista de nomes dos subagentes ativos (queued/running)."
+  (let ((jobs (+carlos/magent-fsm-subagent-session-jobs)))
+    (when (and jobs (fboundp 'magent-agent-job-agent-name))
+      (cl-remove-duplicates
+       (cl-map 'list #'magent-agent-job-agent-name jobs)
+       :test #'equal))))
+
+(defun +carlos/magent-fsm-maybe-auto-resume ()
+  "Reabre o turno do orquestrador se todos os subagentes concluíram.
+Chamado pelo observer quando um job atinge estado terminal.
+Condições: FSM em `subagent-waiting', nenhum job ativo restante,
+e nenhum auto-resume já em progresso (flag de re-entrância)."
+  (when (and (eq +carlos/magent-fsm-state 'subagent-waiting)
+             (not +carlos/magent-fsm-auto-resume-in-progress)
+             (not (+carlos/magent-fsm-pending-subagent-p))
+             (fboundp 'agent-shell--send-command))
+    (setq +carlos/magent-fsm-auto-resume-in-progress t)
+    (condition-case err
+        (progn
+          ;; Formatar resultados pendentes como contexto
+          (+carlos/magent-fsm-inject-pending-results)
+          (let* ((names (+carlos/magent-fsm-active-subagent-names))
+                 (prompt (if names
+                             (format "[System] Subagentes concluídos: %s. Sintetize os resultados para o usuário."
+                                     (mapconcat #'identity names ", "))
+                           "[System] Subagente concluído. Sintetize o resultado para o usuário.")))
+            (message "[Magent FSM] Auto-resume: reabrindo turno do orquestrador")
+            ;; Usar a versão base (sem advice) para evitar loop
+            (funcall #'agent-shell--send-command :prompt prompt)))
+      (error
+       (message "[Magent FSM] Auto-resume falhou: %s" (error-message-string err))))
+    (setq +carlos/magent-fsm-auto-resume-in-progress nil)))
 
 ;; ── ETAPA 2e: Deferred Result Injection (injeção pós-turno) ────────────────
 ;; Quando a FSM detecta resultados pendentes no turn-start-sink, formata
@@ -265,7 +316,8 @@ pela FSM."
         +carlos/magent-fsm-healing-last-error-count nil
         +carlos/magent-fsm-pending-results nil
         +carlos/magent-fsm-resume-with-context nil
-        +carlos/magent-fsm-pending-context-messages nil)
+        +carlos/magent-fsm-pending-context-messages nil
+        +carlos/magent-fsm-auto-resume-in-progress nil)
   (+carlos/magent-fsm-cleanup-observers)
   (when (fboundp '+carlos/magent-buffer-reset-session)
     (+carlos/magent-buffer-reset-session))
@@ -483,23 +535,26 @@ registra o evento de fallback no echo area."
 ;; Acoplamos os callbacks de ciclo de vida usando lifecycle sinks (quando
 ;; disponíveis) ou advice leves nos pontos de extensão existentes.
 
-(defun +carlos/magent-fsm-turn-start-sink (_event-data)
+(defun +carlos/magent-fsm-turn-start-sink (event-data)
   "Sink chamado no início de cada turno da sessão do Magent.
+EVENT-DATA é o plist do lifecycle event.  Guarda por `:type turn-start'
+para não disparar em outros eventos (ex.: turn-end, subagent-start).
 Reseta o buffer de reasoning, incrementa a sessão e inicia o watchdog.
 Se há resultados de subagentes pendentes, formata e armazena para injeção.
 Se um subagente ainda estiver ativo (turno de retomada), entra em
 `subagent-running' em vez de `thinking'."
-  (setq +carlos/magent-fsm-reasoning-buffer ""
-        +carlos/magent-fsm-retry-count 0)
-  ;; Injetar resultados pendentes antes de transicionar
-  (let ((injected-messages (+carlos/magent-fsm-inject-pending-results)))
-    (when injected-messages
-      (message "[Magent FSM] Injecting %d subagent result(s)"
-               (length injected-messages))))
-  (if (+carlos/magent-fsm-pending-subagent-p)
-      (+carlos/magent-fsm-transition 'subagent-running)
-    (+carlos/magent-fsm-transition 'thinking))
-  (+carlos/magent-watchdog-start))
+  (when (eq (plist-get event-data :type) 'turn-start)
+    (setq +carlos/magent-fsm-reasoning-buffer ""
+          +carlos/magent-fsm-retry-count 0)
+    ;; Injetar resultados pendentes antes de transicionar
+    (let ((injected-messages (+carlos/magent-fsm-inject-pending-results)))
+      (when injected-messages
+        (message "[Magent FSM] Injecting %d subagent result(s)"
+                 (length injected-messages))))
+    (if (+carlos/magent-fsm-pending-subagent-p)
+        (+carlos/magent-fsm-transition 'subagent-running)
+      (+carlos/magent-fsm-transition 'thinking))
+    (+carlos/magent-watchdog-start)))
 
 ;; ── Fallback Inteligente: classificação de falha e retry up-tier ─────────
 
@@ -605,6 +660,7 @@ ARGS são repassados intactos a ORIG-FN."
 (with-eval-after-load 'magent-llm-gptel
   ;; Registrar os sinks de turn-start e turn-end quando disponíveis
   (when (fboundp 'magent-lifecycle-events-add-sink)
+    (magent-lifecycle-events-add-sink #'+carlos/magent-fsm-turn-start-sink)
     (magent-lifecycle-events-add-sink #'+carlos/magent-fsm-turn-end-sink))
   ;; Acumular reasoning via advice leve no callback de streaming
   (when (fboundp 'magent-llm-gptel--callback)

@@ -21,6 +21,7 @@
 (declare-function magent-lifecycle-events-add-sink "magent-lifecycle-events")
 (declare-function agent-shell-insert "agent-shell")
 (declare-function magent-agent-shell--buffer "magent-agent-shell")
+(declare-function +carlos/magent-fsm-active-subagent-names "custom-magent-fsm")
 
 (defvar +carlos/magent-fsm-reasoning-buffer nil
   "Forward declaration: reasoning acumulado pela FSM (custom-magent-fsm.el).")
@@ -338,6 +339,11 @@ assinatura) e anexa modelo do filho para `spawn_agent' e cwd para
 (defvar +carlos/magent-ui-spinner-marker nil
   "Marker da linha do spinner no buffer *Magent*.")
 
+(defvar +carlos/magent-ui-spinner-waiting-info nil
+  "String descritiva dos subagentes aguardados (ex.: \"explore\" ou \"2 subagentes\").
+Definida por `+carlos/magent-ui-spinner-start' e lida por
+`+carlos/magent-ui-spinner-line'.")
+
 (defface +carlos/magent-ui-spinner '((t (:inherit font-lock-keyword-face)))
   "Face para a linha do spinner de subagente.")
 
@@ -346,24 +352,36 @@ assinatura) e anexa modelo do filho para `spawn_agent' e cwd para
   (timerp +carlos/magent-ui-spinner-timer))
 
 (defun +carlos/magent-ui-spinner-line ()
-  "Return the current spinner line text with the spinner face."
-  (propertize
-   (format "[%s] ⏳ %s aguardando subagente..."
-           (+carlos/magent-ui--timestamp)
-           (nth (mod +carlos/magent-ui-spinner-frame-index
-                     (length +carlos/magent-ui-spinner-frames))
-                +carlos/magent-ui-spinner-frames))
-   'face '+carlos/magent-ui-spinner))
+  "Return the current spinner line text with the spinner face.
+Inclui informação dinâmica dos subagentes aguardados: nomes quando
+há subagentes ativos, ou o `waiting-info' fornecido no start."
+  (let ((names (and (fboundp '+carlos/magent-fsm-active-subagent-names)
+                    (+carlos/magent-fsm-active-subagent-names)))
+        (info (or +carlos/magent-ui-spinner-waiting-info "subagente")))
+    (let ((display (if names
+                       (mapconcat #'identity names ", ")
+                     info)))
+      (propertize
+       (format "[%s] ⏳ %s aguardando %s..."
+               (+carlos/magent-ui--timestamp)
+               (nth (mod +carlos/magent-ui-spinner-frame-index
+                         (length +carlos/magent-ui-spinner-frames))
+                    +carlos/magent-ui-spinner-frames)
+               display)
+       'face '+carlos/magent-ui-spinner))))
 
-(defun +carlos/magent-ui-spinner-start ()
+(defun +carlos/magent-ui-spinner-start (&optional waiting-info)
   "Start the subagent-waiting spinner in the Magent shell buffer.
-Inserts the first frame line at point-max and schedules
-`+carlos/magent-ui-spinner-tick' every
-`+carlos/magent-ui-spinner-interval' seconds.  Returns non-nil when
-started, nil when the shell buffer is unavailable or already running."
+WAITING-info é uma string descritiva dos subagentes aguardados
+\(ex.: \"explore\" ou \"2 subagentes\").  Insere a primeira frame
+e agenda `+carlos/magent-ui-spinner-tick' a cada
+`+carlos/magent-ui-spinner-interval' segundos.  Retorna non-nil
+quando iniciado, nil quando o shell buffer não está disponível ou
+o spinner já está ativo."
   (when-let* ((buffer (+carlos/magent-ui--shell-buffer))
               ((not (+carlos/magent-ui-spinner-active-p))))
-    (setq +carlos/magent-ui-spinner-frame-index 0)
+    (setq +carlos/magent-ui-spinner-frame-index 0
+          +carlos/magent-ui-spinner-waiting-info waiting-info)
     (when (markerp +carlos/magent-ui-spinner-marker)
       (set-marker +carlos/magent-ui-spinner-marker nil))
     (with-current-buffer buffer
