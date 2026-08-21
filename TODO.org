@@ -31,7 +31,7 @@ Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=
     :PROPERTIES:
     :CREATED: 2026-08-20
     :ASSIGNEE: coder
-    :STATUS: concluido 2026-08-21
+    :STATUS: DONE
     :END:
 
 *** DONE Configuracao do Forge no Emacs
