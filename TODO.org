@@ -144,6 +144,41 @@ Matriz executável dos 12 rounds de regressão do Magent.
 |    11 | Rode o just compile e me diga se há warnings              | =qa=                    | =run_command= (=just compile=)                | TODO   |
 |    12 | Execute a suíte test-ai e relate as falhas, se houver     | =qa=                    | =run_command= (=just test-ai=)                | TODO   |
 
+** TODO Resolver 4 problemas de configuração (Jinx, Electric Pair, Cape, Indent-bars)
+    :PROPERTIES:
+    :CREATED: 2026-08-21
+    :STATUS: BACKLOG
+    :ASSIGNEE: coder
+    :END:
+
+*** TODO Corrigir resolução de dicionários do Jinx (macOS + Nix)
+    :PROPERTIES:
+    :CREATED: 2026-08-21
+    :STATUS: BACKLOG
+    :END:
+Modificar a configuração do =exec-path-from-shell= em =custom-core.el= para incluir =XDG_DATA_DIRS= e/ou =DICPATH=. Isso garantirá que, no macOS, o Emacs obtenha o caminho correto e o =libenchant= consiga localizar os dicionários do Hunspell instalados em =~/.nix-profile/share/hunspell=.
+
+*** TODO Habilitar auto-fechamento de pares
+    :PROPERTIES:
+    :CREATED: 2026-08-21
+    :STATUS: BACKLOG
+    :END:
+Ativar o =electric-pair-mode= para habilitar a inserção automática de parênteses e chaves. A configuração deve ser adicionada ao =custom-core.el=.
+
+*** TODO Unificar Autocomplete e Snippets via Cape
+    :PROPERTIES:
+    :CREATED: 2026-08-21
+    :STATUS: BACKLOG
+    :END:
+Instalar o pacote =cape= através do Elpaca no arquivo =custom-completion.el=. Configurar =cape-super-capf= para fundir o backend do LSP (=eglot-completion-at-point=) com os snippets do Tempel (=tempel-expand=), eliminando o conflito de CAPF e permitindo que o Corfu exiba ambos simultaneamente.
+
+*** TODO Configurar fallback visual para o Indent-bars
+    :PROPERTIES:
+    :CREATED: 2026-08-21
+    :STATUS: BACKLOG
+    :END:
+Ajustar o =indent-bars= em =custom-ui.el=. Criar uma alternativa de fallback de modo que, mesmo com a dependência forte configurada (=indent-bars-treesitter-support t=), as guias de indentação continuem sendo renderizadas caso o parser do Tree-Sitter apresente falhas.
+
 * Concluído (referências ao roadmap)
 
 - *Subagentes Sem Tools* (2026-08-20) — Separação de diretivas em 3 constantes e injeção por papel. Log verificado com 100% de sucesso.
