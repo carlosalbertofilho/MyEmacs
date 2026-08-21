@@ -27,25 +27,25 @@ Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=
 
 * Pendente — Motor & Backlog (Plano Mestre Opus)
 
-** TODO Integracao do Forge (Magit) e Ferramentas Git/Forge
+** DONE Integracao do Forge (Magit) e Ferramentas Git/Forge
     :PROPERTIES:
     :CREATED: 2026-08-20
     :ASSIGNEE: coder
-    :STATUS: plano aprovado
+    :STATUS: concluido 2026-08-21
     :END:
 
-*** Configuracao do Forge no Emacs
+*** DONE Configuracao do Forge no Emacs
 Configurar =(use-package forge :ensure t :after magit)= em =lisp/custom-git.el= para permitir navegação, abertura, comentários e revisões de Issues e PRs no Magit (=C-c g= -> =N= ou =@=).
 
-*** Ferramentas Curadas do Magent para Forge
+*** DONE Ferramentas Curadas do Magent para Forge
 Implementar as ferramentas em =lisp/custom-magent-tools.el=:
 - =forge_read_issue= (=issue_number_or_url=): Lê o conteúdo estruturado, histórico de comentários e estado de uma Issue ou Pull Request sem alucinação e com economia de tokens.
 - =forge_list_pull_requests= (=state=): Lista PRs e Issues abertos/pendentes do repositório ativo via Forge DB/API.
 
-*** Permissoes na Equipe
+*** DONE Permissoes na Equipe
 Conceder acesso =allow= para =forge_read_issue= e =forge_list_pull_requests= nos perfis =coder=, =tech-writer= e =qa= em =lisp/custom-magent-team.el=.
 
-*** Suite de Testes Forge
+*** DONE Suite de Testes Forge
 Adicionar testes ERT em =tests/git-test.el= e =tests/magent-tools-test.el= para garantir parsing de URLs do GitHub, leitura de issues e fallback offline.
 
 ** TODO Permissoes e UI

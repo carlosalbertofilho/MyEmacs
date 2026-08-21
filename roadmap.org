@@ -1558,6 +1558,25 @@ Criar cache de referência para que agentes possam:
 
 *** Status: BACKLOG
 
+** 2026-08-21 — [CONCLUÍDO] Integração do Forge (Magit) e Ferramentas Git/Forge (=lisp/custom-git.el= + =lisp/custom-magent-tools.el=)
+
+*** Implementação
+- =custom-git.el=: =(use-package forge :ensure t :after magit)= — Issues/PRs dentro do Magit (=C-c g= → =N= ou =@=).
+- =custom-magent-tools.el=: parsing de refs (=#N=, =owner/repo#N=, URLs GitHub/GitLab) em =+carlos/magent-forge-parse-ref=; handlers =forge_read_issue= (leitura estruturada de issue/PR com comentários truncados) e =forge_list_pull_requests= (filtro open/closed/all, limite por tipo) consultando o db emacsql do Forge via =forge-sql= direto; SQL-FN/REPO-FN injetáveis para testes offline (precedente B5 — inline do byte-compiler inutiliza cl-letf); fallbacks status info/error sem sinalizar ao LLM.
+- =custom-magent-team.el=: allow das duas tools nos perfis coder/tech-writer/qa.
+
+*** Bug pego pela suíte
+- O =throw= do =catch= devolvia o payload cru sem o wrap JSON de =+carlos/magent-tool-result= (o chamador recebia um alist impresso). Reescrito com helper =+carlos/magent-forge--read-topic=: resultado do catch armazenado em variável e fall-through explícito para o payload status info.
+
+*** Testes
+- =tests/git-test.el=: 6 testes de parse-ref (GitHub issue/pull, GitLab, formas curtas, entradas inválidas).
+- =tests/magent-tools-test.el=: 13 testes dos handlers com SQL falso sequencial + permissões da equipe.
+
+*** Validação
+- Repo: =just lint= (compile zero-warning + checkdoc + org-lint) e suíte ERT **394 testes, 0 falhas inesperadas**.
+- Nota de ambiente: com =use-package-expand-minimally=, o =:after magit= adia também o *install* — a order do forge só entrou na fila via =(elpaca (forge))= explícito em batch. Durante o primeiro =just install= houve corrida de build parcial que dava =Unknown slot 'owner'= no =compile-prod=; após instalação estável do forge, recompilação passou limpa.
+- Prod: =just sync= (6c89cf2) + =compile-prod= ✓ + =check-prod= ✓ (=Config loaded OK=) + suíte autoritativa **394 testes, 0 falhas** (7 skipped).
+
 * Decisões Arquiteturais
 
 ** Sem Evil Mode
