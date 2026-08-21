@@ -12,6 +12,12 @@
 ;;   turn-start / turn-end / llm-request-start / llm-request-end
 ;;   tool-call-start / tool-call-end
 ;;   subagent-start / subagent-stop / agent-job-event
+;;
+;; Aprovações (Permissões e UI): instala `+carlos/magent-approval-smart-provider'
+;; como `magent-approval-provider-function' para rotear pedidos de aprovação da
+;; sessão ACP vinculada (botões Allow/Deny do chat) com fallback ao minibuffer,
+;; e anuncia o ciclo requested/resolved/dropped no painel via hook
+;; `magent-approval-state-change-functions'.
 
 ;;; Code:
 
@@ -21,7 +27,14 @@
 (declare-function magent-lifecycle-events-add-sink "magent-lifecycle-events")
 (declare-function agent-shell-insert "agent-shell")
 (declare-function magent-agent-shell--buffer "magent-agent-shell")
+(declare-function magent-acp--approval-provider "magent-acp")
+(declare-function magent-acp--callback-buffer "magent-acp")
+(declare-function magent-approval-local-request "magent-approval")
 (declare-function +carlos/magent-fsm-active-subagent-names "custom-magent-fsm")
+
+(defvar magent-acp--client-session-scopes)
+(defvar magent-approval-provider-function)
+(defvar magent-approval-state-change-functions)
 
 (defvar +carlos/magent-fsm-reasoning-buffer nil
   "Forward declaration: reasoning acumulado pela FSM (custom-magent-fsm.el).")
@@ -435,6 +448,110 @@ Returns nil."
       (set-marker +carlos/magent-ui-spinner-marker nil))
     (setq +carlos/magent-ui-spinner-marker nil))
   nil)
+
+;; ── Permissões: roteamento centralizado de aprovações ─────────────
+(defcustom +carlos/magent-approval-prefer-acp t
+  "Quando non-nil, aprovações de sessões ACP usam os botões visuais do chat.
+Pedidos sem sessão ACP vinculada caem no prompt local do minibuffer.")
+
+(defvar +carlos/magent-ui--pending-approvals (make-hash-table :test #'equal)
+  "Hash request-id -> tool-name das aprovações anunciadas no chat.")
+
+(defun +carlos/magent-ui--acp-client-live-p (client)
+  "Return non-nil when CLIENT has a live callback buffer."
+  (if (fboundp 'magent-acp--callback-buffer)
+      (buffer-live-p (ignore-errors (magent-acp--callback-buffer client nil)))
+    t))
+
+(defun +carlos/magent-ui--acp-client-for-session (session-id)
+  "Return the live in-process ACP client bound to SESSION-ID, or nil."
+  (when (and session-id
+             (boundp 'magent-acp--client-session-scopes)
+             (hash-table-p magent-acp--client-session-scopes))
+    (let (found)
+      (maphash
+       (lambda (client bindings)
+         (when (and (null found)
+                    (hash-table-p bindings)
+                    (gethash session-id bindings)
+                    (+carlos/magent-ui--acp-client-live-p client))
+           (setq found client)))
+       magent-acp--client-session-scopes)
+      found)))
+
+(defun +carlos/magent-ui--approval-route (request)
+  "Return the approval route for REQUEST.
+Routes are `(acp CLIENT SESSION-ID)' or the symbol `local'."
+  (let ((session-id
+         (plist-get (plist-get request :audit-context) :session-id)))
+    (or (and +carlos/magent-approval-prefer-acp
+             (fboundp 'magent-acp--approval-provider)
+             session-id
+             (when-let* ((client (+carlos/magent-ui--acp-client-for-session
+                                  session-id)))
+               (list 'acp client session-id)))
+        'local)))
+
+(defun +carlos/magent-approval-smart-provider (request)
+  "Route REQUEST to the ACP visual Allow/Deny buttons or minibuffer fallback.
+Installed as `magent-approval-provider-function' so subagents spawned in
+secondary sessions inherit the parent chat's permission UI instead of the
+minibuffer."
+  (pcase (+carlos/magent-ui--approval-route request)
+    (`(acp ,client ,session-id)
+     (funcall (magent-acp--approval-provider client session-id) request))
+    (_ (magent-approval-local-request request))))
+
+(defun +carlos/magent-ui-approval-state-line (event request-id entry)
+  "Announce approval EVENT for REQUEST-ID in the Magent chat.
+ENTRY follows `magent-approval-state-change-functions'."
+  (when-let* ((request (plist-get entry :request))
+              (tool (or (plist-get request :tool-name) "tool"))
+              (short-id
+               (if (stringp request-id)
+                   (substring request-id 0 (min 8 (length request-id)))
+                 (format "%s" request-id))))
+    (pcase event
+      ('requested
+       (puthash request-id tool +carlos/magent-ui--pending-approvals)
+       (let ((summary (plist-get request :summary)))
+         (+carlos/magent-ui--insert
+          (format "%s ⏳ [%s] %s%s — aguardando decisão"
+                  (+carlos/magent-ui--timestamp)
+                  short-id tool
+                  (if (stringp summary)
+                      (format ": %s"
+                              (+carlos/magent-ui--truncate summary 60))
+                    ""))
+          '+carlos/magent-ui-subagent)))
+      ('resolved
+       (when (gethash request-id +carlos/magent-ui--pending-approvals)
+         (remhash request-id +carlos/magent-ui--pending-approvals)
+         (let* ((decision (plist-get entry :decision))
+                (allowed (memq decision '(allow-once allow-session))))
+           (+carlos/magent-ui--insert
+            (format "%s %s [%s] %s → %s"
+                    (+carlos/magent-ui--timestamp)
+                    (if allowed "✓" "✗") short-id tool decision)
+            (if allowed '+carlos/magent-ui-tool-ok
+              '+carlos/magent-ui-tool-fail)))))
+      ('dropped
+       (when (gethash request-id +carlos/magent-ui--pending-approvals)
+         (remhash request-id +carlos/magent-ui--pending-approvals)
+         (+carlos/magent-ui--insert
+          (format "%s ✗ [%s] %s → descartada"
+                  (+carlos/magent-ui--timestamp) short-id tool)
+          '+carlos/magent-ui-tool-fail))))))
+
+(defun +carlos/magent-ui-register-approval-hooks ()
+  "Install the smart provider and chat announcements for approvals."
+  (setq magent-approval-provider-function
+        #'+carlos/magent-approval-smart-provider)
+  (add-hook 'magent-approval-state-change-functions
+            #'+carlos/magent-ui-approval-state-line))
+
+(with-eval-after-load 'magent-approval
+  (+carlos/magent-ui-register-approval-hooks))
 
 ;; ── Registro do sink ──────────────────────────────────────────────
 (defun +carlos/magent-ui-register-sink ()

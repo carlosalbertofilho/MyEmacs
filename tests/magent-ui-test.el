@@ -232,3 +232,123 @@
     (should-not (+carlos/magent-ui-spinner-active-p))
     (should (null +carlos/magent-ui-spinner-marker))
     (should (string-empty-p (string-trim (buffer-string))))))
+
+;; ── Permissões: roteamento centralizado de aprovações ────────────────
+(ert-deftest myemacs-magent-ui-approval-route-local-without-session ()
+  "Request sem audit-context cai na rota local (minibuffer)."
+  (skip-unless myemacs-ui-available)
+  (let ((+carlos/magent-approval-prefer-acp t))
+    (should (eq (+carlos/magent-ui--approval-route
+                 '(:request-id "r1" :tool-name "bash"))
+                'local))))
+
+(ert-deftest myemacs-magent-ui-approval-route-acp-bound-session ()
+  "Request com session-id vinculada a um client ACP vai para a rota acp."
+  (skip-unless myemacs-ui-available)
+  (require 'magent-acp nil t)
+  (skip-unless (fboundp 'magent-acp--approval-provider))
+  (let* ((+carlos/magent-approval-prefer-acp t)
+         (fake-client (list 'fake-client))
+         (bindings (make-hash-table :test #'equal))
+         (scopes (make-hash-table :test #'eq :weakness 'key)))
+    (puthash "sess-1" 'global bindings)
+    (puthash fake-client bindings scopes)
+    (let ((magent-acp--client-session-scopes scopes))
+      (cl-letf (((symbol-function 'magent-acp--callback-buffer)
+                 (lambda (&optional _client _session) (current-buffer))))
+        (should (equal (+carlos/magent-ui--approval-route
+                        '(:audit-context (:session-id "sess-1")
+                          :tool-name "bash"))
+                       (list 'acp fake-client "sess-1")))))))
+
+(ert-deftest myemacs-magent-ui-approval-route-local-when-client-dead ()
+  "Client ACP com buffer morto não roteia; cai no local."
+  (skip-unless myemacs-ui-available)
+  (require 'magent-acp nil t)
+  (skip-unless (fboundp 'magent-acp--approval-provider))
+  (let* ((+carlos/magent-approval-prefer-acp t)
+         (fake-client (list 'dead-client))
+         (bindings (make-hash-table :test #'equal))
+         (scopes (make-hash-table :test #'eq :weakness 'key)))
+    (puthash "sess-2" 'global bindings)
+    (puthash fake-client bindings scopes)
+    (let ((magent-acp--client-session-scopes scopes))
+      (cl-letf (((symbol-function 'magent-acp--callback-buffer)
+                 (lambda (&optional _client _session) nil)))
+        (should (eq (+carlos/magent-ui--approval-route
+                     '(:audit-context (:session-id "sess-2")))
+                    'local))))))
+
+(ert-deftest myemacs-magent-ui-approval-smart-provider-dispatch ()
+  "Provider central despacha para ACP quando há client vivo."
+  (skip-unless myemacs-ui-available)
+  (require 'magent-acp nil t)
+  (skip-unless (fboundp 'magent-acp--approval-provider))
+  (let* ((fake-client (list 'dispatch-client))
+         (bindings (make-hash-table :test #'equal))
+         (scopes (make-hash-table :test #'eq :weakness 'key))
+         (seen-request nil)
+         (seen-session nil)
+         (request '(:audit-context (:session-id "sess-3") :tool-name "write")))
+    (puthash "sess-3" 'global bindings)
+    (puthash fake-client bindings scopes)
+    (let ((magent-acp--client-session-scopes scopes)
+          (+carlos/magent-approval-prefer-acp t))
+      (cl-letf (((symbol-function 'magent-acp--callback-buffer)
+                 (lambda (&optional _client _session) (current-buffer)))
+                ((symbol-function 'magent-acp--approval-provider)
+                 (lambda (_client session-id)
+                   (setq seen-session session-id)
+                   (lambda (req) (setq seen-request req)))))
+        (+carlos/magent-approval-smart-provider request)))
+    ;; Request processado pelo provider ACP fake:
+    (should (eq seen-request request))
+    (should (equal seen-session "sess-3"))))
+
+(ert-deftest myemacs-magent-ui-approval-provider-installed ()
+  "O provider central está instalado como magent-approval-provider-function."
+  (skip-unless myemacs-ui-available)
+  (require 'magent-approval nil t)
+  (skip-unless (featurep 'magent-approval))
+  ;; Recarrega o módulo para disparar `with-eval-after-load' agora.
+  (load myemacs-ui-file nil :nomessage)
+  (should (eq magent-approval-provider-function
+              #'+carlos/magent-approval-smart-provider)))
+
+(ert-deftest myemacs-magent-ui-approval-state-line-lifecycle ()
+  "Hook anuncia requested/resolved no chat e mantém o hash coerente."
+  (skip-unless myemacs-ui-available)
+  (myemacs-ui-with-buffer
+    (clrhash +carlos/magent-ui--pending-approvals)
+    (unwind-protect
+        (progn
+          (+carlos/magent-ui-approval-state-line
+           'requested "abcdefgh1234"
+           '(:request (:tool-name "bash" :summary "ls -la /tmp")))
+          (should (gethash "abcdefgh1234"
+                           +carlos/magent-ui--pending-approvals))
+          (should (string-match-p "bash" (buffer-string)))
+          (should (string-match-p "aguardando decisão" (buffer-string)))
+          (+carlos/magent-ui-approval-state-line
+           'resolved "abcdefgh1234"
+           '(:request (:tool-name "bash")
+             :decision allow-once))
+          (should-not (gethash "abcdefgh1234"
+                               +carlos/magent-ui--pending-approvals))
+          (should (string-match-p "allow-once" (buffer-string))))
+      (remhash "abcdefgh1234" +carlos/magent-ui--pending-approvals))))
+
+(ert-deftest myemacs-magent-ui-approval-state-line-drop-cleans-hash ()
+  "Evento dropped limpa o registro e insere linha de descarte."
+  (skip-unless myemacs-ui-available)
+  (myemacs-ui-with-buffer
+    (clrhash +carlos/magent-ui--pending-approvals)
+    (unwind-protect
+        (progn
+          (puthash "drop1234" "write" +carlos/magent-ui--pending-approvals)
+          (+carlos/magent-ui-approval-state-line
+           'dropped "drop1234" '(:request (:tool-name "write")))
+          (should-not (gethash "drop1234"
+                               +carlos/magent-ui--pending-approvals))
+          (should (string-match-p "descartada" (buffer-string))))
+      (remhash "drop1234" +carlos/magent-ui--pending-approvals))))

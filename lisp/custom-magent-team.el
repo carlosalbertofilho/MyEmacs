@@ -12,6 +12,11 @@
 ;; offline) e são materializados em `magent-agent-info' quando o registry do
 ;; Magent está disponível (`with-eval-after-load 'magent-agent-registry'),
 ;; mantendo o boot independente do pacote magent.
+;;
+;; Aprovações interativas dos subagentes NÃO usam o minibuffer: o provider
+;; central `+carlos/magent-approval-smart-provider' (custom-magent-ui.el)
+;; roteia pedidos da sessão ACP pai aos botões Allow/Deny do chat, com
+;; fallback ao prompt local apenas quando não há chat vinculado.
 
 ;;; Code:
 
