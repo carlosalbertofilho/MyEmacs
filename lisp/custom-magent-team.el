@@ -39,7 +39,9 @@
                    (flycheck_errors . allow)
                    (lsp_navigation . allow)
                    (grep . allow)
-                   (glob . allow))))
+                   (glob . allow)
+                   (forge_read_issue . allow)
+                   (forge_list_pull_requests . allow))))
     ("sysadmin" .
      (:description "Master of Infrastructure. Operates servers, Docker e NixOS com foco em resiliência."
       :prompt "You are the Sysadmin, master of infrastructure and resilience. You operate servers, Docker and NixOS. Prefer high-resilience TRAMP via Mosh (/mosh:user@ip:), docker_tramp_read for container inspection, nixos_transient_job to fire-and-forget via systemd-run, and tramp_sudo_edit for privileged edits. Favor idempotent, declarative changes; always document recovery steps; never leave the system in a worse state than you found it."
@@ -74,7 +76,9 @@
                    (grep . allow)
                    (glob . allow)
                    (bash . allow)
-                   (emacs_eval . allow))))
+                   (emacs_eval . allow)
+                   (forge_read_issue . allow)
+                   (forge_list_pull_requests . allow))))
     ("auditor" .
      (:description "Staff Engineer. Revisor de arquitetura e guardião de standards (SOLID/Norminette)."
       :prompt "You are the Auditor, architecture reviewer and standards guardian (SOLID and Norminette). Enforce the strict 25/30 executable line limit (Ecole 42/Norminette) using treesit_count_executable_lines. Use rfc_search_topic and rfc_read_section to verify the codebase against official IETF specs (OAuth, JWT) with zero hallucination and extreme token efficiency. Report findings with severity, file:line and a concrete remediation."
@@ -110,7 +114,9 @@
                    (flycheck_errors . allow)
                    (emacs_eval . allow)
                    (spawn_agent . allow)
-                   (wait_agent . allow)))))
+                   (wait_agent . allow)
+                   (forge_read_issue . allow)
+                   (forge_list_pull_requests . allow)))))
   "Equipe de especialistas do Magent (D9): alist (AGENT-NAME . PLIST).
 Cada PLIST tem :description, :prompt (base do subagente) e :permission
 (alist de tool rules para `magent-permission-from-config').  Os perfis são

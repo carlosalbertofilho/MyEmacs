@@ -9,6 +9,7 @@
 
 (require 'cl-lib)
 (require 'json)
+(require 'seq)
 
 (defvar magent-enable-logging)
 (defvar magent-enable-tools)
@@ -26,6 +27,8 @@
 (declare-function magent-llm-gptel--sanitize-info "magent-llm-gptel")
 (declare-function +carlos/local-ai-server-ping-p "custom-ai")
 (declare-function +carlos/ai-local-backend "custom-ai")
+(declare-function forge-sql "forge-db")
+(declare-function forge-get-repository "forge-core")
 (declare-function gptel-get-backend "gptel")
 (declare-function gptel-backend-host "gptel")
 (declare-function gptel-backend-models "gptel")
@@ -844,6 +847,338 @@ com o payload JSON (backend, model, tier, reason)."
                (cons "tier" tier)
                (cons "reason" reason)))))))
 
+;; ── Ferramentas Forge (Issues/PRs via Forge DB) ──────────────────────
+;; Leitura estruturada de issues/PRs do db local do Forge (magit/forge):
+;; sem alucinação (dados do db/API, não do modelo) e com economia de
+;; tokens (bodies/comentários truncados). Tudo é guardado: sem o pacote
+;; forge, ou com o db vazio, as tools retornam resultados JSON estruturados
+;; (status info/error) em vez de sinalizar erro ao LLM. As funções de
+;; acesso a dados (SQL-FN / REPO-FN) são injetáveis para testes offline.
+
+(defcustom +carlos/magent-forge-body-max-chars 2000
+  "Limite de caracteres do corpo de um issue/PR retornado por `forge_read_issue'."
+  :type 'integer
+  :group '+carlos/ai)
+
+(defcustom +carlos/magent-forge-comment-max-chars 800
+  "Limite de caracteres por comentário retornado por `forge_read_issue'."
+  :type 'integer
+  :group '+carlos/ai)
+
+(defcustom +carlos/magent-forge-list-limit 50
+  "Número máximo de topics por tipo em `forge_list_pull_requests'."
+  :type 'integer
+  :group '+carlos/ai)
+
+(defun +carlos/magent-forge--scalar (value)
+  "Normaliza VALUE para tipo JSON-safe (string ou número)."
+  (cond
+   ((stringp value) value)
+   ((numberp value) value)
+   ((symbolp value) (symbol-name value))
+   ((null value) "")
+   (t (format "%s" value))))
+
+(defun +carlos/magent-forge--truncate (str max-chars)
+  "Trunca STR em MAX-CHARS chars com nota de truncamento."
+  (if (and max-chars (> (length str) max-chars))
+      (concat (substring str 0 max-chars)
+              (format "\n[... %d chars truncados ...]" (- (length str) max-chars)))
+    str))
+
+(defconst +carlos/magent-forge--url-re
+  "\\`https?://[^/]+/\\([^/#?]+\\)/\\([^/#?]+\\)/\\(?:-/\\)?\\(?:issues\\|pulls?\\|merge_requests\\)/\\([0-9]+\\)"
+  "Regex de URL de issue/PR (GitHub issues|pull; GitLab /-/issues|merge_requests).")
+
+(defun +carlos/magent-forge-parse-ref (input)
+  "Parse INPUT para plist (:number N :owner S :repo S :kind K).
+Aceita \"123\", \"#123\", \"owner/repo#123\" e URLs completas de issue/PR.
+K é `issue' ou `pullreq' quando determinável pela URL; nil caso contrário
+— a leitura tenta a tabela de issues antes da de PRs.
+Retorna nil quando não há número válido."
+  (when (stringp input)
+    (let ((str (string-trim input)))
+      (save-match-data
+        (cond
+         ((string-match +carlos/magent-forge--url-re str)
+          (list :number (string-to-number (match-string 3 str))
+                :owner (match-string 1 str)
+                :repo (match-string 2 str)
+                :kind (if (string-match-p "\\(?:/pulls?/\\|merge_requests/\\)" str)
+                          'pullreq 'issue)))
+         ((string-match "\\`\\([A-Za-z0-9._-]+\\)/\\([A-Za-z0-9._-]+\\)#\\([0-9]+\\)\\'" str)
+          (list :number (string-to-number (match-string 3 str))
+                :owner (match-string 1 str)
+                :repo (match-string 2 str)
+                :kind nil))
+         ((string-match "\\`#?\\([0-9]+\\)\\'" str)
+          (list :number (string-to-number (match-string 1 str))
+                :owner nil :repo nil :kind nil)))))))
+
+(defun +carlos/magent-forge--current-repo ()
+  "Retorna cons (OWNER . NAME) do repositório forge do contexto atual.
+Usa `forge-get-repository' (`:known?' com fallback `:stub?'); retorna nil
+fora de um repositório suportado.  Nunca sinaliza erro."
+  (when (fboundp 'forge-get-repository)
+    (ignore-errors
+      (let ((repo (or (forge-get-repository :known?)
+                      (forge-get-repository :stub?))))
+        (when (and repo (slot-exists-p repo 'owner) (slot-exists-p repo 'name))
+          (cons (oref repo owner) (oref repo name)))))))
+
+(defun +carlos/magent-forge--resolve-repo (sql-fn ref repo-fn)
+  "Resolve id/owner/name do repositório no db do Forge.
+SQL-FN executa queries emacsql; REF é o plist de
+`+carlos/magent-forge-parse-ref' (owner/repo opcionais); REPO-FN (default
+`+carlos/magent-forge--current-repo') supre owner/repo quando REF não os
+traz.  Retorna lista (ID OWNER NAME) ou nil quando desconhecido."
+  (let* ((ident (if (and (plist-get ref :owner) (plist-get ref :repo))
+                    (cons (plist-get ref :owner) (plist-get ref :repo))
+                  (funcall (or repo-fn #'+carlos/magent-forge--current-repo))))
+         (rows (and ident
+                    (funcall sql-fn
+                             [:select [id] :from repository
+                              :where (and (= owner $s1) (= name $s2))]
+                             (car ident) (cdr ident)))))
+    (and rows
+         (caar rows)
+         (list (caar rows) (car ident) (cdr ident)))))
+
+(defun +carlos/magent-forge--comments-payload (rows &optional max-chars)
+  "Converte ROWS de posts (AUTHOR CREATED BODY) em vetor JSON-safe.
+MAX-CHARS limita o tamanho do corpo de cada comentário."
+  (apply #'vector
+         (mapcar (lambda (post)
+                   (list (cons "author" (+carlos/magent-forge--scalar (nth 0 post)))
+                         (cons "created" (+carlos/magent-forge--scalar (nth 1 post)))
+                         (cons "body" (+carlos/magent-forge--truncate
+                                       (+carlos/magent-forge--scalar (nth 2 post))
+                                       max-chars))))
+                 rows)))
+
+(defun +carlos/magent-forge--issue-payload (row post-rows owner name)
+  "Payload JSON-safe de uma issue.
+ROW = (id number title state author body created updated closed status);
+POST-ROWS são os comentários crus; OWNER/NAME identificam o repositório."
+  (list (cons "status" "success")
+        (cons "type" "issue")
+        (cons "repository" (format "%s/%s" owner name))
+        (cons "number" (nth 1 row))
+        (cons "title" (+carlos/magent-forge--scalar (nth 2 row)))
+        (cons "state" (+carlos/magent-forge--scalar (nth 3 row)))
+        (cons "author" (+carlos/magent-forge--scalar (nth 4 row)))
+        (cons "created" (+carlos/magent-forge--scalar (nth 6 row)))
+        (cons "updated" (+carlos/magent-forge--scalar (nth 7 row)))
+        (cons "closed" (+carlos/magent-forge--scalar (nth 8 row)))
+        (cons "body" (+carlos/magent-forge--truncate
+                      (+carlos/magent-forge--scalar (nth 5 row))
+                      +carlos/magent-forge-body-max-chars))
+        (cons "total_comments" (length post-rows))
+        (cons "comments" (+carlos/magent-forge--comments-payload
+                          post-rows +carlos/magent-forge-comment-max-chars))))
+
+(defun +carlos/magent-forge--pullreq-payload (row post-rows owner name)
+  "Payload JSON-safe de um pull request.
+ROW = (id number title state author body created updated closed merged
+status base-ref head-ref draft-p); POST-ROWS são os comentários crus;
+OWNER/NAME identificam o repositório."
+  (list (cons "status" "success")
+        (cons "type" "pullreq")
+        (cons "repository" (format "%s/%s" owner name))
+        (cons "number" (nth 1 row))
+        (cons "title" (+carlos/magent-forge--scalar (nth 2 row)))
+        (cons "state" (+carlos/magent-forge--scalar (nth 3 row)))
+        (cons "author" (+carlos/magent-forge--scalar (nth 4 row)))
+        (cons "created" (+carlos/magent-forge--scalar (nth 6 row)))
+        (cons "updated" (+carlos/magent-forge--scalar (nth 7 row)))
+        (cons "closed" (+carlos/magent-forge--scalar (nth 8 row)))
+        (cons "merged" (+carlos/magent-forge--scalar (nth 9 row)))
+        (cons "base_ref" (+carlos/magent-forge--scalar (nth 11 row)))
+        (cons "head_ref" (+carlos/magent-forge--scalar (nth 12 row)))
+        (cons "draft" (if (nth 13 row) "true" "false"))
+        (cons "body" (+carlos/magent-forge--truncate
+                      (+carlos/magent-forge--scalar (nth 5 row))
+                      +carlos/magent-forge-body-max-chars))
+        (cons "total_comments" (length post-rows))
+        (cons "comments" (+carlos/magent-forge--comments-payload
+                          post-rows +carlos/magent-forge-comment-max-chars))))
+
+(defvar +carlos/magent-tool-forge-read-issue nil
+  "Gptel tool para leitura de issue/PR via Forge DB.")
+
+(defvar +carlos/magent-tool-forge-list-pull-requests nil
+  "Gptel tool para listagem de PRs/issues via Forge DB.")
+
+(defun +carlos/magent-forge--read-topic (ref sql-fn repo-fn)
+  "Busca topic da REF nas tabelas issue/pullreq via SQL-FN.
+REF é o plist de `+carlos/magent-forge-parse-ref'; REPO-FN supre
+owner/repo quando ausentes na ref.  Retorna o `magent-tool-result' do
+topic ou payload status info."
+  (let* ((sql-fn (or sql-fn #'forge-sql))
+         (repo (+carlos/magent-forge--resolve-repo sql-fn ref repo-fn))
+         (repo-id (nth 0 repo))
+         (owner (nth 1 repo))
+         (name (nth 2 repo))
+         (num (plist-get ref :number))
+         (want-pr (eq (plist-get ref :kind) 'pullreq)))
+    (if (not repo-id)
+        (+carlos/magent-tool-result
+         (list (cons "status" "info")
+               (cons "message"
+                     (format "Repositório '%s' não encontrado no db local do Forge. Rode M-x forge-pull no repositório."
+                             (if (and owner name)
+                                 (format "%s/%s" owner name)
+                               "atual")))))
+      (let ((hit
+             (catch 'found
+               (dolist (tbl (if want-pr '(pullreq issue) '(issue pullreq)))
+                 (pcase tbl
+                   (`issue
+                    (let* ((rows (funcall sql-fn
+                                          [:select [id number title state author body created updated closed status]
+                                           :from issue
+                                           :where (and (= repository $s1) (= number $s2))]
+                                          repo-id num))
+                           (row (car rows)))
+                      (when row
+                        (throw 'found
+                               (+carlos/magent-tool-result
+                                (+carlos/magent-forge--issue-payload
+                                 row
+                                 (funcall sql-fn
+                                          [:select [author created body]
+                                           :from issue-post
+                                           :where (= issue $s1)
+                                           :order-by [(asc created)]]
+                                          (nth 0 row))
+                                 owner name))))))
+                   (`pullreq
+                    (let* ((rows (funcall sql-fn
+                                          [:select [id number title state author body created updated closed merged status base-ref head-ref draft-p]
+                                           :from pullreq
+                                           :where (and (= repository $s1) (= number $s2))]
+                                          repo-id num))
+                           (row (car rows)))
+                      (when row
+                        (throw 'found
+                               (+carlos/magent-tool-result
+                                (+carlos/magent-forge--pullreq-payload
+                                 row
+                                 (funcall sql-fn
+                                          [:select [author created body]
+                                           :from pullreq-post
+                                           :where (= pullreq $s1)
+                                           :order-by [(asc created)]]
+                                          (nth 0 row))
+                                 owner name)))))))))))
+        (if hit
+            hit
+          (+carlos/magent-tool-result
+           (list (cons "status" "info")
+                 (cons "message"
+                       (format "Topic #%s não encontrado no db local do Forge. Rode M-x forge-pull para sincronizar." num)))))))))
+
+(defun +carlos/magent-tool-forge-read-issue
+    (issue-number-or-url &optional _reason sql-fn repo-fn)
+  "Handler da tool `forge_read_issue'.
+ISSUE-NUMBER-OR-URL aceita \"123\", \"#123\", \"owner/repo#123\" ou URL
+completa de issue/PR; _REASON é display-only.  SQL-FN (default
+`forge-sql') e REPO-FN (default `+carlos/magent-forge--current-repo')
+são injetáveis para testes offline.  Retorna conteúdo estruturado —
+estado, autor, corpo truncado e comentários — via
+`+carlos/magent-tool-result'; nunca sinaliza erro ao chamador: falhas
+viram payloads status info/error."
+  (let ((ref (+carlos/magent-forge-parse-ref issue-number-or-url)))
+    (cond
+     ((or (not ref) (not (plist-get ref :number)))
+      (+carlos/magent-tool-result
+       nil (format "Referência inválida '%s': use número, '#N', 'owner/repo#N' ou URL de issue/PR."
+                   (or issue-number-or-url ""))))
+     ((not (require 'forge nil t))
+      (+carlos/magent-tool-result
+       (list (cons "status" "info")
+             (cons "message" "Pacote forge indisponível neste ambiente."))))
+     (t
+      (condition-case err
+          (+carlos/magent-forge--read-topic ref sql-fn repo-fn)
+        (error (+carlos/magent-tool-result
+                nil (format "Forge indisponível: %s"
+                            (error-message-string err)))))))))
+
+(defun +carlos/magent-tool-forge-list-pull-requests
+    (&optional state _reason sql-fn repo-fn)
+  "Handler da tool `forge_list_pull_requests'.
+STATE filtra por estado: \"open\" (default), \"closed\" (tudo que não
+está aberto) ou \"all\"; _REASON é display-only. SQL-FN (default
+`forge-sql') e REPO-FN (default `+carlos/magent-forge--current-repo')
+são injetáveis para testes offline. Lista PRs E issues do repositório
+ativo a partir do db local do Forge (campo type distingue), ordenados
+por atualização descendente e limitados por
+`+carlos/magent-forge-list-limit' por tipo; nunca sinaliza erro."
+  (if (not (require 'forge nil t))
+      (+carlos/magent-tool-result
+       (list (cons "status" "info")
+             (cons "message" "Pacote forge indisponível neste ambiente.")))
+    (condition-case err
+        (let* ((sql-fn (or sql-fn #'forge-sql))
+               (repo (+carlos/magent-forge--resolve-repo
+                      sql-fn '(:number) repo-fn))
+               (repo-id (nth 0 repo))
+               (owner (nth 1 repo))
+               (name (nth 2 repo))
+               (state-key (downcase (or state "open")))
+               (open-p (lambda (st) (equal st 'open)))
+               (match-p (cond
+                         ((member state-key '("all" "any" "*")) #'identity)
+                         ((member state-key '("closed" "fechado"))
+                          (lambda (st) (not (funcall open-p st))))
+                         (t open-p)))
+               (limit +carlos/magent-forge-list-limit))
+          (if (not repo-id)
+              (+carlos/magent-tool-result
+               (list (cons "status" "info")
+                     (cons "message" (format "Repositório '%s' não encontrado no db local do Forge. Rode M-x forge-pull no repositório."
+                                             (if (and owner name)
+                                                 (format "%s/%s" owner name)
+                                               "atual")))))
+            (let* ((pr-rows (funcall sql-fn
+                                     [:select [number title state author updated]
+                                      :from pullreq
+                                      :where (= repository $s1)
+                                      :order-by [(desc updated)]]
+                                     repo-id))
+                   (is-rows (funcall sql-fn
+                                     [:select [number title state author updated]
+                                      :from issue
+                                      :where (= repository $s1)
+                                      :order-by [(desc updated)]]
+                                     repo-id))
+                   (entry (lambda (type row)
+                            (list (cons "type" type)
+                                  (cons "number" (nth 0 row))
+                                  (cons "title" (+carlos/magent-forge--scalar (nth 1 row)))
+                                  (cons "state" (+carlos/magent-forge--scalar (nth 2 row)))
+                                  (cons "author" (+carlos/magent-forge--scalar (nth 3 row)))
+                                  (cons "updated" (+carlos/magent-forge--scalar (nth 4 row))))))
+                   (prs (cl-loop for row in pr-rows
+                                 when (funcall match-p (nth 2 row))
+                                 collect (funcall entry "pullreq" row)))
+                   (issues (cl-loop for row in is-rows
+                                    when (funcall match-p (nth 2 row))
+                                    collect (funcall entry "issue" row))))
+              (+carlos/magent-tool-result
+               (list (cons "status" "success")
+                     (cons "repository" (format "%s/%s" owner name))
+                     (cons "filter" state-key)
+                     (cons "total_pullreqs" (length prs))
+                     (cons "pull_requests" (apply #'vector (seq-take prs limit)))
+                     (cons "total_issues" (length issues))
+                     (cons "issues" (apply #'vector (seq-take issues limit))))))))
+      (error (+carlos/magent-tool-result
+              nil (format "Forge indisponível: %s" (error-message-string err)))))))
+
+;; ── Registro das tools curadas no catálogo do Magent ─────────────────
+
 (defun +carlos/magent-register-tools ()
   "Register Carlos's Magent tools to magent-tools-catalog if available."
   (when (boundp 'magent-tools-catalog)
@@ -858,7 +1193,13 @@ com o payload JSON (backend, model, tier, reason)."
                    `(:name "snippet_expand" :tool ,+carlos/magent-tool-snippet-expand :permission snippet_expand)))
     (when +carlos/magent-tool-select-model
       (add-to-list 'magent-tools-catalog
-                   `(:name "select_model" :tool ,+carlos/magent-tool-select-model :permission select_model)))))
+                   `(:name "select_model" :tool ,+carlos/magent-tool-select-model :permission select_model)))
+    (when +carlos/magent-tool-forge-read-issue
+      (add-to-list 'magent-tools-catalog
+                   `(:name "forge_read_issue" :tool ,+carlos/magent-tool-forge-read-issue :permission forge_read_issue)))
+    (when +carlos/magent-tool-forge-list-pull-requests
+      (add-to-list 'magent-tools-catalog
+                   `(:name "forge_list_pull_requests" :tool ,+carlos/magent-tool-forge-list-pull-requests :permission forge_list_pull_requests)))))
 
 (with-eval-after-load 'gptel
   (when (fboundp 'gptel-make-tool)
@@ -901,7 +1242,25 @@ com o payload JSON (backend, model, tier, reason)."
                     (:name "complexity" :type string :description "Optional: 'simple', 'moderate' or 'deep'. Inferred from task_description when omitted.")
                     (:name "min_tier" :type string :description "Optional minimum tier floor: 'local', 'free' or 'paid'. Forces escalation above this tier.")
                     (:name "reason" :type string :description "Reason for this tool call"))
-           :function #'+carlos/magent-tool-select-model
+            :function #'+carlos/magent-tool-select-model
+            :category "magent"))
+
+    (setq +carlos/magent-tool-forge-read-issue
+          (gptel-make-tool
+           :name "forge_read_issue"
+           :description "Read a GitHub/GitLab issue or pull request from the local Forge database with zero hallucination: returns structured state, author, truncated body and full comment history. Requires the repository to be synced (M-x forge-pull)."
+           :args '((:name "issue_number_or_url" :type string :description "Issue/PR reference: number ('123'), '#123', 'owner/repo#123' or the full URL")
+                   (:name "reason" :type string :description "Reason for reading this topic"))
+           :function #'+carlos/magent-tool-forge-read-issue
+           :category "magent"))
+
+    (setq +carlos/magent-tool-forge-list-pull-requests
+          (gptel-make-tool
+           :name "forge_list_pull_requests"
+           :description "List open pull requests and issues of the active repository from the local Forge database, newest first, in token-efficient structured format."
+           :args '((:name "state" :type string :description "Optional filter: 'open' (default), 'closed' or 'all'")
+                   (:name "reason" :type string :description "Reason for listing topics"))
+           :function #'+carlos/magent-tool-forge-list-pull-requests
            :category "magent"))
 
     (when (featurep 'magent-tools)
@@ -915,7 +1274,9 @@ com o payload JSON (backend, model, tier, reason)."
     (add-to-list 'magent-enable-tools 'flycheck_errors)
     (add-to-list 'magent-enable-tools 'lsp_navigation)
     (add-to-list 'magent-enable-tools 'snippet_expand)
-    (add-to-list 'magent-enable-tools 'select_model)))
+    (add-to-list 'magent-enable-tools 'select_model)
+    (add-to-list 'magent-enable-tools 'forge_read_issue)
+    (add-to-list 'magent-enable-tools 'forge_list_pull_requests)))
 
 (provide 'custom-magent-tools)
 ;;; custom-magent-tools.el ends here

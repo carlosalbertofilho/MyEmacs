@@ -28,6 +28,13 @@
   :config
   (setq magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1))
 
+;; ── forge (Issues/PRs do GitHub/GitLab dentro do Magit) ────────────
+;; C-c g → N (forge-dispatch) ou @; alimenta o db local usado pelas
+;; ferramentas forge_read_issue / forge_list_pull_requests do Magent.
+(use-package forge
+  :ensure t
+  :after magit)
+
 ;; ── just-mode ───────────────────────────────────────────────────────
 (use-package just-mode
   :ensure t

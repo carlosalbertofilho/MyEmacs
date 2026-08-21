@@ -1,11 +1,15 @@
 ;;; magent-tools-test.el --- Tests for Magent tools (tool result cap) -*- lexical-binding: t; -*-
 
 ;;; Commentary:
-;; Unit tests for tool result truncation and cap behavior.
+;; Unit tests for tool result truncation and cap behavior, e para as
+;; ferramentas Forge (forge_read_issue / forge_list_pull_requests) com
+;; SQL-FN/REPO-FN injetáveis — 100% offline.
 
 ;;; Code:
 
 (require 'ert)
+(require 'cl-lib)
+(require 'json)
 (require 'custom-magent-tools)
 
 ;; ── Cap de tool results ──────────────────────────────────────────────
@@ -165,6 +169,193 @@
     (let ((result (+carlos/magent-inject-system-directives "TEST")))
       (should (string-match-p "SUBAGENT ADDENDUM" result))
       (should-not (string-match-p "ORCHESTRATOR ADDENDUM" result)))))
+
+;; ── Ferramentas Forge (SQL-FN / REPO-FN injetáveis, offline) ─────────
+
+(defun myemacs-forge-result-output (res)
+  "Extrai o output (string) de RES — struct `magent-tool-result' ou string."
+  (if (and (fboundp 'magent-tool-result-p) (magent-tool-result-p res))
+      (magent-tool-result-output-string res)
+    (if (stringp res) res (format "%s" res))))
+
+(defun myemacs-forge-fake-sql (&rest results)
+  "Retorna fn SQL que devolve RESULTS em sequência (um por chamada)."
+  (let ((queue (copy-sequence results)))
+    (lambda (_query &rest _args)
+      (let ((res (car queue)))
+        (setq queue (cdr queue))
+        res))))
+
+(defvar myemacs-forge--issue-row
+  '("gid-10" 42 "Fix login flow" open "alice"
+    "Login breaks when the token expires mid-session."
+    "2026-08-01T10:00:00Z" "2026-08-02T09:00:00Z" nil nil)
+  "Row da tabela issue: [id number title state author body created updated closed status].")
+
+(defvar myemacs-forge--pullreq-row
+  '("gid-20" 7 "Add feature X" open "dave"
+    "Implements feature X." "2026-08-05T10:00:00Z" "2026-08-06T09:00:00Z"
+    nil nil nil "main" "feat/x" nil)
+  "Row da tabela pullreq: [id number title state author body created updated closed merged status base-ref head-ref draft-p].")
+
+(ert-deftest myemacs-forge-read-issue-success ()
+  "forge_read_issue lê issue do db com comentários estruturados."
+  (let ((out (+carlos/magent-tool-forge-read-issue
+              "#42" "test"
+              (myemacs-forge-fake-sql
+               '(("gid-1"))
+               (list myemacs-forge--issue-row)
+               '(("bob" "2026-08-03T08:00:00Z" "Reproduzido aqui.")
+                 ("carol" "2026-08-04T11:30:00Z" "Patch em review.")))
+              (lambda () (cons "myorg" "myrepo")))))
+    (let ((parsed (json-read-from-string (myemacs-forge-result-output out))))
+      (should (equal (alist-get 'status parsed) "success"))
+      (should (equal (alist-get 'type parsed) "issue"))
+      (should (= (alist-get 'number parsed) 42))
+      (should (equal (alist-get 'title parsed) "Fix login flow"))
+      (should (equal (alist-get 'state parsed) "open"))
+      (should (equal (alist-get 'repository parsed) "myorg/myrepo"))
+      (should (= (alist-get 'total_comments parsed) 2))
+      (should (equal (alist-get 'author (aref (alist-get 'comments parsed) 0))
+                     "bob")))))
+
+(ert-deftest myemacs-forge-read-issue-pullreq-url-first-table ()
+  "URL de PR consulta pullreq primeiro; campos base/head/draft presentes."
+  (let ((out (+carlos/magent-tool-forge-read-issue
+              "https://github.com/myorg/myrepo/pull/7" "test"
+              (myemacs-forge-fake-sql
+               '(("gid-1"))
+               (list myemacs-forge--pullreq-row)
+               '(("eve" "2026-08-07T10:00:00Z" "LGTM")))
+              (lambda () (should-not "repo-fn não deve ser chamado com owner/repo na ref")))))
+    (let ((parsed (json-read-from-string (myemacs-forge-result-output out))))
+      (should (equal (alist-get 'status parsed) "success"))
+      (should (equal (alist-get 'type parsed) "pullreq"))
+      (should (= (alist-get 'number parsed) 7))
+      (should (equal (alist-get 'base_ref parsed) "main"))
+      (should (equal (alist-get 'head_ref parsed) "feat/x"))
+      (should (equal (alist-get 'draft parsed) "false"))
+      (should (= (alist-get 'total_comments parsed) 1)))))
+
+(ert-deftest myemacs-forge-read-issue-falls-back-to-issue-table-order ()
+  "Ref '#5' (sem kind) consulta issue primeiro; vazia, cai em pullreq."
+  (let ((out (+carlos/magent-tool-forge-read-issue
+              "#5" "test"
+              (myemacs-forge-fake-sql
+               '(("gid-1"))
+               '() ; tabela issue vazia
+               (list myemacs-forge--pullreq-row)
+               '())
+              (lambda () (cons "myorg" "myrepo")))))
+    (let ((parsed (json-read-from-string (myemacs-forge-result-output out))))
+      (should (equal (alist-get 'type parsed) "pullreq")))))
+
+(ert-deftest myemacs-forge-read-issue-not-found-info ()
+  "Topic ausente nas duas tabelas retorna status info com dica forge-pull."
+  (let* ((out (+carlos/magent-tool-forge-read-issue
+               "#99" "test"
+               (myemacs-forge-fake-sql '(("gid-1")) '() '())
+               (lambda () (cons "myorg" "myrepo"))))
+         (parsed (json-read-from-string (myemacs-forge-result-output out))))
+    (should (equal (alist-get 'status parsed) "info"))
+    (should (string-match-p "forge-pull" (alist-get 'message parsed)))))
+
+(ert-deftest myemacs-forge-read-issue-repo-unknown-info ()
+  "Repositório fora do db local retorna status info (fallback offline)."
+  (let* ((out (+carlos/magent-tool-forge-read-issue
+               "#42" "test"
+               (myemacs-forge-fake-sql '(nil))
+               (lambda () (cons "ghost" "nobody"))))
+         (parsed (json-read-from-string (myemacs-forge-result-output out))))
+    (should (equal (alist-get 'status parsed) "info"))
+    (should (string-match-p "não encontrado no db" (alist-get 'message parsed)))))
+
+(ert-deftest myemacs-forge-read-issue-offline-sql-error ()
+  "Falha de infraestrutura (db/sql) vira payload de erro estruturado."
+  (+carlos/magent-tool-forge-read-issue
+   "#42" "test"
+   (lambda (_query &rest _args)
+     (signal 'file-error (list "Connection refused")))
+   (lambda () (cons "myorg" "myrepo")))
+  ;; O handler captura e converte em resultado de erro sem propagar.
+  (let ((out (+carlos/magent-tool-forge-read-issue
+              "#42" "test"
+              (lambda (_query &rest _args)
+                (signal 'file-error (list "Connection refused")))
+              (lambda () (cons "myorg" "myrepo")))))
+    (should (string-match-p "Forge indisponível"
+                            (myemacs-forge-result-output out)))))
+
+(ert-deftest myemacs-forge-read-invalid-ref ()
+  "Referência não-parseável vira erro estruturado (nunca sinaliza)."
+  (let ((out (+carlos/magent-tool-forge-read-issue "abc" "test")))
+    (should (string-match-p "Referência inválida"
+                            (myemacs-forge-result-output out)))))
+
+(ert-deftest myemacs-forge-list-open-default ()
+  "Listagem default filtra state=open e separa PRs de issues."
+  (let* ((out (+carlos/magent-tool-forge-list-pull-requests
+               nil "test"
+               (myemacs-forge-fake-sql
+                '(("gid-1"))
+                '((1 "PR um" open "a" "2026-08-06")
+                  (2 "PR dois" closed "b" "2026-08-05"))
+                '((10 "Issue dez" open "c" "2026-08-04")))
+               (lambda () (cons "acme" "app"))))
+         (parsed (json-read-from-string (myemacs-forge-result-output out))))
+    (should (equal (alist-get 'status parsed) "success"))
+    (should (equal (alist-get 'repository parsed) "acme/app"))
+    (should (equal (alist-get 'filter parsed) "open"))
+    (should (= (alist-get 'total_pullreqs parsed) 1))
+    (should (= (alist-get 'number (aref (alist-get 'pull_requests parsed) 0)) 1))
+    (should (= (alist-get 'total_issues parsed) 1))
+    (should (= (alist-get 'number (aref (alist-get 'issues parsed) 0)) 10))))
+
+(ert-deftest myemacs-forge-list-closed-filter ()
+  "Filtro closed exclui topics abertos."
+  (let* ((out (+carlos/magent-tool-forge-list-pull-requests
+               "closed" "test"
+               (myemacs-forge-fake-sql
+                '(("gid-1"))
+                '((2 "PR dois" closed "b" "2026-08-05")
+                  (3 "PR tres" merged "d" "2026-08-03"))
+                '((10 "Issue dez" open "c" "2026-08-04")))
+               (lambda () (cons "acme" "app"))))
+         (parsed (json-read-from-string (myemacs-forge-result-output out))))
+    (should (= (alist-get 'total_pullreqs parsed) 2))
+    (should (= (alist-get 'total_issues parsed) 0))))
+
+(ert-deftest myemacs-forge-list-all-filter ()
+  "Filtro all inclui todos os states."
+  (let* ((out (+carlos/magent-tool-forge-list-pull-requests
+               "all" "test"
+               (myemacs-forge-fake-sql
+                '(("gid-1"))
+                '((1 "PR um" open "a" "u"))
+                '((10 "I" completed "c" "u")))
+               (lambda () (cons "acme" "app"))))
+         (parsed (json-read-from-string (myemacs-forge-result-output out))))
+    (should (= (alist-get 'total_pullreqs parsed) 1))
+    (should (= (alist-get 'total_issues parsed) 1))))
+
+(ert-deftest myemacs-forge-list-repo-missing-info ()
+  "Sem repositório no db, listagem retorna status info."
+  (let* ((out (+carlos/magent-tool-forge-list-pull-requests
+               nil "test"
+               (myemacs-forge-fake-sql '(nil))
+               (lambda () (cons "ghost" "nobody"))))
+         (parsed (json-read-from-string (myemacs-forge-result-output out))))
+    (should (equal (alist-get 'status parsed) "info"))))
+
+(ert-deftest myemacs-forge-team-permissions ()
+  "Perfis coder/tech-writer/qa concedem allow às tools forge_*."
+  (require 'custom-magent-team)
+  (dolist (agent '("coder" "tech-writer" "qa"))
+    (let* ((spec (cdr (assoc agent +carlos/magent-expert-team)))
+           (rules (plist-get spec :permission)))
+      (should (assq 'forge_read_issue rules))
+      (should (eq (cdr (assq 'forge_read_issue rules)) 'allow))
+      (should (eq (cdr (assq 'forge_list_pull_requests rules)) 'allow)))))
 
 (provide 'magent-tools-test)
 ;;; magent-tools-test.el ends here
