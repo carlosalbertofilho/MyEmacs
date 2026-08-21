@@ -179,6 +179,21 @@ Instalar o pacote =cape= através do Elpaca no arquivo =custom-completion.el=. C
     :END:
 Ajustar o =indent-bars= em =custom-ui.el=. Criar uma alternativa de fallback de modo que, mesmo com a dependência forte configurada (=indent-bars-treesitter-support t=), as guias de indentação continuem sendo renderizadas caso o parser do Tree-Sitter apresente falhas.
 
+*** TODO Melhoria Ergonômica: Ancorar o buffer de testes (`*ert*`) no rodapé
+    :PROPERTIES:
+    :CREATED: 2026-08-21
+    :STATUS: BACKLOG
+    :END:
+Modificar a variável =display-buffer-alist= no arquivo =custom-ui.el= para incluir o buffer =*ert*= na regra de exibição na janela inferior, garantindo consistência com a exibição de ferramentas similares.
+
+**** TODO Atualizar a expressão regular em =custom-ui.el=
+Alterar a regex para capturar buffers =*ert*=:
+- Atual: ="\\*\\(compilation\\|eglot events\\|magit-process\\|vterm.*\\|eshell\\|gptel.*\\)\\*"=
+- Nova: ="\\*\\(compilation\\|eglot events\\|magit-process\\|vterm.*\\|eshell\\|gptel.*\\|ert\\)\\*"=
+
+**** TODO Validar a regra com um teste
+Garantir que a chamada interativa do ERT exiba a interface adequadamente na janela correspondente.
+
 * Concluído (referências ao roadmap)
 
 - *Subagentes Sem Tools* (2026-08-20) — Separação de diretivas em 3 constantes e injeção por papel. Log verificado com 100% de sucesso.
