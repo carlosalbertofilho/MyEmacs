@@ -48,11 +48,11 @@ Conceder acesso =allow= para =forge_read_issue= e =forge_list_pull_requests= nos
 *** DONE Suite de Testes Forge
 Adicionar testes ERT em =tests/git-test.el= e =tests/magent-tools-test.el= para garantir parsing de URLs do GitHub, leitura de issues e fallback offline.
 
-** TODO Permissoes e UI
+** DONE Permissoes e UI
     :PROPERTIES:
     :CREATED: 2026-08-20
     :ASSIGNEE: coder
-    :STATUS: plano aprovado
+    :STATUS: DONE
     :END:
 
 *** Centralizar aprovacoes no magent-approval

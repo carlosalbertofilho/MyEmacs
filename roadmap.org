@@ -1558,6 +1558,23 @@ Criar cache de referência para que agentes possam:
 
 *** Status: BACKLOG
 
+** 2026-08-21 — [CONCLUÍDO] Permissões e UI: aprovações centralizadas com botões ACP no chat (=lisp/custom-magent-ui.el= + =lisp/custom-magent-team.el=)
+
+*** Implementação
+- =custom-magent-ui.el=: =+carlos/magent-approval-smart-provider= instalado como =magent-approval-provider-function= (via =with-eval-after-load 'magent-approval=) — roteia cada pedido ao client ACP da sessão-pai (botões [[ Allow ]] / [[ Deny ]] do chat, via =magent-acp--approval-provider=), com fallback ao minibuffer só quando não há binding ACP vivo (=+carlos/magent-ui--acp-client-for-session= escaneia =magent-acp--client-session-scopes= exigindo callback buffer vivo; rota pura em =+carlos/magent-ui--approval-route=). Subagentes em sessões secundárias herdam a UI do chat pai — fim do fallback silencioso de minibuffer.
+- Hook visual: =+carlos/magent-ui-approval-state-line= em =magent-approval-state-change-functions= anuncia requested/resolved/dropped no painel do Magent (⏳ aguardando decisão, ✓ allow-once/session, ✗ deny/descartada) com hash =+carlos/magent-ui--pending-approvals= para coerência.
+- =custom-magent-team.el=: Commentary documenta o roteamento central para a equipe de especialistas.
+- Defcustom =+carlos/magent-approval-prefer-acp= (default t) para desligar o roteamento visual se necessário.
+
+*** Gates pegos pela compilação
+- defcustom sem =:type= → erro no =compile-prod= (gate zero-warning); depois =fails to specify containing group= sem =:group 'magent=. Ambos corrigidos (commits ccaa82f, 186f025).
+
+*** Testes
+- =tests/magent-ui-test.el=: 7 testes novos — rota local/acp/client morto, dispatch do provider, instalação global, ciclo requested/resolved/dropped com limpeza do hash.
+
+*** Verificação
+- Repo: =just lint= ✓ e 401 testes / 0 falhas. Prod (186f025): =rebuild-prod= ✓, =compile-prod= ✓ zero-warning, =check-prod= ✓, suíte autoritativa 401 testes / 0 inesperadas.
+
 ** 2026-08-21 — [CONCLUÍDO] Integração do Forge (Magit) e Ferramentas Git/Forge (=lisp/custom-git.el= + =lisp/custom-magent-tools.el=)
 
 *** Implementação
