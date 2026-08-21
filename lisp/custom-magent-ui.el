@@ -453,7 +453,8 @@ Returns nil."
 (defcustom +carlos/magent-approval-prefer-acp t
   "Quando non-nil, aprovações de sessões ACP usam os botões visuais do chat.
 Pedidos sem sessão ACP vinculada caem no prompt local do minibuffer."
-  :type 'boolean)
+  :type 'boolean
+  :group 'magent)
 
 (defvar +carlos/magent-ui--pending-approvals (make-hash-table :test #'equal)
   "Hash request-id -> tool-name das aprovações anunciadas no chat.")
