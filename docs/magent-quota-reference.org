@@ -1,0 +1,55 @@
+#+TITLE: Magent Quota & FinOps Architecture Reference
+#+AUTHOR: Carlos Filho
+#+DATE: 2026-08-22
+#+LAST_MODIFIED: 2026-08-22
+#+DESCRIPTION: Arquitetura de monitoramento proativo de cotas, saldos e rate-limits para o Magent
+#+FILETAGS: :RAG:DOCS:FINOPS:
+#+OPTIONS: toc:2 num:t
+#+STARTUP: content
+
+* Visão Geral
+
+Este documento define a arquitetura de **Monitoramento Proativo de Cotas, Saldos e Rate-Limits** do Magent. O objetivo é garantir **FinOps $0.00**, resiliência contra erros HTTP 429 (Rate Limit Exceeded) e failover pré-emptivo entre os provedores de inteligência (AGY Proxy, Google AI Studio API, OpenCode, DeepSeek, Anthropic e modelos locais MLX/Ollama).
+
+Inspiração baseada na análise técnica do repositório =slkiser/opencode-quota= (clonado em =/tmp/opencode-quota=).
+
+* Fontes de Dados e Métodos de Coleta por Provedor
+
+| Provedor | Tipo de Métrica | Método de Coleta | Janela / Formato |
+|:---|:---|:---|:---|
+| **AGY Proxy** (Local) | Requests / Day & RPD | Endpoints `/v1/chat/completions` header / inspection | Janela Diária 00:00 UTC |
+| **Google AI Studio** | RPD / RPM / TPM | Headers `x-ratelimit-remaining-*` / API Quota | Janela de Minuto e Diária |
+| **OpenCode Zen** | Balance / Monthly Budget | SSR Scraping / JSON `https://opencode.ai/workspace/*/billing` | USD Balance / 100M units |
+| **Anthropic Claude** | 5h / 7d Rate Limits | Provedor local `claude-auth-status-json` / API headers | Janelas deslizantes 5h e 7d |
+| **DeepSeek API** | Prepaid Credit Balance | REST Endpoint `https://api.deepseek.com/user/balance` | Saldo em USD |
+| **Local MLX / Ollama** | Memória & Disponibilidade | Checagem de processo local / `curl http://localhost:11434` | Ilimitado / Status Offline |
+
+* Estrutura de Dados em Elisp (`custom-magent-quota.el`)
+
+#+begin_src elisp
+(cl-defstruct magent-quota-entry
+  provider-id        ;; Símbolo: 'agy-proxy, 'google-ai, 'opencode, 'deepseek, 'mlx-local
+  model-id           ;; String: "agy-pro", "gemini-2.5-flash", etc.
+  metric-type        ;; Símbolo: 'rate_limit, 'balance, 'budget, 'unlimited
+  percent-remaining  ;; Número: 0 a 100
+  used-value         ;; String: "4,600 reqs" ou "$0.00 USD"
+  limit-value        ;; String: "5,000 reqs" ou "$10.00 USD"
+  status             ;; Símbolo: 'ok, 'warning, 'critical, 'exhausted, 'offline
+  reset-time-iso     ;; String: Timestamp ISO ou nil
+  last-updated-iso)  ;; String: Timestamp ISO da última coleta
+#+end_src
+
+* Mecanismo de Failover Pré-emptivo (FSM Integration)
+
+Antes de disparar um turno no =magent-fsm.el=, o roteador =+carlos/magent-subagent-resolve= consulta o estado da cota do backend preferencial.
+
+1. **Se `percent-remaining` > 5% e `status` == 'ok:** Mantém o backend primário (ex: `AGY Proxy`).
+2. **Se `percent-remaining` <= 5% ou `status` == 'exhausted:** O roteador aciona o **Failover Pré-emptivo** para a próxima camada da cascata:
+   - *Camada 1:* `AGY Proxy` (Custo $0.00 / Google Engine / Stitch)
+   - *Camada 2:* `Google AI Studio API` Direct (Nuvem via `GEMINI_API_KEY`)
+   - *Camada 3:* `Local MLX` (Mac M2 Apple Silicon) / `Ollama` (Linux CPU)
+
+* Interface do Usuário (Comando `/quota` & Menu Transient `C-c A m`)
+
+- **Comando Slash `/quota`:** Exibe um buffer temporário `*Magent Quotas*` formatado em Org-mode com a tabela comparativa de todos os provedores atocados.
+- **Integração no Statusline/Mood-line:** Exibe indicador compacto `[AGY 92%]` no mood-line do Emacs.

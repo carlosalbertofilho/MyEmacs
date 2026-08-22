@@ -71,6 +71,41 @@ Atualizar o roteamento de modelos no Magent para utilizar a ponte AGY com Custo 
 - Atualizar +carlos/magent-host-profiles em lisp/custom-magent-fsm.el adicionando o AGY Proxy como backend soberano para os hosts aa102-006l e agnes, configurando os modelos locais MLX como fallback no Mac M2.
 - Testar a comunicação FSM, invocação de subagentes e streaming via ponte agy.
 
+** Monitoramento Proativo de Cotas, Comando /quota e Failover Pre-emptivo (lisp/custom-magent-quota.el)
+    :PROPERTIES:
+    :CREATED: 2026-08-22
+    :ASSIGNEE: coder
+    :STATUS: pendente
+    :END:
+
+*** Estruturas de Dados e Tabela de Estado de Cotas (lisp/custom-magent-quota.el)
+Desenvolver a estrutura central de cotas e a tabela de estado global para rastreamento continuo dos provedores de IA.
+- Definir a struct =magent-quota-entry= com os campos: =provider-id=, =model-id=, =metric-type= (=rate_limit=, =balance=, =budget=, =unlimited=), =percent-remaining=, =used-value=, =limit-value=, =status= (=ok=, =warning=, =critical=, =exhausted=, =offline=), =reset-time-iso= e =last-updated-iso=.
+- Criar a hash-table global =+carlos/magent-quota-table= para armazenamento centralizado do estado das cotas dos provedores.
+- Implementar funcoes de consulta e predicados de saude (=+carlos/magent-quota-get=, =+carlos/magent-quota-healthy-p= com limiar padrao de 5%).
+
+*** Coletores Assincronos por Provedor (AGY Proxy, Gemini, OpenCode, DeepSeek, Anthropic, MLX/Ollama)
+Implementar a infraestrutura de varredura assincrona nao-bloqueante para atualizacao continua do estado de cotas dos provedores.
+- Implementar =+carlos/magent-quota-fetch-all= e dispatchers por provedor utilizando requisicoes assincronas (=url-retrieve= / =make-process=).
+- Provedor AGY Proxy (Local): coletar contadores de requests/dia via inspecao dos headers de resposta HTTP de =/v1/chat/completions= com reset diario a meia-noite UTC.
+- Provedor Google AI Studio API: inspecionar headers HTTP =x-ratelimit-remaining-requests= e =x-ratelimit-remaining-tokens= em chamadas Cloud REST.
+- Provedor OpenCode Zen: coletar saldo e budget via scraping JSON SSR do endpoint de faturamento =https://opencode.ai/workspace/*/billing=.
+- Provedor DeepSeek API: efetuar consulta REST autenticada ao endpoint =https://api.deepseek.com/user/balance= retornando saldo prepaid em USD.
+- Provedor Anthropic: calcular limites deslizantes de 5h e 7d a partir do status local do CLI =claude-auth-status-json= ou headers REST.
+- Provedor Local MLX / Ollama: efetuar probe via HTTP GET para =http://localhost:11434/api/tags= e verificar integridade de memoria/processos locais.
+
+*** Interface do Usuario, Comando Slash /quota e Menu Transient (C-c A m)
+Criar a camada de apresentacao para inspecao de cotas e integracao no ambiente visual.
+- Implementar o comando slash =/quota= e a funcao interativa =+carlos/magent-quota-display= para renderizar o buffer temporario =*Magent Quotas*= formatado em tabela Org-mode com codificacao visual por status (OK, WARNING, CRITICAL, EXHAUSTED, OFFLINE).
+- Integrar o atalho de exibicao no menu Transient do Magent (=C-c A m= em =lisp/custom-magent-ui.el=).
+- Adicionar indicador de cota no mood-line do Emacs (ex: =[AGY 92%]=) refletindo o status do backend primario em tempo real.
+
+*** Mecanismo de Failover Pre-emptivo no Subagente e FSM (custom-magent-subagent.el & custom-magent-fsm.el)
+Implementar o desvio automatico de backend antes da execucao de chamadas LLM para evitar falhas HTTP 429.
+- Modificar =+carlos/magent-subagent-resolve= em =lisp/custom-magent-subagent.el= para consultar =+carlos/magent-quota-healthy-p= antes de selecionar o backend preferencial do perfil.
+- Quando =percent-remaining= <= 5% ou =status= for =critical= ou =exhausted=, desviar preemptivamente para o proximo nivel da cascata (AGY Proxy -> Google AI Studio -> Local MLX/Ollama).
+- Atualizar =+carlos/magent-fsm-subagent-jobs= e a maquina de estados em =lisp/custom-magent-fsm.el= para registrar os eventos de failover pre-emptivo no log de auditoria da sessao.
+
 * Concluído (referências ao roadmap)
 
 - O histórico completo de todas as tarefas concluídas (Suíte DevOps, NixOS, Submódulos, Rust, Polyglot, Forge, Introspecção RAG, Resiliência FSM, etc.) é mantido estritamente em [[file:roadmap.org][roadmap.org]] como Linha do Tempo oficial.
