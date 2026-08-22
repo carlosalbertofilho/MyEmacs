@@ -24,6 +24,7 @@
 (declare-function +carlos/local-ai-server-ping-p "custom-ai")
 (declare-function gptel--model-name "gptel")
 (declare-function project-root "project")
+(declare-function magent-msg-role "magent-msg")
 (defvar +carlos/magent-model-max-tier 'paid)
 
 ;; ── Auto-Compactação Automática (Fase B) ────────────────────────────

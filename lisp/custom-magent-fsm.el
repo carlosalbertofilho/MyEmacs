@@ -14,6 +14,7 @@
 (declare-function magent-tools--parent-session "magent-tools")
 (declare-function magent-session-agent-jobs "magent-session")
 (declare-function magent-agent-job-status "magent-agent")
+(declare-function magent-agent-job-id "magent-agent")
 (declare-function +carlos/magent-buffer-reset-session "custom-magent-buffer")
 (declare-function +carlos/magent-ui-spinner-start "custom-magent-ui")
 (declare-function +carlos/magent-ui-spinner-stop "custom-magent-ui")
