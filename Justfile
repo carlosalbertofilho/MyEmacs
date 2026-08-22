@@ -23,9 +23,13 @@ run:
 test-run:
     emacs --init-directory "{{prod_dir}}"
 
-# Install/refresh packages (non-interactive)
+# Install/refresh packages (non-interactive, dev)
 install:
     emacs --init-directory "$(pwd)" --batch -l init.el --eval '(message "Packages installed.")'
+
+# Install/refresh packages in production ({{prod_dir}})
+install-prod:
+    emacs --init-directory "{{prod_dir}}" --batch -l init.el --eval '(message "Packages installed in prod.")'
 
 # ── Clean / Rebuild (build artifact hygiene) ─────────────────────────
 
@@ -164,7 +168,7 @@ check-all: check test-all
 # Nuke production directory, backup state files, clone fresh from git, and rebuild
 factory-reset:
     @bash bin/factory-reset.sh
-    just install
+    just install-prod
     just compile-prod
     just check-prod
 

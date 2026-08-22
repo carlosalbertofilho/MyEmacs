@@ -17,6 +17,8 @@ places
 
 # Runtime state (~/.config/emacs production only)
 bookmarks
+history
+savehist
 agent/
 magent/sessions/
 scratch/

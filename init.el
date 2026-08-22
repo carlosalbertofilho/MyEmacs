@@ -63,6 +63,9 @@
   (elpaca-use-package-mode))
 (elpaca-wait)  ;; Block until elpaca-use-package is installed
 
+;; Limit concurrent package tasks to available CPU cores (avoid CPU starvation)
+(setq elpaca-queue-limit (num-processors))
+
 ;; Ensure compat is managed by Elpaca and loaded early to avoid version conflict warnings
 (use-package compat :ensure (:wait t))
 

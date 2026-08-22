@@ -46,13 +46,15 @@
     (should (string-match-p "-b \"\\$BRANCH\"" body))))
 
 (ert-deftest myemacs-factory-reset-justfile-recipe-complete ()
-  "Receita no Justfile encadeia install + compile-prod + check-prod."
+  "Receita no Justfile encadeia install-prod + compile-prod + check-prod."
   (skip-unless myemacs-factory-root)
   (let ((justfile (with-temp-buffer
                     (insert-file-contents
                      (expand-file-name "Justfile" myemacs-factory-root))
                     (buffer-string))))
     (should (string-match-p "^factory-reset:" justfile))
+    (should (string-match-p "just install-prod" justfile))
+    (should (string-match-p "just compile-prod" justfile))
     (should (string-match-p "just check-prod" justfile))))
 
 (provide 'factory-reset-test)
