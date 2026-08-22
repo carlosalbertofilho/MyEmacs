@@ -733,6 +733,31 @@ parseia chaves como símbolos — asserts de teste usam `(alist-get 'status pars
 - **Descrição:** Descreve símbolo Elisp: kind (function/variable/face/feature),
   docstring, valor atual truncado, arglist e arquivo de definição. Para resolver
   APIs e opções do Emacs sem adivinhar.
+
+** Infrastructure & DevOps Suite (`docker_*`, `systemd_*`, `log_inspect`) — adicionado 2026-08-22
+- **`docker_ps`**: `(+carlos/magent-tool-docker-ps &optional all filter remote-host reason)` — Lista containers Docker (locais ou remotos via TRAMP) em JSON estruturado com sanitização ANSI/null.
+- **`docker_logs`**: `(+carlos/magent-tool-docker-logs container-id &optional tail grep-pattern remote-host reason)` — Inspeciona logs recentes de containers com limite de linhas e filtro regex.
+- **`docker_action`**: `(+carlos/magent-tool-docker-action container-id action &optional remote-host reason)` — Executa ações de ciclo de vida (`start`, `stop`, `restart`, `remove`) em containers.
+- **`systemd_status`**: `(+carlos/magent-tool-systemd-status unit &optional remote-host reason)` — Inspeciona o estado de unidades systemd em formato JSON-safe.
+- **`systemd_action`**: `(+carlos/magent-tool-systemd-action unit action &optional remote-host reason)` — Executa ações do systemctl (`start`, `stop`, `restart`, `reload`, `enable`, `disable`).
+- **`systemd_journal`**: `(+carlos/magent-tool-systemd-journal unit &optional tail priority remote-host reason)` — Leitura do journalctl por unidade com filtro de linhas e nível de prioridade.
+- **`log_inspect`**: `(+carlos/magent-tool-log-inspect log-path &optional regex severity tail remote-host reason)` — Inspeção de arquivos de log locais ou via TRAMP com suporte a regex e filtro por severidade.
+
+** Polyglot Transactable Smart Edit Suite (`*_smart_edit`) — adicionado 2026-08-22
+- **`elisp_smart_edit`**: Edição inteligente de código Elisp (`.el`) com Tempel snippets, refatoração de símbolos e validação transacional (`check-parens`/byte-compiler).
+- **`nix_smart_edit`**: Edição de expressões Nix (Flakes, módulos NixOS) com validação `nixfmt`/`statix`.
+- **`python_smart_edit`**: Edição de código Python com snippets (`def`, `class`, `pytest`) e validação `ruff`.
+- **`ts_smart_edit`**: Edição de TypeScript/JavaScript com snippets Tempel e validação `prettier`/`eslint`.
+- **`c_smart_edit`**: Edição de C/C++ com guarda de 25 linhas executáveis da Norminette/Escola 42 (`treesit_count_executable_lines`).
+- **`go_smart_edit`**: Edição de código Go com snippets (`func`, `struct`, `interface`, `goroutine`, `table_test`) e `golangci-lint`.
+- **`org_smart_edit`**: Edição estruturada da AST do Org-mode (`headings`, keywords `TODO`/`DONE`, `:PROPERTIES:`) e `org-lint`.
+- **`sh_smart_edit`**: Edição de scripts Shell/Bash com snippets e validação `shellcheck`.
+- **`markdown_smart_edit`**: Edição de arquivos Markdown com suporte a frontmatter e `markitdown`.
+- **`rust_smart_edit`**: Edição de Rust (`.rs`) com snippets (`fn`, `struct`, `impl`, `trait`, `async_fn`, `tokio_main`) e validação `rustfmt`/`cargo check`.
+
+** Version Control & Forge Suite (`magit_*`, `forge_*`) — adicionado 2026-08-22
+- **Magit Tools**: `magit_stage`, `magit_commit`, `magit_push`, `magit_status`, `magit_pull`, `magit_checkout`, `magit_diff`, `magit_log`, `magit_submodule_list`, `magit_submodule_update`, `magit_submodule_add`, `magit_branch_list`, `magit_branch_delete`, `magit_merge`, `magit_rebase`.
+- **Forge Tools**: `forge_read_issue`, `forge_list_pull_requests`, `forge_create_issue`, `forge_create_pull_request`, `forge_post_comment`.
 * Permissions & Audit Logging
 
 ** Permission Rules

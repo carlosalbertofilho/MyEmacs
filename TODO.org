@@ -25,123 +25,9 @@ Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=
 - *Ledger & State Machine (AGENT_WORKFLOW.org):* Hierarquia Codex =thread -> turn -> item=. Turno gerenciado em =magent-ledger.el=. Itens de ferramenta unificados (=tool-call= e =tool-output= no mesmo registro por =call-id=). Persistência dupla via =Snapshot= (restauração rápida de thread) + =Journal= (log append-only).
 - *Camadas de Arquitetura (ONBOARDING.org):* 7 camadas. Camada 2 (Sessão & Ledger), Camada 3 (Agentes e Permissões =allow=/=deny=/=ask=), Camada 4 (15 ferramentas nativas em =magent-tools.el= + aprovações em =magent-approval.el=), Camada 5 (Loop Magent e transport fino =gptel-request= em =magent-llm-gptel.el=), Camada 6 (Frontend =agent-shell= + protocolo ACP em =magent-acp.el=).
 
-* Concluído (referências ao roadmap)
+* Pendente
 
-** DONE Suíte Nativa de Infraestrutura, DevOps, Docker, Systemd e Inspeção de Logs (7 Novas Ferramentas Nativas)
-    :PROPERTIES:
-    :CREATED: 2026-08-22
-    :COMPLETED: 2026-08-22
-    :ASSIGNEE: sysadmin
-    :STATUS: concluido
-    :END:
-
-*** Novas Ferramentas Nativas de Docker (docker_ps, docker_logs, docker_action)
-Encapsulamento programático de containers Docker locais e remotos via TRAMP com respostas estruturadas em JSON, sanitização ANSI/null e controle de ciclo de vida (start, stop, restart, remove).
-
-*** Novas Ferramentas Nativas de Systemd (systemd_status, systemd_action, systemd_journal)
-Encapsulamento programático de unidades systemd com inspeção de propriedades JSON-safe, controle de serviços (start, stop, restart, reload, enable, disable) e leitura filtrada do journalctl por prioridade.
-
-*** Nova Ferramenta Nativa de Inspeção de Logs (log_inspect)
-Inspeção programática de arquivos de log com suporte a TRAMP, filtragem combinada por regex, nível de severidade e limite de linhas.
-
-** DONE Aprimoramento do Fluxo Nix & NixOS (eglot + nixd, envrc, apheleia + nixfmt, nixos-rebuild)
-    :PROPERTIES:
-    :CREATED: 2026-08-22
-    :COMPLETED: 2026-08-22
-    :ASSIGNEE: sysadmin
-    :STATUS: concluido
-    :END:
-
-*** Configuração Avançada de Nix no Emacs (custom-lang.el & custom-keybindings.el)
-Integração nativa de nix-mode com eglot-ensure apontando para o LSP nixd (com auto-completion de opções do NixOS), envrc-global-mode para injeção automática de ambiente de Flakes/direnv, apheleia com nixfmt-rfc-style, e comando assíncrono +carlos/nixos-rebuild-switch (C-c N r).
-
-** DONE Suíte Nativa de Submódulos Git e Branches/Merges Avançados (7 Novas Ferramentas Nativas)
-    :PROPERTIES:
-    :CREATED: 2026-08-22
-    :COMPLETED: 2026-08-22
-    :ASSIGNEE: sysadmin
-    :STATUS: concluido
-    :END:
-
-*** Novas Ferramentas Nativas de Submódulos Git (magit_submodule_list, magit_submodule_update, magit_submodule_add)
-Encapsulamento programático de submódulos Git (+carlos/magent-tool-magit-submodule-list, +carlos/magent-tool-magit-submodule-update, +carlos/magent-tool-magit-submodule-add) com estado estruturado JSON e suporte a atualização recursiva.
-
-*** Novas Ferramentas Nativas Avançadas de Branches/Merges (magit_branch_list, magit_branch_delete, magit_merge, magit_rebase)
-Encapsulamento programático das APIs de branch/merge/rebase do Magit (+carlos/magent-tool-magit-branch-list, +carlos/magent-tool-magit-branch-delete, +carlos/magent-tool-magit-merge, +carlos/magent-tool-magit-rebase) para listagem com status upstream, deleção remota/local e mesclagem declarativa.
-
-** DONE Expansão da Suíte Nativa de Ferramentas Magit & Forge (7 Novas Ferramentas Nativas)
-    :PROPERTIES:
-    :CREATED: 2026-08-22
-    :COMPLETED: 2026-08-22
-    :ASSIGNEE: sysadmin
-    :STATUS: concluido
-    :END:
-
-*** Novas Ferramentas Nativas Magit (magit_pull, magit_checkout, magit_diff, magit_log)
-Encapsulamento programático das APIs do Magit (+carlos/magent-tool-magit-pull, +carlos/magent-tool-magit-checkout, +carlos/magent-tool-magit-diff, +carlos/magent-tool-magit-log) com formatação limpa e economia de tokens.
-
-*** Novas Ferramentas Nativas Forge (forge_create_issue, forge_create_pull_request, forge_post_comment)
-Encapsulamento programático da API do Forge (+carlos/magent-tool-forge-create-issue, +carlos/magent-tool-forge-create-pull-request, +carlos/magent-tool-forge-post-comment) permitindo criação de issues/PRs e comentários sem depender do CLI 'gh' ou de subprocessos interativos.
-
-** DONE Suporte à Linguagem Rust & 10ª Ferramenta Nativa rust_smart_edit
-    :PROPERTIES:
-    :CREATED: 2026-08-22
-    :COMPLETED: 2026-08-22
-    :ASSIGNEE: coder
-    :STATUS: concluido
-    :END:
-
-*** Configuração de Rust (rust-ts-mode, Eglot, Cargo, Apheleia)
-Suporte nativo Tree-sitter no Emacs 30 via rust-ts-mode, integração eglot com rust-analyzer, cargo-minor-mode e rustfmt via apheleia.
-
-*** Ferramenta Transacional rust_smart_edit
-Ferramenta nativa (+carlos/magent-tool-rust-smart-edit em lisp/custom-magent-tools.el) com 8 snippets Tempel (fn, struct, enum, impl, trait, async_fn, tokio_main, test_case), refatoração de símbolos e validação transacional com rollback.
-
-** DONE Suíte Polyglot de Ferramentas Nativas de Edição para 5 Linguagens (C, Go, Org, Shell, Markdown)
-    :PROPERTIES:
-    :CREATED: 2026-08-22
-    :COMPLETED: 2026-08-22
-    :ASSIGNEE: coder
-    :STATUS: concluido
-    :END:
-
-*** Ferramenta Transacional c_smart_edit
-Ferramenta nativa (+carlos/magent-tool-c-smart-edit em lisp/custom-magent-tools.el) para C/C++ com regras da Escola 42/Norminette (25 linhas executáveis).
-
-*** Ferramenta Transacional go_smart_edit
-Ferramenta nativa (+carlos/magent-tool-go-smart-edit em lisp/custom-magent-tools.el) para a linguagem Go (structs, interfaces, goroutines, table tests).
-
-*** Ferramenta Transacional org_smart_edit
-Ferramenta nativa (+carlos/magent-tool-org-smart-edit em lisp/custom-magent-tools.el) para AST do Org-mode (headings, TODO/DONE, drawers, org-lint).
-
-*** Ferramenta Transacional sh_smart_edit
-Ferramenta nativa (+carlos/magent-tool-sh-smart-edit em lisp/custom-magent-tools.el) para scripts Shell/Bash (shebang, parse_args, functions, shellcheck).
-
-*** Ferramenta Transacional markdown_smart_edit
-Ferramenta nativa (+carlos/magent-tool-markdown-smart-edit em lisp/custom-magent-tools.el) para Markdown (frontmatter, tables, markitdown).
-
-** DONE Ferramentas Nativas Especializadas de Edição para Nix, Python e TypeScript/JavaScript
-    :PROPERTIES:
-    :CREATED: 2026-08-22
-    :COMPLETED: 2026-08-22
-    :ASSIGNEE: coder
-    :STATUS: concluido
-    :END:
-
-*** Ferramenta Transacional nix_smart_edit
-Ferramenta nativa (+carlos/magent-tool-nix-smart-edit em lisp/custom-magent-tools.el) para edição inteligente de expressões Nix (Flakes, módulos NixOS, derivações).
-- Snippets Tempel: flake, module, package, overlay, devshell, option.
-- Validação transacional com rollback automático.
-
-*** Ferramenta Transacional python_smart_edit
-Ferramenta nativa (+carlos/magent-tool-python-smart-edit em lisp/custom-magent-tools.el) para edição inteligente de código Python.
-- Snippets Tempel: def, class, async_def, pytest, dataclass, main.
-- Validação transacional com rollback automático.
-
-*** Ferramenta Transacional ts_smart_edit
-Ferramenta nativa (+carlos/magent-tool-ts-smart-edit em lisp/custom-magent-tools.el) para TypeScript/JavaScript.
-- Snippets Tempel: interface, type, function, export_const, describe_it.
-- Validação transacional com rollback automático.
+** Benchmarking Empírico e Matriz Local 14B (Soberania Offline)
     :PROPERTIES:
     :CREATED: 2026-08-22
     :ASSIGNEE: coder
@@ -150,7 +36,7 @@ Ferramenta nativa (+carlos/magent-tool-ts-smart-edit em lisp/custom-magent-tools
 
 *** Varredura de Provedores e Modelos MLX/Ollama
 Efetuar varredura completa dos modelos instalados no Mac M2 (=agnes=) através de múltiplos provedores (Ollama, MLX, mlx-community e servidor =mlx_lm.server=).
-- Identificar e remover modelos pesados/obsoletos acumulados de testes anteriores da Escola 42.
+- Identificar e remover modelos pesados/obsoletos acumulados de testes anteriores.
 
 *** Benchmarking Empírico e Matriz Local 14B (Soberania Offline)
 Executar benchmarks reais medindo TTFT, tokens/segundo e consumo de memória unificada para a suíte local de 14B:
@@ -160,66 +46,5 @@ Executar benchmarks reais medindo TTFT, tokens/segundo e consumo de memória uni
 
 * Concluído (referências ao roadmap)
 
-** DONE Ferramentas Nativas Magit/Forge e Gerador RAG por Introspecção do Emacs
-    :PROPERTIES:
-    :CREATED: 2026-08-22
-    :COMPLETED: 2026-08-22
-    :ASSIGNEE: coder
-    :STATUS: concluido
-    :END:
-
-*** Gerador RAG por Introspecção (rag_create_doc)
-Ferramenta nativa em Elisp (+carlos/magent-tool-rag-create-doc em lisp/custom-magent-tools.el) para extração zero-rede de docstrings e assinaturas nativas do Emacs.
-- Varredura programática via (documentation 'symbol) e (help-function-arglist 'symbol).
-- Geração e atualização de arquivos .org sob docs/ com cabeçalho canônico Org (#+TITLE, #+AUTHOR, #+DATE, #+LAST_MODIFIED, #+DESCRIPTION, #+FILETAGS: :RAG:DOCS:).
-- Redução de token footprint de ~4.000 para ~40 tokens por consulta RAG.
-- Arquivos RAG gerados: docs/forge-reference.org e docs/magit-api-reference.org.
-
-*** Suíte de Ferramentas Nativas Magit/Forge (lisp/custom-magent-tools.el)
-Adaptadores de Elisp nativo com gptel-make-tool para operações de controle de versão e integração GitHub/Forge.
-- Implementadas as ferramentas magit_stage, magit_commit, magit_push e magit_status.
-- Atualizados os perfis da equipe em lisp/custom-magent-team.el (sysadmin, tech-writer, planner, auditor).
-
-** DONE Implementação do Roteador Dinâmico de Tiers e Matriz dos 9 Perfis
-    :PROPERTIES:
-    :CREATED: 2026-08-22
-    :ASSIGNEE: coder
-    :STATUS: concluido
-    :END:
-
-*** Configuração do Magent com Matriz FinOps Free Tier
-Codificada em =lisp/custom-magent-subagent.el= e =lisp/custom-magent-fsm.el= a matriz oficial acordada em =docs/ai-providers-reference.org=:
-- Orquestrador: =gemini-2.5-flash= (Google AI Studio Free Tier) com fallback para =deepseek-v4-flash-free=.
-- Perfil =coder=, =auditor=, =sec-ops=: =big-pickle= (OpenCode Zen Free) com fallback para =nemotron-3.5-lightning-free=.
-- Perfil =planner=: =big-pickle= (Free) com fallback para =gemini-2.5-pro= (saldo $50 Google AI Studio) para planejamentos complexos.
-- Fallback Offline: =qwen2.5-coder:1.5b= (TTFT 0.3s) como Orquestrador Local no Linux CPU.
-
-** DONE Bateria de Regressão: 12 Rounds de Teste de Delegação
-    :PROPERTIES:
-    :CREATED: 2026-08-19
-    :ASSIGNEE: qa
-    :STATUS: concluido
-    :END:
-
-Matriz executável dos 12 rounds de regressão do Magent sob a nova matriz de perfis e resiliência FSM (100% de Sucesso - 12/12 PASSED).
-
-| Round | Prompt de Teste                                           | Perfil Esperado         | Tools Esperadas                               | Status |
-|-------+-----------------------------------------------------------+-------------------------+-----------------------------------------------+--------|
-|     1 | Encontre a definição de =+carlos/magent-subagent-profile= | =explore= / =general=   | =grep_search=, =read_file=                    | PASSED |
-|     2 | Quais pacotes são carregados com =:demand t= em init.el?  | =explore=               | =read_file=                                   | PASSED |
-|     3 | analise custom-magent-fsm.el e descreva FSM               | =tech-writer=/=planner= | =read_file=                                   | PASSED |
-|     4 | Altere referências de 'old-var' para 'new-var' em scratch | =coder=                 | =buffer_replace=, =edit_file=                 | PASSED |
-|     5 | Mova função X de file-a.el para file-b.el                 | =coder=                 | =read_file=, =edit_file=, =flycheck_errors=   | PASSED |
-|     6 | adicione '; TODO: review' no topo de custom-ui.el         | =coder= / =general=     | =edit_file=                                   | PASSED |
-|     7 | Crie um card 'Bateria 12 Rounds' no TODO.org sob Pendente | =planner=               | =read_file=, =edit_file=, =org-lint=          | PASSED |
-|     8 | Resuma status dos bugs resolvidos em AGENTS.md            | =qa= / =tech-writer=    | =read_file=                                   | PASSED |
-|     9 | Crie um arquivo denote documentando a nova FSM            | =tech-writer=           | =run_command= / tool denote                   | PASSED |
-|    10 | Qual é o status git atual? Existem arquivos unstaged?     | =sysadmin= / =coder=    | =run_command= (=git status=)                  | PASSED |
-|    11 | Rode o just compile e me diga se há warnings              | =qa=                    | =run_command= (=just compile=)                | PASSED |
-|    12 | Execute a suíte test-ai e relate as falhas, se houver     | =qa=                    | =run_command= (=just test-ai=)                | PASSED |
-
-* Concluído (referências ao roadmap)
-
-- Histórico completo de tarefas concluídas mantido em [[file:roadmap.org][roadmap.org]] (linha do tempo).
-- Últimos entregáveis: Resiliência FSM (3 Pilares) ✅, Limpeza & Benchmark CPU aa102-006l ✅, Integ. RFC Mode ✅, Factory Reset 12 Cores ✅.
+- O histórico completo de todas as tarefas concluídas (Suíte DevOps, NixOS, Submódulos, Rust, Polyglot, Forge, Introspecção RAG, Resiliência FSM, etc.) é mantido estritamente em [[file:roadmap.org][roadmap.org]] como Linha do Tempo oficial.
 
