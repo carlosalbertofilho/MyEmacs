@@ -86,22 +86,6 @@ Matriz executável dos 12 rounds de regressão do Magent.
 |    10 | Qual é o status git atual? Existem arquivos unstaged?     | =sysadmin= / =coder=    | =run_command= (=git status=)                  | TODO   |
 |    11 | Rode o just compile e me diga se há warnings              | =qa=                    | =run_command= (=just compile=)                | TODO   |
 |    12 | Execute a suíte test-ai e relate as falhas, se houver     | =qa=                    | =run_command= (=just test-ai=)                | TODO   |
-** TODO Resolver gargalo e CPU starvation no build (factory-reset / install)
-    :PROPERTIES:
-    :CREATED: 2026-08-22
-    :ASSIGNEE: coder
-    :STATUS: plano aprovado
-    :END:
-
-*** Receita install-prod no Justfile
-Criar a receita =install-prod= no Justfile apontando para ={{prod_dir}}=.
-Substituir =just install= por =just install-prod= na receita =factory-reset=.
-
-*** Limitar processamento em lote no init.el
-No =init.el=, logo após o bootstrap do elpaca, configurar =(setq elpaca-queue-limit (num-processors))= para evitar CPU starvation.
-
-*Arquivos:* =Justfile=, =init.el=.
-
 ** TODO Contornar instabilidade de Function Calling no OpenCode Zen (gpt-5.6-sol)
     :PROPERTIES:
     :CREATED: 2026-08-22
@@ -117,6 +101,7 @@ Devemos ajustar =custom-ai.el= ou =custom-magent-subagent.el= para contornar ou 
 
 * Concluído (referências ao roadmap)
 
+- *Otimização do Factory Reset & Build* (2026-08-22) — `install-prod` no Justfile, `elpaca-queue-limit` dinâmico por CPUs, `history` ignorado e removido do git tracking. Testado e validado com sucesso em 12 cores no host `aa102-006l`.
 - *Subagentes Sem Tools* (2026-08-20) — Separação de diretivas em 3 constantes e injeção por papel. Log verificado com 100% de sucesso.
 - *Tier Escalation* (2026-08-20) — =select_model= aceita =min_tier=. 2 testes ERT.
 - *Fix Subagente Órfão* (2026-08-20) — Observer 1-arg, auto-resume, spinner. 11 testes ERT.

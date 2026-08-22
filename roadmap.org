@@ -12,6 +12,13 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-22 — [CONCLUÍDO] Otimização e Validação do Factory Reset em Multi-Core (NixOS aa102-006l)
+   - Adicionada receita `install-prod` no `Justfile` apontando para `{{prod_dir}}` e atualizada a receita `factory-reset`.
+   - Limite de concorrência do Elpaca configurado dinamicamente via `(setq elpaca-queue-limit (num-processors))` no `init.el`.
+   - `history` e `savehist` removidos do Git tracking e adicionados ao `.gitignore`, resolvendo a falha no *Guard 1* do `factory-reset.sh`.
+   - Testes ERT em `tests/factory-reset-test.el` atualizados e passados com 100% de sucesso.
+   - Execução bem-sucedida do `just factory-reset` no ambiente oficial de produção (`~/.config/emacs`).
+
 ** 2026-08-22 — [CONCLUÍDO] Factory Reset do Ambiente Oficial (just factory-reset)
    - Script `bin/factory-reset.sh` com nuke + clone fresco preservando estado em backup temporário em `/tmp`.
    - Receita `just factory-reset` completa (script + install + compile-prod + check-prod).
