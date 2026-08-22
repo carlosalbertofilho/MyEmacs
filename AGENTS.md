@@ -119,10 +119,10 @@ Artefatos de build antigos (`.elc`, `eln-cache/`) podem causar erros
 │   ├── custom-jinx.el            ← jinx spellcheck (enchant) + grammar correction via AI
 │   ├── custom-magent.el          ← Magent native coding agent (core, agent-shell)
 │   ├── custom-magent-commands.el ← Magent transient/commands (C-c A m)
-│   ├── custom-magent-context.el  ← Magent context (project instructions, per-file)
-│   ├── custom-magent-fsm.el      ← Magent FSM de orquestração (15 tools, watchdog, roteamento)
+│   ├── custom-magent-context.el  ← Magent context (project instructions, per-file, herança de contexto pai <parent_context> D5.4)
+│   ├── custom-magent-fsm.el      ← Magent FSM de orquestração (15 tools, watchdog, jobs duráveis, ledger call-id↔job, reconciliação stale pós-restart — D5)
 │   ├── custom-magent-tools.el    ← Magent curated tools (flycheck_errors, lsp_navigation, snippet_expand)
-│   ├── custom-magent-subagent.el ← Magent subagent routing + ocultação de tools do orquestrador (Fase D)
+│   ├── custom-magent-subagent.el ← Magent subagent perfis + roteamento de modelo + apply-profile/spawn (ocultação de tools do orquestrador, Fase D; purificado no D5)
 │   ├── custom-magent-ui.el       ← Magent UI (transient, sessões)
 │   ├── custom-knowledge.el       ← Denote (Zettelkasten)
 │   ├── custom-git.el             ← magit, justl, commit message with IA
@@ -406,6 +406,14 @@ insensível no Org, mas a consistência facilita o parsing/regex).
 |-----|-----|-------|
 | `org-startup-with-latex-preview t` incondicional (custom-org.el) — abrir `.org` com fragmento LaTeX levantava `File mode specification error: (error Can't find 'latex' ...)` quando `latex`/`dvipng` não estão instalados | Guard no valor: `org-startup-with-latex-preview` só é `t` quando `(and (executable-find "latex") (executable-find "dvipng"))` — preserva preview onde o toolchain existe, silencia onde não há | `myemacs-org-latex-preview-guarded-by-toolchain` + `myemacs-org-open-with-latex-fragment-no-error` (tests/org-test.el) |
 | `custom-magent-context.el:251:16: Error: Unused lexical variable ‘+carlos/magent-model-max-tier’` intermitente no `just compile`/`compile-prod` — `let` bindava a defcustom de custom-magent-tools (`.elc` stale no boot fazia o cconv do Emacs 30 tratá-la como lexical → warning→erro no gate) | Forward declaration `(defvar +carlos/magent-model-max-tier 'paid)` (default real, nunca `nil`) no bloco de declarações do context.el + `declare-function` para `gptel--model-name`/`project-root` — compile determinístico em qualquer estado de build parcial | `myemacs-magent-context-compiles-isolated` (tests/context-test.el; skip pré-sync) |
+
+### Encontrados pela suíte (2026-08-21)
+
+| Bug | Fix | Teste |
+|-----|-----|-------|
+| `+carlos/magent-render-parent-context` renderizava bloco `<parent_context>` com apenas `messages: 0` quando o contexto coletado era `nil` (injeção vazia e inútil no system prompt do subagente) | Guard `when-let* ((context context))` na renderização — contexto sem conteúdo → `nil`, nada é injetado | `myemacs-magent-subagent-render-parent-context-block` |
+| Ledger call-id↔job atualizava entradas com `append` → chave duplicada no plist e `plist-get` devolvia sempre o valor antigo (`running` em vez de `completed` após `tool-call-end`) | Atualizações com `plist-put` sobre `copy-sequence` (substituição in-place da chave) | `myemacs-magent-subagent-ledger-tracks-spawn-and-wait` |
+| Item "Validar a regra com um teste" (âncora do buffer `*ert*` no rodapé) marcado DONE sem teste criado | `tests/ui-test.el`: `myemacs-ui-ert-buffer-display-bottom` valida regex + `direction . bottom` | `myemacs-ui-ert-buffer-display-bottom` |
 
 ---
 

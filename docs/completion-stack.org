@@ -1,7 +1,7 @@
 #+TITLE: Emacs Completion Stack Reference
 #+AUTHOR: Generated Reference
 #+DATE: 2026-08-05
-#+LAST_MODIFIED: 2026-08-16
+#+LAST_MODIFIED: 2026-08-21
 #+DESCRIPTION: Comprehensive reference for Vertico, Consult, Corfu, Marginalia, Orderless, Embark
 
 * Table of Contents
@@ -365,6 +365,33 @@ as Tempel templates instead of being ignored.
 |---------+-------------------+------------------------------------|
 | =M-+=   | =tempel-complete= | Complete/expand template at point |
 | =M-*=   | =tempel-insert=   | Select and insert a template      |
+
+* Cape (Fusão LSP ∪ Snippets no mesmo CAPF)
+
+Adicionado 2026-08-21: resolve o conflito de CAPF entre =eglot= (LSP) e
+=tempel-expand= — ambos fundidos num único completion-at-point via
+=cape-super-capf=, e o Corfu exibe os dois simultaneamente.
+
+** Enable Cape
+#+begin_src elisp
+(elpaca cape)  ; fila de espera da completion stack
+
+(use-package cape
+  :ensure t
+  :config
+  (defun +carlos/cape-setup-eglot-capf ()
+    "Merge LSP completion with Tempel snippets."
+    (setq-local completion-at-point-functions
+                (list (cape-super-capf #'eglot-completion-at-point #'tempel-expand))))
+  (add-hook 'eglot-managed-mode-hook #'+carlos/cape-setup-eglot-capf))
+#+end_src
+
+** Como funciona
+
+- O hook dispara em TODO buffer gerenciado pelo eglot; o merge é BUFFER-LOCAL
+  (=setq-local=), não toca buffers sem LSP.
+- Sem eglot ativo, os CAPFs padrão do Corfu/Tempel seguem valendo.
+- Ordem dentro do super-capf: candidatos LSP primeiro, snippets depois.
 
 * Marginalia Annotations
 

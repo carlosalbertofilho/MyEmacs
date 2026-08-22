@@ -1,0 +1,163 @@
+#+TITLE: Subagent Stack — Perfis, Jobs Duráveis, Ledger e Contexto Compartilhado
+#+AUTHOR: Carlos Filho
+#+DATE: 2026-08-21
+#+LAST_MODIFIED: 2026-08-21
+#+DESCRIPTION: Referência das APIs de subagentes do Magent (perfis/roteamento, magent-agent-job, ledger/lifecycle events, project-instructions) e da camada MyEmacs pós-refatoração D5.
+#+FILETAGS: :RAG:DOCS:
+#+OPTIONS: toc:2 num:t
+
+* Visão Geral
+
+Referência técnica da pilha de subagentes: o que é NATIVO no pacote
+(=elpaca/builds/magent/=) e o que é CAMADA DE CONFIGURAÇÃO (=lisp/custom-magent-*.el=).
+Após a refatoração D5 (SRP), as responsabilidades ficaram triadas em três arquivos:
+
+| Domínio | Arquivo | Responsabilidade |
+|--------------------------------+--------------------------------+------------------------------------------------------------------|
+| Roteamento e perfis | =lisp/custom-magent-subagent.el= | Perfis (=+carlos/magent-subagent-profiles=), resolução de tier/backend (=+carlos/magent-subagent-resolve=), =apply-profile= ao redor de =magent-agent-process= (spawn). |
+| Contexto pai | =lisp/custom-magent-context.el= | Coleta/renderização/injeção do bloco =<parent_context>= no system prompt dos filhos (D5.4). |
+| Ciclo de vida e ledger | =lisp/custom-magent-fsm.el= | Histórico/reconciliação de jobs duráveis (D5.1), registro call-id↔job alimentado por lifecycle events (D5.2), sink único no barramento. |
+
+Regra de nomenclatura: os símbolos D5 de ciclo de vida MANTERAM o prefixo
+=+carlos/magent-subagent-*= mesmo após migrarem para =custom-magent-fsm.el=
+(estabilidade da API pública e dos testes).
+
+* Perfis e Roteamento (custom-magent-subagent.el)
+
+- =+carlos/magent-subagent-profiles=: alist de perfis (ex.: =explore=,
+  =coder=, =sysadmin=) com dicas =:min-tier= e =:preferred-backend=.
+- =+carlos/magent-subagent-resolve= decide perfil/tier por tarefa.
+- =+carlos/magent-subagent-apply-profile= é advice =:around= de
+  =magent-agent-process=: aplica override de backend/modelo contornando a
+  herança pai→filho do pacote e seta a flag dinâmica
+  =+carlos/magent-current-agent-is-orchestrator= (=t= orquestrador, =nil=
+  filho) durante o processamento.
+- A flag é declarada COM VALOR em =lisp/custom-magent-tools.el= — portanto é
+  variável ESPECIAL; leituras cross-module via =(boundp 'X)= guard funcionam.
+
+* Jobs Duráveis (pacote nativo: magent-agent-job.el)
+
+Estrutura =cl-defstruct =magent-agent-job= com slots: =id=,
+=parent-session-id=, =agent-name=, =task-name=, =status=, =prompt=,
+=created-at=, =updated-at=, =transcript=, =result=, =error=, =metadata=.
+
+Statuses válidos: =queued=, =running=, =waiting=, =completed=, =failed=,
+=closed=, =cancelled=. Estados terminais: =completed=/=failed=/=closed=/=cancelled=.
+
+API essencial:
+
+| Função | Uso |
+|---------------------------------------------------+------------------------------------------------------------|
+| =magent-agent-job-create= | Construtor keyword (é função normal, mockável com cl-letf). |
+| =magent-agent-job-put-runtime= / =-runtime= / =-clear-runtime= | Registro runtime (hash global) de jobs VIVOS nesta instância. |
+| =magent-agent-job-reconcile-after-restart= | Reconcilia job órfão pós-restart. |
+
+Persistência (nativa): jobs vivem na sessão PAI sob slot =agent-jobs=
+(=magent-session-add-agent-job=, serialização inclui agent-jobs) e são
+gravados por =magent-tools--persist-parent-session= →
+=magent-session-save-deferred-for-session=. Criados por
+=magent-tools--agent-job-start= quando o modelo chama =spawn_agent=;
+observados por =wait_agent= (assinatura =(callback &optional job-id job-ids timeout)=;
+args JSON chegam como keywords =:job_id=/:job_ids=).
+
+* Ledger call-id↔job e Lifecycle Events (custom-magent-fsm.el)
+
+Barramento nativo =magent-lifecycle-events=: lista
+=magent-lifecycle-events--sinks= de funções de 1 argumento; cada evento tem
+=:type=, =:time= e =:context= (=:turn-id=, =:subagent-id=). Tipos relevantes:
+
+| Evento | Props úteis |
+|--------------------+----------------------------------------------------------------------|
+| =turn-start= | — |
+| =tool-call-start= | =:call-id=, =:tool-name=, =:args= (plist de JSON snake_case → keywords) |
+| =tool-call-end= | =:call-id=, =:tool-name=, =:status=, =:exit-code=, =:result=, =:result-summary= |
+| =agent-job-event= | =:event=, =:job= (struct), =:detail=, =:scope= |
+
+Camada D5.2 (fsm.el):
+
+- Registro: hash =+carlos/magent-subagent--calls= (chave call-id);
+  =+carlos/magent-subagent-call-entry= lê, =+carlos/magent-subagent-ledger-reset=
+  limpa.
+- Tools rastreadas: defcustom =+carlos/magent-subagent-tracked-tools=
+  ='("spawn_agent" "wait_agent")=.
+- Semântica de ligação job↔call-id: um =spawn_agent= SEM id conhecido ADOTA o
+  primeiro =agent-job-event= que aparecer; um =wait_agent= SÓ atualiza com
+  match EXATO entre o =:job_id= dos args e o id do evento (evita falsa
+  associação entre jobs paralelos).
+- Sink único: =+carlos/magent-subagent-lifecycle-sink= registrado via
+  =with-eval-after-load 'magent-lifecycle-events= (reconcilia stale no
+  turn-start e alimenta o ledger).
+
+Reconciliação D5.1 (fsm.el): =+carlos/magent-subagent-stale-job-p= marca
+como stale job =queued=/=running= sem runtime vivo;
+=+carlos/magent-subagent-reconcile-stale-jobs= transiciona stale→=cancelled=,
+persiste a sessão pai e retorna os ids afetados.
+=+carlos/magent-subagent-jobs-history= devolve CÓPIA defensiva da lista.
+
+* Contexto Pai: bloco <parent_context> (custom-magent-context.el)
+
+Injeção de missão macro do orquestrador nos system prompts dos FILHOS
+(~300–500 tokens):
+
+1. =+carlos/magent-collect-parent-context= — plist
+   =(:session-id :project-root :goal :message-count)=; goal capado em 600
+   chars (primeira mensagem user); NUNCA sinaliza erro (guards
+   =fboundp=/=ignore-errors=); sem infra disponível → =nil=.
+2. =+carlos/magent-render-parent-context= — formata bloco
+   =<parent_context>...</parent_context>= truncado a
+   =+carlos/magent-parent-context-max-chars= (defcustom, default 2000);
+   contexto vazio → =nil=.
+3. =+carlos/magent-inject-child-parent-context= — advice =:filter-return=
+   sobre =magent-agent--compose-system-message= (registrado via
+   =with-eval-after-load 'magent-agent=); anexa o bloco SOMENTE quando a flag
+   =+carlos/magent-current-agent-is-orchestrator= é =nil= (filho); prompt do
+   orquestrador intocado.
+
+* Project Instructions / AGENTS.md (NATIVO — não duplicar)
+
+Descoberta e injeção de regras locais já são NATIVAS no pacote:
+
+- =magent-project-instruction-file-names='("AGENTS.md")= e
+  =magent-project-instructions-max-bytes= 65536 (magent-config.el).
+- =magent-project-instructions-discover= / =-system-message= fazem o trabalho.
+- Consumo: =magent-agent-process= chama
+  =magent-project-instructions-system-message= e passa como 5º argumento
+  opcional de =magent-agent--compose-system-message=.
+
+REGRA: a camada MyEmacs NÃO injeta AGENTS.md por conta própria — duplicaria
+conteúdo no prompt.
+
+* Testes
+
+=testes/magent-subagent-test.el= (12 ERTs): existência das funções,
+reconciliação (com runtime vivo protegido por unwind-protect), histórico-cópia,
+classificação stale, rastreio spawn/wait (tools não rastreadas ignoradas),
+ligação spawn-adota vs wait-match-exato, sink registrado, verificação
+estrutural da pipeline AGENTS.md, collect/render (cap), filter-return
+orquestrador×subagente, advice registrado.
+
+Padrões-chave: loader =EMACS_TEST_DIR= + guard
+=myemacs-subagent-available=; testes dependentes de struct fazem
+=(require 'magent-agent-job nil t)= e skip-unless — rodam no PROD (build
+completo) e aparecem skipped no repo.
+
+* Gotchas
+
+1. *plist-get devolve o PRIMEIRO match:* atualizar entradas do ledger com
+   =append= cria chave DUPLICADA silenciosamente e o status novo fica
+   invisível. Usar =plist-put= sobre =copy-sequence=.
+2. *Emacs 30: bare =(defvar X)= NÃO liga e NÃO torna especial em runtime.*
+   Variável dinâmica cross-module precisa declaração COM valor (ver
+   =custom-magent-tools.el=). Forward declaration pelada serve só pro
+   byte-compiler + guards =boundp=.
+3. *=let= lexical ≠ binding dinâmico:* em arquivo com =lexical-binding: t=,
+   =(let ((flag nil))...)= NÃO é visto por funções de outros arquivos que leem
+   a variável dinamicamente. Em testes, usar =setq= + =unwind-protect=
+   (restaurar com =makunbound= se estava unbound).
+4. *Accessors cl-defstruct podem ser INLINED pelo byte-compiler* — mock via
+   cl-letf no symbol-function vira no-op. Construtores
+   (=magent-agent-job-create=) são funções normais e mockáveis. Detalhes em
+   [[file:testing-suite.org][testing-suite.org]].
+5. *Corrida pós-rebuild:* =Unknown slot 'owner'= transitório na primeira
+   passada do =compile-prod= após =just rebuild-prod= (forge parcial);
+   segunda passada compila limpo.

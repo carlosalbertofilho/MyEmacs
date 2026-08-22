@@ -1,7 +1,7 @@
 #+TITLE: Roadmap — MyEmacs Configuration
 #+AUTHOR: Carlos Filho
 #+DATE: 2026-08-05
-#+LAST_MODIFIED: 2026-08-21
+#+LAST_MODIFIED: 2026-08-22
 #+OPTIONS: toc:2 num:t
 
 * Visão Geral
@@ -1593,6 +1593,12 @@ Criar cache de referência para que agentes possam:
 - Repo: =just lint= (compile zero-warning + checkdoc + org-lint) e suíte ERT **394 testes, 0 falhas inesperadas**.
 - Nota de ambiente: com =use-package-expand-minimally=, o =:after magit= adia também o *install* — a order do forge só entrou na fila via =(elpaca (forge))= explícito em batch. Durante o primeiro =just install= houve corrida de build parcial que dava =Unknown slot 'owner'= no =compile-prod=; após instalação estável do forge, recompilação passou limpa.
 - Prod: =just sync= (6c89cf2) + =compile-prod= ✓ + =check-prod= ✓ (=Config loaded OK=) + suíte autoritativa **394 testes, 0 falhas** (7 skipped).
+
+** 2026-08-21 — [CONCLUÍDO] Docs RAG da Pilha de Subagentes + Dívidas de Teste/Base
+- *docs/subagent-stack.org (novo):* referência completa da pilha pós-refatoração D5 — triagem SRP (routing=subagent, contexto=context, ciclo de vida=fsm), API nativa de jobs duráveis (=magent-agent-job=), ledger call-id↔job via lifecycle events, pipeline NATIVA de AGENTS.md (regra: não duplicar) e gotchas (=plist-get= primeiro-match, bare =defvar= no Emacs 30, let lexical ≠ binding dinâmico).
+- *docs/testing-suite.org:* descobertas 6–8 (flag especial via setq+unwind-protect; estado global com unwind-protect; guard require para teste dependente de pacote) + linhas na tabela de arquivos (magent-subagent/ui/factory-reset-test).
+- *docs afetados pelo commit 79e9830:* completion-stack.org ganhou seção Cape (=cape-super-capf= eglot∪tempel); spell-stack.org documenta DICPATH/XDG_DATA_DIRS; ui-stack.org documenta indent-bars fallback e âncora do buffer =*ert*=.
+- *Dívida fechada:* teste =myemacs-ui-ert-buffer-display-bottom= criado (item marcado DONE sem teste em 79e9830); AGENTS.md atualizado (descrições pós-refatoração dos módulos magent-* + 2 bugs do D5 na tabela Known Bugs).
 
 ** 2026-08-21 — [CONCLUÍDO] Feature: Factory Reset
 - *Propósito:* Botão de emergência / wipe-out seguro para o diretório de produção (=~/.config/emacs=) que preserva os arquivos de estado importantes (bookmarks, recentf, sessões de IA, etc).

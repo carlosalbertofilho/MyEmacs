@@ -58,6 +58,7 @@ gcc pkg-config                 # já presentes; jinx-mod precisa do CC + pkg-con
 # home.sessionVariables (obrigatório)
 PKG_CONFIG_PATH = "${pkgs.enchant.dev}/lib/pkgconfig"   # para jinx-mod achar enchant-2.pc
 LD_LIBRARY_PATH = "${pkgs.enchant.out}/lib"             # para o módulo achar libenchant-2.so.2
+DICPATH/XDG_DATA_DIRS                                   # propagados ao Emacs via exec-path-from-shell
 ```
 
 Pontos críticos:
@@ -167,6 +168,7 @@ Variáveis de configuração (em custom-ai.el):
 | =cannot open shared object file= ao ativar | sem =LD_LIBRARY_PATH= para =libenchant-2.so.2= | Reabrir sessão ou relogin KDE      |
 | =en_US= marcando palavras erradas          | provisão via aspell em vez de hunspell | ~/.config/enchant/enchant.ordering |
 | "Could not open the file 'pt_BR'"          | =enchant-2 -l= recebe *arquivo*, não idioma | usar =-d pt_BR= no CLI; em Emacs use jinx |
+| dicionários não encontrados no macOS GUI   | Emacs.app não herda =DICPATH=/=XDG_DATA_DIRS= do shell | =exec-path-from-shell-variables= inclui ="DICPATH"= e ="XDG_DATA_DIRS"= (custom-core.el) para achar hunspell do nix-profile |
 
 * Testes (tests/spell-test.el)
 

@@ -3,7 +3,7 @@
 #+DATE: 2026-08-07
 #+DESCRIPTION: Guia de referência para a suíte de testes de regressão ERT e práticas de controle de qualidade do MyEmacs.
 #+CREATED: 2026-08-07
-#+LAST_MODIFIED: 2026-08-18
+#+LAST_MODIFIED: 2026-08-21
 #+CATEGORY: quality
 
 * Visão Geral
@@ -40,6 +40,9 @@ Os testes residem na pasta =tests/= e são estruturados por área de responsabil
 | [[file:../tests/magent-tools-test.el][magent-tools-test.el]]       | Cap de tool results por turno, truncamento e preservação de buffer_read. |
 | [[file:../tests/magent-buffer-test.el][magent-buffer-test.el]]     | Buffer driver tools, loop de auto-correção (Fase C) e healing step. |
 | [[file:../tests/magent-ui-test.el][magent-ui-test.el]]           | UI do Magent (transient, chaveamento de sessão). |
+| [[file:../tests/magent-subagent-test.el][magent-subagent-test.el]]     | Pilha de subagentes D5: reconciliação de jobs, ledger call-id↔job, <parent_context>, pipeline AGENTS.md. |
+| [[file:../tests/ui-test.el][ui-test.el]]                   | custom-ui.el: âncora do buffer =*ert*= no rodapé (=display-buffer-alist=). |
+| [[file:../tests/factory-reset-test.el][factory-reset-test.el]]       | Guardas do =bin/factory-reset.sh= e receita Justfile (validação estática). |
 | [[file:../tests/local-ai-automation-test.el][local-ai-automation-test.el]] | Pipeline Ollama CPU: docstrings e testes gerados por IA. |
 | [[file:../tests/ai-network-test.el][ai-network-test.el]]            | Testes de rede (live API requests) para provedores de nuvem (opt-in). |
 | [[file:../tests/load-tests.el][load-tests.el]]                 | Harness de carga da suíte (não é um conjunto de testes). |
@@ -126,4 +129,20 @@ Ao escrever testes que mockam funções do gptel/magent, lembre:
 5. *=`push=` em =(alist-get k alist ...)= adiciona a entrada NO FRENTE* do alist
    quando a chave é nova (ordem de inserção, não de tier) — ordene explicitamente
    (ex.: rank de tier) ou use ordem estável.
+6. *=let= lexical NÃO cria binding dinâmico* (arquivos de teste têm
+   =lexical-binding: t=): bindar flag especial consumida por função de OUTRO
+   arquivo via =(let ((flag x))...)= é INVISÍVEL para ela — a função lê o
+   global (=boundp= nil). Padrão correto: =setq= + =unwind-protect=,
+   restaurando com =makunbound= se estava unbound
+   (ex.: =+carlos/magnet-current-agent-is-orchestrator= em
+   magent-subagent-test).
+7. *Estado global mutável exige unwind-protect*: hashes/registros globais
+   (ex.: runtime de jobs =magent-agent-job--runtimes=, registro
+   =+carlos/magent-subagent--calls=) devem ser limpos/restaurados em
+   =unwind-protect= — falha de asserção no meio do teste não pode vazar
+   estado para o teste seguinte.
+8. *Teste dependente de pacote opcional:* guard
+   =(skip-unless (require 'pkg nil t))= faz o teste RODAR onde o pacote existe
+   (prod) e ficar SKIPPED onde não (repo com builds parciais) — nunca falhar
+   por ambiente.
 

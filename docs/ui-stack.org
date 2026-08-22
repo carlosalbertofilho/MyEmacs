@@ -1,6 +1,7 @@
 #+TITLE: UI Stack Reference Guide
 #+AUTHOR: Generated Reference
 #+DATE: 2026-08-05
+#+LAST_MODIFIED: 2026-08-21
 #+DESCRIPTION: Comprehensive reference for the Emacs UI stack — ef-themes, mood-line, olivetti, nerd-icons, which-key, and visual tweaks
 
 * Table of Contents
@@ -544,9 +545,15 @@ Integrates graphical Emacs sessions on macOS (both GUI and daemon) with the logi
 (use-package exec-path-from-shell
   :ensure t
   :if (memq window-system '(mac ns))
+  :custom
+  (exec-path-from-shell-variables '("PATH" "MANPATH" "DICPATH" "XDG_DATA_DIRS"))
   :config
   (exec-path-from-shell-initialize))
 #+end_src
+
+=DICPATH= e =XDG_DATA_DIRS= (adicionado 2026-08-21) propagam os caminhos dos
+dicionários Hunspell instalados via Nix (=~/.nix-profile/share/hunspell=) para
+o libenchant usado pelo jinx — sem elas, o Emacs GUI no macOS não acha pt_BR/en_US.
 
 * Visual Tweaks
 
@@ -795,6 +802,41 @@ Visual tweaks (built-in, no dependencies)
 ├── scroll-conservatively
 └── fringe-mode
 #+end_example
+
+* Indent Bars (guias de indentação)
+
+** Purpose
+
+Guias visuais de indentação em prog-modes com suporte opcional a Tree-Sitter.
+
+** Configuration (com fallback visual)
+#+begin_src elisp
+(use-package indent-bars
+  :hook (prog-mode . indent-bars-mode)
+  :custom
+  (indent-bars-treesitter-support t)
+  (indent-bars-prefer-character t)
+  (indent-bars-width 0.2)
+  (indent-bars-pad 0.1))
+#+end_src
+
+=indent-bars-prefer-character t= (adicionado 2026-08-21) garante que as guias
+continuem renderizadas mesmo se o parser Tree-Sitter falhar para alguma
+linguagem — fallback por caractere em vez de remissão visual.
+
+* Window Layout Rules (display-buffer-alist)
+
+Buffers utilitários abrem ancorados numa janela inferior centralizada
+(30% da altura):
+
+| Buffer            | Regex no alist |
+|-------------------+-------------------------------------------------------------------|
+| compilation       | =\*\(compilation\|eglot events\|magit-process\|vterm.*\|eshell\|gptel.*\|ert\)\*= |
+
+A regex inclui =ert= desde 2026-08-21: resultados ERT interativos
+(=M-x ert= / =eval-buffer= de testes) abrem no rodapé, consistente com as
+demais ferramentas. Regra validada por
+=myemacs-ui-ert-buffer-display-bottom= (tests/ui-test.el).
 
 ---
 *UI stack reference generated: 2026-08-05*
