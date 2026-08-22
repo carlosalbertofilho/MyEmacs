@@ -27,20 +27,31 @@ Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=
 
 * Pendente — Motor & Backlog (Plano Mestre Opus)
 
-** TODO Documentação RAG (Magit/Forge) e Ferramentas Nativas no Magent
+** TODO Ferramentas Nativas Magit/Forge e Gerador RAG por Introspecção do Emacs
     :PROPERTIES:
     :CREATED: 2026-08-22
-    :ASSIGNEE: tech-writer
+    :ASSIGNEE: coder
     :STATUS: pendente
     :END:
 
-*** Documentação RAG Ricas para Subagentes (docs/)
-- Criar `docs/forge-reference.org` com header canônico (`#+FILETAGS: :RAG:DOCS:`) para Forge API, Issues e PRs.
-- Atualizar `docs/magit-reference.org` adicionando a seção `* Programmatic Elisp API` para automação sem UI.
+*** Gerador RAG por Introspecção (rag_create_doc)
+Implementar ferramenta nativa em Elisp (+carlos/magent-tool-rag-create-doc em lisp/custom-magent-tools.el) para extração zero-rede de docstrings e assinaturas nativas do Emacs.
+- Varredura programática via (documentation 'symbol) e (help-function-arglist 'symbol).
+- Geração e atualização de arquivos .org sob docs/ com cabeçalho canônico Org (#+TITLE, #+AUTHOR, #+DATE, #+LAST_MODIFIED, #+DESCRIPTION, #+FILETAGS: :RAG:DOCS:).
+- Redução de token footprint de ~4.000 para ~40 tokens por consulta RAG.
 
-*** Ferramentas Nativas Magit/Forge no Magent (lisp/custom-magent-tools.el)
-- Implementar as ferramentas `magit_stage`, `magit_commit`, `magit_push` e `magit_status`.
-- Atualizar as diretivas do perfil `sysadmin` para priorizar ferramentas Magit nativas em vez de shell bash raw.
+*** Suíte de Ferramentas Nativas Magit/Forge (lisp/custom-magent-tools.el)
+Implementar adaptadores de Elisp nativo com gptel-make-tool para operações de controle de versão e integração GitHub/Forge.
+- Implementar magit_stage (magit-stage-file, magit-stage-all).
+- Implementar magit_commit (magit-commit-create sem buffer interativo).
+- Implementar magit_push (magit-push-current).
+- Implementar magit_status (magit-status-setup-buffer / resumo de status).
+- Atualizar perfil sysadmin em lisp/custom-magent-team.el priorizando ferramentas Magit nativas sobre bash raw.
+
+*** Atualização do Acervo de Documentação RAG (docs/)
+Expandir a base de conhecimento estruturada para consumo por subagentes e busca semântica.
+- Criar docs/forge-reference.org cobrindo a API do Forge, Issues, PRs e banco SQLite local com tag :RAG:DOCS:.
+- Atualizar docs/magit-reference.org com a seção * Programmatic Elisp API detalhando funções não-interativas.
 
 ** TODO Auditoria e Benchmarking de Modelos Locais no Host agnes (Mac M2 24GB)
     :PROPERTIES:
