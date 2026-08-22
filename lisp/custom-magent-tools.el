@@ -1436,6 +1436,130 @@ NUMBER-STR aceita \"9000\"/\"RFC 9000\"; SECTION é o número da seção
     (error (+carlos/magent-tool-result
             nil (format "RFC indisponível: %s" (error-message-string err))))))
 
+(defun +carlos/magent-tool-rag-create-doc (symbols target-file title description &optional filetags reason)
+  "Gera ou atualiza um arquivo Org-mode RAG em TARGET-FILE introspectando SYMBOLS.
+SYMBOLS pode ser uma lista de strings/símbolos ou string separada por espaço.
+TARGET-FILE é o caminho sob `docs/' ou absoluto.
+TITLE e DESCRIPTION formatam o cabeçalho canônico do Org.
+FILETAGS (default ':RAG:DOCS:') é a tag do arquivo."
+  (let* ((sym-list (cond
+                    ((listp symbols) symbols)
+                    ((stringp symbols) (split-string symbols "[ \t\n,]+" t))
+                    (t nil)))
+         (tag-str (or (and (stringp filetags) (not (string-empty-p filetags)) filetags) ":RAG:DOCS:"))
+         (date-str (format-time-string "%Y-%m-%d"))
+         (abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
+                                                          (when-let* ((p (project-current)))
+                                                            (project-root p)))
+                                                     user-emacs-directory)))
+         (dir (file-name-directory abs-file))
+         (lines (list (format "#+TITLE: %s" title)
+                      "#+AUTHOR: Carlos Filho"
+                      (format "#+DATE: %s" date-str)
+                      (format "#+LAST_MODIFIED: %s" date-str)
+                      (format "#+DESCRIPTION: %s" description)
+                      (format "#+FILETAGS: %s" tag-str)
+                      "#+OPTIONS: toc:2 num:t"
+                      ""
+                      "* Visão Geral"
+                      ""
+                      description
+                      ""
+                      "* Símbolos Introspectados"
+                      "")))
+    (unless (file-directory-p dir)
+      (make-directory dir t))
+    (dolist (sym-item sym-list)
+      (let* ((sym (if (symbolp sym-item) sym-item (intern (string-trim (format "%s" sym-item)))))
+             (name (symbol-name sym))
+             (doc (documentation sym t))
+             (arglist (when (fboundp sym) (help-function-arglist sym t)))
+             (kind (cond ((macrop sym) "Macro")
+                         ((commandp sym) "Comando Interativo")
+                         ((fboundp sym) "Função Elisp")
+                         ((boundp sym) "Variável")
+                         (t "Símbolo"))))
+        (push (format "** %s" name) lines)
+        (push (format "- *Tipo:* %s" kind) lines)
+        (when arglist
+          (push (format "- *Assinatura:* =%s=" (cons name arglist)) lines))
+        (push "" lines)
+        (if doc
+            (progn
+              (push "#+begin_src text" lines)
+              (push (string-trim doc) lines)
+              (push "#+end_src" lines))
+          (push "_Sem documentação registrada._" lines))
+        (push "" lines)))
+    (with-temp-file abs-file
+      (insert (mapconcat #'identity (nreverse lines) "\n")))
+    (format "Documento RAG gerado com sucesso em '%s' (%d símbolos introspectados)."
+            abs-file (length sym-list))))
+
+(defun +carlos/magent-tool-magit-stage (&optional file reason)
+  "Stages FILE (or all modified files if FILE is nil/'all') using Magit API."
+  (require 'magit nil t)
+  (let ((default-directory (or (and (fboundp 'project-root)
+                                    (when-let* ((p (project-current)))
+                                      (project-root p)))
+                               default-directory)))
+    (if (and (stringp file) (not (string-empty-p file)) (not (equal file "all")))
+        (progn
+          (when (fboundp 'magit-stage-file) (magit-stage-file file))
+          (format "Staged file '%s' via Magit." file))
+      (progn
+        (when (fboundp 'magit-stage-all) (magit-stage-all))
+        (format "Staged all modified files via Magit in '%s'." default-directory)))))
+
+(defun +carlos/magent-tool-magit-commit (message &optional reason)
+  "Creates a Git commit with MESSAGE using Magit programmatically."
+  (require 'magit nil t)
+  (if (or (null message) (string-empty-p message))
+      "Error: commit message cannot be empty."
+    (let ((default-directory (or (and (fboundp 'project-root)
+                                      (when-let* ((p (project-current)))
+                                        (project-root p)))
+                                 default-directory)))
+      (cond
+       ((fboundp 'magit-commit-create)
+        (magit-commit-create (list "-m" message))
+        (format "Created commit with message '%s' via Magit in '%s'." message default-directory))
+       ((fboundp 'magit-run-git)
+        (magit-run-git "commit" "-m" message)
+        (format "Created commit with message '%s' via Magit run-git." message))
+       (t "Error: Magit commit functions not available.")))))
+
+(defun +carlos/magent-tool-magit-push (&optional remote branch reason)
+  "Pushes current branch to REMOTE (default 'origin') and BRANCH via Magit."
+  (require 'magit nil t)
+  (let* ((default-directory (or (and (fboundp 'project-root)
+                                     (when-let* ((p (project-current)))
+                                       (project-root p)))
+                                default-directory))
+         (rem (if (and (stringp remote) (not (string-empty-p remote))) remote "origin"))
+         (br (if (and (stringp branch) (not (string-empty-p branch)))
+                 branch
+               (or (and (fboundp 'magit-get-current-branch) (magit-get-current-branch)) "main"))))
+    (if (fboundp 'magit-run-git)
+        (progn
+          (magit-run-git "push" rem br)
+          (format "Pushed branch '%s' to remote '%s' via Magit in '%s'." br rem default-directory))
+      "Error: Magit push function not available.")))
+
+(defun +carlos/magent-tool-magit-status (&optional directory reason)
+  "Returns formatted Git status summary using Magit API."
+  (require 'magit nil t)
+  (let* ((dir (or (and (stringp directory) (not (string-empty-p directory)) (expand-file-name directory))
+                  (and (fboundp 'project-root)
+                       (when-let* ((p (project-current)))
+                         (project-root p)))
+                  default-directory))
+         (default-directory dir)
+         (branch (or (and (fboundp 'magit-get-current-branch) (magit-get-current-branch)) "unknown"))
+         (topdir (or (and (fboundp 'magit-get-topdir) (magit-get-topdir)) dir)))
+    (format "Magit Status for '%s'\n- Topdir: %s\n- Current Branch: %s"
+            dir topdir branch)))
+
 ;; ── Registro das tools curadas no catálogo do Magent ─────────────────
 
 (defun +carlos/magent-register-tools ()
@@ -1453,6 +1577,21 @@ NUMBER-STR aceita \"9000\"/\"RFC 9000\"; SECTION é o número da seção
     (when +carlos/magent-tool-select-model
       (add-to-list 'magent-tools-catalog
                    `(:name "select_model" :tool ,+carlos/magent-tool-select-model :permission select_model)))
+    (when +carlos/magent-tool-rag-create-doc
+      (add-to-list 'magent-tools-catalog
+                   `(:name "rag_create_doc" :tool ,+carlos/magent-tool-rag-create-doc :permission rag_create_doc)))
+    (when +carlos/magent-tool-magit-stage
+      (add-to-list 'magent-tools-catalog
+                   `(:name "magit_stage" :tool ,+carlos/magent-tool-magit-stage :permission magit_stage)))
+    (when +carlos/magent-tool-magit-commit
+      (add-to-list 'magent-tools-catalog
+                   `(:name "magit_commit" :tool ,+carlos/magent-tool-magit-commit :permission magit_commit)))
+    (when +carlos/magent-tool-magit-push
+      (add-to-list 'magent-tools-catalog
+                   `(:name "magit_push" :tool ,+carlos/magent-tool-magit-push :permission magit_push)))
+    (when +carlos/magent-tool-magit-status
+      (add-to-list 'magent-tools-catalog
+                   `(:name "magit_status" :tool ,+carlos/magent-tool-magit-status :permission magit_status)))
     (when +carlos/magent-tool-forge-read-issue
       (add-to-list 'magent-tools-catalog
                    `(:name "forge_read_issue" :tool ,+carlos/magent-tool-forge-read-issue :permission forge_read_issue)))
@@ -1510,6 +1649,56 @@ NUMBER-STR aceita \"9000\"/\"RFC 9000\"; SECTION é o número da seção
             :function #'+carlos/magent-tool-select-model
             :category "magent"))
 
+    (setq +carlos/magent-tool-rag-create-doc
+          (gptel-make-tool
+           :name "rag_create_doc"
+           :description "Generate or update a canonical Org-mode RAG reference document under docs/ by introspecting local Emacs function/variable symbols (zero network token cost)."
+           :args '((:name "symbols" :type string :description "List or space-separated symbols to introspect, e.g. 'forge-create-issue forge-list-pullreqs'")
+                   (:name "target_file" :type string :description "Relative or absolute target Org file, e.g. 'docs/forge-reference.org'")
+                   (:name "title" :type string :description "Document title (#+TITLE)")
+                   (:name "description" :type string :description "Document summary description (#+DESCRIPTION)")
+                   (:name "filetags" :type string :description "Optional Org filetags (default ':RAG:DOCS:')")
+                   (:name "reason" :type string :description "Reason for generating this RAG doc"))
+           :function #'+carlos/magent-tool-rag-create-doc
+           :category "magent"))
+
+    (setq +carlos/magent-tool-magit-stage
+          (gptel-make-tool
+           :name "magit_stage"
+           :description "Stage modified or untracked files programmatically using Emacs Magit API (instead of raw bash git stage)."
+           :args '((:name "file" :type string :description "Specific file relative/absolute path to stage, or 'all' for all modified files")
+                   (:name "reason" :type string :description "Reason for staging"))
+           :function #'+carlos/magent-tool-magit-stage
+           :category "magent"))
+
+    (setq +carlos/magent-tool-magit-commit
+          (gptel-make-tool
+           :name "magit_commit"
+           :description "Create a Git commit with a structured message programmatically using Emacs Magit API."
+           :args '((:name "message" :type string :description "Commit message")
+                   (:name "reason" :type string :description "Reason for commit"))
+           :function #'+carlos/magent-tool-magit-commit
+           :category "magent"))
+
+    (setq +carlos/magent-tool-magit-push
+          (gptel-make-tool
+           :name "magit_push"
+           :description "Push current branch to remote repository programmatically using Emacs Magit API."
+           :args '((:name "remote" :type string :description "Optional remote name (default 'origin')")
+                   (:name "branch" :type string :description "Optional branch name (default active branch)")
+                   (:name "reason" :type string :description "Reason for push"))
+           :function #'+carlos/magent-tool-magit-push
+           :category "magent"))
+
+    (setq +carlos/magent-tool-magit-status
+          (gptel-make-tool
+           :name "magit_status"
+           :description "Get structured Git status summary for a repository using Emacs Magit API."
+           :args '((:name "directory" :type string :description "Target project directory")
+                   (:name "reason" :type string :description "Reason for status check"))
+           :function #'+carlos/magent-tool-magit-status
+           :category "magent"))
+
     (setq +carlos/magent-tool-rfc-search-topic
           (gptel-make-tool
            :name "rfc_search_topic"
@@ -1559,6 +1748,11 @@ NUMBER-STR aceita \"9000\"/\"RFC 9000\"; SECTION é o número da seção
     (add-to-list 'magent-enable-tools 'lsp_navigation)
     (add-to-list 'magent-enable-tools 'snippet_expand)
     (add-to-list 'magent-enable-tools 'select_model)
+    (add-to-list 'magent-enable-tools 'rag_create_doc)
+    (add-to-list 'magent-enable-tools 'magit_stage)
+    (add-to-list 'magent-enable-tools 'magit_commit)
+    (add-to-list 'magent-enable-tools 'magit_push)
+    (add-to-list 'magent-enable-tools 'magit_status)
     (add-to-list 'magent-enable-tools 'forge_read_issue)
     (add-to-list 'magent-enable-tools 'forge_list_pull_requests)
     (add-to-list 'magent-enable-tools 'rfc_search_topic)

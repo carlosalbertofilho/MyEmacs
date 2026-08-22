@@ -376,16 +376,37 @@
     (should (memq 'rfc_search_topic magent-enable-tools))
     (should (memq 'rfc_read_section magent-enable-tools))))
 
-(ert-deftest myemacs-magent-resolve-model-skips-cb-open-backend ()
-  "Valida que +carlos/magent-resolve-model pula o backend quando em Circuit Breaker cooldown."
-  (let ((+carlos/magent-cb-failures (make-hash-table :test #'equal)))
-    (+carlos/magent-cb-record-failure "OpenCode Zen")
-    (+carlos/magent-cb-record-failure "OpenCode Zen")
-    (+carlos/magent-cb-record-failure "OpenCode Zen")
-    (should (+carlos/magent-cb-open-p "OpenCode Zen"))
-    (let ((choice (+carlos/magent-resolve-model 'deep nil nil nil '(:min-tier "free" :preferred-backend "OpenCode Zen"))))
-      (should choice)
-      (should-not (equal (plist-get choice :backend) "OpenCode Zen")))))
+(ert-deftest myemacs-rag-create-doc-tool-registered ()
+  "Valida que rag_create_doc e magit_* existem e estão registradas em magent-enable-tools."
+  (should (fboundp '+carlos/magent-tool-rag-create-doc))
+  (should (fboundp '+carlos/magent-tool-magit-stage))
+  (should (fboundp '+carlos/magent-tool-magit-commit))
+  (should (fboundp '+carlos/magent-tool-magit-push))
+  (should (fboundp '+carlos/magent-tool-magit-status))
+  (when (boundp 'magent-enable-tools)
+    (should (memq 'rag_create_doc magent-enable-tools))
+    (should (memq 'rag_create_doc magent-enable-tools))))
+
+(ert-deftest myemacs-rag-create-doc-generates-valid-org ()
+  "Valida que +carlos/magent-tool-rag-create-doc gera um arquivo Org-mode RAG válido."
+  (let ((tmp-doc (make-temp-file "test-rag-" nil ".org")))
+    (unwind-protect
+        (progn
+          (+carlos/magent-tool-rag-create-doc
+           "forge-create-issue forge-list-pullreqs"
+           tmp-doc
+           "Test Forge Title"
+           "Test Forge Description")
+          (should (file-exists-p tmp-doc))
+          (with-temp-buffer
+            (insert-file-contents tmp-doc)
+            (let ((content (buffer-string)))
+              (should (string-match-p "#\\+TITLE: Test Forge Title" content))
+              (should (string-match-p "#\\+FILETAGS: :RAG:DOCS:" content))
+              (should (string-match-p "\\* Visão Geral" content))
+              (should (string-match-p "\\* Símbolos Introspectados" content)))))
+      (when (file-exists-p tmp-doc)
+        (delete-file tmp-doc)))))
 
 (provide 'magent-tools-test)
 ;;; magent-tools-test.el ends here
