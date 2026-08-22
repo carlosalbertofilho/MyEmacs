@@ -489,19 +489,21 @@
         (delete-file tmp-ts)))))
 
 (ert-deftest myemacs-polyglot-all-smart-edit-tools-registered ()
-  "Valida se todas as 9 ferramentas smart_edit estão registradas."
+  "Valida se todas as 10 ferramentas smart_edit estão registradas."
   (should (fboundp '+carlos/magent-tool-elisp-smart-edit))
   (should (fboundp '+carlos/magent-tool-nix-smart-edit))
   (should (fboundp '+carlos/magent-tool-python-smart-edit))
   (should (fboundp '+carlos/magent-tool-ts-smart-edit))
   (should (fboundp '+carlos/magent-tool-c-smart-edit))
   (should (fboundp '+carlos/magent-tool-go-smart-edit))
+  (should (fboundp '+carlos/magent-tool-rust-smart-edit))
   (should (fboundp '+carlos/magent-tool-org-smart-edit))
   (should (fboundp '+carlos/magent-tool-sh-smart-edit))
   (should (fboundp '+carlos/magent-tool-markdown-smart-edit))
   (when (boundp 'magent-enable-tools)
     (should (memq 'c_smart_edit magent-enable-tools))
     (should (memq 'go_smart_edit magent-enable-tools))
+    (should (memq 'rust_smart_edit magent-enable-tools))
     (should (memq 'org_smart_edit magent-enable-tools))
     (should (memq 'sh_smart_edit magent-enable-tools))
     (should (memq 'markdown_smart_edit magent-enable-tools))))
@@ -531,6 +533,19 @@
               (should (string-match-p "type Config struct" (buffer-string))))))
       (when (file-exists-p tmp-go)
         (delete-file tmp-go)))))
+
+(ert-deftest myemacs-rust-smart-edit-insert-snippet ()
+  "Valida se rust_smart_edit insere snippet Rust transacionalmente."
+  (let ((tmp-rs (make-temp-file "test-rust-" nil ".rs")))
+    (unwind-protect
+        (progn
+          (let ((res (+carlos/magent-tool-rust-smart-edit tmp-rs "insert_snippet" "struct" "Config")))
+            (should (string-match-p "inserido com sucesso" res))
+            (with-temp-buffer
+              (insert-file-contents tmp-rs)
+              (should (string-match-p "pub struct Config" (buffer-string))))))
+      (when (file-exists-p tmp-rs)
+        (delete-file tmp-rs)))))
 
 (ert-deftest myemacs-org-smart-edit-insert-snippet ()
   "Valida se org_smart_edit insere snippet Org AST transacionalmente."

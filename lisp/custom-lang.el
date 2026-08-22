@@ -121,6 +121,26 @@
   :ensure t
   :mode ("\\.nix\\'" . nix-mode))
 
+;; ── Rust ────────────────────────────────────────────────────────────
+(use-package rust-mode
+  :ensure t
+  :mode ("\\.rs\\'" . rust-ts-mode)
+  :hook (rust-ts-mode . eglot-ensure)
+  :config
+  (setq rust-mode-treesitter-derive t))
+
+(use-package cargo
+  :ensure t
+  :hook (rust-ts-mode . cargo-minor-mode))
+
+(with-eval-after-load 'eglot
+  (add-to-list 'eglot-server-programs
+               '((rust-ts-mode rust-mode) . ("rust-analyzer"))))
+
+(with-eval-after-load 'apheleia
+  (add-to-list 'apheleia-mode-alist '(rust-ts-mode . rustfmt))
+  (add-to-list 'apheleia-mode-alist '(rust-mode . rustfmt)))
+
 ;; ── Editorconfig ────────────────────────────────────────────────────
 (use-package editorconfig
   :config

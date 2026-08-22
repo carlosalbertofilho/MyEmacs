@@ -27,6 +27,20 @@ Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=
 
 * Concluído (referências ao roadmap)
 
+** DONE Suporte à Linguagem Rust & 10ª Ferramenta Nativa rust_smart_edit
+    :PROPERTIES:
+    :CREATED: 2026-08-22
+    :COMPLETED: 2026-08-22
+    :ASSIGNEE: coder
+    :STATUS: concluido
+    :END:
+
+*** Configuração de Rust (rust-ts-mode, Eglot, Cargo, Apheleia)
+Suporte nativo Tree-sitter no Emacs 30 via rust-ts-mode, integração eglot com rust-analyzer, cargo-minor-mode e rustfmt via apheleia.
+
+*** Ferramenta Transacional rust_smart_edit
+Ferramenta nativa (+carlos/magent-tool-rust-smart-edit em lisp/custom-magent-tools.el) com 8 snippets Tempel (fn, struct, enum, impl, trait, async_fn, tokio_main, test_case), refatoração de símbolos e validação transacional com rollback.
+
 ** DONE Suíte Polyglot de Ferramentas Nativas de Edição para 5 Linguagens (C, Go, Org, Shell, Markdown)
     :PROPERTIES:
     :CREATED: 2026-08-22

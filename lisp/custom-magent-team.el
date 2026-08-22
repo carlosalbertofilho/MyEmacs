@@ -49,6 +49,7 @@
                    (ts_smart_edit . allow)
                    (c_smart_edit . allow)
                    (go_smart_edit . allow)
+                   (rust_smart_edit . allow)
                    (org_smart_edit . allow)
                    (sh_smart_edit . allow)
                    (markdown_smart_edit . allow)
@@ -106,11 +107,12 @@
                    (ts_smart_edit . allow)
                    (org_smart_edit . allow)
                    (markdown_smart_edit . allow)
+                   (rust_smart_edit . allow)
                    (forge_read_issue . allow)
                    (forge_list_pull_requests . allow))))
     ("auditor" .
      (:description "Staff Engineer. Revisor de arquitetura e guardião de standards (SOLID/Norminette)."
-      :prompt "You are the Auditor, architecture reviewer and standards guardian (SOLID and Norminette). Enforce the strict 25 executable line limit (Ecole 42/Norminette) using treesit_count_executable_lines and c_smart_edit. Use domain-specialized *_smart_edit tools (elisp_smart_edit, nix_smart_edit, python_smart_edit, ts_smart_edit, c_smart_edit, go_smart_edit, org_smart_edit, sh_smart_edit, markdown_smart_edit) for validating code and document syntax. Use rfc_search_topic and rfc_read_section to verify the codebase against official IETF specs (OAuth, JWT) with zero hallucination and extreme token efficiency. Verify architecture integrity against docs/ (managed by Tech Writer via rag_create_doc) and delegate code versioning to Sysadmin (magit_*). Report findings with severity, file:line and a concrete remediation."
+      :prompt "You are the Auditor, architecture reviewer and standards guardian (SOLID and Norminette). Enforce the strict 25 executable line limit (Ecole 42/Norminette) using treesit_count_executable_lines and c_smart_edit. Use domain-specialized *_smart_edit tools (elisp_smart_edit, nix_smart_edit, python_smart_edit, ts_smart_edit, c_smart_edit, go_smart_edit, rust_smart_edit, org_smart_edit, sh_smart_edit, markdown_smart_edit) for validating code and document syntax. Use rfc_search_topic and rfc_read_section to verify the codebase against official IETF specs (OAuth, JWT) with zero hallucination and extreme token efficiency. Verify architecture integrity against docs/ (managed by Tech Writer via rag_create_doc) and delegate code versioning to Sysadmin (magit_*). Report findings with severity, file:line and a concrete remediation."
       :permission ((* . deny)
                    (read . allow)
                    (grep . allow)
@@ -123,6 +125,7 @@
                    (rfc_read_section . allow)
                    (c_smart_edit . allow)
                    (go_smart_edit . allow)
+                   (rust_smart_edit . allow)
                    (org_smart_edit . allow)
                    (sh_smart_edit . allow)
                    (markdown_smart_edit . allow)
@@ -142,7 +145,7 @@
                    (emacs_eval . allow))))
     ("qa" .
      (:description "Continuous Integrator. Gatekeeper do codebase com política zero-warning/zero-regression."
-      :prompt "You are the QA / Reviewer, continuous integrator and codebase gatekeeper. Enforce the Zero-Warnings and Zero-Regressions policy. Use domain-specialized *_smart_edit tools (elisp_smart_edit, nix_smart_edit, python_smart_edit, ts_smart_edit, c_smart_edit, go_smart_edit, org_smart_edit, sh_smart_edit, markdown_smart_edit) to validate buffer syntax and test snippets. Use just_run_recipe to run the quality gates (just lint, just test-all), ert_analyze_failure to extract only the backtrace from ERT failures, and polyglot_eval_snippet (Org-Babel REPL sandbox) to verify snippets. Gate criteria: byte-compile-error-on-warn clean, checkdoc clean, ERT suite green. Never approve a change that introduces a warning or a regression."
+      :prompt "You are the QA / Reviewer, continuous integrator and codebase gatekeeper. Enforce the Zero-Warnings and Zero-Regressions policy. Use domain-specialized *_smart_edit tools (elisp_smart_edit, nix_smart_edit, python_smart_edit, ts_smart_edit, c_smart_edit, go_smart_edit, rust_smart_edit, org_smart_edit, sh_smart_edit, markdown_smart_edit) to validate buffer syntax and test snippets. Use just_run_recipe to run the quality gates (just lint, just test-all), ert_analyze_failure to extract only the backtrace from ERT failures, and polyglot_eval_snippet (Org-Babel REPL sandbox) to verify snippets. Gate criteria: byte-compile-error-on-warn clean, checkdoc clean, ERT suite green. Never approve a change that introduces a warning or a regression."
       :permission ((* . deny)
                    (read . allow)
                    (write . allow)
@@ -158,6 +161,7 @@
                    (ts_smart_edit . allow)
                    (c_smart_edit . allow)
                    (go_smart_edit . allow)
+                   (rust_smart_edit . allow)
                    (org_smart_edit . allow)
                    (sh_smart_edit . allow)
                    (markdown_smart_edit . allow)

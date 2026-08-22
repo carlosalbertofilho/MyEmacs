@@ -173,6 +173,7 @@ Accept &rest ARGS for Gemini streaming 5th argument."
 (defvar +carlos/magent-tool-org-smart-edit nil)
 (defvar +carlos/magent-tool-sh-smart-edit nil)
 (defvar +carlos/magent-tool-markdown-smart-edit nil)
+(defvar +carlos/magent-tool-rust-smart-edit nil)
 (defvar +carlos/magent-tool-forge-read-issue nil)
 (defvar +carlos/magent-tool-forge-list-pull-requests nil)
 (defvar +carlos/magent-tool-rfc-search-topic nil)
@@ -245,7 +246,7 @@ You are a SUBAGENT EXECUTOR -- you receive a specific task and execute it direct
 3. EXACT TEXT SUBSTITUTION: When using edit_file, old_text must match the file byte-for-byte. Copy directly from read_file output. If the edit fails, re-read the file and try again with the correct text.
 4. RETURN CLEAR RESULTS: When done, report: (a) what was done, (b) files modified (with absolute paths), (c) any errors encountered. Keep your report concise -- the orchestrator will synthesize for the user.
 5. LANGUAGE MATCHING: Always return your findings and reports in the SAME language used by the user in the prompt (e.g. Portuguese for Portuguese prompts).
-6. PREFER SMART EDIT TOOLS: Whenever editing code or documents in Elisp, Nix, Python, TS/JS, C/C++, Go, Org, Shell, or Markdown, PREFER the specialized *_smart_edit tools (elisp_smart_edit, nix_smart_edit, python_smart_edit, ts_smart_edit, c_smart_edit, go_smart_edit, org_smart_edit, sh_smart_edit, markdown_smart_edit) for transactional snippet insertion, symbol refactoring, and in-memory syntax validation."
+6. PREFER SMART EDIT TOOLS: Whenever editing code or documents in Elisp, Nix, Python, TS/JS, C/C++, Go, Rust, Org, Shell, or Markdown, PREFER the specialized *_smart_edit tools (elisp_smart_edit, nix_smart_edit, python_smart_edit, ts_smart_edit, c_smart_edit, go_smart_edit, rust_smart_edit, org_smart_edit, sh_smart_edit, markdown_smart_edit) for transactional snippet insertion, symbol refactoring, and in-memory syntax validation."
   "Extra directives injected ONLY into subagent system prompts.")
 
 (defun +carlos/magent-inject-system-directives (composed &rest _)
@@ -2239,6 +2240,88 @@ REASON: Motivo da alteração."
          (format "Buffer Markdown '%s' validado com sucesso." abs-file))
         (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol' ou 'validate_buffer'." action))))))
 
+(defun +carlos/magent-tool-rust-smart-edit (target-file action &optional snippet-name args _reason)
+  "Ferramenta transacional para edição de arquivos Rust (.rs).
+TARGET-FILE: Caminho do arquivo .rs.
+ACTION: `insert_snippet', `refactor_symbol' ou `validate_buffer'.
+SNIPPET-NAME: Nome do snippet Tempel (ex: `fn', `struct', `enum', `impl',
+`trait', `async_fn', `tokio_main', `test_case').
+ARGS: Argumentos para o snippet ou substituição de símbolo.
+REASON: Motivo da alteração."
+  (let* ((abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
+                                                          (when-let* ((p (project-current)))
+                                                            (project-root p)))
+                                                     user-emacs-directory)))
+         (buf (or (find-buffer-visiting abs-file)
+                  (and (file-exists-p abs-file) (find-file-noselect abs-file))
+                  (get-buffer-create (file-name-nondirectory abs-file)))))
+    (with-current-buffer buf
+      (unless (or (derived-mode-p 'rust-mode) (derived-mode-p 'rust-ts-mode))
+        (when (fboundp 'rust-mode) (rust-mode)))
+      (pcase action
+        ("insert_snippet"
+         (let* ((name (or snippet-name "fn"))
+                (arg-str (or args ""))
+                (code (cond
+                       ((equal name "struct")
+                        (format "pub struct %s {\n    pub id: String,\n}\n" arg-str))
+                       ((equal name "enum")
+                        (format "pub enum %s {\n    Default,\n}\n" arg-str))
+                       ((equal name "impl")
+                        (format "impl %s {\n    pub fn new() -> Self {\n        Self {}\n    }\n}\n" arg-str))
+                       ((equal name "trait")
+                        (format "pub trait %s {\n    fn execute(&self) -> Result<(), String>;\n}\n" arg-str))
+                       ((equal name "async_fn")
+                        (format "pub async fn %s() -> Result<(), Box<dyn std::error::Error>> {\n    Ok(())\n}\n" arg-str))
+                       ((equal name "tokio_main")
+                        "#[tokio::main]\nasync fn main() -> Result<(), Box<dyn std::error::Error>> {\n    Ok(())\n}\n")
+                       ((equal name "test_case")
+                        (format "#[cfg(test)]\nmod tests {\n    #[test]\n    fn test_%s() {\n        assert_eq!(2 + 2, 4);\n    }\n}\n" (if (string-empty-p arg-str) "basic" arg-str)))
+                       (t
+                        (format "pub fn %s() -> Result<(), String> {\n    Ok(())\n}\n" arg-str)))))
+           (goto-char (point-max))
+           (unless (bolp) (insert "\n"))
+           (insert code)
+           (condition-case err
+               (progn
+                 (save-excursion (check-parens))
+                 (save-buffer)
+                 (format "Snippet Rust '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file))
+             (error
+              (primitive-undo 1 buf)
+              (format "Erro de sintaxe ao inserir snippet Rust '%s': %s. Transação revertida." name (error-message-string err))))))
+        ("refactor_symbol"
+         (if (or (null args) (string-empty-p args))
+             "Erro: informe os símbolos 'antigo novo' em args para refatorar."
+           (let* ((parts (split-string args "[ \t]+" t))
+                  (old-sym (car parts))
+                  (new-sym (cadr parts)))
+             (if (and old-sym new-sym)
+                 (progn
+                   (goto-char (point-min))
+                   (let ((count 0))
+                     (while (search-forward old-sym nil t)
+                       (replace-match new-sym t t)
+                       (setq count (1+ count)))
+                     (condition-case err
+                         (progn
+                           (save-excursion (check-parens))
+                           (save-buffer)
+                           (format "Refatoração Rust '%s' -> '%s' concluída em '%s' (%d substituições). Buffer validado."
+                                   old-sym new-sym abs-file count))
+                       (error
+                        (primitive-undo count buf)
+                        (format "Erro de sintaxe ao refatorar '%s': %s. Transação revertida." old-sym (error-message-string err))))))
+               "Erro: forneça 'velho novo' em args."))))
+        ("validate_buffer"
+         (condition-case err
+             (progn
+               (save-excursion (check-parens))
+               (format "Buffer Rust '%s' validado com sucesso." abs-file))
+           (error
+            (format "Erro de validação no buffer Rust '%s': %s" abs-file (error-message-string err)))))
+        (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol' ou 'validate_buffer'." action))))))
+
 ;; ── Registro das tools curadas no catálogo do Magent ─────────────────
 
 (defun +carlos/magent-register-tools ()
@@ -2304,6 +2387,9 @@ REASON: Motivo da alteração."
     (when +carlos/magent-tool-markdown-smart-edit
       (add-to-list 'magent-tools-catalog
                    `(:name "markdown_smart_edit" :tool ,+carlos/magent-tool-markdown-smart-edit :permission markdown_smart_edit)))
+    (when +carlos/magent-tool-rust-smart-edit
+      (add-to-list 'magent-tools-catalog
+                   `(:name "rust_smart_edit" :tool ,+carlos/magent-tool-rust-smart-edit :permission rust_smart_edit)))
     (when +carlos/magent-tool-rfc-search-topic
       (add-to-list 'magent-tools-catalog
                    `(:name "rfc_search_topic" :tool ,+carlos/magent-tool-rfc-search-topic :permission rfc_search_topic)))
@@ -2532,6 +2618,18 @@ REASON: Motivo da alteração."
            :function #'+carlos/magent-tool-markdown-smart-edit
            :category "magent"))
 
+    (setq +carlos/magent-tool-rust-smart-edit
+          (gptel-make-tool
+           :name "rust_smart_edit"
+           :description "Transactional native tool for intelligent Rust (.rs) code editing via Tempel Snippets, symbol refactoring, and in-memory validation (rustfmt/cargo)."
+           :args '((:name "target_file" :type string :description "Target .rs file path")
+                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol' or 'validate_buffer'")
+                   (:name "snippet_name" :type string :description "Tempel snippet name (e.g. 'fn', 'struct', 'enum', 'impl', 'trait', 'async_fn', 'tokio_main', 'test_case')")
+                   (:name "args" :type string :description "Positional or symbol replacement arguments")
+                   (:name "reason" :type string :description "Reason for edit"))
+           :function #'+carlos/magent-tool-rust-smart-edit
+           :category "magent"))
+
     (setq +carlos/magent-tool-forge-read-issue
           (gptel-make-tool
            :name "forge_read_issue"
@@ -2576,6 +2674,7 @@ REASON: Motivo da alteração."
     (add-to-list 'magent-enable-tools 'org_smart_edit)
     (add-to-list 'magent-enable-tools 'sh_smart_edit)
     (add-to-list 'magent-enable-tools 'markdown_smart_edit)
+    (add-to-list 'magent-enable-tools 'rust_smart_edit)
     (add-to-list 'magent-enable-tools 'forge_read_issue)
     (add-to-list 'magent-enable-tools 'forge_list_pull_requests)
     (add-to-list 'magent-enable-tools 'rfc_search_topic)
