@@ -396,7 +396,8 @@ Valores são plists `(:failures N :timestamp TIME)'.")
 
 (defun +carlos/magent-cb-execute (model-key thunk)
   "Executa THUNK com proteção de Circuit Breaker para MODEL-KEY.
-Se o Circuit Breaker estiver ABERTO, sinaliza erro local sem chamar a API remota."
+Se o Circuit Breaker estiver ABERTO, sinaliza erro local sem
+chamar a API remota."
   (if (+carlos/magent-cb-open-p model-key)
       (error "Circuit Breaker OPEN for model %s: temporary cloud instability / backoff active"
              model-key)
