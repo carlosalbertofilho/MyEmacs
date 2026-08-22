@@ -64,7 +64,7 @@
     ("general"     :min-tier "free" :preferred-backend "OpenCode Zen")
     ;; Equipe de especialistas (D9, custom-magent-team.el) — Matriz FinOps Free Tier ($0.00)
     ("coder"       :min-tier "free" :preferred-backend "OpenCode Zen")
-    ("sysadmin"    :min-tier "local" :preferred-backend "Ollama Local")
+    ("sysadmin"    :min-tier "free" :preferred-backend "Gemini")
     ("planner"     :min-tier "free" :preferred-backend "OpenCode Zen")
     ("tech-writer" :min-tier "free" :preferred-backend "Gemini")
     ("auditor"     :min-tier "free" :preferred-backend "OpenCode Zen")
