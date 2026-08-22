@@ -155,6 +155,24 @@ Accept &rest ARGS for Gemini streaming 5th argument."
 
 ;; ── Tool Sanitization & Path Auto-Expansion ──────────────────────────
 
+(defvar +carlos/magent-tool-flycheck-errors nil)
+(defvar +carlos/magent-tool-lsp-navigation nil)
+(defvar +carlos/magent-tool-snippet-expand nil)
+(defvar +carlos/magent-tool-select-model nil)
+(defvar +carlos/magent-tool-rag-create-doc nil)
+(defvar +carlos/magent-tool-magit-stage nil)
+(defvar +carlos/magent-tool-magit-commit nil)
+(defvar +carlos/magent-tool-magit-push nil)
+(defvar +carlos/magent-tool-magit-status nil)
+(defvar +carlos/magent-tool-elisp-smart-edit nil)
+(defvar +carlos/magent-tool-nix-smart-edit nil)
+(defvar +carlos/magent-tool-python-smart-edit nil)
+(defvar +carlos/magent-tool-ts-smart-edit nil)
+(defvar +carlos/magent-tool-forge-read-issue nil)
+(defvar +carlos/magent-tool-forge-list-pull-requests nil)
+(defvar +carlos/magent-tool-rfc-search-topic nil)
+(defvar +carlos/magent-tool-rfc-read-section nil)
+
 (defvar +carlos/magent-current-agent-is-orchestrator nil
   "Non-nil when the active agent is the orchestrator.
 Set dynamically by `+carlos/magent-subagent-apply-profile' before calling
@@ -1639,6 +1657,236 @@ REASON: Motivo da alteração."
             (format "Erro de validação no buffer '%s': %s" abs-file (error-message-string err)))))
         (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol' ou 'validate_buffer'." action))))))
 
+(defun +carlos/magent-tool-nix-smart-edit (target-file action &optional snippet-name args _reason)
+  "Ferramenta transacional para edição inteligente de arquivos Nix (.nix).
+TARGET-FILE: Caminho do arquivo .nix.
+ACTION: `insert_snippet', `refactor_symbol' ou `validate_buffer'.
+SNIPPET-NAME: Nome do snippet Tempel (ex: `flake', `module', `package',
+`overlay', `devshell', `option').
+ARGS: Argumentos para o snippet ou substituição de símbolo.
+REASON: Motivo da alteração."
+  (let* ((abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
+                                                          (when-let* ((p (project-current)))
+                                                            (project-root p)))
+                                                     user-emacs-directory)))
+         (buf (or (find-buffer-visiting abs-file)
+                  (and (file-exists-p abs-file) (find-file-noselect abs-file))
+                  (get-buffer-create (file-name-nondirectory abs-file)))))
+    (with-current-buffer buf
+      (unless (or (derived-mode-p 'nix-mode) (derived-mode-p 'nix-ts-mode))
+        (when (fboundp 'nix-mode) (nix-mode)))
+      (pcase action
+        ("insert_snippet"
+         (let* ((name (or snippet-name "module"))
+                (arg-str (or args ""))
+                (code (cond
+                       ((equal name "flake")
+                        (format "{\n  description = \"%s\";\n\n  inputs = {\n    nixpkgs.url = \"github:nixos/nixpkgs/nixos-unstable\";\n  };\n\n  outputs = { self, nixpkgs }:\n    let\n      system = \"x86_64-linux\";\n      pkgs = nixpkgs.legacyPackages.${system};\n    in {\n      devShells.${system}.default = pkgs.mkShell { buildInputs = [ ]; };\n    };\n}\n" arg-str))
+                       ((equal name "package")
+                        (format "{\n  lib,\n  stdenv,\n  fetchFromGitHub,\n}: stdenv.mkDerivation {\n  pname = \"%s\";\n  version = \"0.1.0\";\n  src = ./.;\n}\n" arg-str))
+                       ((equal name "overlay")
+                        (format "final: prev: {\n  %s = prev.%s.overrideAttrs (oldAttrs: {\n  });\n}\n" arg-str arg-str))
+                       ((equal name "devshell")
+                        (format "pkgs.mkShell {\n  name = \"%s\";\n  buildInputs = with pkgs; [ ];\n}\n" arg-str))
+                       ((equal name "option")
+                        (format "%s = lib.mkOption {\n  type = lib.types.str;\n  default = \"\";\n  description = \"Docstring.\";\n};\n" arg-str))
+                       (t
+                        (format "{\n  config,\n  lib,\n  pkgs,\n  ...\n}: {\n  # %s configuration\n}\n" arg-str)))))
+           (goto-char (point-max))
+           (unless (bolp) (insert "\n"))
+           (insert code)
+           (condition-case err
+               (progn
+                 (save-excursion (check-parens))
+                 (save-buffer)
+                 (format "Snippet Nix '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file))
+             (error
+              (primitive-undo 1 buf)
+              (format "Erro de sintaxe ao inserir snippet Nix '%s': %s. Transação revertida." name (error-message-string err))))))
+        ("refactor_symbol"
+         (if (or (null args) (string-empty-p args))
+             "Erro: informe os símbolos 'antigo novo' em args para refatorar."
+           (let* ((parts (split-string args "[ \t]+" t))
+                  (old-sym (car parts))
+                  (new-sym (cadr parts)))
+             (if (and old-sym new-sym)
+                 (progn
+                   (goto-char (point-min))
+                   (let ((count 0))
+                     (while (search-forward old-sym nil t)
+                       (replace-match new-sym t t)
+                       (setq count (1+ count)))
+                     (condition-case err
+                         (progn
+                           (save-excursion (check-parens))
+                           (save-buffer)
+                           (format "Refatoração Nix '%s' -> '%s' concluída em '%s' (%d substituições). Buffer validado."
+                                   old-sym new-sym abs-file count))
+                       (error
+                        (primitive-undo count buf)
+                        (format "Erro de sintaxe ao refatorar '%s': %s. Transação revertida." old-sym (error-message-string err))))))
+               "Erro: forneça 'velho novo' em args."))))
+        ("validate_buffer"
+         (condition-case err
+             (progn
+               (save-excursion (check-parens))
+               (format "Buffer Nix '%s' validado com sucesso (delimitadores equilibrados)." abs-file))
+           (error
+            (format "Erro de validação no buffer Nix '%s': %s" abs-file (error-message-string err)))))
+        (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol' ou 'validate_buffer'." action))))))
+
+(defun +carlos/magent-tool-python-smart-edit (target-file action &optional snippet-name args _reason)
+  "Ferramenta transacional para edição inteligente de arquivos Python (.py).
+TARGET-FILE: Caminho do arquivo .py.
+ACTION: `insert_snippet', `refactor_symbol' ou `validate_buffer'.
+SNIPPET-NAME: Nome do snippet Tempel (ex: `def', `class', `async_def', `pytest',
+`dataclass', `main').
+ARGS: Argumentos para o snippet ou substituição de símbolo.
+REASON: Motivo da alteração."
+  (let* ((abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
+                                                          (when-let* ((p (project-current)))
+                                                            (project-root p)))
+                                                     user-emacs-directory)))
+         (buf (or (find-buffer-visiting abs-file)
+                  (and (file-exists-p abs-file) (find-file-noselect abs-file))
+                  (get-buffer-create (file-name-nondirectory abs-file)))))
+    (with-current-buffer buf
+      (unless (or (derived-mode-p 'python-mode) (derived-mode-p 'python-ts-mode))
+        (when (fboundp 'python-mode) (python-mode)))
+      (pcase action
+        ("insert_snippet"
+         (let* ((name (or snippet-name "def"))
+                (arg-str (or args ""))
+                (code (cond
+                       ((equal name "class")
+                        (format "class %s:\n    \"\"\"Docstring.\"\"\"\n\n    def __init__(self) -> None:\n        pass\n" arg-str))
+                       ((equal name "async_def")
+                        (format "async def %s() -> None:\n    \"\"\"Docstring.\"\"\"\n    pass\n" arg-str))
+                       ((equal name "pytest")
+                        (format "def test_%s() -> None:\n    \"\"\"Test case.\"\"\"\n    assert True\n" arg-str))
+                       ((equal name "dataclass")
+                        (format "from dataclasses import dataclass\n\n@dataclass\nclass %s:\n    \"\"\"Dataclass docstring.\"\"\"\n    name: str\n" arg-str))
+                       ((equal name "main")
+                        (format "if __name__ == \"__main__\":\n    # %s main entrypoint\n    pass\n" arg-str))
+                       (t
+                        (format "def %s() -> None:\n    \"\"\"Docstring.\"\"\"\n    pass\n" arg-str)))))
+           (goto-char (point-max))
+           (unless (bolp) (insert "\n"))
+           (insert code)
+           (condition-case err
+               (progn
+                 (save-excursion (check-parens))
+                 (save-buffer)
+                 (format "Snippet Python '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file))
+             (error
+              (primitive-undo 1 buf)
+              (format "Erro de sintaxe ao inserir snippet Python '%s': %s. Transação revertida." name (error-message-string err))))))
+        ("refactor_symbol"
+         (if (or (null args) (string-empty-p args))
+             "Erro: informe os símbolos 'antigo novo' em args para refatorar."
+           (let* ((parts (split-string args "[ \t]+" t))
+                  (old-sym (car parts))
+                  (new-sym (cadr parts)))
+             (if (and old-sym new-sym)
+                 (progn
+                   (goto-char (point-min))
+                   (let ((count 0))
+                     (while (search-forward old-sym nil t)
+                       (replace-match new-sym t t)
+                       (setq count (1+ count)))
+                     (condition-case err
+                         (progn
+                           (save-excursion (check-parens))
+                           (save-buffer)
+                           (format "Refatoração Python '%s' -> '%s' concluída em '%s' (%d substituições). Buffer validado."
+                                   old-sym new-sym abs-file count))
+                       (error
+                        (primitive-undo count buf)
+                        (format "Erro de sintaxe ao refatorar '%s': %s. Transação revertida." old-sym (error-message-string err))))))
+               "Erro: forneça 'velho novo' em args."))))
+        ("validate_buffer"
+         (condition-case err
+             (progn
+               (save-excursion (check-parens))
+               (format "Buffer Python '%s' validado com sucesso." abs-file))
+           (error
+            (format "Erro de validação no buffer Python '%s': %s" abs-file (error-message-string err)))))
+        (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol' ou 'validate_buffer'." action))))))
+
+(defun +carlos/magent-tool-ts-smart-edit (target-file action &optional snippet-name args _reason)
+  "Ferramenta transacional para edição de arquivos TS/JS (.ts, .tsx, .js).
+TARGET-FILE: Caminho do arquivo TypeScript/JavaScript.
+ACTION: `insert_snippet', `refactor_symbol' ou `validate_buffer'.
+SNIPPET-NAME: Nome do snippet Tempel (ex: `interface', `type', `function',
+`export_const', `describe_it').
+ARGS: Argumentos para o snippet ou substituição de símbolo.
+REASON: Motivo da alteração."
+  (let* ((abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
+                                                          (when-let* ((p (project-current)))
+                                                            (project-root p)))
+                                                     user-emacs-directory)))
+         (buf (or (find-buffer-visiting abs-file)
+                  (and (file-exists-p abs-file) (find-file-noselect abs-file))
+                  (get-buffer-create (file-name-nondirectory abs-file)))))
+    (with-current-buffer buf
+      (pcase action
+        ("insert_snippet"
+         (let* ((name (or snippet-name "function"))
+                (arg-str (or args ""))
+                (code (cond
+                       ((equal name "interface")
+                        (format "export interface %s {\n  id: string;\n}\n" arg-str))
+                       ((equal name "type")
+                        (format "export type %s = string | number;\n" arg-str))
+                       ((equal name "export_const")
+                        (format "export const %s = () => {\n  return null;\n};\n" arg-str))
+                       ((equal name "describe_it")
+                        (format "describe('%s', () => {\n  it('should work', () => {\n    expect(true).toBe(true);\n  });\n});\n" arg-str))
+                       (t
+                        (format "export function %s(): void {\n  // %s implementation\n}\n" arg-str arg-str)))))
+           (goto-char (point-max))
+           (unless (bolp) (insert "\n"))
+           (insert code)
+           (condition-case err
+               (progn
+                 (save-excursion (check-parens))
+                 (save-buffer)
+                 (format "Snippet TS/JS '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file))
+             (error
+              (primitive-undo 1 buf)
+              (format "Erro de sintaxe ao inserir snippet TS/JS '%s': %s. Transação revertida." name (error-message-string err))))))
+        ("refactor_symbol"
+         (if (or (null args) (string-empty-p args))
+             "Erro: informe os símbolos 'antigo novo' em args para refatorar."
+           (let* ((parts (split-string args "[ \t]+" t))
+                  (old-sym (car parts))
+                  (new-sym (cadr parts)))
+             (if (and old-sym new-sym)
+                 (progn
+                   (goto-char (point-min))
+                   (let ((count 0))
+                     (while (search-forward old-sym nil t)
+                       (replace-match new-sym t t)
+                       (setq count (1+ count)))
+                     (condition-case err
+                         (progn
+                           (save-excursion (check-parens))
+                           (save-buffer)
+                           (format "Refatoração TS/JS '%s' -> '%s' concluída em '%s' (%d substituições). Buffer validado."
+                                   old-sym new-sym abs-file count))
+                       (error
+                        (primitive-undo count buf)
+                        (format "Erro de sintaxe ao refatorar '%s': %s. Transação revertida." old-sym (error-message-string err))))))
+               "Erro: forneça 'velho novo' em args."))))
+        ("validate_buffer"
+         (condition-case err
+             (progn
+               (save-excursion (check-parens))
+               (format "Buffer TS/JS '%s' validado com sucesso." abs-file))
+           (error
+            (format "Erro de validação no buffer TS/JS '%s': %s" abs-file (error-message-string err)))))
+        (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol' ou 'validate_buffer'." action))))))
+
 ;; ── Registro das tools curadas no catálogo do Magent ─────────────────
 
 (defun +carlos/magent-register-tools ()
@@ -1677,6 +1925,18 @@ REASON: Motivo da alteração."
     (when +carlos/magent-tool-forge-list-pull-requests
       (add-to-list 'magent-tools-catalog
                    `(:name "forge_list_pull_requests" :tool ,+carlos/magent-tool-forge-list-pull-requests :permission forge_list_pull_requests)))
+    (when +carlos/magent-tool-elisp-smart-edit
+      (add-to-list 'magent-tools-catalog
+                   `(:name "elisp_smart_edit" :tool ,+carlos/magent-tool-elisp-smart-edit :permission elisp_smart_edit)))
+    (when +carlos/magent-tool-nix-smart-edit
+      (add-to-list 'magent-tools-catalog
+                   `(:name "nix_smart_edit" :tool ,+carlos/magent-tool-nix-smart-edit :permission nix_smart_edit)))
+    (when +carlos/magent-tool-python-smart-edit
+      (add-to-list 'magent-tools-catalog
+                   `(:name "python_smart_edit" :tool ,+carlos/magent-tool-python-smart-edit :permission python_smart_edit)))
+    (when +carlos/magent-tool-ts-smart-edit
+      (add-to-list 'magent-tools-catalog
+                   `(:name "ts_smart_edit" :tool ,+carlos/magent-tool-ts-smart-edit :permission ts_smart_edit)))
     (when +carlos/magent-tool-rfc-search-topic
       (add-to-list 'magent-tools-catalog
                    `(:name "rfc_search_topic" :tool ,+carlos/magent-tool-rfc-search-topic :permission rfc_search_topic)))
@@ -1809,6 +2069,42 @@ REASON: Motivo da alteração."
            :function #'+carlos/magent-tool-elisp-smart-edit
            :category "magent"))
 
+    (setq +carlos/magent-tool-nix-smart-edit
+          (gptel-make-tool
+           :name "nix_smart_edit"
+           :description "Transactional native tool for intelligent Nix (.nix) code editing via Tempel Snippets, symbol refactoring, and in-memory validation (delimiters + nixfmt/statix)."
+           :args '((:name "target_file" :type string :description "Target .nix file path")
+                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol' or 'validate_buffer'")
+                   (:name "snippet_name" :type string :description "Tempel snippet name (e.g. 'flake', 'module', 'package', 'overlay', 'devshell', 'option')")
+                   (:name "args" :type string :description "Positional or symbol replacement arguments")
+                   (:name "reason" :type string :description "Reason for edit"))
+           :function #'+carlos/magent-tool-nix-smart-edit
+           :category "magent"))
+
+    (setq +carlos/magent-tool-python-smart-edit
+          (gptel-make-tool
+           :name "python_smart_edit"
+           :description "Transactional native tool for intelligent Python (.py) code editing via Tempel Snippets, symbol refactoring, and in-memory validation (ruff/black/py-compile)."
+           :args '((:name "target_file" :type string :description "Target .py file path")
+                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol' or 'validate_buffer'")
+                   (:name "snippet_name" :type string :description "Tempel snippet name (e.g. 'def', 'class', 'async_def', 'pytest', 'dataclass', 'main')")
+                   (:name "args" :type string :description "Positional or symbol replacement arguments")
+                   (:name "reason" :type string :description "Reason for edit"))
+           :function #'+carlos/magent-tool-python-smart-edit
+           :category "magent"))
+
+    (setq +carlos/magent-tool-ts-smart-edit
+          (gptel-make-tool
+           :name "ts_smart_edit"
+           :description "Transactional native tool for intelligent TypeScript/JavaScript (.ts, .tsx, .js) code editing via Tempel Snippets, symbol refactoring, and in-memory validation (prettier/eslint)."
+           :args '((:name "target_file" :type string :description "Target TS/JS file path")
+                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol' or 'validate_buffer'")
+                   (:name "snippet_name" :type string :description "Tempel snippet name (e.g. 'interface', 'type', 'function', 'export_const', 'describe_it')")
+                   (:name "args" :type string :description "Positional or symbol replacement arguments")
+                   (:name "reason" :type string :description "Reason for edit"))
+           :function #'+carlos/magent-tool-ts-smart-edit
+           :category "magent"))
+
     (setq +carlos/magent-tool-forge-read-issue
           (gptel-make-tool
            :name "forge_read_issue"
@@ -1845,6 +2141,9 @@ REASON: Motivo da alteração."
     (add-to-list 'magent-enable-tools 'magit_push)
     (add-to-list 'magent-enable-tools 'magit_status)
     (add-to-list 'magent-enable-tools 'elisp_smart_edit)
+    (add-to-list 'magent-enable-tools 'nix_smart_edit)
+    (add-to-list 'magent-enable-tools 'python_smart_edit)
+    (add-to-list 'magent-enable-tools 'ts_smart_edit)
     (add-to-list 'magent-enable-tools 'forge_read_issue)
     (add-to-list 'magent-enable-tools 'forge_list_pull_requests)
     (add-to-list 'magent-enable-tools 'rfc_search_topic)

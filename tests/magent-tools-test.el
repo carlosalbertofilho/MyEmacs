@@ -439,5 +439,54 @@
       (when (file-exists-p tmp-el)
         (delete-file tmp-el)))))
 
+(ert-deftest myemacs-polyglot-smart-edit-tools-registered ()
+  "Valida se nix_smart_edit, python_smart_edit e ts_smart_edit estão registradas."
+  (should (fboundp '+carlos/magent-tool-nix-smart-edit))
+  (should (fboundp '+carlos/magent-tool-python-smart-edit))
+  (should (fboundp '+carlos/magent-tool-ts-smart-edit))
+  (when (boundp 'magent-enable-tools)
+    (should (memq 'nix_smart_edit magent-enable-tools))
+    (should (memq 'python_smart_edit magent-enable-tools))
+    (should (memq 'ts_smart_edit magent-enable-tools))))
+
+(ert-deftest myemacs-nix-smart-edit-insert-snippet ()
+  "Valida se nix_smart_edit insere snippet e valida buffer transacionalmente."
+  (let ((tmp-nix (make-temp-file "test-nix-" nil ".nix")))
+    (unwind-protect
+        (progn
+          (let ((res (+carlos/magent-tool-nix-smart-edit tmp-nix "insert_snippet" "flake" "Test Flake")))
+            (should (string-match-p "inserido com sucesso" res))
+            (with-temp-buffer
+              (insert-file-contents tmp-nix)
+              (should (string-match-p "description = \"Test Flake\"" (buffer-string))))))
+      (when (file-exists-p tmp-nix)
+        (delete-file tmp-nix)))))
+
+(ert-deftest myemacs-python-smart-edit-insert-snippet ()
+  "Valida se python_smart_edit insere snippet e valida buffer transacionalmente."
+  (let ((tmp-py (make-temp-file "test-py-" nil ".py")))
+    (unwind-protect
+        (progn
+          (let ((res (+carlos/magent-tool-python-smart-edit tmp-py "insert_snippet" "pytest" "my_feature")))
+            (should (string-match-p "inserido com sucesso" res))
+            (with-temp-buffer
+              (insert-file-contents tmp-py)
+              (should (string-match-p "def test_my_feature" (buffer-string))))))
+      (when (file-exists-p tmp-py)
+        (delete-file tmp-py)))))
+
+(ert-deftest myemacs-ts-smart-edit-insert-snippet ()
+  "Valida se ts_smart_edit insere snippet e valida buffer transacionalmente."
+  (let ((tmp-ts (make-temp-file "test-ts-" nil ".ts")))
+    (unwind-protect
+        (progn
+          (let ((res (+carlos/magent-tool-ts-smart-edit tmp-ts "insert_snippet" "interface" "UserProfile")))
+            (should (string-match-p "inserido com sucesso" res))
+            (with-temp-buffer
+              (insert-file-contents tmp-ts)
+              (should (string-match-p "export interface UserProfile" (buffer-string))))))
+      (when (file-exists-p tmp-ts)
+        (delete-file tmp-ts)))))
+
 (provide 'magent-tools-test)
 ;;; magent-tools-test.el ends here

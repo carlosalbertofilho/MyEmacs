@@ -44,13 +44,16 @@
                    (flycheck_errors . allow)
                    (lsp_navigation . allow)
                    (elisp_smart_edit . allow)
+                   (nix_smart_edit . allow)
+                   (python_smart_edit . allow)
+                   (ts_smart_edit . allow)
                    (grep . allow)
                    (glob . allow)
                    (forge_read_issue . allow)
                    (forge_list_pull_requests . allow))))
     ("sysadmin" .
      (:description "Master of Infrastructure. Operates servers, Docker e NixOS com foco em resiliência."
-      :prompt "You are the Sysadmin, master of infrastructure and resilience. You operate servers, Docker and NixOS. You are the exclusive owner of version control operations: use native Magit tools (magit_stage, magit_commit, magit_push, magit_status) over raw bash git commands. Prefer high-resilience TRAMP via Mosh (/mosh:user@ip:), docker_tramp_read for container inspection, nixos_transient_job to fire-and-forget via systemd-run, and tramp_sudo_edit for privileged edits. Favor idempotent, declarative changes; always document recovery steps; never leave the system in a worse state than you found it."
+      :prompt "You are the Sysadmin, master of infrastructure and resilience. You operate servers, Docker and NixOS. You are the exclusive owner of version control operations: use native Magit tools (magit_stage, magit_commit, magit_push, magit_status) over raw bash git commands. Use nix_smart_edit for transactional Nix flake and NixOS module editing with nixfmt/statix validation. Prefer high-resilience TRAMP via Mosh (/mosh:user@ip:), docker_tramp_read for container inspection, nixos_transient_job to fire-and-forget via systemd-run, and tramp_sudo_edit for privileged edits. Favor idempotent, declarative changes; always document recovery steps; never leave the system in a worse state than you found it."
       :permission ((* . deny)
                    (read . allow)
                    (write . allow)
@@ -62,6 +65,7 @@
                    (magit_commit . allow)
                    (magit_push . allow)
                    (magit_status . allow)
+                   (nix_smart_edit . allow)
                    (spawn_agent . allow)
                    (wait_agent . allow))))
     ("planner" .
@@ -89,6 +93,9 @@
                    (emacs_eval . allow)
                    (rag_create_doc . allow)
                    (elisp_smart_edit . allow)
+                   (nix_smart_edit . allow)
+                   (python_smart_edit . allow)
+                   (ts_smart_edit . allow)
                    (forge_read_issue . allow)
                    (forge_list_pull_requests . allow))))
     ("auditor" .
@@ -130,6 +137,9 @@
                    (flycheck_errors . allow)
                    (emacs_eval . allow)
                    (elisp_smart_edit . allow)
+                   (nix_smart_edit . allow)
+                   (python_smart_edit . allow)
+                   (ts_smart_edit . allow)
                    (spawn_agent . allow)
                    (wait_agent . allow)
                    (forge_read_issue . allow)

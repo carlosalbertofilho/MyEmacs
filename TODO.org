@@ -25,7 +25,33 @@ Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=
 - *Ledger & State Machine (AGENT_WORKFLOW.org):* Hierarquia Codex =thread -> turn -> item=. Turno gerenciado em =magent-ledger.el=. Itens de ferramenta unificados (=tool-call= e =tool-output= no mesmo registro por =call-id=). Persistência dupla via =Snapshot= (restauração rápida de thread) + =Journal= (log append-only).
 - *Camadas de Arquitetura (ONBOARDING.org):* 7 camadas. Camada 2 (Sessão & Ledger), Camada 3 (Agentes e Permissões =allow=/=deny=/=ask=), Camada 4 (15 ferramentas nativas em =magent-tools.el= + aprovações em =magent-approval.el=), Camada 5 (Loop Magent e transport fino =gptel-request= em =magent-llm-gptel.el=), Camada 6 (Frontend =agent-shell= + protocolo ACP em =magent-acp.el=).
 
-* Pendente — Motor & Backlog (Plano Mestre Opus)
+** TODO Ferramentas Nativas Especializadas de Edição para Nix, Python e TypeScript/JavaScript
+    :PROPERTIES:
+    :CREATED: 2026-08-22
+    :ASSIGNEE: coder
+    :STATUS: pendente
+    :END:
+
+*** Ferramenta Transacional nix_smart_edit
+Desenvolver ferramenta nativa em Elisp (+carlos/magent-tool-nix-smart-edit em lisp/custom-magent-tools.el) para Nix:
+- Ações: insert_snippet, refactor_symbol, validate_buffer.
+- Snippets Tempel integrados: flake, module, package, overlay, devshell, option.
+- Validação transacional em memória: nixfmt/statix/check-parens com rollback automático (primitive-undo) em caso de erro de sintaxe.
+- Integração com LSP (nil/nixd).
+
+*** Ferramenta Transacional python_smart_edit
+Desenvolver ferramenta nativa em Elisp (+carlos/magent-tool-python-smart-edit em lisp/custom-magent-tools.el) para Python:
+- Ações: insert_snippet, refactor_symbol, validate_buffer.
+- Snippets Tempel integrados: def, class, async_def, pytest, dataclass, main.
+- Validação transacional em memória: ruff/black/py-compile com rollback automático (primitive-undo) em caso de erro de sintaxe.
+- Integração com LSP (pyright/pylsp).
+
+*** Ferramenta Transacional ts_smart_edit
+Desenvolver ferramenta nativa em Elisp (+carlos/magent-tool-ts-smart-edit em lisp/custom-magent-tools.el) para TypeScript/JavaScript:
+- Ações: insert_snippet, refactor_symbol, validate_buffer.
+- Snippets Tempel integrados: interface, type, function, export_const, describe_it.
+- Validação transacional em memória: prettier/eslint/treesit com rollback automático (primitive-undo) em caso de erro de sintaxe.
+- Integração com LSP (typescript-language-server/vtsls).
 
 ** TODO Auditoria e Benchmarking de Modelos Locais no Host agnes (Mac M2 24GB)
     :PROPERTIES:
