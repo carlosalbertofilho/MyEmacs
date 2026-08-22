@@ -147,6 +147,11 @@ Decisões de produto do usuário que sobrepõem diretrizes genéricas (2026-08-0
   `+carlos/agy-prompt` (`C-c A g`) e `+carlos/copilot-explain-region`
   (`C-c A c`) como atalhos convenientes, apesar da diretriz de usar CLIs fora
   do Emacs. Não remover sem perguntar.
+- **Roteamento de IA & Resiliência Free Tier (2026-08-22):**
+  - **Free Tier Primário:** Prioridade para modelos gratuitos do OpenCode Zen (`big-pickle`, `nemotron-3.5-lightning-free`, `deepseek-v4-flash-free`) e do Google AI Studio (`gemini-2.5-flash`), garantindo custo $0.00 durante o desenvolvimento.
+  - **Circuit Breaker de Resiliência:** Em caso de oscilação do `big-pickle`, a FSM chaveia para `nemotron-3.5-lightning-free` ou `gemini-2.5-flash` sem travar a execução.
+  - **Preservação de Saldo:** Saldo de $50 no Google AI Studio alocado exclusivamente para o `planner` em `gemini-2.5-pro` em planejamentos complexos (`complexity='deep'`).
+  - **Paid Tier Opt-in:** Modelos pagos (`claude-sonnet-5`, `claude-opus-5`) acionados apenas sob demanda (`min_tier='paid'`).
 
 ### 1. File Structure
 

@@ -238,5 +238,31 @@ Validado em sandbox `/tmp/magent-sandbox/` sob a stack do Magent (Flycheck, Eglo
 - **Coder Qwen 3.5 (9B):** Recebeu a diretiva do Gemma e os conselhos do R1 e gerou o código final perfeito em Emacs Lisp.
 - **Validação de Ferramenta (Flycheck):** O arquivo foi reescrito fisicamente usando a ferramenta `write_file_content` do Magent e validado via compilador/checker local do Flycheck, resultando em **ZERO ERROS** (100% correto!).
 
+* 4. Estratégia Oficial de Roteamento de Modelos por Perfil (Magent D9)
+
+** Decisões Arquiteturais de FinOps e Resiliência (2026-08-22)
+Para zerar custos durante o desenvolvimento diário e garantir resiliência contra oscilações de tráfego nos servidores do OpenCode Zen:
+
+1. *Free Tier Primário:* Uso prioritário de modelos 100% gratuitos do OpenCode Zen (=big-pickle=, =nemotron-3.5-lightning-free=, =deepseek-v4-flash-free=) e do Google AI Studio (=gemini-2.5-flash=).
+2. *Circuit Breaker Fallback:* Em caso de indisponibilidade ou picos de tráfego no =big-pickle=, o Circuit Breaker da FSM chaveia em milissegundos para o =nemotron-3.5-lightning-free= ou =gemini-2.5-flash= sem interromper o trabalho.
+3. *Preservação de Saldo no Google AI Studio:* Saldo remanescente de ~$50 no Google AI Studio alocado com exclusividade para o perfil =planner= em =gemini-2.5-pro= quando a tarefa de arquitetura for de alta complexidade.
+4. *Paid Tier Opt-in:* Modelos pagos do OpenCode Zen / Zen Claude (=claude-sonnet-5=, =claude-opus-5=, =gpt-5.6-sol=) são acionados apenas sob demanda explícita (=min_tier='paid'=).
+
+** Matriz Oficial de Mapeamento dos 9 Perfis
+
+| Perfil | Função no Magent | Modelo Primário (Free Tier) | Fallback de Resiliência | Escala Paga (=min_tier='paid'=) |
+|--------+------------------+-----------------------------+-------------------------+--------------------------------|
+| *Orquestrador* | Triagem, prompt e =spawn_agent= | =gemini-2.5-flash= (Google Free) | =deepseek-v4-flash-free= (Zen) | =claude-sonnet-5= |
+| =coder= | Pair programming & mutação de buffers | =big-pickle= (OpenCode Free) | =nemotron-3.5-lightning-free= | =gpt-5.3-codex= / =claude-sonnet-5= |
+| =sysadmin= | NixOS, Docker, systemd, TRAMP | =nemotron-3.5-lightning-free= | =big-pickle= | =gpt-5.6-sol= |
+| =planner= | AST Org-mode (=TODO.org=) & Arquitetura | =big-pickle= (OpenCode Free) | =gemini-2.5-pro= (Google AI Studio ~$50) | =claude-opus-5= |
+| =tech-writer= | RAG, Denote Zettelkasten & =docs/*.org= | =gemini-2.5-flash= (Google 1M) | =mimo-v2.5-free= | =claude-opus-5= |
+| =auditor= | Norminette (25 linhas) & Specs RFC IETF | =big-pickle= (OpenCode Free) | =deepseek-v4-flash-free= | =deepseek-v4-pro= |
+| =sec-ops= | OWASP, Criptografia & RFC Security | =big-pickle= (OpenCode Free) | =nemotron-3-ultra-free= | =deepseek-v4-pro= |
+| =qa= | Quality gates (=just lint=, =test-all=) | =deepseek-v4-flash-free= | =gemini-2.5-flash= | =claude-sonnet-5= |
+| =explore= | Leitura rápida & =grep_search= | =gemini-2.5-flash= (Google Free) | =deepseek-v4-flash-free= | =gemini-2.5-pro= |
+| =general= | Execução geral e scripts ad-hoc | =big-pickle= (OpenCode Free) | =mimo-v2.5-free= | =claude-sonnet-5= |
+
+
 
 
