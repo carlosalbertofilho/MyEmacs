@@ -86,6 +86,21 @@ Matriz executável dos 12 rounds de regressão do Magent.
 |    10 | Qual é o status git atual? Existem arquivos unstaged?     | =sysadmin= / =coder=    | =run_command= (=git status=)                  | TODO   |
 |    11 | Rode o just compile e me diga se há warnings              | =qa=                    | =run_command= (=just compile=)                | TODO   |
 |    12 | Execute a suíte test-ai e relate as falhas, se houver     | =qa=                    | =run_command= (=just test-ai=)                | TODO   |
+** TODO Resolver gargalo e CPU starvation no build (factory-reset / install)
+    :PROPERTIES:
+    :CREATED: 2026-08-22
+    :ASSIGNEE: coder
+    :STATUS: plano aprovado
+    :END:
+
+*** Receita install-prod no Justfile
+Criar a receita =install-prod= no Justfile apontando para ={{prod_dir}}=.
+Substituir =just install= por =just install-prod= na receita =factory-reset=.
+
+*** Limitar processamento em lote no init.el
+No =init.el=, logo após o bootstrap do elpaca, configurar =(setq elpaca-queue-limit (num-processors))= para evitar CPU starvation.
+
+*Arquivos:* =Justfile=, =init.el=.
 
 * Concluído (referências ao roadmap)
 
