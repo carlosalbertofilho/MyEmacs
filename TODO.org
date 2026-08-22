@@ -102,6 +102,19 @@ No =init.el=, logo após o bootstrap do elpaca, configurar =(setq elpaca-queue-l
 
 *Arquivos:* =Justfile=, =init.el=.
 
+** TODO Contornar instabilidade de Function Calling no OpenCode Zen (gpt-5.6-sol)
+    :PROPERTIES:
+    :CREATED: 2026-08-22
+    :ASSIGNEE: coder
+    :STATUS: BACKLOG
+    :END:
+
+*** Diagnóstico e Solução
+O modelo =gpt-5.6-sol= (via OpenCode Zen) gera tool calls mal formatados (=name: "unknown"=, =args-json: "null"=), quebrando a FSM com =Error: Could not parse HTTP response.=.
+Devemos ajustar =custom-ai.el= ou =custom-magent-subagent.el= para contornar ou isolar esse modelo.
+
+*Arquivos:* =lisp/custom-ai.el=, =lisp/custom-magent-subagent.el=.
+
 * Concluído (referências ao roadmap)
 
 - *Subagentes Sem Tools* (2026-08-20) — Separação de diretivas em 3 constantes e injeção por papel. Log verificado com 100% de sucesso.
