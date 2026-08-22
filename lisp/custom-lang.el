@@ -66,18 +66,14 @@
 (use-package python
   :ensure nil
   :mode (("\\.py\\'" . python-ts-mode))
-  :hook (python-ts-mode . eglot-ensure)
+  :hook ((python-mode python-ts-mode) . eglot-ensure)
   :config
   (setq python-shell-interpreter "ipython"
         python-shell-interpreter-args "-i --simple-prompt --no-color-info"))
 
 (with-eval-after-load 'eglot
-  ;; ruff para linting
   (add-to-list 'eglot-server-programs
-               '((python-ts-mode python-mode) . ("ruff" "server")))
-  ;; basedpyright como servidor principal (adicionado depois para ficar na frente)
-  (add-to-list 'eglot-server-programs
-               '((python-ts-mode python-mode) . ("basedpyright" "--stdio"))))
+               '((python-ts-mode python-mode) . (eglot-alternatives '("basedpyright" "pyright-langserver" "pylsp" ("ruff" "server"))))))
 
 ;; ── C / C++ (42 School) ─────────────────────────────────────────────
 ;; clangd is detected automatically by eglot.

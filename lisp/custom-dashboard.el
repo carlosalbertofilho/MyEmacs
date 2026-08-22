@@ -25,10 +25,21 @@
   (setq dashboard-set-file-icons t)
   (setq dashboard-display-icons-p t)
   (setq dashboard-icon-type 'nerd-icons)
+  (setq initial-buffer-choice (lambda () (get-buffer-create "*dashboard*")))
   
   (custom-set-faces
    '(dashboard-heading ((t (:family "Space Grotesk" :weight bold :height 1.2))))
    '(dashboard-items-face ((t (:family "Inter" :weight normal))))))
+
+;; Ensure new server/daemon frames (emacsclient -c) open the dashboard when no file is passed
+(defun +carlos/dashboard-open-on-server-frame (frame)
+  "Ensure *dashboard* buffer is displayed on new server FRAME."
+  (with-selected-frame frame
+    (when (or (equal (buffer-name) "*scratch*")
+              (string-prefix-p "*scratch*" (buffer-name)))
+      (dashboard-open))))
+
+(add-hook 'server-after-make-frame-hook #'+carlos/dashboard-open-on-server-frame)
 
 ;;;###autoload
 (defun +carlos/dashboard-setup-startup-hook ()

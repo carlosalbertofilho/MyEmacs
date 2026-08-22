@@ -89,13 +89,13 @@
 
 ;; ── corfu ───────────────────────────────────────────────────────────
 (use-package corfu
-  :ensure nil
+  :ensure t
   :demand t  ;; Must load immediately for global-corfu-mode
   :config
   (global-corfu-mode 1)
   (setq corfu-auto t
         corfu-auto-delay 0.1
-        corfu-auto-prefix 2
+        corfu-auto-prefix 1
         corfu-cycle t
         corfu-popupinfo-delay '(0.2 . 0.1))
   (when (fboundp 'corfu-popupinfo-mode)
@@ -119,12 +119,16 @@
 
 ;; ── cape ────────────────────────────────────────────────────────────
 (defun +carlos/cape-setup-eglot-capf ()
-  "Merge LSP completion with Tempel snippets."
+  "Merge LSP completion with Tempel snippets, python-completion, and Cape helpers."
   (setq-local completion-at-point-functions
-              (list (cape-super-capf #'eglot-completion-at-point #'tempel-expand))))
+              (list (cape-super-capf #'eglot-completion-at-point #'tempel-expand)
+                    #'python-completion-at-point
+                    #'cape-file
+                    #'cape-keyword
+                    #'cape-dabbrev)))
 
 (use-package cape
-  :ensure nil
+  :ensure t
   :config
   (add-hook 'eglot-managed-mode-hook #'+carlos/cape-setup-eglot-capf))
 

@@ -29,7 +29,7 @@
 (defvar elpaca-sources-directory (expand-file-name "sources/" elpaca-directory))
 (defvar elpaca-order '(elpaca :repo "https://github.com/progfolio/elpaca.git"
                               :ref nil :depth 1 :inherit ignore
-                              :files (:defaults "elpaca-test.el" (:exclude "extensions"))
+                              :files (:defaults "elpaca-test.el" "extensions/*")
                               :build (:not elpaca-activate)))
 
 (let* ((repo  (expand-file-name "elpaca/" elpaca-sources-directory))
