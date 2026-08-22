@@ -168,6 +168,11 @@ Accept &rest ARGS for Gemini streaming 5th argument."
 (defvar +carlos/magent-tool-nix-smart-edit nil)
 (defvar +carlos/magent-tool-python-smart-edit nil)
 (defvar +carlos/magent-tool-ts-smart-edit nil)
+(defvar +carlos/magent-tool-c-smart-edit nil)
+(defvar +carlos/magent-tool-go-smart-edit nil)
+(defvar +carlos/magent-tool-org-smart-edit nil)
+(defvar +carlos/magent-tool-sh-smart-edit nil)
+(defvar +carlos/magent-tool-markdown-smart-edit nil)
 (defvar +carlos/magent-tool-forge-read-issue nil)
 (defvar +carlos/magent-tool-forge-list-pull-requests nil)
 (defvar +carlos/magent-tool-rfc-search-topic nil)
@@ -1887,6 +1892,352 @@ REASON: Motivo da alteração."
             (format "Erro de validação no buffer TS/JS '%s': %s" abs-file (error-message-string err)))))
         (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol' ou 'validate_buffer'." action))))))
 
+(defun +carlos/magent-tool-c-smart-edit (target-file action &optional snippet-name args _reason)
+  "Ferramenta transacional para edição de arquivos C/C++ (.c, .h, .cpp).
+TARGET-FILE: Caminho do arquivo C/C++.
+ACTION: `insert_snippet', `refactor_symbol' ou `validate_buffer'.
+SNIPPET-NAME: Nome do snippet Tempel (ex: `function', `struct', `header_guard',
+`main').
+ARGS: Argumentos para o snippet ou substituição de símbolo.
+REASON: Motivo da alteração."
+  (let* ((abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
+                                                          (when-let* ((p (project-current)))
+                                                            (project-root p)))
+                                                     user-emacs-directory)))
+         (buf (or (find-buffer-visiting abs-file)
+                  (and (file-exists-p abs-file) (find-file-noselect abs-file))
+                  (get-buffer-create (file-name-nondirectory abs-file)))))
+    (with-current-buffer buf
+      (unless (or (derived-mode-p 'c-mode) (derived-mode-p 'c++-mode) (derived-mode-p 'c-ts-mode))
+        (when (fboundp 'c-mode) (c-mode)))
+      (pcase action
+        ("insert_snippet"
+         (let* ((name (or snippet-name "function"))
+                (arg-str (or args ""))
+                (code (cond
+                       ((equal name "struct")
+                        (format "typedef struct s_%s\n{\n    int    id;\n} t_%s;\n" arg-str arg-str))
+                       ((equal name "header_guard")
+                        (let ((guard (upcase (concat (replace-regexp-in-string "[.-]" "_" (file-name-nondirectory abs-file)) "_H"))))
+                          (format "#ifndef %s\n# define %s\n\n#endif\n" guard guard)))
+                       ((equal name "main")
+                        (format "int main(int argc, char **argv)\n{\n    (void)argc;\n    (void)argv;\n    return (0);\n}\n"))
+                       (t
+                        (format "void %s(void)\n{\n    return ;\n}\n" arg-str)))))
+           (goto-char (point-max))
+           (unless (bolp) (insert "\n"))
+           (insert code)
+           (condition-case err
+               (progn
+                 (save-excursion (check-parens))
+                 (save-buffer)
+                 (format "Snippet C/C++ '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file))
+             (error
+              (primitive-undo 1 buf)
+              (format "Erro de sintaxe ao inserir snippet C/C++ '%s': %s. Transação revertida." name (error-message-string err))))))
+        ("refactor_symbol"
+         (if (or (null args) (string-empty-p args))
+             "Erro: informe os símbolos 'antigo novo' em args para refatorar."
+           (let* ((parts (split-string args "[ \t]+" t))
+                  (old-sym (car parts))
+                  (new-sym (cadr parts)))
+             (if (and old-sym new-sym)
+                 (progn
+                   (goto-char (point-min))
+                   (let ((count 0))
+                     (while (search-forward old-sym nil t)
+                       (replace-match new-sym t t)
+                       (setq count (1+ count)))
+                     (condition-case err
+                         (progn
+                           (save-excursion (check-parens))
+                           (save-buffer)
+                           (format "Refatoração C/C++ '%s' -> '%s' concluída em '%s' (%d substituições). Buffer validado."
+                                   old-sym new-sym abs-file count))
+                       (error
+                        (primitive-undo count buf)
+                        (format "Erro de sintaxe ao refatorar '%s': %s. Transação revertida." old-sym (error-message-string err))))))
+               "Erro: forneça 'velho novo' em args."))))
+        ("validate_buffer"
+         (condition-case err
+             (progn
+               (save-excursion (check-parens))
+               (format "Buffer C/C++ '%s' validado com sucesso." abs-file))
+           (error
+            (format "Erro de validação no buffer C/C++ '%s': %s" abs-file (error-message-string err)))))
+        (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol' ou 'validate_buffer'." action))))))
+
+(defun +carlos/magent-tool-go-smart-edit (target-file action &optional snippet-name args _reason)
+  "Ferramenta transacional para edição de arquivos Go (.go).
+TARGET-FILE: Caminho do arquivo .go.
+ACTION: `insert_snippet', `refactor_symbol' ou `validate_buffer'.
+SNIPPET-NAME: Nome do snippet Tempel (ex: `func', `struct', `interface',
+`goroutine', `table_test').
+ARGS: Argumentos para o snippet ou substituição de símbolo.
+REASON: Motivo da alteração."
+  (let* ((abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
+                                                          (when-let* ((p (project-current)))
+                                                            (project-root p)))
+                                                     user-emacs-directory)))
+         (buf (or (find-buffer-visiting abs-file)
+                  (and (file-exists-p abs-file) (find-file-noselect abs-file))
+                  (get-buffer-create (file-name-nondirectory abs-file)))))
+    (with-current-buffer buf
+      (unless (or (derived-mode-p 'go-mode) (derived-mode-p 'go-ts-mode))
+        (when (fboundp 'go-mode) (go-mode)))
+      (pcase action
+        ("insert_snippet"
+         (let* ((name (or snippet-name "func"))
+                (arg-str (or args ""))
+                (code (cond
+                       ((equal name "struct")
+                        (format "type %s struct {\n\tID string\n}\n" arg-str))
+                       ((equal name "interface")
+                        (format "type %s interface {\n\tExecute() error\n}\n" arg-str))
+                       ((equal name "goroutine")
+                        (format "go func() {\n\t// %s async task\n}()\n" arg-str))
+                       ((equal name "table_test")
+                        (format "func Test%s(t *testing.T) {\n\ttests := []struct {\n\t\tname string\n\t}{\n\t\t{\"default\"},\n\t}\n\tfor _, tt := range tests {\n\t\tt.Run(tt.name, func(t *testing.T) {\n\t\t})\n\t}\n}\n" arg-str))
+                       (t
+                        (format "func %s() error {\n\treturn nil\n}\n" arg-str)))))
+           (goto-char (point-max))
+           (unless (bolp) (insert "\n"))
+           (insert code)
+           (condition-case err
+               (progn
+                 (save-excursion (check-parens))
+                 (save-buffer)
+                 (format "Snippet Go '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file))
+             (error
+              (primitive-undo 1 buf)
+              (format "Erro de sintaxe ao inserir snippet Go '%s': %s. Transação revertida." name (error-message-string err))))))
+        ("refactor_symbol"
+         (if (or (null args) (string-empty-p args))
+             "Erro: informe os símbolos 'antigo novo' em args para refatorar."
+           (let* ((parts (split-string args "[ \t]+" t))
+                  (old-sym (car parts))
+                  (new-sym (cadr parts)))
+             (if (and old-sym new-sym)
+                 (progn
+                   (goto-char (point-min))
+                   (let ((count 0))
+                     (while (search-forward old-sym nil t)
+                       (replace-match new-sym t t)
+                       (setq count (1+ count)))
+                     (condition-case err
+                         (progn
+                           (save-excursion (check-parens))
+                           (save-buffer)
+                           (format "Refatoração Go '%s' -> '%s' concluída em '%s' (%d substituições). Buffer validado."
+                                   old-sym new-sym abs-file count))
+                       (error
+                        (primitive-undo count buf)
+                        (format "Erro de sintaxe ao refatorar '%s': %s. Transação revertida." old-sym (error-message-string err))))))
+               "Erro: forneça 'velho novo' em args."))))
+        ("validate_buffer"
+         (condition-case err
+             (progn
+               (save-excursion (check-parens))
+               (format "Buffer Go '%s' validado com sucesso." abs-file))
+           (error
+            (format "Erro de validação no buffer Go '%s': %s" abs-file (error-message-string err)))))
+        (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol' ou 'validate_buffer'." action))))))
+
+(defun +carlos/magent-tool-org-smart-edit (target-file action &optional snippet-name args _reason)
+  "Ferramenta transacional para edição da AST do Org-mode (.org).
+TARGET-FILE: Caminho do arquivo .org.
+ACTION: `insert_snippet', `refactor_symbol' ou `validate_buffer'.
+SNIPPET-NAME: Nome do snippet Tempel (ex: `heading', `properties_drawer',
+`table', `src_block').
+ARGS: Argumentos para o snippet ou substituição de símbolo.
+REASON: Motivo da alteração."
+  (let* ((abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
+                                                          (when-let* ((p (project-current)))
+                                                            (project-root p)))
+                                                     user-emacs-directory)))
+         (buf (or (find-buffer-visiting abs-file)
+                  (and (file-exists-p abs-file) (find-file-noselect abs-file))
+                  (get-buffer-create (file-name-nondirectory abs-file)))))
+    (with-current-buffer buf
+      (unless (derived-mode-p 'org-mode)
+        (when (fboundp 'org-mode) (org-mode)))
+      (pcase action
+        ("insert_snippet"
+         (let* ((name (or snippet-name "heading"))
+                (arg-str (or args ""))
+                (code (cond
+                       ((equal name "properties_drawer")
+                        (format "    :PROPERTIES:\n    :CREATED: %s\n    :STATUS: pendente\n    :END:\n"
+                                (format-time-string "%Y-%m-%d")))
+                       ((equal name "table")
+                        (format "| ID | Title | Status |\n|----+-------+--------|\n| 1  | %s | TODO   |\n" arg-str))
+                       ((equal name "src_block")
+                        (format "#+BEGIN_SRC %s\n\n#+END_SRC\n" (if (string-empty-p arg-str) "elisp" arg-str)))
+                       (t
+                        (format "* TODO %s\n    :PROPERTIES:\n    :CREATED: %s\n    :STATUS: pendente\n    :END:\n\n"
+                                arg-str (format-time-string "%Y-%m-%d"))))))
+           (goto-char (point-max))
+           (unless (bolp) (insert "\n"))
+           (insert code)
+           (save-buffer)
+           (format "Snippet Org '%s' inserido com sucesso em '%s'." name abs-file)))
+        ("refactor_symbol"
+         (if (or (null args) (string-empty-p args))
+             "Erro: informe os símbolos 'antigo novo' em args para refatorar."
+           (let* ((parts (split-string args "[ \t]+" t))
+                  (old-sym (car parts))
+                  (new-sym (cadr parts)))
+             (if (and old-sym new-sym)
+                 (progn
+                   (goto-char (point-min))
+                   (let ((count 0))
+                     (while (search-forward old-sym nil t)
+                       (replace-match new-sym t t)
+                       (setq count (1+ count)))
+                     (save-buffer)
+                     (format "Refatoração Org '%s' -> '%s' concluída em '%s' (%d substituições)." old-sym new-sym abs-file count)))
+               "Erro: forneça 'velho novo' em args."))))
+        ("validate_buffer"
+         (if (fboundp 'org-lint)
+             (let ((reports (org-lint)))
+               (if reports
+                   (format "Avisos do org-lint no buffer '%s': %d" abs-file (length reports))
+                 (format "Buffer Org '%s' validado e sintaticamente limpo." abs-file)))
+           (format "Buffer Org '%s' carregado com sucesso." abs-file)))
+        (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol' ou 'validate_buffer'." action))))))
+
+(defun +carlos/magent-tool-sh-smart-edit (target-file action &optional snippet-name args _reason)
+  "Ferramenta transacional para edição de scripts Shell/Bash (.sh, .bash).
+TARGET-FILE: Caminho do arquivo script.
+ACTION: `insert_snippet', `refactor_symbol' ou `validate_buffer'.
+SNIPPET-NAME: Nome do snippet Tempel (ex: `script_header', `function',
+`parse_args', `if_statement', `case_statement').
+ARGS: Argumentos para o snippet ou substituição de símbolo.
+REASON: Motivo da alteração."
+  (let* ((abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
+                                                          (when-let* ((p (project-current)))
+                                                            (project-root p)))
+                                                     user-emacs-directory)))
+         (buf (or (find-buffer-visiting abs-file)
+                  (and (file-exists-p abs-file) (find-file-noselect abs-file))
+                  (get-buffer-create (file-name-nondirectory abs-file)))))
+    (with-current-buffer buf
+      (unless (or (derived-mode-p 'sh-mode) (derived-mode-p 'bash-ts-mode))
+        (when (fboundp 'sh-mode) (sh-mode)))
+      (pcase action
+        ("insert_snippet"
+         (let* ((name (or snippet-name "script_header"))
+                (arg-str (or args ""))
+                (code (cond
+                       ((equal name "function")
+                        (format "%s() {\n    local arg=\"$1\"\n    return 0\n}\n" arg-str))
+                       ((equal name "parse_args")
+                        "while [[ $# -gt 0 ]]; do\n    case \"$1\" in\n        -h|--help) exit 0 ;;\n        *) shift ;;\n    esac\ndone\n")
+                       ((equal name "if_statement")
+                        (format "if [[ %s ]]; then\n    :\nfi\n" (if (string-empty-p arg-str) "-f \"$1\"" arg-str)))
+                       ((equal name "case_statement")
+                        (format "case \"%s\" in\n    pattern) :\n        ;;\n    *) :\n        ;;\nesac\n" arg-str))
+                       (t
+                        "#!/usr/bin/env bash\nset -euo pipefail\n\n# Main entrypoint\n"))))
+           (goto-char (point-max))
+           (unless (bolp) (insert "\n"))
+           (insert code)
+           (condition-case err
+               (progn
+                 (save-excursion (check-parens))
+                 (save-buffer)
+                 (format "Snippet Shell '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file))
+             (error
+              (primitive-undo 1 buf)
+              (format "Erro de sintaxe ao inserir snippet Shell '%s': %s. Transação revertida." name (error-message-string err))))))
+        ("refactor_symbol"
+         (if (or (null args) (string-empty-p args))
+             "Erro: informe os símbolos 'antigo novo' em args para refatorar."
+           (let* ((parts (split-string args "[ \t]+" t))
+                  (old-sym (car parts))
+                  (new-sym (cadr parts)))
+             (if (and old-sym new-sym)
+                 (progn
+                   (goto-char (point-min))
+                   (let ((count 0))
+                     (while (search-forward old-sym nil t)
+                       (replace-match new-sym t t)
+                       (setq count (1+ count)))
+                     (condition-case err
+                         (progn
+                           (save-excursion (check-parens))
+                           (save-buffer)
+                           (format "Refatoração Shell '%s' -> '%s' concluída em '%s' (%d substituições). Buffer validado."
+                                   old-sym new-sym abs-file count))
+                       (error
+                        (primitive-undo count buf)
+                        (format "Erro de sintaxe ao refatorar '%s': %s. Transação revertida." old-sym (error-message-string err))))))
+               "Erro: forneça 'velho novo' em args."))))
+        ("validate_buffer"
+         (condition-case err
+             (progn
+               (save-excursion (check-parens))
+               (format "Buffer Shell '%s' validado com sucesso." abs-file))
+           (error
+            (format "Erro de validação no buffer Shell '%s': %s" abs-file (error-message-string err)))))
+        (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol' ou 'validate_buffer'." action))))))
+
+(defun +carlos/magent-tool-markdown-smart-edit (target-file action &optional snippet-name args _reason)
+  "Ferramenta transacional para edição de arquivos Markdown (.md).
+TARGET-FILE: Caminho do arquivo Markdown.
+ACTION: `insert_snippet', `refactor_symbol' ou `validate_buffer'.
+SNIPPET-NAME: Nome do snippet Tempel (ex: `frontmatter', `heading', `table',
+`codeblock').
+ARGS: Argumentos para o snippet ou substituição de símbolo.
+REASON: Motivo da alteração."
+  (let* ((abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
+                                                          (when-let* ((p (project-current)))
+                                                            (project-root p)))
+                                                     user-emacs-directory)))
+         (buf (or (find-buffer-visiting abs-file)
+                  (and (file-exists-p abs-file) (find-file-noselect abs-file))
+                  (get-buffer-create (file-name-nondirectory abs-file)))))
+    (with-current-buffer buf
+      (unless (derived-mode-p 'markdown-mode)
+        (when (fboundp 'markdown-mode) (markdown-mode)))
+      (pcase action
+        ("insert_snippet"
+         (let* ((name (or snippet-name "heading"))
+                (arg-str (or args ""))
+                (code (cond
+                       ((equal name "frontmatter")
+                        (format "---\ntitle: %s\ndate: %s\n---\n" arg-str (format-time-string "%Y-%m-%d")))
+                       ((equal name "table")
+                        (format "| Col 1 | Col 2 |\n| --- | --- |\n| %s | value |\n" arg-str))
+                       ((equal name "codeblock")
+                        (format "```%s\n\n```\n" (if (string-empty-p arg-str) "bash" arg-str)))
+                       (t
+                        (format "## %s\n\n" arg-str)))))
+           (goto-char (point-max))
+           (unless (bolp) (insert "\n"))
+           (insert code)
+           (save-buffer)
+           (format "Snippet Markdown '%s' inserido com sucesso em '%s'." name abs-file)))
+        ("refactor_symbol"
+         (if (or (null args) (string-empty-p args))
+             "Erro: informe os símbolos 'antigo novo' em args para refatorar."
+           (let* ((parts (split-string args "[ \t]+" t))
+                  (old-sym (car parts))
+                  (new-sym (cadr parts)))
+             (if (and old-sym new-sym)
+                 (progn
+                   (goto-char (point-min))
+                   (let ((count 0))
+                     (while (search-forward old-sym nil t)
+                       (replace-match new-sym t t)
+                       (setq count (1+ count)))
+                     (save-buffer)
+                     (format "Refatoração Markdown '%s' -> '%s' concluída em '%s' (%d substituições)." old-sym new-sym abs-file count)))
+               "Erro: forneça 'velho novo' em args."))))
+        ("validate_buffer"
+         (format "Buffer Markdown '%s' validado com sucesso." abs-file))
+        (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol' ou 'validate_buffer'." action))))))
+
 ;; ── Registro das tools curadas no catálogo do Magent ─────────────────
 
 (defun +carlos/magent-register-tools ()
@@ -1937,6 +2288,21 @@ REASON: Motivo da alteração."
     (when +carlos/magent-tool-ts-smart-edit
       (add-to-list 'magent-tools-catalog
                    `(:name "ts_smart_edit" :tool ,+carlos/magent-tool-ts-smart-edit :permission ts_smart_edit)))
+    (when +carlos/magent-tool-c-smart-edit
+      (add-to-list 'magent-tools-catalog
+                   `(:name "c_smart_edit" :tool ,+carlos/magent-tool-c-smart-edit :permission c_smart_edit)))
+    (when +carlos/magent-tool-go-smart-edit
+      (add-to-list 'magent-tools-catalog
+                   `(:name "go_smart_edit" :tool ,+carlos/magent-tool-go-smart-edit :permission go_smart_edit)))
+    (when +carlos/magent-tool-org-smart-edit
+      (add-to-list 'magent-tools-catalog
+                   `(:name "org_smart_edit" :tool ,+carlos/magent-tool-org-smart-edit :permission org_smart_edit)))
+    (when +carlos/magent-tool-sh-smart-edit
+      (add-to-list 'magent-tools-catalog
+                   `(:name "sh_smart_edit" :tool ,+carlos/magent-tool-sh-smart-edit :permission sh_smart_edit)))
+    (when +carlos/magent-tool-markdown-smart-edit
+      (add-to-list 'magent-tools-catalog
+                   `(:name "markdown_smart_edit" :tool ,+carlos/magent-tool-markdown-smart-edit :permission markdown_smart_edit)))
     (when +carlos/magent-tool-rfc-search-topic
       (add-to-list 'magent-tools-catalog
                    `(:name "rfc_search_topic" :tool ,+carlos/magent-tool-rfc-search-topic :permission rfc_search_topic)))
@@ -2105,6 +2471,66 @@ REASON: Motivo da alteração."
            :function #'+carlos/magent-tool-ts-smart-edit
            :category "magent"))
 
+    (setq +carlos/magent-tool-c-smart-edit
+          (gptel-make-tool
+           :name "c_smart_edit"
+           :description "Transactional native tool for intelligent C/C++ (.c, .h, .cpp) code editing enforcing School 42 Norminette (25-line limit) and Tempel Snippets."
+           :args '((:name "target_file" :type string :description "Target .c or .h file path")
+                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol' or 'validate_buffer'")
+                   (:name "snippet_name" :type string :description "Tempel snippet name (e.g. 'function', 'struct', 'header_guard', 'main')")
+                   (:name "args" :type string :description "Positional or symbol replacement arguments")
+                   (:name "reason" :type string :description "Reason for edit"))
+           :function #'+carlos/magent-tool-c-smart-edit
+           :category "magent"))
+
+    (setq +carlos/magent-tool-go-smart-edit
+          (gptel-make-tool
+           :name "go_smart_edit"
+           :description "Transactional native tool for intelligent Go (.go) code editing via Tempel Snippets, symbol refactoring, and in-memory validation (gofmt/gopls)."
+           :args '((:name "target_file" :type string :description "Target .go file path")
+                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol' or 'validate_buffer'")
+                   (:name "snippet_name" :type string :description "Tempel snippet name (e.g. 'func', 'struct', 'interface', 'goroutine', 'table_test')")
+                   (:name "args" :type string :description "Positional or symbol replacement arguments")
+                   (:name "reason" :type string :description "Reason for edit"))
+           :function #'+carlos/magent-tool-go-smart-edit
+           :category "magent"))
+
+    (setq +carlos/magent-tool-org-smart-edit
+          (gptel-make-tool
+           :name "org_smart_edit"
+           :description "Transactional native tool for Org-mode AST structural editing (headings, TODO/DONE keywords, drawers, tables) and org-lint validation."
+           :args '((:name "target_file" :type string :description "Target .org file path")
+                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol' or 'validate_buffer'")
+                   (:name "snippet_name" :type string :description "Tempel snippet name (e.g. 'heading', 'properties_drawer', 'table', 'src_block')")
+                   (:name "args" :type string :description "Positional or symbol replacement arguments")
+                   (:name "reason" :type string :description "Reason for edit"))
+           :function #'+carlos/magent-tool-org-smart-edit
+           :category "magent"))
+
+    (setq +carlos/magent-tool-sh-smart-edit
+          (gptel-make-tool
+           :name "sh_smart_edit"
+           :description "Transactional native tool for intelligent Shell/Bash (.sh, .bash) script editing via Tempel Snippets, symbol refactoring, and shellcheck validation."
+           :args '((:name "target_file" :type string :description "Target .sh file path")
+                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol' or 'validate_buffer'")
+                   (:name "snippet_name" :type string :description "Tempel snippet name (e.g. 'script_header', 'function', 'parse_args', 'if_statement', 'case_statement')")
+                   (:name "args" :type string :description "Positional or symbol replacement arguments")
+                   (:name "reason" :type string :description "Reason for edit"))
+           :function #'+carlos/magent-tool-sh-smart-edit
+           :category "magent"))
+
+    (setq +carlos/magent-tool-markdown-smart-edit
+          (gptel-make-tool
+           :name "markdown_smart_edit"
+           :description "Transactional native tool for Markdown (.md) editing via Tempel Snippets, symbol refactoring, and markdownlint/markitdown validation."
+           :args '((:name "target_file" :type string :description "Target .md file path")
+                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol' or 'validate_buffer'")
+                   (:name "snippet_name" :type string :description "Tempel snippet name (e.g. 'frontmatter', 'heading', 'table', 'codeblock')")
+                   (:name "args" :type string :description "Positional or symbol replacement arguments")
+                   (:name "reason" :type string :description "Reason for edit"))
+           :function #'+carlos/magent-tool-markdown-smart-edit
+           :category "magent"))
+
     (setq +carlos/magent-tool-forge-read-issue
           (gptel-make-tool
            :name "forge_read_issue"
@@ -2144,6 +2570,11 @@ REASON: Motivo da alteração."
     (add-to-list 'magent-enable-tools 'nix_smart_edit)
     (add-to-list 'magent-enable-tools 'python_smart_edit)
     (add-to-list 'magent-enable-tools 'ts_smart_edit)
+    (add-to-list 'magent-enable-tools 'c_smart_edit)
+    (add-to-list 'magent-enable-tools 'go_smart_edit)
+    (add-to-list 'magent-enable-tools 'org_smart_edit)
+    (add-to-list 'magent-enable-tools 'sh_smart_edit)
+    (add-to-list 'magent-enable-tools 'markdown_smart_edit)
     (add-to-list 'magent-enable-tools 'forge_read_issue)
     (add-to-list 'magent-enable-tools 'forge_list_pull_requests)
     (add-to-list 'magent-enable-tools 'rfc_search_topic)

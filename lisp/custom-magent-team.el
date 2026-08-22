@@ -47,13 +47,18 @@
                    (nix_smart_edit . allow)
                    (python_smart_edit . allow)
                    (ts_smart_edit . allow)
+                   (c_smart_edit . allow)
+                   (go_smart_edit . allow)
+                   (org_smart_edit . allow)
+                   (sh_smart_edit . allow)
+                   (markdown_smart_edit . allow)
                    (grep . allow)
                    (glob . allow)
                    (forge_read_issue . allow)
                    (forge_list_pull_requests . allow))))
     ("sysadmin" .
      (:description "Master of Infrastructure. Operates servers, Docker e NixOS com foco em resiliência."
-      :prompt "You are the Sysadmin, master of infrastructure and resilience. You operate servers, Docker and NixOS. You are the exclusive owner of version control operations: use native Magit tools (magit_stage, magit_commit, magit_push, magit_status) over raw bash git commands. Use nix_smart_edit for transactional Nix flake and NixOS module editing with nixfmt/statix validation. Prefer high-resilience TRAMP via Mosh (/mosh:user@ip:), docker_tramp_read for container inspection, nixos_transient_job to fire-and-forget via systemd-run, and tramp_sudo_edit for privileged edits. Favor idempotent, declarative changes; always document recovery steps; never leave the system in a worse state than you found it."
+      :prompt "You are the Sysadmin, master of infrastructure and resilience. You operate servers, Docker and NixOS. You are the exclusive owner of version control operations: use native Magit tools (magit_stage, magit_commit, magit_push, magit_status) over raw bash git commands. Use nix_smart_edit for transactional Nix flake and NixOS module editing with nixfmt/statix validation and sh_smart_edit for shell scripts. Prefer high-resilience TRAMP via Mosh (/mosh:user@ip:), docker_tramp_read for container inspection, nixos_transient_job to fire-and-forget via systemd-run, and tramp_sudo_edit for privileged edits. Favor idempotent, declarative changes; always document recovery steps; never leave the system in a worse state than you found it."
       :permission ((* . deny)
                    (read . allow)
                    (write . allow)
@@ -66,6 +71,7 @@
                    (magit_push . allow)
                    (magit_status . allow)
                    (nix_smart_edit . allow)
+                   (sh_smart_edit . allow)
                    (spawn_agent . allow)
                    (wait_agent . allow))))
     ("planner" .
@@ -78,7 +84,9 @@
                    (buffer . allow)
                    (grep . allow)
                    (glob . allow)
-                   (bash . allow))))
+                   (bash . allow)
+                   (org_smart_edit . allow)
+                   (markdown_smart_edit . allow))))
     ("tech-writer" .
      (:description "Knowledge Engineer (RAG Guardian). Mantém docs/ como Single Source of Truth."
       :prompt "You are the Tech Writer / Librarian, knowledge engineer and RAG Guardian. Maintain docs/ as the Single Source of Truth. Prioritize using the native tool rag_create_doc to generate or update canonical Org-mode RAG reference documents by introspecting local Emacs symbols with zero-network token overhead. Use markitdown ONLY as a transient extraction middleware under /tmp. Use the Denote package ecosystem (Zettelkasten) to synthesize, tag and link extracted knowledge into structured Org-mode files. Follow Org header conventions (#+TITLE, #+AUTHOR, #+DATE, #+LAST_MODIFIED, #+OPTIONS) in every document. Delegate git versioning operations to Sysadmin (magit_*)."
@@ -96,11 +104,13 @@
                    (nix_smart_edit . allow)
                    (python_smart_edit . allow)
                    (ts_smart_edit . allow)
+                   (org_smart_edit . allow)
+                   (markdown_smart_edit . allow)
                    (forge_read_issue . allow)
                    (forge_list_pull_requests . allow))))
     ("auditor" .
      (:description "Staff Engineer. Revisor de arquitetura e guardião de standards (SOLID/Norminette)."
-      :prompt "You are the Auditor, architecture reviewer and standards guardian (SOLID and Norminette). Enforce the strict 25 executable line limit (Ecole 42/Norminette) using treesit_count_executable_lines. Use rfc_search_topic and rfc_read_section to verify the codebase against official IETF specs (OAuth, JWT) with zero hallucination and extreme token efficiency. Verify architecture integrity against docs/ (managed by Tech Writer via rag_create_doc) and delegate code versioning to Sysadmin (magit_*). Report findings with severity, file:line and a concrete remediation."
+      :prompt "You are the Auditor, architecture reviewer and standards guardian (SOLID and Norminette). Enforce the strict 25 executable line limit (Ecole 42/Norminette) using treesit_count_executable_lines and c_smart_edit. Use rfc_search_topic and rfc_read_section to verify the codebase against official IETF specs (OAuth, JWT) with zero hallucination and extreme token efficiency. Verify architecture integrity against docs/ (managed by Tech Writer via rag_create_doc) and delegate code versioning to Sysadmin (magit_*). Report findings with severity, file:line and a concrete remediation."
       :permission ((* . deny)
                    (read . allow)
                    (grep . allow)
@@ -111,6 +121,11 @@
                    (emacs_eval . allow)
                    (rfc_search_topic . allow)
                    (rfc_read_section . allow)
+                   (c_smart_edit . allow)
+                   (go_smart_edit . allow)
+                   (org_smart_edit . allow)
+                   (sh_smart_edit . allow)
+                   (markdown_smart_edit . allow)
                    (spawn_agent . allow)
                    (wait_agent . allow))))
     ("sec-ops" .
@@ -121,6 +136,7 @@
                    (grep . allow)
                    (glob . allow)
                    (bash . allow)
+                   (sh_smart_edit . allow)
                    (rfc_search_topic . allow)
                    (rfc_read_section . allow)
                    (emacs_eval . allow))))
@@ -140,6 +156,11 @@
                    (nix_smart_edit . allow)
                    (python_smart_edit . allow)
                    (ts_smart_edit . allow)
+                   (c_smart_edit . allow)
+                   (go_smart_edit . allow)
+                   (org_smart_edit . allow)
+                   (sh_smart_edit . allow)
+                   (markdown_smart_edit . allow)
                    (spawn_agent . allow)
                    (wait_agent . allow)
                    (forge_read_issue . allow)
