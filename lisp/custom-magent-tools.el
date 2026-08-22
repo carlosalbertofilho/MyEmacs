@@ -3250,7 +3250,7 @@ REASON: Motivo da alteração."
        (append (list (cons "status" "success") (cons "unit" unit)) props)))))
 
 (defun +carlos/magent-tool-systemd-action (unit action &optional remote-host _reason)
-  "Execute systemctl action (start, stop, restart, reload, enable, disable) on a unit."
+  "Execute systemctl action on UNIT."
   (if (or (not unit) (string-empty-p unit)
           (not action) (string-empty-p action))
       (+carlos/magent-tool-result '((status . "error") (message . "unit and action parameters are required")))
