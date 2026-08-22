@@ -366,7 +366,7 @@ restaura `gc-cons-threshold' ao valor padrão e executa `(garbage-collect)'."
                   :reasoning-model      "mlx-community/DeepSeek-R1-Distill-Qwen-14B-4bit"
                   :watchdog-timeout     8)
     ("aa102-006l" :orchestrator-backend "Gemini"
-                  :orchestrator-model   "gemini-1.5-flash"
+                  :orchestrator-model   "gemini-2.5-flash"
                   :dev-backend          "OpenCode Zen"
                   :dev-model            "big-pickle"
                   :reasoning-backend    "Ollama Local"

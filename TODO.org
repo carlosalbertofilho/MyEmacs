@@ -53,7 +53,7 @@ Executar benchmarks reais medindo TTFT, tokens/segundo e consumo de memória uni
 
 *** Configuração do Magent com Matriz FinOps Free Tier
 Codificada em =lisp/custom-magent-subagent.el= e =lisp/custom-magent-fsm.el= a matriz oficial acordada em =docs/ai-providers-reference.org=:
-- Orquestrador: =gemini-1.5-flash= (Google AI Studio Free Tier) com fallback para =deepseek-v4-flash-free=.
+- Orquestrador: =gemini-2.5-flash= (Google AI Studio Free Tier) com fallback para =deepseek-v4-flash-free=.
 - Perfil =coder=, =auditor=, =sec-ops=: =big-pickle= (OpenCode Zen Free) com fallback para =nemotron-3.5-lightning-free=.
 - Perfil =planner=: =big-pickle= (Free) com fallback para =gemini-2.5-pro= (saldo $50 Google AI Studio) para planejamentos complexos.
 - Fallback Offline: =qwen2.5-coder:1.5b= (TTFT 0.3s) como Orquestrador Local no Linux CPU.
