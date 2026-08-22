@@ -72,8 +72,20 @@ check:
     emacs --init-directory "$(pwd)" --batch -l init.el \
       --eval '(message "Config loaded OK.")' && echo "✅ OK" || echo "❌ FAIL"
 
+# Test daemon startup with --debug-init and warning collection (production)
+check-daemon:
+    @output="$$(emacs --daemon=just-check-daemon --debug-init --init-directory "{{prod_dir}}" 2>&1)"; \
+    emacsclient --socket-name=just-check-daemon --eval '(kill-emacs)' >/dev/null 2>&1 || true; \
+    if echo "$$output" | rg -q "An error occurred|Duplicate item ID|previously queued|Wrong type argument"; then \
+      echo "❌ Daemon boot failed or warnings detected:"; \
+      echo "$$output"; \
+      exit 1; \
+    else \
+      echo "✅ Daemon boot (--debug-init) OK"; \
+    fi
+
 # Quick config load test (production, post-sync verification)
-check-prod:
+check-prod: check-daemon
     emacs --init-directory "{{prod_dir}}" --batch -l init.el \
       --eval '(message "Config loaded OK.")' && echo "✅ OK" || echo "❌ FAIL"
 

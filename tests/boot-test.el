@@ -44,5 +44,31 @@
       ;; Buscamos erros severos como void-variable ou void-function
       (should-not (re-search-forward "\\(void-function\\|void-variable\\|Symbol’s value as variable is void\\|Symbol’s function definition is void\\)" nil t)))))
 
+(ert-deftest myemacs-boot-daemon-debug-init-no-warnings ()
+  "Valida a inicialização em modo daemon com --debug-init e coleta de warnings."
+  (let* ((emacs-bin (expand-file-name invocation-name invocation-directory))
+         (out-buf (generate-new-buffer " *ert-daemon-out*"))
+         (exit-code
+          (call-process emacs-bin nil out-buf nil
+                        "--daemon=ert-test-daemon"
+                        "--debug-init"
+                        "--init-directory" user-emacs-directory)))
+    (unwind-protect
+        (progn
+          (should (= exit-code 0))
+          (with-current-buffer out-buf
+            (let ((output (buffer-string)))
+              ;; Garante ausência de erros de duplicação do Elpaca e erros de init.el
+              (should-not (string-match-p "Duplicate item ID queued" output))
+              (should-not (string-match-p "previously queued as dependency" output))
+              (should-not (string-match-p "An error occurred while loading" output))
+              (should-not (string-match-p "Wrong type argument: listp" output)))))
+      (ignore-errors
+        (call-process emacs-bin nil nil nil
+                      "--socket-name=ert-test-daemon"
+                      "--eval" "(kill-emacs)"))
+      (when (buffer-live-p out-buf)
+        (kill-buffer out-buf)))))
+
 (provide 'boot-test)
 ;;; boot-test.el ends here

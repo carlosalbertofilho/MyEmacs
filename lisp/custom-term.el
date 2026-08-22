@@ -27,9 +27,10 @@
 ;; ── vterm ───────────────────────────────────────────────────────────
 ;; Prevent vterm from prompting for module compilation in batch mode
 (defun +carlos/vterm-skip-compile-prompt (orig-fun &rest args)
-  "Skip `y-or-n-p` prompt about vterm module compilation.
+  "Skip `y-or-n-p` prompt about vterm module compilation in batch or daemon mode.
 ORIG-FUN and ARGS are passed to the original function."
-  (if (and noninteractive (stringp (car args))
+  (if (and (or noninteractive (daemonp))
+           (stringp (car args))
            (string-match-p "vterm" (car args)))
       nil
     (apply orig-fun args)))
