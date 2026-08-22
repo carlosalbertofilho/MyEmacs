@@ -640,5 +640,47 @@
       (should (string-match-p "Posted comment" res))
       (should (equal (car called) "123")))))
 
+(ert-deftest myemacs-magit-submodule-list-test ()
+  "Valida listagem de submodulos com magit_submodule_list."
+  (should (fboundp '+carlos/magent-tool-magit-submodule-list))
+  (let ((res (+carlos/magent-tool-magit-submodule-list nil "test")))
+    (should (or (stringp res) (and (fboundp 'magent-tool-result-p) (magent-tool-result-p res))))))
+
+(ert-deftest myemacs-magit-submodule-update-test ()
+  "Valida execucao de update de submodulos."
+  (should (fboundp '+carlos/magent-tool-magit-submodule-update))
+  (let ((res (+carlos/magent-tool-magit-submodule-update "true" "true" "test")))
+    (should (string-match-p "Updated submodules" res))))
+
+(ert-deftest myemacs-magit-submodule-add-test ()
+  "Valida validacao de parametros em magit_submodule_add."
+  (should (fboundp '+carlos/magent-tool-magit-submodule-add))
+  (let ((res (+carlos/magent-tool-magit-submodule-add "" "" "test")))
+    (should (string-match-p "Error" res))))
+
+(ert-deftest myemacs-magit-branch-list-test ()
+  "Valida listagem de branches com magit_branch_list."
+  (should (fboundp '+carlos/magent-tool-magit-branch-list))
+  (let ((res (+carlos/magent-tool-magit-branch-list "false" "test")))
+    (should (or (stringp res) (and (fboundp 'magent-tool-result-p) (magent-tool-result-p res))))))
+
+(ert-deftest myemacs-magit-branch-delete-test ()
+  "Valida validacao de parametro em magit_branch_delete."
+  (should (fboundp '+carlos/magent-tool-magit-branch-delete))
+  (let ((res (+carlos/magent-tool-magit-branch-delete "" nil nil "test")))
+    (should (string-match-p "Error" res))))
+
+(ert-deftest myemacs-magit-merge-test ()
+  "Valida validacao de parametro em magit_merge."
+  (should (fboundp '+carlos/magent-tool-magit-merge))
+  (let ((res (+carlos/magent-tool-magit-merge "" nil "test")))
+    (should (string-match-p "Error" res))))
+
+(ert-deftest myemacs-magit-rebase-test ()
+  "Valida validacao de parametro em magit_rebase."
+  (should (fboundp '+carlos/magent-tool-magit-rebase))
+  (let ((res (+carlos/magent-tool-magit-rebase "" "test")))
+    (should (string-match-p "Error" res))))
+
 (provide 'magent-tools-test)
 ;;; magent-tools-test.el ends here

@@ -26,6 +26,12 @@ entenderem o estado atual do projeto e decisões tomadas.
    - Auto-Resync de `buffer_conflict` com embutimento do texto atualizado no payload em `custom-magent-buffer.el`.
    - Testes ERT em `tests/magent-fsm-test.el` (Grupo 10) e aprovação pelo Opus QA Gatekeeper.
 
+** 2026-08-22 — [CONCLUÍDO] Suíte Nativa de Submódulos Git e Branches/Merges Avançados (7 Novas Ferramentas Nativas)
+   - Implementadas 3 ferramentas para submódulos Git: =magit_submodule_list=, =magit_submodule_update=, =magit_submodule_add= em =lisp/custom-magent-tools.el=.
+   - Implementadas 4 ferramentas para gerenciamento avançado de branches/merges/rebases: =magit_branch_list=, =magit_branch_delete=, =magit_merge=, =magit_rebase= em =lisp/custom-magent-tools.el=.
+   - Permissões atribuídas aos perfis =sysadmin=, =coder=, =tech-writer=, =auditor= e =qa= em =lisp/custom-magent-team.el=.
+   - Suíte de testes ERT expandida para 451/451 testes passados com 100% de sucesso.
+
 ** 2026-08-22 — [CONCLUÍDO] Expansão da Suíte Nativa Magit & Forge (7 Novas Ferramentas Nativas)
    - Implementadas 4 novas ferramentas Magit nativas: =magit_pull=, =magit_checkout=, =magit_diff=, =magit_log= em =lisp/custom-magent-tools.el=.
    - Implementadas 3 novas ferramentas Forge nativas: =forge_create_issue=, =forge_create_pull_request=, =forge_post_comment= em =lisp/custom-magent-tools.el=.

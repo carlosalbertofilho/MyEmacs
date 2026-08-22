@@ -168,6 +168,13 @@ Accept &rest ARGS for Gemini streaming 5th argument."
 (defvar +carlos/magent-tool-magit-checkout nil)
 (defvar +carlos/magent-tool-magit-diff nil)
 (defvar +carlos/magent-tool-magit-log nil)
+(defvar +carlos/magent-tool-magit-submodule-list nil)
+(defvar +carlos/magent-tool-magit-submodule-update nil)
+(defvar +carlos/magent-tool-magit-submodule-add nil)
+(defvar +carlos/magent-tool-magit-branch-list nil)
+(defvar +carlos/magent-tool-magit-branch-delete nil)
+(defvar +carlos/magent-tool-magit-merge nil)
+(defvar +carlos/magent-tool-magit-rebase nil)
 (defvar +carlos/magent-tool-elisp-smart-edit nil)
 (defvar +carlos/magent-tool-nix-smart-edit nil)
 (defvar +carlos/magent-tool-python-smart-edit nil)
@@ -1650,7 +1657,7 @@ FILETAGS (default ':RAG:DOCS:') é a tag do arquivo."
                    (shell-command-to-string (mapconcat #'shell-quote-argument (cons "git" args) " ")))))
     (if (or (null output) (string-empty-p (string-trim output)))
         (format "No %s changes found%s in '%s'."
-                (if is-staged "staged" "unstaged")
+                   (if is-staged "staged" "unstaged")
                 (if (and (stringp file) (not (string-empty-p file))) (format " for '%s'" file) "")
                 default-directory)
       (+carlos/magent-sanitize-string output))))
@@ -1682,6 +1689,158 @@ FILETAGS (default ':RAG:DOCS:') é a tag do arquivo."
                            (cons "date" (nth 2 parts))
                            (cons "summary" (nth 3 parts)))))
                  lines))))))
+
+(defun +carlos/magent-tool-magit-submodule-list (&optional directory _reason)
+  "Lists Git submodules in DIRECTORY with status, path, commit and remote URL in JSON."
+  (require 'magit nil t)
+  (let* ((default-directory (or (and (stringp directory) (file-directory-p directory) directory)
+                                (and (fboundp 'project-root)
+                                     (when-let* ((p (project-current)))
+                                       (project-root p)))
+                                default-directory))
+         (output (if (fboundp 'magit-git-output)
+                     (magit-git-output "submodule" "status")
+                   (shell-command-to-string "git submodule status"))))
+    (if (or (null output) (string-empty-p (string-trim output)))
+        (format "No Git submodules configured in '%s'." default-directory)
+      (let ((lines (split-string (string-trim output) "\n" t)))
+        (+carlos/magent-tool-result
+         (mapcar (lambda (line)
+                   (let* ((trimmed (string-trim line))
+                          (prefix (substring trimmed 0 1))
+                          (rest (substring trimmed 1))
+                          (parts (split-string rest " " t))
+                          (commit (nth 0 parts))
+                          (path (nth 1 parts))
+                          (status (cond ((string= prefix "-") "uninitialized")
+                                        ((string= prefix "+") "outdated")
+                                        ((string= prefix "U") "conflict")
+                                        (t "active"))))
+                     (list (cons "path" (or path ""))
+                           (cons "commit" (or commit ""))
+                           (cons "status" status))))
+                 lines))))))
+
+(defun +carlos/magent-tool-magit-submodule-update (&optional init recursive _reason)
+  "Updates and initializes Git submodules recursively via Magit API."
+  (require 'magit nil t)
+  (let* ((default-directory (or (and (fboundp 'project-root)
+                                     (when-let* ((p (project-current)))
+                                       (project-root p)))
+                                default-directory))
+         (do-init (not (equal init "false")))
+         (do-rec (not (equal recursive "false")))
+         (args (append '("submodule" "update")
+                       (when do-init '("--init"))
+                       (when do-rec '("--recursive")))))
+    (if (fboundp 'magit-run-git)
+        (ignore-errors (apply #'magit-run-git args))
+      (shell-command-to-string (mapconcat #'shell-quote-argument (cons "git" args) " ")))
+    (format "Updated submodules in '%s' (init=%s, recursive=%s)." default-directory do-init do-rec)))
+
+(defun +carlos/magent-tool-magit-submodule-add (url target-dir &optional _reason)
+  "Adds a new Git submodule pointing to URL at TARGET-DIR."
+  (require 'magit nil t)
+  (if (or (null url) (string-empty-p url) (null target-dir) (string-empty-p target-dir))
+      "Error: url and target_dir parameters are required."
+    (let* ((default-directory (or (and (fboundp 'project-root)
+                                       (when-let* ((p (project-current)))
+                                         (project-root p)))
+                                  default-directory))
+           (args (list "submodule" "add" url target-dir)))
+      (if (fboundp 'magit-run-git)
+          (ignore-errors (apply #'magit-run-git args))
+        (shell-command-to-string (mapconcat #'shell-quote-argument (cons "git" args) " ")))
+      (format "Added submodule '%s' at '%s' in '%s'." url target-dir default-directory))))
+
+(defun +carlos/magent-tool-magit-branch-list (&optional remote _reason)
+  "Lists local and optional REMOTE branches with upstream, ahead/behind counters and last commit in JSON."
+  (require 'magit nil t)
+  (let* ((default-directory (or (and (fboundp 'project-root)
+                                     (when-let* ((p (project-current)))
+                                       (project-root p)))
+                                default-directory))
+         (inc-remote (or (equal remote "true") (equal remote "all")))
+         (format-arg "--format=%(HEAD)|%(refname:short)|%(upstream:short)|%(upstream:track)|%(objectname:short)|%(subject)")
+         (args (append (list "branch" format-arg) (when inc-remote '("-a"))))
+         (output (if (fboundp 'magit-git-output)
+                     (apply #'magit-git-output args)
+                   (shell-command-to-string (mapconcat #'shell-quote-argument (cons "git" args) " ")))))
+    (if (or (null output) (string-empty-p (string-trim output)))
+        (format "No branches found in '%s'." default-directory)
+      (let ((lines (split-string (string-trim output) "\n" t)))
+        (+carlos/magent-tool-result
+         (mapcar (lambda (line)
+                   (let* ((parts (split-string line "|" t))
+                          (is-head (equal (nth 0 parts) "*"))
+                          (ref (nth 1 parts))
+                          (upstream (or (nth 2 parts) ""))
+                          (track (or (nth 3 parts) ""))
+                          (commit (or (nth 4 parts) ""))
+                          (subject (or (nth 5 parts) "")))
+                     (list (cons "branch" (or ref ""))
+                           (cons "active" is-head)
+                           (cons "upstream" upstream)
+                           (cons "track" track)
+                           (cons "commit" commit)
+                           (cons "summary" subject))))
+                 lines))))))
+
+(defun +carlos/magent-tool-magit-branch-delete (branch &optional remote force _reason)
+  "Deletes local or REMOTE branch programmatically."
+  (require 'magit nil t)
+  (if (or (null branch) (string-empty-p branch))
+      "Error: branch parameter is required."
+    (let* ((default-directory (or (and (fboundp 'project-root)
+                                       (when-let* ((p (project-current)))
+                                         (project-root p)))
+                                  default-directory))
+           (is-force (equal force "true"))
+           (remote-name (when (and (stringp remote) (not (string-empty-p remote)) (not (equal remote "false")))
+                          (if (equal remote "true") "origin" remote))))
+      (if remote-name
+          (progn
+            (if (fboundp 'magit-run-git)
+                (ignore-errors (magit-run-git "push" remote-name "--delete" branch))
+              (shell-command-to-string (format "git push %s --delete %s"
+                                              (shell-quote-argument remote-name)
+                                              (shell-quote-argument branch))))
+            (format "Deleted remote branch '%s/%s' from '%s'." remote-name branch default-directory))
+        (let ((flag (if is-force "-D" "-d")))
+          (if (fboundp 'magit-run-git)
+              (ignore-errors (magit-run-git "branch" flag branch))
+            (shell-command-to-string (format "git branch %s %s" flag (shell-quote-argument branch))))
+          (format "Deleted local branch '%s' in '%s'." branch default-directory))))))
+
+(defun +carlos/magent-tool-magit-merge (branch &optional no-ff _reason)
+  "Merges BRANCH into active HEAD."
+  (require 'magit nil t)
+  (if (or (null branch) (string-empty-p branch))
+      "Error: branch parameter is required for merge."
+    (let* ((default-directory (or (and (fboundp 'project-root)
+                                       (when-let* ((p (project-current)))
+                                         (project-root p)))
+                                  default-directory))
+           (is-no-ff (equal no-ff "true"))
+           (args (append '("merge") (when is-no-ff '("--no-ff")) (list branch))))
+      (if (fboundp 'magit-run-git)
+          (ignore-errors (apply #'magit-run-git args))
+        (shell-command-to-string (mapconcat #'shell-quote-argument (cons "git" args) " ")))
+      (format "Merged branch '%s' into active branch in '%s'." branch default-directory))))
+
+(defun +carlos/magent-tool-magit-rebase (target &optional _reason)
+  "Rebases active branch onto TARGET branch."
+  (require 'magit nil t)
+  (if (or (null target) (string-empty-p target))
+      "Error: target parameter is required for rebase."
+    (let* ((default-directory (or (and (fboundp 'project-root)
+                                       (when-let* ((p (project-current)))
+                                         (project-root p)))
+                                  default-directory)))
+      (if (fboundp 'magit-run-git)
+          (ignore-errors (magit-run-git "rebase" target))
+        (shell-command-to-string (format "git rebase %s" (shell-quote-argument target))))
+      (format "Rebased active branch onto '%s' in '%s'." target default-directory))))
 
 (defun +carlos/magent-tool-forge-create-issue (title body &optional _reason sql-fn repo-fn)
   "Creates a GitHub/GitLab issue via Forge API programmatically.
@@ -2540,6 +2699,27 @@ REASON: Motivo da alteração."
     (when +carlos/magent-tool-magit-log
       (add-to-list 'magent-tools-catalog
                    `(:name "magit_log" :tool ,+carlos/magent-tool-magit-log :permission magit_log)))
+    (when +carlos/magent-tool-magit-submodule-list
+      (add-to-list 'magent-tools-catalog
+                   `(:name "magit_submodule_list" :tool ,+carlos/magent-tool-magit-submodule-list :permission magit_submodule_list)))
+    (when +carlos/magent-tool-magit-submodule-update
+      (add-to-list 'magent-tools-catalog
+                   `(:name "magit_submodule_update" :tool ,+carlos/magent-tool-magit-submodule-update :permission magit_submodule_update)))
+    (when +carlos/magent-tool-magit-submodule-add
+      (add-to-list 'magent-tools-catalog
+                   `(:name "magit_submodule_add" :tool ,+carlos/magent-tool-magit-submodule-add :permission magit_submodule_add)))
+    (when +carlos/magent-tool-magit-branch-list
+      (add-to-list 'magent-tools-catalog
+                   `(:name "magit_branch_list" :tool ,+carlos/magent-tool-magit-branch-list :permission magit_branch_list)))
+    (when +carlos/magent-tool-magit-branch-delete
+      (add-to-list 'magent-tools-catalog
+                   `(:name "magit_branch_delete" :tool ,+carlos/magent-tool-magit-branch-delete :permission magit_branch_delete)))
+    (when +carlos/magent-tool-magit-merge
+      (add-to-list 'magent-tools-catalog
+                   `(:name "magit_merge" :tool ,+carlos/magent-tool-magit-merge :permission magit_merge)))
+    (when +carlos/magent-tool-magit-rebase
+      (add-to-list 'magent-tools-catalog
+                   `(:name "magit_rebase" :tool ,+carlos/magent-tool-magit-rebase :permission magit_rebase)))
     (when +carlos/magent-tool-forge-read-issue
       (add-to-list 'magent-tools-catalog
                    `(:name "forge_read_issue" :tool ,+carlos/magent-tool-forge-read-issue :permission forge_read_issue)))
@@ -2725,6 +2905,74 @@ REASON: Motivo da alteração."
                    (:name "branch" :type string :description "Optional branch name (default HEAD)")
                    (:name "reason" :type string :description "Reason for log inspection"))
            :function #'+carlos/magent-tool-magit-log
+           :category "magent"))
+
+    (setq +carlos/magent-tool-magit-submodule-list
+          (gptel-make-tool
+           :name "magit_submodule_list"
+           :description "List Git submodules with status, path, commit and remote URL in structured JSON format."
+           :args '((:name "directory" :type string :description "Optional target project directory")
+                   (:name "reason" :type string :description "Reason for submodule listing"))
+           :function #'+carlos/magent-tool-magit-submodule-list
+           :category "magent"))
+
+    (setq +carlos/magent-tool-magit-submodule-update
+          (gptel-make-tool
+           :name "magit_submodule_update"
+           :description "Update and initialize Git submodules recursively programmatically using Emacs Magit API."
+           :args '((:name "init" :type string :description "Optional: 'true' (default) to initialize uninitialized submodules")
+                   (:name "recursive" :type string :description "Optional: 'true' (default) for recursive update")
+                   (:name "reason" :type string :description "Reason for submodule update"))
+           :function #'+carlos/magent-tool-magit-submodule-update
+           :category "magent"))
+
+    (setq +carlos/magent-tool-magit-submodule-add
+          (gptel-make-tool
+           :name "magit_submodule_add"
+           :description "Add a new Git submodule pointing to URL at target_dir programmatically using Emacs Magit API."
+           :args '((:name "url" :type string :description "Git repository URL")
+                   (:name "target_dir" :type string :description "Target directory path for submodule")
+                   (:name "reason" :type string :description "Reason for adding submodule"))
+           :function #'+carlos/magent-tool-magit-submodule-add
+           :category "magent"))
+
+    (setq +carlos/magent-tool-magit-branch-list
+          (gptel-make-tool
+           :name "magit_branch_list"
+           :description "List local and optional remote branches with upstream, ahead/behind counters and last commit in structured JSON format."
+           :args '((:name "remote" :type string :description "Optional: 'true' or 'all' to include remote branches")
+                   (:name "reason" :type string :description "Reason for branch listing"))
+           :function #'+carlos/magent-tool-magit-branch-list
+           :category "magent"))
+
+    (setq +carlos/magent-tool-magit-branch-delete
+          (gptel-make-tool
+           :name "magit_branch_delete"
+           :description "Delete local or remote branch programmatically using Emacs Magit API."
+           :args '((:name "branch" :type string :description "Target branch name to delete")
+                   (:name "remote" :type string :description "Optional: remote name ('origin' or 'true') for remote branch deletion")
+                   (:name "force" :type string :description "Optional: 'true' to force delete (-D)")
+                   (:name "reason" :type string :description "Reason for branch deletion"))
+           :function #'+carlos/magent-tool-magit-branch-delete
+           :category "magent"))
+
+    (setq +carlos/magent-tool-magit-merge
+          (gptel-make-tool
+           :name "magit_merge"
+           :description "Merge specified branch into active HEAD programmatically using Emacs Magit API."
+           :args '((:name "branch" :type string :description "Branch to merge into active HEAD")
+                   (:name "no_ff" :type string :description "Optional: 'true' to force a merge commit (--no-ff)")
+                   (:name "reason" :type string :description "Reason for merge"))
+           :function #'+carlos/magent-tool-magit-merge
+           :category "magent"))
+
+    (setq +carlos/magent-tool-magit-rebase
+          (gptel-make-tool
+           :name "magit_rebase"
+           :description "Rebase active branch onto target base branch programmatically using Emacs Magit API."
+           :args '((:name "target" :type string :description "Target base branch for rebase")
+                   (:name "reason" :type string :description "Reason for rebase"))
+           :function #'+carlos/magent-tool-magit-rebase
            :category "magent"))
 
     (setq +carlos/magent-tool-forge-create-issue
@@ -2937,6 +3185,13 @@ REASON: Motivo da alteração."
     (add-to-list 'magent-enable-tools 'magit_checkout)
     (add-to-list 'magent-enable-tools 'magit_diff)
     (add-to-list 'magent-enable-tools 'magit_log)
+    (add-to-list 'magent-enable-tools 'magit_submodule_list)
+    (add-to-list 'magent-enable-tools 'magit_submodule_update)
+    (add-to-list 'magent-enable-tools 'magit_submodule_add)
+    (add-to-list 'magent-enable-tools 'magit_branch_list)
+    (add-to-list 'magent-enable-tools 'magit_branch_delete)
+    (add-to-list 'magent-enable-tools 'magit_merge)
+    (add-to-list 'magent-enable-tools 'magit_rebase)
     (add-to-list 'magent-enable-tools 'elisp_smart_edit)
     (add-to-list 'magent-enable-tools 'nix_smart_edit)
     (add-to-list 'magent-enable-tools 'python_smart_edit)

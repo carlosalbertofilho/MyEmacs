@@ -27,6 +27,20 @@ Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=
 
 * Concluído (referências ao roadmap)
 
+** DONE Suíte Nativa de Submódulos Git e Branches/Merges Avançados (7 Novas Ferramentas Nativas)
+    :PROPERTIES:
+    :CREATED: 2026-08-22
+    :COMPLETED: 2026-08-22
+    :ASSIGNEE: sysadmin
+    :STATUS: concluido
+    :END:
+
+*** Novas Ferramentas Nativas de Submódulos Git (magit_submodule_list, magit_submodule_update, magit_submodule_add)
+Encapsulamento programático de submódulos Git (+carlos/magent-tool-magit-submodule-list, +carlos/magent-tool-magit-submodule-update, +carlos/magent-tool-magit-submodule-add) com estado estruturado JSON e suporte a atualização recursiva.
+
+*** Novas Ferramentas Nativas Avançadas de Branches/Merges (magit_branch_list, magit_branch_delete, magit_merge, magit_rebase)
+Encapsulamento programático das APIs de branch/merge/rebase do Magit (+carlos/magent-tool-magit-branch-list, +carlos/magent-tool-magit-branch-delete, +carlos/magent-tool-magit-merge, +carlos/magent-tool-magit-rebase) para listagem com status upstream, deleção remota/local e mesclagem declarativa.
+
 ** DONE Expansão da Suíte Nativa de Ferramentas Magit & Forge (7 Novas Ferramentas Nativas)
     :PROPERTIES:
     :CREATED: 2026-08-22
