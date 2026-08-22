@@ -217,18 +217,22 @@ Do NOT use '<tool_call>', '<function=...>', or '<parameter=...>' forms; the runt
 You are a SUBAGENT EXECUTOR -- you receive a specific task and execute it. You do NOT orchestrate, you do NOT delegate, you do NOT call spawn_agent or wait_agent.
 1. READ BEFORE EDIT: Always use 'read_file' to read the target file before editing. Edit with exact text copied from the actual file content -- NEVER guess or hallucinate file contents.
 2. EXACT TEXT SUBSTITUTION: When using edit_file, old_text must match the file byte-for-byte. Copy directly from read_file output. If the edit fails, re-read the file and try again with the correct text.
-3. RETURN CLEAR RESULTS: When done, report: (a) what was done, (b) files modified (with absolute paths), (c) any errors encountered. Keep your report concise -- the orchestrator will synthesize for the user."
-  "Extra directives injected ONLY into subagent system prompts.")
+(defconst +carlos/magent-subagent-directives
+  "CRITICAL SUBAGENT EXECUTOR DIRECTIVES:
+1. ABSOLUTE PATHS: Use full absolute paths starting with '/' (e.g. '/home/carlosfilho/...').
+2. NON-EMPTY PARAMETERS: Do not call write_file or edit_file with empty or missing args.
+3. SUBAGENT EXECUTOR (HARD RULE): You are a SUBAGENT EXECUTOR -- you receive a specific task and execute it. You do NOT orchestrate, you do NOT delegate, you do NOT call spawn_agent or wait_agent.
+4. READ BEFORE EDIT: Always use 'read_file' to read the target file before editing. Edit with exact text copied from the actual file content -- NEVER guess or hallucinate file contents.
+5. EXACT TEXT SUBSTITUTION: When using edit_file, old_text must match the file byte-for-byte. Copy directly from read_file output. If the edit fails, re-read the file and try again with the correct text.
+6. TOOL CALL FORMAT: Always request tool use through the native structured function-calling mechanism. Tool calls MUST be emitted as native structured function calls in the FINAL response text.
+7. NON-INTERACTIVE SHELL: Avoid interactive shells; git commits must include '-m \"message\"'.
+8. RETURN CLEAR RESULTS: When done, report: (a) what was done, (b) files modified (with absolute paths), (c) any errors encountered. Keep your report concise -- the orchestrator will synthesize for the user."
+  "Directivas estritas para subagentes executores do Magent.")
 
 (defun +carlos/magent-inject-system-directives (composed &rest _)
   "Append Magent system directives and model menu to COMPOSED message.
-Selects role-specific extras based on
-`+carlos/magent-current-agent-is-orchestrator' (set by
-`+carlos/magent-subagent-apply-profile')."
-  (let ((role-extra (if +carlos/magent-current-agent-is-orchestrator
-                        +carlos/magent-orchestrator-extra
-                      +carlos/magent-subagent-extra)))
-    (concat composed "\n\n" (+carlos/magent-system-directives-render) role-extra)))
+Selects role-specific directives based on `+carlos/magent-current-agent-is-orchestrator'."
+  (concat composed "\n\n" (+carlos/magent-system-directives-render)))
 
 (defun +carlos/magent-resolve-path-advice (orig-fun path)
   "Expande PATH para absoluto com ORIG-FUN usando `default-directory'."
@@ -781,9 +785,12 @@ acima de `+carlos/magent-model-max-tier'."
     (mapconcat #'identity (nreverse lines) "\n")))
 
 (defun +carlos/magent-system-directives-render ()
-  "Retorna as directivas estáticas seguidas do menu de modelos renderizado."
-  (concat +carlos/magent-system-directives
-          "\n\n" (+carlos/magent-model-menu-render)))
+  "Retorna as diretivas apropriadas (Orchestrator vs Subagent) e o menu de modelos."
+  (if +carlos/magent-current-agent-is-orchestrator
+      (concat +carlos/magent-system-directives
+              "\n\n" (+carlos/magent-model-menu-render)
+              +carlos/magent-orchestrator-extra)
+    +carlos/magent-subagent-directives))
 
 (defconst +carlos/magent-deep-task-keywords
   '("refactor" "architect" "architecture" "design" "schema" "migrat"
