@@ -244,7 +244,8 @@ You are a SUBAGENT EXECUTOR -- you receive a specific task and execute it direct
 2. READ BEFORE EDIT: Always use 'read_file' to read the target file before editing. Edit with exact text copied from the actual file content -- NEVER guess or hallucinate file contents.
 3. EXACT TEXT SUBSTITUTION: When using edit_file, old_text must match the file byte-for-byte. Copy directly from read_file output. If the edit fails, re-read the file and try again with the correct text.
 4. RETURN CLEAR RESULTS: When done, report: (a) what was done, (b) files modified (with absolute paths), (c) any errors encountered. Keep your report concise -- the orchestrator will synthesize for the user.
-5. LANGUAGE MATCHING: Always return your findings and reports in the SAME language used by the user in the prompt (e.g. Portuguese for Portuguese prompts)."
+5. LANGUAGE MATCHING: Always return your findings and reports in the SAME language used by the user in the prompt (e.g. Portuguese for Portuguese prompts).
+6. PREFER SMART EDIT TOOLS: Whenever editing code or documents in Elisp, Nix, Python, TS/JS, C/C++, Go, Org, Shell, or Markdown, PREFER the specialized *_smart_edit tools (elisp_smart_edit, nix_smart_edit, python_smart_edit, ts_smart_edit, c_smart_edit, go_smart_edit, org_smart_edit, sh_smart_edit, markdown_smart_edit) for transactional snippet insertion, symbol refactoring, and in-memory syntax validation."
   "Extra directives injected ONLY into subagent system prompts.")
 
 (defun +carlos/magent-inject-system-directives (composed &rest _)
