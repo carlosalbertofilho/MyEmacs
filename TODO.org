@@ -215,6 +215,22 @@ Atualizar =docs/magent-reference.org=:
 - APIs de Jobs Duráveis e Ledger.
 - Interface de injeção de =<parent_context>=.
 
+** DONE Factory Reset do Ambiente Oficial (just factory-reset)
+    :PROPERTIES:
+    :CREATED: 2026-08-21
+    :STATUS: DONE
+    :ASSIGNEE: coder
+    :END:
+
+*** DONE Script bin/factory-reset.sh com guardas de segurança
+Nuke + clone fresco de =origin/main= (URL derivada do remote do repo dev, branch explicita) preservando estado em backup temporário em =/tmp= (=bookmarks=, =recentf=, =places=, =history=, =savehist=, =custom-file.el=, =magent/sessions/=). Guardas: confirmação interativa (escape =FORCE=1=), aborto com alterações trackeadas não-commitadas no prod e trap que preserva o backup em falha pós-nuke.
+
+*** DONE Receita just factory-reset completa
+Encadeia script + =just install= + =just compile-prod= + =just check-prod=.
+
+*** DONE Teste estrutural e documentação
+=testes/factory-reset-test.el= (sintaxe bash, guardas presentes, receita completa) + tabela no AGENTS.md + seção em =docs/dev-workflow.org=.
+
 * Concluído (referências ao roadmap)
 
 - *Subagentes Sem Tools* (2026-08-20) — Separação de diretivas em 3 constantes e injeção por papel. Log verificado com 100% de sucesso.

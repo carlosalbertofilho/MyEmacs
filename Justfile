@@ -166,6 +166,7 @@ factory-reset:
     @bash bin/factory-reset.sh
     just install
     just compile-prod
+    just check-prod
 
 # Full workflow: check-all -> commit -> push -> sync -> compile + boot check no prod
 deploy MSG:

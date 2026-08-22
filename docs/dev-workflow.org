@@ -1,6 +1,9 @@
 #+TITLE: Dev Workflow Reference — IA → REPL → ERT
 #+AUTHOR: Carlos Filho
 #+DATE: 2026-08-12
+#+LAST_MODIFIED: 2026-08-21
+#+DESCRIPTION: Fluxo de desenvolvimento (IA → REPL → ERT), portões Justfile e reset de emergência do ambiente oficial.
+#+FILETAGS: :RAG:DOCS:
 #+OPTIONS: toc:2 num:t
 
 * Visão Geral
@@ -46,6 +49,46 @@ Este documento descreve o fluxo de desenvolvimento interativo em Elisp no MyEmac
 | ~C-c D b~       | ~C-c C-b~                  | ~+carlos/insert-repl-block~ | Insere bloco scratch ~(when nil ...)~ |
 | ~C-c D d~       | —                          | ~+carlos/toggle-debug-on-error~ | Alterna ~debug-on-error~ |
 | ~C-c D a~       | —                          | ~+carlos/debug-region-with-ai~ | Depura backtrace/região com IA |
+
+* Factory Reset (Emergência do Ambiente Oficial)
+
+A receita =just factory-reset= é o botão de emergência máximo: apaga
+=~/.config/emacs= inteiro e reclona uma cópia virgem de =origin/main=
+(=bin/factory-reset.sh=), seguido de =just install= + =just compile-prod= +
+=just check-prod=.
+
+** Fluxo executado
+
+#+begin_src bash
+just factory-reset          # interativo
+FORCE=1 just factory-reset  # automação (pula guardas)
+#+end_src
+
+1. Valida que =$PROD_DIR= existe (override via =EMACS_TEST_DIR=).
+2. *Guardas:* aborta se o prod tiver alterações trackeadas não-commitadas;
+   pede confirmação interativa (=y/N=) — =FORCE=1= pula ambos.
+3. Backup dos arquivos de estado não-regeneráveis para =/tmp=: =bookmarks=,
+   =recentf=, =places=, =history=, =savehist=, =custom-file.el= e
+   =magent/sessions/= (conversas de IA).
+4. =rm -rf= do prod e =git clone -b main= da URL de =origin= derivada do repo
+   dev (sem hardcode).
+5. Restaura o backup no clone fresco. Em falha após o nuke, o backup fica
+   preservado em =/tmp= e o caminho é impresso no erro.
+6. Justfile encadeia build completo e boot batch de validação.
+
+** O que NÃO sobrevive
+
+Tudo que não está na lista de backup é descartado e regenerado pelo
+=just install= / uso normal: =elpaca/= (reinstall git-based), =tree-sitter/=,
+=eln-cache/, vterm-module, transient/history etc. Alterações trackeadas
+não-commitadas no prod são PERDIDAS (por isso o guarda dirty-check).
+
+** Guardas estruturais
+
+=testes/factory-reset-test.el= valida estaticamente (sem executar): sintaxe
+=bash -n=, presença dos guardas (=FORCE=, =--porcelain --untracked-files=no=,
+=trap= do backup, remote dinâmico, =-b main=) e encadeamento =check-prod= na
+receita.
 
 * Prompts Centralizados
 

@@ -55,12 +55,20 @@ a comandos manuais.** O diretório-alvo de teste/sync é `~/.config/emacs`
 | `just deploy "msg"` | `check-all` → commit → push → `sync` → `check-prod` | Deploy em um comando |
 | `just ci` | `check-all` | Pipeline de CI |
 | `just promote` | Migração Doom→Vanilla (legado) | Raramente |
+| `just factory-reset` | Nuke + clone fresco do prod (estado preservado em `/tmp`) + `install` + `compile-prod` + `check-prod` | Reset total do ambiente oficial (emergência) |
 
 **`just sync` é destrutivo por design:** faz hard reset do prod para
 `origin/main`, descartando quaisquer modificações locais em arquivos trackeados
 (presume-se que sejam redundantes com o que já foi commitado). Arquivos de
 runtime não-trackeados (`elpaca/`, `tree-sitter/`, `agent/`, `bookmarks`,
 `magent/sessions/`, `recentf`, etc.) **não são tocados**.
+
+**`just factory-reset` vai além:** apaga o prod inteiro e reclona de
+`origin/main`, preservando apenas os arquivos de estado essenciais
+(`bookmarks`, `recentf`, `places`, `history`, `savehist`, `custom-file.el`,
+`magent/sessions/`) em backup temporário em `/tmp`. Pede confirmação
+interativa e aborta com alterações trackeadas não-commitadas; `FORCE=1`
+pula as guardas. Detalhes em `docs/dev-workflow.org`.
 
 ---
 
