@@ -1858,7 +1858,7 @@ SQL-FN and REPO-FN are optional overrides for offline unit testing."
           (if repo
               (progn
                 (if (fboundp 'forge-create-issue)
-                    (ignore-errors (forge-create-issue repo title body))
+                    (ignore-errors (forge-create-issue repo))
                   (shell-command-to-string (format "gh issue create --title %s --body %s"
                                                   (shell-quote-argument title)
                                                   (shell-quote-argument (or body "")))))
