@@ -1453,20 +1453,21 @@ FILETAGS (default ':RAG:DOCS:') é a tag do arquivo."
                                                             (project-root p)))
                                                      user-emacs-directory)))
          (dir (file-name-directory abs-file))
-         (lines (list (format "#+TITLE: %s" title)
-                      "#+AUTHOR: Carlos Filho"
-                      (format "#+DATE: %s" date-str)
-                      (format "#+LAST_MODIFIED: %s" date-str)
-                      (format "#+DESCRIPTION: %s" description)
-                      (format "#+FILETAGS: %s" tag-str)
-                      "#+OPTIONS: toc:2 num:t"
-                      ""
-                      "* Visão Geral"
-                      ""
-                      description
-                      ""
-                      "* Símbolos Introspectados"
-                      "")))
+         (header-lines (list (format "#+TITLE: %s" title)
+                             "#+AUTHOR: Carlos Filho"
+                             (format "#+DATE: %s" date-str)
+                             (format "#+LAST_MODIFIED: %s" date-str)
+                             (format "#+DESCRIPTION: %s" description)
+                             (format "#+FILETAGS: %s" tag-str)
+                             "#+OPTIONS: toc:2 num:t"
+                             ""
+                             "* Visão Geral"
+                             ""
+                             description
+                             ""
+                             "* Símbolos Introspectados"
+                             ""))
+         (body-lines nil))
     (unless (file-directory-p dir)
       (make-directory dir t))
     (dolist (sym-item sym-list)
@@ -1479,20 +1480,20 @@ FILETAGS (default ':RAG:DOCS:') é a tag do arquivo."
                          ((fboundp sym) "Função Elisp")
                          ((boundp sym) "Variável")
                          (t "Símbolo"))))
-        (push (format "** %s" name) lines)
-        (push (format "- *Tipo:* %s" kind) lines)
+        (push (format "** %s" name) body-lines)
+        (push (format "- *Tipo:* %s" kind) body-lines)
         (when arglist
-          (push (format "- *Assinatura:* =%s=" (cons name arglist)) lines))
-        (push "" lines)
+          (push (format "- *Assinatura:* =%s=" (cons name arglist)) body-lines))
+        (push "" body-lines)
         (if doc
             (progn
-              (push "#+begin_src text" lines)
-              (push (string-trim doc) lines)
-              (push "#+end_src" lines))
-          (push "_Sem documentação registrada._" lines))
-        (push "" lines)))
+              (push "#+begin_src text" body-lines)
+              (push (string-trim doc) body-lines)
+              (push "#+end_src" body-lines))
+          (push "_Sem documentação registrada._" body-lines))
+        (push "" body-lines)))
     (with-temp-file abs-file
-      (insert (mapconcat #'identity (nreverse lines) "\n")))
+      (insert (mapconcat #'identity (append header-lines (nreverse body-lines)) "\n")))
     (format "Documento RAG gerado com sucesso em '%s' (%d símbolos introspectados)."
             abs-file (length sym-list))))
 
