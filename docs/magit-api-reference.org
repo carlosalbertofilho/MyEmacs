@@ -1,0 +1,77 @@
+#+TITLE: Magit Programmatic Elisp API Reference
+#+AUTHOR: Carlos Filho
+#+DATE: 2026-08-22
+#+LAST_MODIFIED: 2026-08-22
+#+DESCRIPTION: Guia de Referência RAG para as funções de automação programática Elisp do Magit sem interface gráfica.
+#+FILETAGS: :RAG:DOCS:
+#+OPTIONS: toc:2 num:t
+
+* Visão Geral
+
+Guia de Referência RAG para as funções de automação programática Elisp do Magit sem interface gráfica.
+
+* Símbolos Introspectados
+
+** magit-stage-file
+- *Tipo:* Símbolo
+
+_Sem documentação registrada._
+
+** magit-stage-all
+- *Tipo:* Símbolo
+
+_Sem documentação registrada._
+
+** magit-unstage-file
+- *Tipo:* Símbolo
+
+_Sem documentação registrada._
+
+** magit-commit-create
+- *Tipo:* Comando Interativo
+- *Assinatura:* =(magit-commit-create &optional args)=
+
+#+begin_src text
+Create a new commit.
+
+(fn &optional ARGS)
+#+end_src
+
+** magit-push-current
+- *Tipo:* Comando Interativo
+- *Assinatura:* =(magit-push-current target args)=
+
+#+begin_src text
+Push the current branch to a branch read in the minibuffer.
+
+(fn TARGET ARGS)
+#+end_src
+
+** magit-submodule-add
+- *Tipo:* Comando Interativo
+- *Assinatura:* =(magit-submodule-add url &optional path name args)=
+
+#+begin_src text
+Add the repository at URL as a module.
+
+Optional PATH is the path to the module relative to the root of
+the superproject.  If it is nil, then the path is determined
+based on the URL.  Optional NAME is the name of the module.  If
+it is nil, then PATH also becomes the name.
+#+end_src
+
+** magit-status-setup-buffer
+- *Tipo:* Função Elisp
+- *Assinatura:* =(magit-status-setup-buffer &optional directory)=
+
+#+begin_src text
+(fn &optional DIRECTORY)
+#+end_src
+
+** magit-get-current-branch
+- *Tipo:* Função Elisp
+
+#+begin_src text
+Return the refname of the currently checked out branch.
+Return nil if no branch is currently checked out.
+#+end_src
