@@ -26,6 +26,13 @@ entenderem o estado atual do projeto e decisões tomadas.
    - Auto-Resync de `buffer_conflict` com embutimento do texto atualizado no payload em `custom-magent-buffer.el`.
    - Testes ERT em `tests/magent-fsm-test.el` (Grupo 10) e aprovação pelo Opus QA Gatekeeper.
 
+** 2026-08-22 — [CONCLUÍDO] Ferramentas Nativas Magit/Forge & Gerador RAG por Introspecção Lisp
+   - Implementada a ferramenta nativa =rag_create_doc= (+carlos/magent-tool-rag-create-doc) para extração zero-rede de docstrings e assinaturas Elisp no Emacs.
+   - Gerados os documentos RAG =docs/forge-reference.org= e =docs/magit-api-reference.org= com cabeçalho Org canônico (#+TITLE, #+FILETAGS: :RAG:DOCS:).
+   - Implementadas as ferramentas nativas Magit =magit_stage=, =magit_commit=, =magit_push= e =magit_status= em =custom-magent-tools.el=.
+   - Auditados e harmonizados os prompts da equipe de especialistas em =custom-magent-team.el= (=coder=, =sysadmin=, =planner=, =tech-writer=, =auditor=).
+   - 423/423 testes ERT aprovados com 100% de sucesso.
+
 ** 2026-08-22 — [CONCLUÍDO] Limpeza & Benchmarking de Modelos Locais no Host CPU (aa102-006l)
    - Liberados 13 GB de disco NVMe (remoção de `gemma4:e2b`, `mistral:7b`, `llama3.2:1b`).
    - Benchmark empírico validou `qwen2.5-coder:1.5b` (24 tok/s, 0.3s TTFT) como Orquestrador Local offline.

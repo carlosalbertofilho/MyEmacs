@@ -27,32 +27,6 @@ Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=
 
 * Pendente — Motor & Backlog (Plano Mestre Opus)
 
-** TODO Ferramentas Nativas Magit/Forge e Gerador RAG por Introspecção do Emacs
-    :PROPERTIES:
-    :CREATED: 2026-08-22
-    :ASSIGNEE: coder
-    :STATUS: pendente
-    :END:
-
-*** Gerador RAG por Introspecção (rag_create_doc)
-Implementar ferramenta nativa em Elisp (+carlos/magent-tool-rag-create-doc em lisp/custom-magent-tools.el) para extração zero-rede de docstrings e assinaturas nativas do Emacs.
-- Varredura programática via (documentation 'symbol) e (help-function-arglist 'symbol).
-- Geração e atualização de arquivos .org sob docs/ com cabeçalho canônico Org (#+TITLE, #+AUTHOR, #+DATE, #+LAST_MODIFIED, #+DESCRIPTION, #+FILETAGS: :RAG:DOCS:).
-- Redução de token footprint de ~4.000 para ~40 tokens por consulta RAG.
-
-*** Suíte de Ferramentas Nativas Magit/Forge (lisp/custom-magent-tools.el)
-Implementar adaptadores de Elisp nativo com gptel-make-tool para operações de controle de versão e integração GitHub/Forge.
-- Implementar magit_stage (magit-stage-file, magit-stage-all).
-- Implementar magit_commit (magit-commit-create sem buffer interativo).
-- Implementar magit_push (magit-push-current).
-- Implementar magit_status (magit-status-setup-buffer / resumo de status).
-- Atualizar perfil sysadmin em lisp/custom-magent-team.el priorizando ferramentas Magit nativas sobre bash raw.
-
-*** Atualização do Acervo de Documentação RAG (docs/)
-Expandir a base de conhecimento estruturada para consumo por subagentes e busca semântica.
-- Criar docs/forge-reference.org cobrindo a API do Forge, Issues, PRs e banco SQLite local com tag :RAG:DOCS:.
-- Atualizar docs/magit-reference.org com a seção * Programmatic Elisp API detalhando funções não-interativas.
-
 ** TODO Auditoria e Benchmarking de Modelos Locais no Host agnes (Mac M2 24GB)
     :PROPERTIES:
     :CREATED: 2026-08-22
@@ -69,6 +43,28 @@ Executar benchmarks reais medindo TTFT, tokens/segundo e consumo de memória uni
 - Validar =mlx-community/Qwen3.5-Coder-14B-Instruct-4bit= para o perfil =coder=.
 - Validar =mlx-community/DeepSeek-R1-Distill-Qwen-14B-4bit= para o perfil =planner=/=sec-ops=.
 - Validar =mlx-community/gemma-4-e2b-it-4bit= ou =Qwen-7B= como Orquestrador Local offline.
+
+* Concluído (referências ao roadmap)
+
+** DONE Ferramentas Nativas Magit/Forge e Gerador RAG por Introspecção do Emacs
+    :PROPERTIES:
+    :CREATED: 2026-08-22
+    :COMPLETED: 2026-08-22
+    :ASSIGNEE: coder
+    :STATUS: concluido
+    :END:
+
+*** Gerador RAG por Introspecção (rag_create_doc)
+Ferramenta nativa em Elisp (+carlos/magent-tool-rag-create-doc em lisp/custom-magent-tools.el) para extração zero-rede de docstrings e assinaturas nativas do Emacs.
+- Varredura programática via (documentation 'symbol) e (help-function-arglist 'symbol).
+- Geração e atualização de arquivos .org sob docs/ com cabeçalho canônico Org (#+TITLE, #+AUTHOR, #+DATE, #+LAST_MODIFIED, #+DESCRIPTION, #+FILETAGS: :RAG:DOCS:).
+- Redução de token footprint de ~4.000 para ~40 tokens por consulta RAG.
+- Arquivos RAG gerados: docs/forge-reference.org e docs/magit-api-reference.org.
+
+*** Suíte de Ferramentas Nativas Magit/Forge (lisp/custom-magent-tools.el)
+Adaptadores de Elisp nativo com gptel-make-tool para operações de controle de versão e integração GitHub/Forge.
+- Implementadas as ferramentas magit_stage, magit_commit, magit_push e magit_status.
+- Atualizados os perfis da equipe em lisp/custom-magent-team.el (sysadmin, tech-writer, planner, auditor).
 
 ** DONE Implementação do Roteador Dinâmico de Tiers e Matriz dos 9 Perfis
     :PROPERTIES:
