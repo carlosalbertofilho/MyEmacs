@@ -119,7 +119,7 @@
 
 ;; ── cape ────────────────────────────────────────────────────────────
 (use-package cape
-  :ensure t
+  :ensure nil
   :config
   (defun +carlos/cape-setup-eglot-capf ()
     "Merge LSP completion with Tempel snippets."
