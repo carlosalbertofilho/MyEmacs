@@ -27,24 +27,6 @@ Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=
 
 * Pendente — Motor & Backlog (Plano Mestre Opus)
 
-** TODO Normas IETF e Extensoes (rfc-mode)
-    :PROPERTIES:
-    :CREATED: 2026-08-20
-    :ASSIGNEE: auditor
-    :STATUS: plano aprovado
-    :END:
-
-*** Integracao do rfc-mode
-Declarar =use-package rfc-mode= e apontar o cache local para =~/.config/emacs/rfc/=.
-
-*** Ferramentas de parser e pesquisa
-Implementar =rfc_search_topic= e =rfc_read_section=, garantindo extração inteligente particionada por seções de texto para economia de tokens.
-
-*** Regras de acesso IETF
-Registrar políticas de aprovação default como =allow= para instâncias com perfis =auditor= e =sec-ops=.
-
-*Arquivos:* =lisp/custom-files.el=, =lisp/custom-magent-tools.el=, =lisp/custom-magent-team.el=, =tests/magent-tools-test.el=.
-
 ** TODO Resiliencia e Robustez FSM
     :PROPERTIES:
     :CREATED: 2026-08-20
@@ -101,6 +83,7 @@ Devemos ajustar =custom-ai.el= ou =custom-magent-subagent.el= para contornar ou 
 
 * Concluído (referências ao roadmap)
 
+- *Normas IETF e Extensões (rfc-mode)* (2026-08-22) — `use-package rfc-mode` em `custom-files.el` (cache em `~/.config/emacs/rfc/`), ferramentas `rfc_search_topic` / `rfc_read_section` registradas em `custom-magent-tools.el` e permissões `allow` atribuídas aos perfis `auditor` e `sec-ops` em `custom-magent-team.el`.
 - *Otimização do Factory Reset & Build* (2026-08-22) — `install-prod` no Justfile, `elpaca-queue-limit` dinâmico por CPUs, `history` ignorado e removido do git tracking. Testado e validado com sucesso em 12 cores no host `aa102-006l`.
 - *Subagentes Sem Tools* (2026-08-20) — Separação de diretivas em 3 constantes e injeção por papel. Log verificado com 100% de sucesso.
 - *Tier Escalation* (2026-08-20) — =select_model= aceita =min_tier=. 2 testes ERT.
