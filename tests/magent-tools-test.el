@@ -408,5 +408,36 @@
       (when (file-exists-p tmp-doc)
         (delete-file tmp-doc)))))
 
+(ert-deftest myemacs-elisp-smart-edit-tool-registered ()
+  "Valida se +carlos/magent-tool-elisp-smart-edit existe e está registrada."
+  (should (fboundp '+carlos/magent-tool-elisp-smart-edit))
+  (when (boundp 'magent-enable-tools)
+    (should (memq 'elisp_smart_edit magent-enable-tools))))
+
+(ert-deftest myemacs-elisp-smart-edit-insert-snippet ()
+  "Valida se elisp_smart_edit insere snippet e valida buffer transacionalmente."
+  (let ((tmp-el (make-temp-file "test-elisp-" nil ".el")))
+    (unwind-protect
+        (progn
+          (let ((res (+carlos/magent-tool-elisp-smart-edit tmp-el "insert_snippet" "deftest" "myemacs-test-dummy")))
+            (should (string-match-p "inserido com sucesso" res))
+            (with-temp-buffer
+              (insert-file-contents tmp-el)
+              (should (string-match-p "ert-deftest myemacs-test-dummy" (buffer-string))))))
+      (when (file-exists-p tmp-el)
+        (delete-file tmp-el)))))
+
+(ert-deftest myemacs-elisp-smart-edit-validate-buffer ()
+  "Valida se elisp_smart_edit executa validação sintática em memória."
+  (let ((tmp-el (make-temp-file "test-valid-" nil ".el")))
+    (unwind-protect
+        (progn
+          (with-temp-file tmp-el
+            (insert "(defun test-fn () \"Doc.\" t)\n"))
+          (let ((res (+carlos/magent-tool-elisp-smart-edit tmp-el "validate_buffer")))
+            (should (string-match-p "validado com sucesso" res))))
+      (when (file-exists-p tmp-el)
+        (delete-file tmp-el)))))
+
 (provide 'magent-tools-test)
 ;;; magent-tools-test.el ends here

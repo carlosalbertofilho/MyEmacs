@@ -43,6 +43,7 @@
                    (buffer . allow)
                    (flycheck_errors . allow)
                    (lsp_navigation . allow)
+                   (elisp_smart_edit . allow)
                    (grep . allow)
                    (glob . allow)
                    (forge_read_issue . allow)
@@ -87,6 +88,7 @@
                    (bash . allow)
                    (emacs_eval . allow)
                    (rag_create_doc . allow)
+                   (elisp_smart_edit . allow)
                    (forge_read_issue . allow)
                    (forge_list_pull_requests . allow))))
     ("auditor" .
@@ -127,6 +129,7 @@
                    (glob . allow)
                    (flycheck_errors . allow)
                    (emacs_eval . allow)
+                   (elisp_smart_edit . allow)
                    (spawn_agent . allow)
                    (wait_agent . allow)
                    (forge_read_issue . allow)

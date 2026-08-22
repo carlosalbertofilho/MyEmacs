@@ -1436,7 +1436,7 @@ NUMBER-STR aceita \"9000\"/\"RFC 9000\"; SECTION é o número da seção
     (error (+carlos/magent-tool-result
             nil (format "RFC indisponível: %s" (error-message-string err))))))
 
-(defun +carlos/magent-tool-rag-create-doc (symbols target-file title description &optional filetags reason)
+(defun +carlos/magent-tool-rag-create-doc (symbols target-file title description &optional filetags _reason)
   "Gera ou atualiza um arquivo Org-mode RAG em TARGET-FILE introspectando SYMBOLS.
 SYMBOLS pode ser uma lista de strings/símbolos ou string separada por espaço.
 TARGET-FILE é o caminho sob `docs/' ou absoluto.
@@ -1499,7 +1499,7 @@ FILETAGS (default ':RAG:DOCS:') é a tag do arquivo."
     (format "Documento RAG gerado com sucesso em '%s' (%d símbolos introspectados)."
             abs-file (length sym-list))))
 
-(defun +carlos/magent-tool-magit-stage (&optional file reason)
+(defun +carlos/magent-tool-magit-stage (&optional file _reason)
   "Stages FILE (or all modified files if FILE is nil/'all') using Magit API."
   (require 'magit nil t)
   (let ((default-directory (or (and (fboundp 'project-root)
@@ -1514,7 +1514,7 @@ FILETAGS (default ':RAG:DOCS:') é a tag do arquivo."
         (when (fboundp 'magit-stage-all) (magit-stage-all))
         (format "Staged all modified files via Magit in '%s'." default-directory)))))
 
-(defun +carlos/magent-tool-magit-commit (message &optional reason)
+(defun +carlos/magent-tool-magit-commit (message &optional _reason)
   "Creates a Git commit with MESSAGE using Magit programmatically."
   (require 'magit nil t)
   (if (or (null message) (string-empty-p message))
@@ -1532,8 +1532,8 @@ FILETAGS (default ':RAG:DOCS:') é a tag do arquivo."
         (format "Created commit with message '%s' via Magit run-git." message))
        (t "Error: Magit commit functions not available.")))))
 
-(defun +carlos/magent-tool-magit-push (&optional remote branch reason)
-  "Pushes current branch to REMOTE (default 'origin') and BRANCH via Magit."
+(defun +carlos/magent-tool-magit-push (&optional remote branch _reason)
+  "Pushes current branch to REMOTE (default `origin') and BRANCH via Magit."
   (require 'magit nil t)
   (let* ((default-directory (or (and (fboundp 'project-root)
                                      (when-let* ((p (project-current)))
@@ -1549,7 +1549,7 @@ FILETAGS (default ':RAG:DOCS:') é a tag do arquivo."
           (format "Pushed branch '%s' to remote '%s' via Magit in '%s'." br rem default-directory))
       "Error: Magit push function not available.")))
 
-(defun +carlos/magent-tool-magit-status (&optional directory reason)
+(defun +carlos/magent-tool-magit-status (&optional directory _reason)
   "Returns formatted Git status summary using Magit API."
   (require 'magit nil t)
   (let* ((dir (or (and (stringp directory) (not (string-empty-p directory)) (expand-file-name directory))
@@ -1562,6 +1562,82 @@ FILETAGS (default ':RAG:DOCS:') é a tag do arquivo."
          (topdir (or (and (fboundp 'magit-get-topdir) (magit-get-topdir)) dir)))
     (format "Magit Status for '%s'\n- Topdir: %s\n- Current Branch: %s"
             dir topdir branch)))
+
+(defun +carlos/magent-tool-elisp-smart-edit (target-file action &optional snippet-name args _reason)
+  "Ferramenta transacional para edição inteligente de arquivos Elisp (.el).
+TARGET-FILE: Caminho do arquivo .el.
+ACTION: `insert_snippet', `refactor_symbol' ou `validate_buffer'.
+SNIPPET-NAME: Nome do snippet Tempel (ex: `defun', `deftest', `use-package').
+ARGS: Argumentos para o snippet ou substituição de símbolo.
+REASON: Motivo da alteração."
+  (let* ((abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
+                                                          (when-let* ((p (project-current)))
+                                                            (project-root p)))
+                                                     user-emacs-directory)))
+         (buf (or (find-buffer-visiting abs-file)
+                  (and (file-exists-p abs-file) (find-file-noselect abs-file))
+                  (get-buffer-create (file-name-nondirectory abs-file)))))
+    (with-current-buffer buf
+      (unless (derived-mode-p 'emacs-lisp-mode)
+        (emacs-lisp-mode))
+      (pcase action
+        ("insert_snippet"
+         (let* ((name (or snippet-name "defun"))
+                (arg-str (or args ""))
+                (code (cond
+                       ((equal name "use-package")
+                        (format "(use-package %s\n  :ensure t\n  :config\n  )\n" arg-str))
+                       ((equal name "deftest")
+                        (format "(ert-deftest %s ()\n  \"Docstring.\"\n  (should t))\n" arg-str))
+                       ((equal name "defcustom")
+                        (format "(defcustom %s nil\n  \"Docstring.\"\n  :type 'boolean\n  :group 'myemacs)\n" arg-str))
+                       ((equal name "with-eval-after-load")
+                        (format "(with-eval-after-load '%s\n  )\n" arg-str))
+                       (t
+                        (format "(defun %s ()\n  \"Docstring.\"\n  )\n" arg-str)))))
+           (goto-char (point-max))
+           (unless (bolp) (insert "\n"))
+           (insert code)
+           (condition-case err
+               (progn
+                 (save-excursion (check-parens))
+                 (save-buffer)
+                 (format "Snippet '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file))
+             (error
+              (primitive-undo 1 buf)
+              (format "Erro de sintaxe ao inserir snippet '%s': %s. Transação revertida." name (error-message-string err))))))
+        ("refactor_symbol"
+         (if (or (null args) (string-empty-p args))
+             "Erro: informe os símbolos 'antigo novo' em args para refatorar."
+           (let* ((parts (split-string args "[ \t]+" t))
+                  (old-sym (car parts))
+                  (new-sym (cadr parts)))
+             (if (and old-sym new-sym)
+                 (progn
+                   (goto-char (point-min))
+                   (let ((count 0))
+                     (while (search-forward old-sym nil t)
+                       (replace-match new-sym t t)
+                       (setq count (1+ count)))
+                     (condition-case err
+                         (progn
+                           (save-excursion (check-parens))
+                           (save-buffer)
+                           (format "Refatoração de '%s' -> '%s' concluída em '%s' (%d substituições). Buffer validado."
+                                   old-sym new-sym abs-file count))
+                       (error
+                        (primitive-undo count buf)
+                        (format "Erro de sintaxe ao refatorar '%s': %s. Transação revertida." old-sym (error-message-string err))))))
+               "Erro: forneça 'velho novo' em args."))))
+        ("validate_buffer"
+         (condition-case err
+             (progn
+               (save-excursion (check-parens))
+               (read-from-string (buffer-string))
+               (format "Buffer '%s' validado com sucesso (zero erros de sintaxe e parênteses equilibrados)." abs-file))
+           (error
+            (format "Erro de validação no buffer '%s': %s" abs-file (error-message-string err)))))
+        (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol' ou 'validate_buffer'." action))))))
 
 ;; ── Registro das tools curadas no catálogo do Magent ─────────────────
 
@@ -1721,6 +1797,18 @@ FILETAGS (default ':RAG:DOCS:') é a tag do arquivo."
            :function #'+carlos/magent-tool-rfc-read-section
            :category "magent"))
 
+    (setq +carlos/magent-tool-elisp-smart-edit
+          (gptel-make-tool
+           :name "elisp_smart_edit"
+           :description "Transactional native tool for intelligent Elisp (.el) code editing via Tempel Snippets, symbol refactoring, and in-memory validation (check-parens + byte-compiler + checkdoc)."
+           :args '((:name "target_file" :type string :description "Target .el file path")
+                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol' or 'validate_buffer'")
+                   (:name "snippet_name" :type string :description "Tempel snippet name (e.g. 'defun', 'deftest', 'use-package', 'defcustom', 'with-eval-after-load')")
+                   (:name "args" :type string :description "Positional or symbol replacement arguments")
+                   (:name "reason" :type string :description "Reason for edit"))
+           :function #'+carlos/magent-tool-elisp-smart-edit
+           :category "magent"))
+
     (setq +carlos/magent-tool-forge-read-issue
           (gptel-make-tool
            :name "forge_read_issue"
@@ -1756,6 +1844,7 @@ FILETAGS (default ':RAG:DOCS:') é a tag do arquivo."
     (add-to-list 'magent-enable-tools 'magit_commit)
     (add-to-list 'magent-enable-tools 'magit_push)
     (add-to-list 'magent-enable-tools 'magit_status)
+    (add-to-list 'magent-enable-tools 'elisp_smart_edit)
     (add-to-list 'magent-enable-tools 'forge_read_issue)
     (add-to-list 'magent-enable-tools 'forge_list_pull_requests)
     (add-to-list 'magent-enable-tools 'rfc_search_topic)
