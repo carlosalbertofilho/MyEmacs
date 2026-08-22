@@ -72,7 +72,7 @@
 
 ;; ── Display buffer rules (drawer inferior centralizado) ────────────
 (add-to-list 'display-buffer-alist
-             '("\\*\\(compilation\\|eglot events\\|magit-process\\|vterm.*\\|eshell\\|gptel.*\\)\\*"
+             '("\\*\\(compilation\\|eglot events\\|magit-process\\|vterm.*\\|eshell\\|gptel.*\\|ert\\)\\*"
                (display-buffer-in-direction)
                (direction . bottom)
                (window-height . 0.3)))
@@ -83,6 +83,7 @@
   :hook (prog-mode . indent-bars-mode)
   :custom
   (indent-bars-treesitter-support t)
+  (indent-bars-prefer-character t)
   (indent-bars-width 0.2)
   (indent-bars-pad 0.1)
   (indent-bars-color-by-depth '(:regexp "outline-\\([0-9]+\\)" :blend 1)))

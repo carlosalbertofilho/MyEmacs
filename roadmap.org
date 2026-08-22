@@ -1594,6 +1594,13 @@ Criar cache de referência para que agentes possam:
 - Nota de ambiente: com =use-package-expand-minimally=, o =:after magit= adia também o *install* — a order do forge só entrou na fila via =(elpaca (forge))= explícito em batch. Durante o primeiro =just install= houve corrida de build parcial que dava =Unknown slot 'owner'= no =compile-prod=; após instalação estável do forge, recompilação passou limpa.
 - Prod: =just sync= (6c89cf2) + =compile-prod= ✓ + =check-prod= ✓ (=Config loaded OK=) + suíte autoritativa **394 testes, 0 falhas** (7 skipped).
 
+** 2026-08-21 — [CONCLUÍDO] Fixes de Configuração e Ergonomia ERT
+- *Ergonomia (ERT):* O buffer =*ert*= foi adicionado ao =display-buffer-alist= (=lisp/custom-ui.el=) para abrir ancorado no rodapé da janela, viabilizando feedback rápido com =eval-buffer=.
+- *Jinx (Dicionários):* Variáveis =DICPATH= e =XDG_DATA_DIRS= incluídas no =exec-path-from-shell= (=lisp/custom-core.el=) para que o Emacs encontre os dicionários nix/macOS.
+- *Electric Pair:* Habilitado o fechamento automático de chaves/parênteses (=electric-pair-mode=) em =lisp/custom-core.el=.
+- *Cape (Autocomplete):* Pacote =cape= instalado no =custom-completion.el=, com o hook =eglot-managed-mode-hook= configurando o =cape-super-capf= para exibir simultaneamente o LSP (=eglot-completion-at-point=) e os snippets (=tempel-expand=).
+- *Indent-bars:* Ativado o fallback visual =indent-bars-prefer-character t= no =custom-ui.el= para garantir guias de indentação mesmo se o Tree-Sitter falhar.
+
 ** 2026-08-21 — [CONCLUÍDO] D5 — Governança e Refatoração Arquitetural
 
 *** Refatoração do =magent=

@@ -18,12 +18,15 @@
 (declare-function tempel-complete "tempel")
 (declare-function tempel-insert "tempel")
 (declare-function eglot-tempel-mode "eglot-tempel")
+(declare-function cape-super-capf "cape")
+(declare-function eglot-completion-at-point "eglot")
 
 ;; Queue completion packages and wait to prevent race conditions during cold boot
 (elpaca vertico)
 (elpaca marginalia)
 (elpaca orderless)
 (elpaca corfu)
+(elpaca cape)
 (elpaca tempel)
 (elpaca tempel-collection)
 (elpaca eglot-tempel)
@@ -113,6 +116,16 @@
   :config
   (with-eval-after-load 'corfu
     (add-to-list 'corfu-margin-formatters #'nerd-icons-corfu-formatter)))
+
+;; ── cape ────────────────────────────────────────────────────────────
+(use-package cape
+  :ensure t
+  :config
+  (defun +carlos/cape-setup-eglot-capf ()
+    "Merge LSP completion with Tempel snippets."
+    (setq-local completion-at-point-functions
+                (list (cape-super-capf #'eglot-completion-at-point #'tempel-expand))))
+  (add-hook 'eglot-managed-mode-hook #'+carlos/cape-setup-eglot-capf))
 
 ;; ── tempel ──────────────────────────────────────────────────────────
 (use-package tempel

@@ -74,8 +74,13 @@
 (use-package exec-path-from-shell
   :ensure t
   :if (memq window-system '(mac ns))
+  :custom
+  (exec-path-from-shell-variables '("PATH" "MANPATH" "DICPATH" "XDG_DATA_DIRS"))
   :config
   (exec-path-from-shell-initialize))
+
+;; ── Auto-fechamento de pares (electric-pair) ────────────────────────
+(electric-pair-mode 1)
 
 ;; ── ligature (ligaduras de código para Victor Mono) ─────────────────
 (use-package ligature
