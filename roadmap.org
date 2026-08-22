@@ -26,6 +26,13 @@ entenderem o estado atual do projeto e decisões tomadas.
    - Auto-Resync de `buffer_conflict` com embutimento do texto atualizado no payload em `custom-magent-buffer.el`.
    - Testes ERT em `tests/magent-fsm-test.el` (Grupo 10) e aprovação pelo Opus QA Gatekeeper.
 
+** 2026-08-22 — [CONCLUÍDO] Aprimoramento Completo do Fluxo Nix & NixOS (nixd, envrc, apheleia, nixos-rebuild)
+   - Configurado =nix-mode= com =eglot-ensure= apontando para o LSP =nixd= (opções e docs do NixOS) em =lisp/custom-lang.el=.
+   - Ativado =envrc-global-mode= (=direnv= / Flakes) no boot do Emacs.
+   - Configurado =apheleia= com =nixfmt= (RFC-style) para formatação assíncrona ao salvar.
+   - Criado o comando assíncrono =+carlos/nixos-rebuild-switch= bindado em =C-c N r=.
+   - Suíte de testes ERT expandida em =tests/lang-test.el= (457/457 testes passados com 100% de sucesso).
+
 ** 2026-08-22 — [CONCLUÍDO] Suíte Nativa de Submódulos Git e Branches/Merges Avançados (7 Novas Ferramentas Nativas)
    - Implementadas 3 ferramentas para submódulos Git: =magit_submodule_list=, =magit_submodule_update=, =magit_submodule_add= em =lisp/custom-magent-tools.el=.
    - Implementadas 4 ferramentas para gerenciamento avançado de branches/merges/rebases: =magit_branch_list=, =magit_branch_delete=, =magit_merge=, =magit_rebase= em =lisp/custom-magent-tools.el=.

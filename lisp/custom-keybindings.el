@@ -33,6 +33,7 @@
 (declare-function magent-start "magent-agent-shell")
 (declare-function magent-agent-shell-interrupt "magent-agent-shell")
 (declare-function magent-agent-shell-prompt-region "magent-agent-shell")
+(declare-function +carlos/nixos-rebuild-switch "custom-lang")
 
 ;; ── Window navigation (windmove with Super) ─────────────────────────
 (windmove-default-keybindings 'super)
@@ -73,6 +74,9 @@
 ;; ── Just ────────────────────────────────────────────────────────────
 (global-set-key (kbd "C-c j")   #'justl)
 (global-set-key (kbd "C-c J")   #'justl-compile)
+
+;; ── NixOS ───────────────────────────────────────────────────────────
+(global-set-key (kbd "C-c N r") #'+carlos/nixos-rebuild-switch)
 
 ;; ── Makefile ────────────────────────────────────────────────────────
 ;; C-c m e C-c M são associados via :bind do use-package makefile-executor (custom-git.el)

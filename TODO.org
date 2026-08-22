@@ -27,6 +27,17 @@ Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=
 
 * Concluído (referências ao roadmap)
 
+** DONE Aprimoramento do Fluxo Nix & NixOS (eglot + nixd, envrc, apheleia + nixfmt, nixos-rebuild)
+    :PROPERTIES:
+    :CREATED: 2026-08-22
+    :COMPLETED: 2026-08-22
+    :ASSIGNEE: sysadmin
+    :STATUS: concluido
+    :END:
+
+*** Configuração Avançada de Nix no Emacs (custom-lang.el & custom-keybindings.el)
+Integração nativa de nix-mode com eglot-ensure apontando para o LSP nixd (com auto-completion de opções do NixOS), envrc-global-mode para injeção automática de ambiente de Flakes/direnv, apheleia com nixfmt-rfc-style, e comando assíncrono +carlos/nixos-rebuild-switch (C-c N r).
+
 ** DONE Suíte Nativa de Submódulos Git e Branches/Merges Avançados (7 Novas Ferramentas Nativas)
     :PROPERTIES:
     :CREATED: 2026-08-22

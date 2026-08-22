@@ -116,10 +116,23 @@
   :ensure nil
   :mode ("\\.md\\'" . markdown-mode))
 
-;; ── Nix ─────────────────────────────────────────────────────────────
+;; ── Nix & NixOS ──────────────────────────────────────────────────────
 (use-package nix-mode
   :ensure t
-  :mode ("\\.nix\\'" . nix-mode))
+  :mode ("\\.nix\\'" . nix-mode)
+  :hook (nix-mode . eglot-ensure))
+
+(use-package envrc
+  :ensure t
+  :hook (after-init . envrc-global-mode))
+
+(defun +carlos/nixos-rebuild-switch (&optional flake-path)
+  "Executes `sudo nixos-rebuild switch` asynchronously using compile mode."
+  (interactive
+   (list (read-directory-name "NixOS Flake directory: " "/etc/nixos")))
+  (let* ((target (expand-file-name (or flake-path "/etc/nixos")))
+         (cmd (format "sudo nixos-rebuild switch --flake %s" (shell-quote-argument target))))
+    (compile cmd)))
 
 ;; ── Rust ────────────────────────────────────────────────────────────
 (use-package rust-mode
@@ -135,11 +148,15 @@
 
 (with-eval-after-load 'eglot
   (add-to-list 'eglot-server-programs
-               '((rust-ts-mode rust-mode) . ("rust-analyzer"))))
+               '((rust-ts-mode rust-mode) . ("rust-analyzer")))
+  (add-to-list 'eglot-server-programs
+               '(nix-mode . ("nixd"))))
 
 (with-eval-after-load 'apheleia
   (add-to-list 'apheleia-mode-alist '(rust-ts-mode . rustfmt))
-  (add-to-list 'apheleia-mode-alist '(rust-mode . rustfmt)))
+  (add-to-list 'apheleia-mode-alist '(rust-mode . rustfmt))
+  (add-to-list 'apheleia-mode-alist '(nix-mode . nixfmt))
+  (setf (alist-get 'nixfmt apheleia-formatters) '("nixfmt")))
 
 ;; ── Editorconfig ────────────────────────────────────────────────────
 (use-package editorconfig
