@@ -1442,6 +1442,8 @@ SYMBOLS pode ser uma lista de strings/símbolos ou string separada por espaço.
 TARGET-FILE é o caminho sob `docs/' ou absoluto.
 TITLE e DESCRIPTION formatam o cabeçalho canônico do Org.
 FILETAGS (default ':RAG:DOCS:') é a tag do arquivo."
+  (require 'magit nil t)
+  (require 'forge nil t)
   (let* ((sym-list (cond
                     ((listp symbols) symbols)
                     ((stringp symbols) (split-string symbols "[ \t\n,]+" t))

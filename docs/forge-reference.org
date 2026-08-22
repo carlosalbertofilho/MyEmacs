@@ -1,17 +1,17 @@
-
-* Símbolos Introspectados
-
-Guia de Referência RAG para o pacote Forge no Emacs - integração com GitHub/GitLab, Issues e Pull Requests.
+#+TITLE: Forge Reference Guide
+#+AUTHOR: Carlos Filho
+#+DATE: 2026-08-22
+#+LAST_MODIFIED: 2026-08-22
+#+DESCRIPTION: Guia de Referência RAG para o pacote Forge no Emacs - integração com GitHub/GitLab, Issues e Pull Requests.
+#+FILETAGS: :RAG:DOCS:
+#+OPTIONS: toc:2 num:t
 
 * Visão Geral
 
-#+OPTIONS: toc:2 num:t
-#+FILETAGS: :RAG:DOCS:
-#+DESCRIPTION: Guia de Referência RAG para o pacote Forge no Emacs - integração com GitHub/GitLab, Issues e Pull Requests.
-#+LAST_MODIFIED: 2026-08-22
-#+DATE: 2026-08-22
-#+AUTHOR: Carlos Filho
-#+TITLE: Forge Reference Guide
+Guia de Referência RAG para o pacote Forge no Emacs - integração com GitHub/GitLab, Issues e Pull Requests.
+
+* Símbolos Introspectados
+
 ** forge-create-issue
 - *Tipo:* Comando Interativo
 - *Assinatura:* =(forge-create-issue template)=
