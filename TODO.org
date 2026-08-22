@@ -44,43 +44,43 @@ Executar benchmarks reais medindo TTFT, tokens/segundo e consumo de memória uni
 - Validar =mlx-community/DeepSeek-R1-Distill-Qwen-14B-4bit= para o perfil =planner=/=sec-ops=.
 - Validar =mlx-community/gemma-4-e2b-it-4bit= ou =Qwen-7B= como Orquestrador Local offline.
 
-** TODO Implementação do Roteador Dinâmico de Tiers e Matriz dos 9 Perfis
+** DONE Implementação do Roteador Dinâmico de Tiers e Matriz dos 9 Perfis
     :PROPERTIES:
     :CREATED: 2026-08-22
     :ASSIGNEE: coder
-    :STATUS: pendente
+    :STATUS: concluido
     :END:
 
 *** Configuração do Magent com Matriz FinOps Free Tier
-Codificar em =lisp/custom-magent-subagent.el= e =lisp/custom-magent-fsm.el= a matriz oficial acordada em =docs/ai-providers-reference.org=:
+Codificada em =lisp/custom-magent-subagent.el= e =lisp/custom-magent-fsm.el= a matriz oficial acordada em =docs/ai-providers-reference.org=:
 - Orquestrador: =gemini-1.5-flash= (Google AI Studio Free Tier) com fallback para =deepseek-v4-flash-free=.
 - Perfil =coder=, =auditor=, =sec-ops=: =big-pickle= (OpenCode Zen Free) com fallback para =nemotron-3.5-lightning-free=.
 - Perfil =planner=: =big-pickle= (Free) com fallback para =gemini-2.5-pro= (saldo $50 Google AI Studio) para planejamentos complexos.
 - Fallback Offline: =qwen2.5-coder:1.5b= (TTFT 0.3s) como Orquestrador Local no Linux CPU.
 
-** TODO Bateria de Regressão: 12 Rounds de Teste de Delegação
+** DONE Bateria de Regressão: 12 Rounds de Teste de Delegação
     :PROPERTIES:
     :CREATED: 2026-08-19
     :ASSIGNEE: qa
-    :STATUS: plano aprovado
+    :STATUS: concluido
     :END:
 
-Matriz executável dos 12 rounds de regressão do Magent sob a nova matriz de perfis e resiliência FSM.
+Matriz executável dos 12 rounds de regressão do Magent sob a nova matriz de perfis e resiliência FSM (100% de Sucesso - 12/12 PASSED).
 
 | Round | Prompt de Teste                                           | Perfil Esperado         | Tools Esperadas                               | Status |
 |-------+-----------------------------------------------------------+-------------------------+-----------------------------------------------+--------|
-|     1 | Encontre a definição de =+carlos/magent-subagent-profile= | =explore= / =general=   | =grep_search=, =read_file=                    | TODO   |
-|     2 | Quais pacotes são carregados com =:demand t= em init.el?  | =explore=               | =read_file=                                   | TODO   |
+|     1 | Encontre a definição de =+carlos/magent-subagent-profile= | =explore= / =general=   | =grep_search=, =read_file=                    | PASSED |
+|     2 | Quais pacotes são carregados com =:demand t= em init.el?  | =explore=               | =read_file=                                   | PASSED |
 |     3 | analise custom-magent-fsm.el e descreva FSM               | =tech-writer=/=planner= | =read_file=                                   | PASSED |
-|     4 | Altere referências de 'old-var' para 'new-var' em scratch | =coder=                 | =buffer_replace=, =edit_file=                 | TODO   |
-|     5 | Mova função X de file-a.el para file-b.el                 | =coder=                 | =read_file=, =edit_file=, =flycheck_errors=   | TODO   |
+|     4 | Altere referências de 'old-var' para 'new-var' em scratch | =coder=                 | =buffer_replace=, =edit_file=                 | PASSED |
+|     5 | Mova função X de file-a.el para file-b.el                 | =coder=                 | =read_file=, =edit_file=, =flycheck_errors=   | PASSED |
 |     6 | adicione '; TODO: review' no topo de custom-ui.el         | =coder= / =general=     | =edit_file=                                   | PASSED |
-|     7 | Crie um card 'Bateria 12 Rounds' no TODO.org sob Pendente | =planner=               | =read_file=, =edit_file=, =org-lint=          | TODO   |
-|     8 | Resuma status dos bugs resolvidos em AGENTS.md            | =qa= / =tech-writer=    | =read_file=                                   | TODO   |
-|     9 | Crie um arquivo denote documentando a nova FSM            | =tech-writer=           | =run_command= / tool denote                   | TODO   |
-|    10 | Qual é o status git atual? Existem arquivos unstaged?     | =sysadmin= / =coder=    | =run_command= (=git status=)                  | TODO   |
-|    11 | Rode o just compile e me diga se há warnings              | =qa=                    | =run_command= (=just compile=)                | TODO   |
-|    12 | Execute a suíte test-ai e relate as falhas, se houver     | =qa=                    | =run_command= (=just test-ai=)                | TODO   |
+|     7 | Crie um card 'Bateria 12 Rounds' no TODO.org sob Pendente | =planner=               | =read_file=, =edit_file=, =org-lint=          | PASSED |
+|     8 | Resuma status dos bugs resolvidos em AGENTS.md            | =qa= / =tech-writer=    | =read_file=                                   | PASSED |
+|     9 | Crie um arquivo denote documentando a nova FSM            | =tech-writer=           | =run_command= / tool denote                   | PASSED |
+|    10 | Qual é o status git atual? Existem arquivos unstaged?     | =sysadmin= / =coder=    | =run_command= (=git status=)                  | PASSED |
+|    11 | Rode o just compile e me diga se há warnings              | =qa=                    | =run_command= (=just compile=)                | PASSED |
+|    12 | Execute a suíte test-ai e relate as falhas, se houver     | =qa=                    | =run_command= (=just test-ai=)                | PASSED |
 
 * Concluído (referências ao roadmap)
 
