@@ -164,16 +164,16 @@
                      :reasoning-model "mlx-community/DeepSeek-R1-Distill-Qwen-14B-4bit"
                      :watchdog-timeout 8)
             ("aa102-006l" :orchestrator-backend "Gemini"
-                          :orchestrator-model "gemini-2.5-flash"
-                          :dev-backend "Ollama Local"
-                          :dev-model "qwen2.5-coder:3b"
+                          :orchestrator-model "gemini-1.5-flash"
+                          :dev-backend "OpenCode Zen"
+                          :dev-model "big-pickle"
                           :reasoning-backend "Ollama Local"
                           :reasoning-model "deepseek-r1:1.5b"
                           :watchdog-timeout 15))))
     (cl-letf (((symbol-function 'system-name) (lambda () "aa102-006l")))
       (let ((profile (+carlos/magent-host-profile)))
         (should (equal (plist-get profile :orchestrator-backend) "Gemini"))
-        (should (equal (plist-get profile :orchestrator-model) "gemini-2.5-flash"))
+        (should (equal (plist-get profile :orchestrator-model) "gemini-1.5-flash"))
         (should (= (plist-get profile :watchdog-timeout) 15))))))
 
 (ert-deftest myemacs-magent-host-profile-unknown-defaults-to-agnes ()

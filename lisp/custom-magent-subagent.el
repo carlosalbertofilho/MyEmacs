@@ -60,16 +60,16 @@
 ;; `magent-agent-process' — com a resolução dinâmica de modelo por perfil.
 
 (defcustom +carlos/magent-subagent-profiles
-  '(("explore"  :min-tier "local")
-    ("general"  :min-tier "local")
-    ;; Equipe de especialistas (D9, custom-magent-team.el)
-    ("coder"       :min-tier "paid")
-    ("sysadmin"    :min-tier "paid")
-    ("planner"     :min-tier "paid")
-    ("tech-writer" :min-tier "free")
-    ("auditor"     :min-tier "paid")
-    ("sec-ops"     :min-tier "paid")
-    ("qa"          :min-tier "paid"))
+  '(("explore"     :min-tier "free" :preferred-backend "Gemini")
+    ("general"     :min-tier "free" :preferred-backend "OpenCode Zen")
+    ;; Equipe de especialistas (D9, custom-magent-team.el) — Matriz FinOps Free Tier ($0.00)
+    ("coder"       :min-tier "free" :preferred-backend "OpenCode Zen")
+    ("sysadmin"    :min-tier "free" :preferred-backend "OpenCode Zen")
+    ("planner"     :min-tier "free" :preferred-backend "OpenCode Zen")
+    ("tech-writer" :min-tier "free" :preferred-backend "Gemini")
+    ("auditor"     :min-tier "free" :preferred-backend "OpenCode Zen")
+    ("sec-ops"     :min-tier "free" :preferred-backend "OpenCode Zen")
+    ("qa"          :min-tier "free" :preferred-backend "OpenCode Zen"))
   "Dicas de roteamento de modelo dos subagentes do Magent (spawn_agent).
 Alist de (AGENT-NAME . HINTS) onde HINTS é um plist com:
 - `:min-tier' — piso de tier (`local', `free' ou `paid') que o roteamento
