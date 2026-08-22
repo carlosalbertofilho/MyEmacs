@@ -1,893 +1,240 @@
 #+TITLE: Denote Reference Guide
-#+AUTHOR: Generated Reference
-#+DATE: 2026-08-05
-#+LAST_MODIFIED: 2026-08-16
-#+DESCRIPTION: Comprehensive reference for Denote - a simple note-taking system for Emacs
+#+AUTHOR: Carlos Filho
+#+DATE: 2026-08-22
+#+LAST_MODIFIED: 2026-08-22
+#+DESCRIPTION: Guia de Referência RAG para o sistema de Zettelkasten/notas Denote no Emacs.
+#+FILETAGS: :RAG:DOCS:
+#+OPTIONS: toc:2 num:t
 
-* Table of Contents
-:PROPERTIES:
-:TOC: :include all :ignore this
-:END:
-:CONTENTS:
-- [[#overview][Overview]]
-- [[#installation][Installation]]
-- [[#core-concepts][Core Concepts]]
-- [[#key-variables][Key Variables]]
-- [[#key-functions][Key Functions]]
-- [[#note-creation-workflow][Note Creation Workflow]]
-- [[#note-linking-and-backlinks][Note Linking and Backlinks]]
-- [[#denote-silos][Denote Silos (Multiple Directories)]]
-- [[#renaming-notes][Renaming Notes]]
-- [[#templates][Templates]]
-- [[#search-and-filter][Search and Filter]]
-- [[#integration-with-other-packages][Integration with Other Packages]]
-- [[#pitfalls][Pitfalls & Common Errors]]
-- [[#quick-reference-tables][Quick Reference Tables]]
-- [[#sample-configurations][Sample Configurations]]
-:END:
+* Visão Geral
 
-* Overview
+Guia de Referência RAG para o sistema de Zettelkasten/notas Denote no Emacs.
 
-Denote is a simple note-taking application for Emacs that uses a
-Zettelkasten-inspired approach with date-based filenames. It emphasizes plain
-text files, predictable naming conventions, and interoperability with other
-tools.
+* Símbolos Introspectados
 
-- Zettelkasten-style note taking with date-based filenames
-- Plain text files with predictable naming patterns
-- Keyword/tag system embedded in filenames
-- Support for Org mode, Markdown, and plain text notes
-- Linking between notes with backlinks
-- Directory "silos" for separate note collections
-- No database required - files are the data store
+** denote
+- *Tipo:* Comando Interativo
+- *Assinatura:* =(denote &optional title keywords file-type directory date template signature identifier)=
 
-Filename pattern: =YYYYMMDD--title__keywords.ext=
+#+begin_src text
+Create a new note with the appropriate metadata and file name.
 
-#+begin_warning
-Denote directory must exist before use. Create it manually or in your config.
-#+end_warning
+Run the `denote-after-new-note-hook' after creating the new note and
+return its path.  Before returning the path, determine what needs to be
+done to the buffer, in accordance with the user option `denote-kill-buffers'.
 
-* Installation
+When called interactively, the metadata and file name are prompted
+according to the value of `denote-prompts'.
 
-#+begin_src elisp
-;; Install from MELPA
-M-x package-install RET denote RET
+When called from Lisp, all arguments are optional.
+
+- TITLE is a string or a function returning a string.
+
+- KEYWORDS is a list of strings.  The list can be empty or the
+  value can be set to nil.
+
+- FILE-TYPE is a symbol among those described in the user option
+  `denote-file-type'.
+
+- DIRECTORY is a string representing the path to either the
+  value of the variable `denote-directory' or a subdirectory
+  thereof.  The subdirectory must exist: Denote will not create
+  it.  If DIRECTORY does not resolve to a valid path, the first
+  item in the variable `denote-directory' is used instead.
+
+- DATE is a string representing a date like 2022-06-30 or a date
+  and time like 2022-06-16 14:30.  A nil value or an empty string
+  is interpreted as the `current-time'.
+
+- IDENTIFIER is a string identifying the note.  It should have the
+  format of the variable `denote-date-identifier-format', like
+  20220630T1430000.
+
+- TEMPLATE is a symbol which represents the key of a cons cell in
+  the user option `denote-templates'.  The value of that key is
+  inserted to the newly created buffer after the front matter.
+
+- SIGNATURE is a string.
+
+(fn &optional TITLE KEYWORDS FILE-TYPE DIRECTORY DATE TEMPLATE SIGNATURE IDENTIFIER)
 #+end_src
 
-#+begin_src elisp
-(use-package denote
-  :ensure t
-  :config
-  ;; Denote requires the directory to exist
-  (setq denote-directory (expand-file-name "~/org/notes"))
-  (unless (file-directory-p denote-directory)
-    (make-directory denote-directory t)))
+** denote-create-note
+- *Tipo:* Comando Interativo
+- *Assinatura:* =(denote-create-note &optional title keywords file-type directory date template signature identifier)=
+
+#+begin_src text
+Alias for `denote' command.
 #+end_src
 
-* Core Concepts
+** denote-link-or-create
+- *Tipo:* Comando Interativo
+- *Assinatura:* =(denote-link-or-create target &optional id-only)=
 
-** Filename Convention
+#+begin_src text
+Use `denote-link' on TARGET file, creating it if necessary.
 
-All Denote notes follow a predictable naming pattern:
+If TARGET file does not exist, call `denote-link-after-creating' which
+runs the `denote' command interactively to create the file.  The
+established link will then be targeting that new file.  In that case,
+use the last input at the file prompt as the default value of the title
+prompt.
 
-#+begin_example
-YYYYMMDD--title__keywords.ext
-#+end_example
+With optional ID-ONLY as a prefix argument create a link that
+consists of just the identifier.  Else try to also include the
+file's title.  This has the same meaning as in `denote-link'.
 
-- =YYYYMMDD= - Date in ISO format (e.g., =20260805=)
-- =title= - Slugified title (lowercase, spaces replaced with hyphens)
-- =__= - Separator between title and keywords
-- =keywords= - Comma-separated keywords (no spaces around commas)
-- =.ext= - File extension (=org=, =md=, =txt=, etc.)
-
-Examples:
-- =20260805--learning-emacs-lisp.org= (no keywords)
-- =20260805--gtd-methodology__productivity,emacs.org=
-- =20260805--python-decorators__python,programming.md=
-
-** Keyword Rules
-
-- Keywords are separated by commas
-- No spaces around commas
-- Keywords are lowercased by default
-- Special characters in keywords are removed
-- The =__= separator is only present when keywords exist
-
-** Front Matter
-
-Denote supports front matter for structured metadata.
-
-Org mode front matter example:
-#+begin_example
-#+title: Learning Emacs Lisp
-#+date: [2026-08-05 Wed 14:30]
-#+identifier: 20260805T143023
-#+filetags: :emacs:learning:
-
-* Notes
-Your content here.
-#+end_example
-
-Markdown front matter example:
-#+begin_example
----
-title: "Learning Emacs Lisp"
-date: 2026-08-05T14:30:23+00:00
-tags: ["emacs", "learning"]
----
-
-# Notes
-Your content here.
-#+end_example
-
-* Key Variables
-
-** Directory Configuration
-
-| Variable                | Type   | Default              | Description                            |
-|-------------------------+--------+----------------------+----------------------------------------|
-| =denote-directory=      | string | =~/org/notes=        | Root directory for all notes           |
-| =+carlos/denote-silo-directories= | list | =(~/org/notes)= | Silos locais (impl. local; ver *Denote Silos*) |
-| =denote-rename-file-using-front-matter= | boolean | =t= | Rename file based on front matter changes |
-
-** Keyword Configuration
-
-| Variable                 | Type    | Default | Description                              |
-|--------------------------+---------+---------+------------------------------------------|
-| =denote-known-keywords=  | list    | =nil=   | List of known keywords for completion    |
-| =denote-infer-keywords=  | boolean | =t=     | Infer keywords from existing notes       |
-| =denote-sort-keywords=   | boolean | =t=     | Sort keywords alphabetically             |
-| =denote-excluded-keywords-regexp= | string | =nil= | Regex for keywords to exclude          |
-
-** File Type Configuration
-
-| Variable                  | Type     | Default     | Description                           |
-|---------------------------+----------+-------------+---------------------------------------|
-| =denote-file-type=        | symbol   | =org-mode=  | Default file type for new notes       |
-| =denote-org-front-matter= | boolean  | =t=         | Use org front matter format           |
-| =denote-markdown-front-matter= | boolean | =t=    | Use markdown front matter format      |
-| =denote-plain-front-matter= | boolean | =t=       | Use plain text front matter format    |
-
-** Date and Time Configuration
-
-| Variable                             | Type    | Default | Description                         |
-|--------------------------------------+---------+---------+-------------------------------------|
-| =denote-date-prompt-use-org-read-date=| boolean | =t=     | Use org date picker for date prompts  |
-| =denote-prompts=                     | list    | all     | Which prompts to show during creation |
-| =denote-save-buffers=                | boolean | =t=     | Save buffers before creating notes    |
-
-** Buffer and Display Configuration
-
-| Variable                        | Type   | Default                     | Description                      |
-|---------------------------------+--------+-----------------------------+----------------------------------|
-| =denote-rename-buffer-format=   | string | ="*denote-rename*"=         | Format for rename buffer name    |
-| =denote-prompts-order=          | list   | =(title keywords template)= | Order of prompts during creation |
-
-** Recommended Settings
-
-#+begin_src elisp
-(setq denote-directory (expand-file-name "~/org/notes")
-      denote-known-keywords '("emacs" "nix" "42school" "python" "go" "ai")
-      denote-infer-keywords t
-      denote-sort-keywords t
-      denote-file-type 'org-mode
-      denote-org-front-matter t
-      denote-date-prompt-use-org-read-date t)
+(fn TARGET &optional ID-ONLY)
 #+end_src
 
-* Key Functions
+** denote-sort-dired
+- *Tipo:* Comando Interativo
+- *Assinatura:* =(denote-sort-dired regexp sort-by-component reverse exclude-regexp &optional files)=
 
-** Note Creation
+#+begin_src text
+Produce Dired buffer with sorted files from variable `denote-directory'.
+When called interactively, prompt for REGEXP and, depending on the value
+of the user option `denote-sort-dired-extra-prompts', also prompt for
+SORT-BY-COMPONENT, REVERSE, and EXCLUDE-REGEXP.
 
-| Function                | Interactive Command | Description                              |
-|-------------------------+---------------------+------------------------------------------|
-| =denote=                | =M-x denote=        | Create a new note with prompts           |
-| =denote-date=           | =M-x denote-date=   | Create note with date prompt             |
-| =denote-type=           | =M-x denote-type=   | Create note, prompt for file type        |
-| =denote-subdirectory=   | =M-x denote-subdirectory= | Create note in subdirectory        |
-| =denote-template=       | =M-x denote-template= | Create note from template             |
-| =+carlos/denote-silo-new= | =C-c n s= | Create note in a silo (impl. local) |
-| =denote-open-or-create= | =M-x denote-open-or-create= | Open existing or create new      |
+1. REGEXP limits the list of Denote files to those matching the provided
+   regular expression.
 
-** Note Management
+2. SORT-BY-COMPONENT sorts the files by their file name component (one
+   among `denote-sort-components').  If it is nil, sorting is performed
+   according to the user option `denote-sort-dired-default-sort-component',
+   falling back to the identifier.
 
-| Function                  | Interactive Command       | Description                      |
-|---------------------------+---------------------------+----------------------------------|
-| =denote-rename-file=      | =M-x denote-rename-file=  | Rename current note              |
-| =denote-rename-file-using-front-matter= | =M-x denote-rename-file-using-front-matter= | Rename based on front matter |
-| =denote-open=             | =M-x denote-open=         | Open a note by identifier        |
-| =denote-delete=           | =M-x denote-delete=       | Delete current note              |
-| =denote-dired=            | =M-x denote-dired=        | Open Dired in denote directory   |
-| =+carlos/denote-silo-dired= | =C-c n S= | Open Dired in a silo directory (impl. local) |
+3. REVERSE is a boolean to reverse the order when it is a non-nil value.
+   If `denote-sort-dired-extra-prompts' is configured to skip this
+   prompt, then the sorting is done according to the user option
+   `denote-sort-dired-default-reverse-sort', falling back to
+   nil (i.e. no reverse sort).
 
-** Linking and Backlinks
+4. EXCLUDE-REGEXP excludes the files that match the given regular
+   expression.  This is done after REGEXP and OMIT-CURRENT have been
+   applied.
 
-| Function            | Interactive Command     | Description                      |
-|---------------------+-------------------------+----------------------------------|
-| =denote-link=       | =M-x denote-link=       | Create link to another note      |
-| =denote-backlinks=  | =M-x denote-backlinks=  | Show notes that link to this one |
-| =denote-link-dired= | =M-x denote-link-dired= | Open Dired with linked notes     |
-| =denote-extract-id= | =M-x denote-extract-id= | Extract note ID from filename    |
+5. Optional FILES is a list of file paths.  If it is provided,
+  REGEXP and EXCLUDE-REGEXP are applied to it.  In
+  interactive use, FILES is ignored.
 
-** Search and Filter
+When called from Lisp, the mandatory arguments are (i) a string,(ii) a
+symbol among `denote-sort-components', (iii) a nil or non-nil value,
+and (iv) a string, respectively.
 
-| Function              | Interactive Command     | Description                      |
-|-----------------------+-------------------------+----------------------------------|
-| =denote-keyword-search= | =M-x denote-keyword-search= | Search notes by keyword    |
-| =denote-recent=       | =M-x denote-recent=     | Open a recent note               |
-| =denote-all-notes=    | =M-x denote-all-notes=  | List all notes                   |
-| =denote-sort-files=   | =M-x denote-sort-files= | Sort notes by various criteria   |
-
-** Export and Export-Related
-
-| Function                  | Interactive Command     | Description                     |
-|---------------------------+-------------------------+---------------------------------|
-| =denote-export-directory= | =M-x denote-export-directory= | Export notes to directory |
-| =denote-rename-file-using-front-matter= | =M-x denote-rename-file-using-front-matter= | Sync filename with front matter |
-
-* Note Creation Workflow
-
-** Basic Note Creation
-
-1. Run =M-x denote= (=C-c n n= with recommended binding)
-2. Enter title when prompted
-3. Select keywords (comma-separated) from completion
-4. Choose template (if configured)
-5. Note is created and opened in a new buffer
-
-** Note with Date Prompt
-
-1. Run =M-x denote-date= (=C-c n d= with recommended binding)
-2. Select date from calendar (or type it)
-3. Enter title and keywords
-4. Note is created with the selected date in filename
-
-** Available Prompts (=denote-prompts=)
-
-| Prompt Value | Description                          |
-|--------------+--------------------------------------|
-| =title=      | Prompt for note title                |
-| =keywords=   | Prompt for keywords/tags             |
-| =template=   | Prompt for template selection         |
-| =subdirectory=| Prompt for subdirectory             |
-| =date=       | Prompt for date (denote-date only)    |
-
-Customize which prompts appear:
-#+begin_src elisp
-;; Only ask for title and keywords (skip template)
-(setq denote-prompts '(title keywords))
-
-;; Ask for everything
-(setq denote-prompts '(title keywords template subdirectory))
+(fn REGEXP SORT-BY-COMPONENT REVERSE EXCLUDE-REGEXP &optional FILES)
 #+end_src
 
-** Subdirectory Notes
+** denote-rename-file
+- *Tipo:* Comando Interativo
+- *Assinatura:* =(denote-rename-file file title keywords signature date identifier)=
 
-Denote supports organizing notes in subdirectories within =denote-directory=.
+#+begin_src text
+Rename file and update existing front matter if appropriate.
 
-#+begin_src elisp
-;; Create note in subdirectory
-M-x denote-subdirectory
-;; Prompts for subdirectory name, then title/keywords
+Always rename the file where it is located in the file system:
+never move it to another directory.
 
-;; Or configure automatic subdirectory
-(setq denote-prompts '(title keywords subdirectory))
+If in Dired, consider FILE to be the one at point, else the
+current file, else prompt with minibuffer completion for one.
+When called from Lisp, FILE is a file system path represented as
+a string.
+
+If FILE has a Denote-compliant identifier, retain it while
+updating components of the file name referenced by the user
+option `denote-prompts'.  By default, these are the TITLE and
+KEYWORDS.  The SIGNATURE is another one.  When called from Lisp,
+TITLE and SIGNATURE are strings, while KEYWORDS is a list of
+strings.
+
+The IDENTIFIER is a string that has the format of variable
+`denote-date-identifier-format'.
+
+If there is no identifier, create a new identifier using
+`denote-get-identifier-function'.  By default, it creates a new
+identifier using the date parameter, the date of last modification or
+the `current-time'.
+
+In interactive use, and assuming `denote-prompts' includes a
+title entry, make the TITLE prompt have prefilled text in the
+minibuffer that consists of the current title of FILE.  The
+current title is either retrieved from the front matter (such as
+the #+title in Org) or from the file name.
+
+Do the same for the SIGNATURE prompt, subject to `denote-prompts',
+by prefilling the minibuffer with the current signature of FILE,
+if any.
+
+Same principle for the KEYWORDS prompt: convert the keywords in
+the file name into a comma-separated string and prefill the
+minibuffer with it (the KEYWORDS prompt accepts more than one
+keywords, each separated by a comma, else the `crm-separator').
+
+For all prompts, interpret an empty input as an instruction to
+remove that file name component.  For example, if a TITLE prompt
+is available and FILE is 20240211T093531--some-title__keyword1.org
+then rename FILE to 20240211T093531__keyword1.org.
+
+In interactive use, if there is no entry for a file name
+component in `denote-prompts', keep it as-is.
+
+When called from Lisp, the special symbol `keep-current' can be
+used for the TITLE, KEYWORDS, SIGNATURE, DATE, and IDENTIFIER
+parameters to keep them as-is.
+
+[ NOTE: Please check with your minibuffer user interface how to
+  provide an empty input.  The Emacs default setup accepts the
+  empty minibuffer contents as they are, though popular packages
+  like `vertico' use the first available completion candidate
+  instead.  For `vertico', the user must either move one up to
+  select the prompt and then type RET there with empty contents,
+  or use the command `vertico-exit-input' with empty contents.
+  That Vertico command is bound to M-RET as of this writing on
+  2024-02-13 08:08 +0200. ]
+
+As a final step, ask for confirmation, showing the difference
+between old and new file names.  Do not ask for confirmation if
+the user option `denote-rename-confirmations' does not contain
+the symbol `modify-file-name'.
+
+If FILE has front matter for TITLE and KEYWORDS, ask to rewrite
+their values in order to reflect the new input, unless
+`denote-rename-confirmations' lacks `rewrite-front-matter'.  When
+the `denote-save-buffers' is nil (the default), do not save the
+underlying buffer, thus giving the user the option to
+double-check the result, such as by invoking the command
+`diff-buffer-with-file'.  The rewrite of the TITLE and KEYWORDS
+in the front matter should not affect the rest of the front
+matter.
+
+If the file does not have front matter but is among the supported file
+types (per the user option `denote-file-type'), add front matter to the
+top of it and leave the buffer unsaved for further inspection.  Save the
+buffer if `denote-save-buffers' is non-nil.
+
+When `denote-kill-buffers' is t or `on-rename', kill the buffer
+if it was not already being visited before the rename operation.
+
+For the front matter of each file type, refer to the variables:
+
+- `denote-org-front-matter'
+- `denote-text-front-matter'
+- `denote-toml-front-matter'
+- `denote-yaml-front-matter'
+
+Construct the file name in accordance with the user option
+`denote-file-name-components-order'.
+
+Run the `denote-after-rename-file-hook' after renaming FILE.
+
+This command is intended to (i) rename Denote files, (ii) convert
+existing supported file types to Denote notes, and (ii) rename
+non-note files (e.g. PDF) that can benefit from Denote's
+file-naming scheme.
+
+For a version of this command that works with multiple files
+one-by-one, use `denote-dired-rename-files'.
+
+(fn FILE TITLE KEYWORDS SIGNATURE DATE IDENTIFIER)
 #+end_src
-
-* Note Linking and Backlinks
-
-** Creating Links
-
-Denote uses a link format that encodes the note's identifier:
-
-Org mode link format:
-#+begin_example
-[[denote:20260805T143023][Note Title]]
-#+end_example
-
-Markdown link format:
-#+begin_example
-[Note Title](denote:20260805T143023)
-#+end_example
-
-Plain text link format:
-#+begin_example
-denote:20260805T143023
-#+end_example
-
-** Creating a Link
-
-1. Place cursor where you want the link
-2. Run =M-x denote-link= (=C-c n l= with recommended binding)
-3. Select target note from completion
-4. Link is inserted at point
-
-** Viewing Backlinks
-
-1. Open the note you want to see backlinks for
-2. Run =M-x denote-backlinks= (=C-c n b= with recommended binding)
-3. A buffer opens showing all notes that link to the current one
-4. Click links to navigate to the source notes
-
-** Link Dired
-
-Open a Dired buffer containing only notes linked from the current note:
-
-1. Run =M-x denote-link-dired= (=C-c n L= with recommended binding)
-2. A Dired buffer opens with linked files
-3. Useful for reviewing related notes
-
-** Link Resolution
-
-Denote link resolution works by:
-1. Scanning all files in =denote-directory=
-2. Parsing the =denote:ID= format
-3. Matching IDs to filenames
-4. Opening the matching file
-
-#+begin_warning
-=denote-link= requires both notes to exist. You cannot link to a note that
-hasn't been created yet.
-#+end_warning
-
-* Denote Silos (Multiple Directories)
-
-Denote silos allow you to maintain separate note collections in different
-directories. The =denote-silo-extras= package does NOT exist as a MELPA
-package - implement silo functionality locally.
-
-** Custom Silo Implementation
-
-#+begin_src elisp
-(defvar +carlos/denote-silo-directories
-  (list (expand-file-name "~/org/notes")
-        (expand-file-name "~/org/work-notes")
-        (expand-file-name "~/org/project-42"))
-  "Extra note directories (silos).")
-
-(defun +carlos/denote-silo-new (&optional dir)
-  "Create note in silo DIR."
-  (interactive
-   (list (if current-prefix-arg
-             (completing-read "Silo: " +carlos/denote-silo-directories)
-           (car +carlos/denote-silo-directories))))
-  (let ((denote-directory (expand-file-name dir)))
-    (denote)))
-
-(global-set-key (kbd "C-c n s") #'+carlos/denote-silo-new)
-#+end_src
-
-** Silo Dired
-
-#+begin_src elisp
-(defun +carlos/denote-silo-dired (&optional dir)
-  "Open Dired in silo DIR."
-  (interactive
-   (list (if current-prefix-arg
-             (completing-read "Silo: " +carlos/denote-silo-directories)
-           (car +carlos/denote-silo-directories))))
-  (let ((denote-directory (expand-file-name dir)))
-    (denote-dired)))
-
-(global-set-key (kbd "C-c n S") #'+carlos/denote-silo-dired)
-#+end_src
-
-** Silo Search
-
-#+begin_src elisp
-(defun +carlos/denote-silo-search (&optional dir)
-  "Search notes in silo DIR."
-  (interactive
-   (list (if current-prefix-arg
-             (completing-read "Silo: " +carlos/denote-silo-directories)
-           (car +carlos/denote-silo-directories))))
-  (let ((denote-directory (expand-file-name dir)))
-    (denote-keyword-search)))
-
-(global-set-key (kbd "C-c n /") #'+carlos/denote-silo-search)
-#+end_src
-
-** Switching Silos Dynamically
-
-#+begin_src elisp
-(defun +carlos/denote-switch-silo (&optional dir)
-  "Switch the active denote directory to DIR."
-  (interactive
-   (list (completing-read "Switch to silo: " +carlos/denote-silo-directories)))
-  (setq denote-directory (expand-file-name dir))
-  (message "Denote silo switched to: %s" denote-directory))
-
-(global-set-key (kbd "C-c n W") #'+carlos/denote-switch-silo)
-#+end_src
-
-#+begin_warning
-=denote-silo-extras= is NOT a package available on MELPA. You must implement
-silo functionality locally as shown above. Do not attempt to install it.
-#+end_warning
-
-* Renaming Notes
-
-** Manual Rename
-
-1. Open the note to rename
-2. Run =M-x denote-rename-file= (=C-c n r= with recommended binding)
-3. Edit the filename in the rename buffer
-4. Press =C-c C-c= to confirm
-
-The rename buffer preserves the directory path and only lets you edit the
-filename portion. Denote handles updating links to the renamed note.
-
-** Rename Using Front Matter
-
-If you edit the front matter title of a note, Denote can automatically rename
-the file to match:
-
-#+begin_src elisp
-;; Enable automatic rename from front matter
-(setq denote-rename-file-using-front-matter t)
-
-;; Or manually trigger:
-M-x denote-rename-file-using-front-matter
-#+end_src
-
-** Bulk Rename
-
-Denote provides bulk rename capabilities through =denote-rename-file=:
-- Rename a single note
-- Rename multiple notes in Dired
-- Rename based on front matter changes
-
-* Templates
-
-Denote supports templates for common note types.
-
-** Defining Templates
-
-#+begin_src elisp
-(setq denote-templates
-      '((meeting . "* Meeting Notes\n\n** Date: %<%Y-%m-%d>\n** Attendees: \n\n** Agenda\n- \n\n** Notes\n\n** Action Items\n- ")
-        (daily . "* Daily Notes - %<%Y-%m-%d>\n\n** Tasks\n- [ ] \n\n** Notes\n\n** Review\n- What went well: \n- What could improve: ")
-        (idea . "* Idea: %s\n\n** Description\n\n** Context\n\n** Related\n\n")
-        (book . "* Book: %s\n\n** Author: \n** Started: %<%Y-%m-%d>\n\n** Summary\n\n** Key Takeaways\n- \n\n** Quotes\n- ")
-        (project . "* Project: %s\n\n** Status: Active\n** Started: %<%Y-%m-%d>\n\n** Goals\n- \n\n** Tasks\n- [ ] \n\n** Notes\n")))
-#+end_src
-
-** Template Variables
-
-Templates support Emacs format specifiers:
-- =%s= - Replaced with the note title
-- =%<%Y-%m-%d>= - Current date in specified format
-- =%<%H:%M>= - Current time
-
-** Using Templates
-
-When =template= is in =denote-prompts=:
-1. Run =M-x denote=
-2. Enter title and keywords
-3. Select template from completion
-4. Note is created with template content
-
-Or directly:
-#+begin_src elisp
-M-x denote-template
-#+end_src
-
-* Search and Filter
-
-** Keyword Search
-
-Search notes by keyword:
-#+begin_src elisp
-M-x denote-keyword-search
-;; Prompts for keyword, shows matching notes
-#+end_src
-
-** Recent Notes
-
-Open a recently modified note:
-#+begin_src elisp
-M-x denote-recent
-;; Shows list of recent notes sorted by modification date
-#+end_src
-
-** All Notes
-
-List all notes in the denote directory:
-#+begin_src elisp
-M-x denote-all-notes
-;; Opens a Dired-like buffer with all notes
-#+end_src
-
-** Sort Notes
-
-#+begin_src elisp
-M-x denote-sort-files
-;; Prompts for sort method:
-;; - by date
-;; - by title
-;; - by keyword
-;; - by modification time
-#+end_src
-
-** Dired Integration
-
-Denote provides a specialized Dired mode for browsing notes:
-#+begin_src elisp
-M-x denote-dired
-;; Opens Dired in denote-directory with note metadata
-#+end_src
-
-In Denote Dired, you can:
-- Create new notes with =n=
-- Open notes with =RET=
-- Search notes with =s=
-- Filter by keyword
-
-* Integration with Other Packages
-
-** With Org Mode
-
-Denote works seamlessly with Org mode:
-- =denote-file-type= set to ='org-mode=
-- Front matter uses Org properties
-- Links use Org link format
-- Full Org export capabilities available
-
-#+begin_src elisp
-;; Denote + Org mode setup
-(setq denote-file-type 'org-mode
-      denote-org-front-matter t)
-#+end_src
-
-** With Consult
-
-Denote notes can be searched with consult:
-#+begin_src elisp
-(defun +carlos/denote-consult-search ()
-  "Search denote notes with consult."
-  (interactive)
-  (consult-find denote-directory))
-
-(global-set-key (kbd "C-c n f") #'+carlos/denote-consult-search)
-#+end_src
-
-** With Vertico/Completion
-
-Denote uses Emacs completion system, works with:
-- Vertico
-- Helm
-- Ido
-- Default completion
-
-Keyword completion automatically suggests from =denote-known-keywords=
-and inferred keywords from existing notes.
-
-** With Version Control
-
-Denote notes are plain files - perfect for Git:
-#+begin_src elisp
-;; Track denote directory with Git
-;; Initialize in your denote directory:
-;; git init
-;; git add .
-;; git commit -m "Initial notes"
-
-;; Optional: auto-commit notes
-(defun +carlos/denote-auto-commit ()
-  "Commit denote notes if there are changes."
-  (interactive)
-  (let ((default-directory denote-directory))
-    (when (= 0 (call-process "git" nil nil nil "diff" "--quiet"))
-      (call-process "git" nil nil nil "add" ".")
-      (call-process "git" nil nil nil "commit" "-m" "Auto-commit notes"))))
-#+end_src
-
-* Pitfalls & Common Errors
-
-** Pitfall 1: =denote-silo-extras= is NOT a package
-- Cause: Searching for =denote-silo-extras= on MELPA returns nothing
-- Fix: Implement silo functionality locally as shown in the Silos section
-#+begin_src elisp
-;; WRONG - this package doesn't exist
-(use-package denote-silo-extras
-  :ensure t)
-
-;; CORRECT - implement locally
-(defvar +carlos/denote-silo-directories
-  (list (expand-file-name "~/org/notes")))
-
-(defun +carlos/denote-silo-new (&optional dir)
-  (interactive
-   (list (if current-prefix-arg
-             (completing-read "Silo: " +carlos/denote-silo-directories)
-           (car +carlos/denote-silo-directories))))
-  (let ((denote-directory (expand-file-name dir)))
-    (denote)))
-#+end_src
-
-** Pitfall 2: Filename pattern requires =__= for keywords
-- Cause: Keywords must be separated from title by double underscore
-- Fix: Ensure filename follows =YYYYMMDD--title__keywords.ext= pattern
-#+begin_example
-;; CORRECT
-20260805--emacs-tips__emacs,productivity.org
-
-;; WRONG - single underscore
-20260805--emacs-tips_emacs,productivity.org
-
-;; WRONG - missing separator
-20260805--emacs-tips,emacs,productivity.org
-#+end_example
-
-** Pitfall 3: =denote-directory= must exist before use
-- Cause: Denote doesn't automatically create the directory
-- Fix: Create the directory in your config or manually
-#+begin_src elisp
-;; CORRECT - ensure directory exists
-(setq denote-directory (expand-file-name "~/org/notes"))
-(unless (file-directory-p denote-directory)
-  (make-directory denote-directory t))
-
-;; WRONG - will error if directory doesn't exist
-(setq denote-directory "~/org/notes")
-#+end_src
-
-** Pitfall 4: Keywords in filenames use comma without spaces
-- Cause: Spaces around commas break keyword parsing
-- Fix: Use comma-separated keywords without spaces
-#+begin_example
-;; CORRECT
-20260805--my-note__emacs,lisp.org
-
-;; WRONG - spaces break keyword parsing
-20260805--my-note__emacs, lisp.org
-20260805--my-note__emacs , lisp.org
-#+end_example
-
-** Pitfall 5: =denote-link= requires both notes to exist
-- Cause: Links are resolved by scanning existing files
-- Fix: Create the target note before linking to it
-#+begin_src elisp
-;; WRONG - linking to non-existent note
-;; (no error at link time, but backlinks won't work)
-
-;; CORRECT - create target first
-;; 1. M-x denote (create target note)
-;; 2. M-x denote-link (link to it from another note)
-#+end_src
-
-** Pitfall 6: Renaming breaks links if not done through Denote
-- Cause: External renames don't update link references
-- Fix: Always use =denote-rename-file= to rename notes
-#+begin_src elisp
-;; WRONG - using external rename
-;; mv old-name.org new-name.org
-;; (links to old-name still point nowhere)
-
-;; CORRECT - use denote's rename
-M-x denote-rename-file
-;; or programmatically:
-(denote-rename-file "/path/to/old-name.org" "new-filename.org")
-#+end_src
-
-** Pitfall 7: Mixed file types in same directory
-- Cause: =denote-file-type= sets default but doesn't enforce
-- Fix: Be consistent with file types, or use subdirectories per type
-#+begin_src elisp
-;; Strategy 1: Use one file type globally
-(setq denote-file-type 'org-mode)
-
-;; Strategy 2: Use subdirectories per type
-;; ~/org/notes/org/  -> .org files
-;; ~/org/notes/md/   -> .md files
-;; Then use denote-subdirectory to choose
-#+end_src
-
-** Pitfall 8: Duplicate identifiers
-- Cause: Two notes created at the exact same second get the same ID
-- Fix: Denote handles this automatically by appending a counter
-#+begin_example
-20260805T143023--note-one.org
-20260805T143023-1--note-two.org  ;; Denote appends counter
-#+end_example
-
-** Pitfall 9: Front matter format mismatch
-- Cause: Editing front matter manually with wrong format
-- Fix: Use the correct front matter format for your file type
-#+begin_example
-;; ORG mode front matter - CORRECT
-#+title: My Note
-#+date: [2026-08-05 Wed 14:30]
-#+identifier: 20260805T143023
-
-;; MARKDOWN front matter - CORRECT
----
-title: "My Note"
-date: 2026-08-05T14:30:23+00:00
----
-
-;; WRONG - mixing formats
-#+title: My Note
----
-title: "My Note"
----
-#+end_example
-
-* Quick Reference Tables
-
-** Key Functions Quick Reference
-
-| Function                | Keybinding    | Description                              |
-|-------------------------+---------------+------------------------------------------|
-| =denote=                | =C-c n n=     | Create a new note with prompts           |
-| =denote-date=           | =C-c n d=     | Create note with date prompt             |
-| =denote-rename-file=    | =C-c n r=     | Rename current note                      |
-| =denote-backlinks=      | =C-c n b=     | Show notes linking to current            |
-| =denote-link=           | =C-c n l=     | Create link to another note              |
-| =denote-link-dired=     | =C-c n L=     | Open Dired with linked notes             |
-| =denote-open-or-create= | =C-c n o=     | Open existing or create new              |
-| =denote-keyword-search= | =C-c n k=     | Search notes by keyword                  |
-| =denote-dired=          | =C-c n D=     | Open Dired in denote directory           |
-| =denote-recent=         | =C-c n R=     | Open a recent note                       |
-| =+carlos/denote-silo-new=| =C-c n s=    | Create note in a silo                    |
-| =+carlos/denote-silo-dired=| =C-c n S=  | Open Dired in a silo                     |
-| =+carlos/denote-switch-silo=| =C-c n W= | Switch active silo                     |
-| =+carlos/denote-silo-search=| =C-c n /= | Search notes in a silo                 |
-
-** Key Variables Quick Reference
-
-| Variable                        | Default     | Description                              |
-|---------------------------------+-------------+------------------------------------------|
-| =denote-directory=              | =~/org/notes= | Root directory for notes               |
-| =denote-known-keywords=         | =nil=       | List of known keywords                   |
-| =denote-infer-keywords=         | =t=         | Infer keywords from existing notes       |
-| =denote-sort-keywords=          | =t=         | Sort keywords alphabetically             |
-| =denote-file-type=              | =org-mode=  | Default file type for new notes          |
-| =denote-org-front-matter=       | =t=         | Use org front matter format              |
-| =denote-date-prompt-use-org-read-date= | =t=   | Use org date picker                      |
-| =denote-rename-buffer-format=   | =*denote-rename*= | Rename buffer name format          |
-| =denote-prompts=                | =(title keywords template)= | Prompts shown during creation |
-| =denote-templates=              | =nil=       | Alist of template definitions            |
-| =denote-rename-file-using-front-matter= | =t=  | Auto-rename on front matter changes      |
-
-** Filename Pattern Reference
-
-| Component      | Format           | Example              | Notes                     |
-|----------------+------------------+----------------------+---------------------------|
-| Date           | =YYYYMMDD=       | =20260805=           | ISO 8601 date format      |
-| Separator 1    | =--=             | =--=                 | Double hyphen             |
-| Title          | slugified        | =learning-emacs-lisp=| Lowercase, hyphenated     |
-| Separator 2    | =__=             | =__=                 | Double underscore (only if keywords) |
-| Keywords       | comma-separated  | =emacs,lisp=         | No spaces                 |
-| Extension      | =.org=, =.md=    | =.org=               | Based on file type        |
-
-** Link Format by File Type
-
-| File Type | Link Format                              | Example                                    |
-|-----------+------------------------------------------+--------------------------------------------|
-| Org mode  | =[[denote:ID][Title]]=                   | =[[denote:20260805T143023][Emacs Tips]]=     |
-| Markdown  | =[Title](denote:ID)=                     | =[Emacs Tips](denote:20260805T143023)=       |
-| Plain text| =denote:ID=                              | =denote:20260805T143023=                     |
-
-* Sample Configurations
-
-** Minimal Configuration
-
-#+begin_src elisp
-(use-package denote
-  :ensure t
-  :config
-  (setq denote-directory (expand-file-name "~/org/notes")
-        denote-known-keywords '("emacs" "nix" "42school" "python" "go" "ai")
-        denote-infer-keywords t
-        denote-sort-keywords t
-        denote-file-type 'org-mode)
-  (global-set-key (kbd "C-c n n") #'denote)
-  (global-set-key (kbd "C-c n d") #'denote-date))
-#+end_src
-
-** Full Configuration with Silos and Templates
-
-#+begin_src elisp
-(use-package denote
-  :ensure t
-  :config
-  ;; Core settings
-  (setq denote-directory (expand-file-name "~/org/notes")
-        denote-known-keywords '("emacs" "nix" "42school" "python" "go" "ai" "productivity" "learning")
-        denote-infer-keywords t
-        denote-sort-keywords t
-        denote-file-type 'org-mode
-        denote-org-front-matter t
-        denote-date-prompt-use-org-read-date t
-        denote-prompts '(title keywords template)
-        denote-rename-file-using-front-matter t)
-
-  ;; Templates
-  (setq denote-templates
-        '((meeting . "* Meeting Notes\n\n** Date: %<%Y-%m-%d>\n** Attendees: \n\n** Agenda\n- \n\n** Notes\n\n** Action Items\n- ")
-          (daily . "* Daily Notes - %<%Y-%m-%d>\n\n** Tasks\n- [ ] \n\n** Notes\n\n** Review\n- What went well: \n- What could improve: ")
-          (idea . "* Idea: %s\n\n** Description\n\n** Context\n\n** Related\n\n")
-          (book . "* Book: %s\n\n** Author: \n** Started: %<%Y-%m-%d>\n\n** Summary\n\n** Key Takeaways\n- \n\n** Quotes\n- "))))
-
-;; Keybindings
-(global-set-key (kbd "C-c n n") #'denote)
-(global-set-key (kbd "C-c n d") #'denote-date)
-(global-set-key (kbd "C-c n r") #'denote-rename-file)
-(global-set-key (kbd "C-c n b") #'denote-backlinks)
-(global-set-key (kbd "C-c n l") #'denote-link)
-(global-set-key (kbd "C-c n L") #'denote-link-dired)
-(global-set-key (kbd "C-c n f") #'denote-keyword-search)
-(global-set-key (kbd "C-c n D") #'denote-dired)
-(global-set-key (kbd "C-c n R") #'denote-recent)
-
-;; Custom Silo Implementation (denote-silo-extras doesn't exist as a package)
-(defvar +carlos/denote-silo-directories
-  (list (expand-file-name "~/org/notes")
-        (expand-file-name "~/org/work-notes")
-        (expand-file-name "~/org/project-42"))
-  "Extra note directories (silos).")
-
-(defun +carlos/denote-silo-new (&optional dir)
-  "Create note in silo DIR."
-  (interactive
-   (list (if current-prefix-arg
-             (completing-read "Silo: " +carlos/denote-silo-directories)
-           (car +carlos/denote-silo-directories))))
-  (let ((denote-directory (expand-file-name dir)))
-    (denote)))
-
-(defun +carlos/denote-silo-dired (&optional dir)
-  "Open Dired in silo DIR."
-  (interactive
-   (list (if current-prefix-arg
-             (completing-read "Silo: " +carlos/denote-silo-directories)
-           (car +carlos/denote-silo-directories))))
-  (let ((denote-directory (expand-file-name dir)))
-    (denote-dired)))
-
-(defun +carlos/denote-switch-silo (&optional dir)
-  "Switch the active denote directory to DIR."
-  (interactive
-   (list (completing-read "Switch to silo: " +carlos/denote-silo-directories)))
-  (setq denote-directory (expand-file-name dir))
-  (message "Denote silo switched to: %s" denote-directory))
-
-(global-set-key (kbd "C-c n s") #'+carlos/denote-silo-new)
-(global-set-key (kbd "C-c n S") #'+carlos/denote-silo-dired)
-(global-set-key (kbd "C-c n W") #'+carlos/denote-switch-silo)
-#+end_src
-
-** Denote + Git Version Control
-
-#+begin_src elisp
-;; Auto-commit denote notes after saving
-(defun +carlos/denote-after-save-hook ()
-  "Commit denote notes to git after saving if in denote directory."
-  (when (string-prefix-p (expand-file-name denote-directory)
-                         (expand-file-name (buffer-file-name)))
-    (let ((default-directory denote-directory))
-      (async-shell-command "git add . && git diff --quiet || git commit -m 'Auto-commit: updated notes'"
-                           nil nil))))
-
-(add-hook 'after-save-hook #'+carlos/denote-after-save-hook)
-#+end_src
-
-* Notes for RAG Context
-
-This reference covers Denote with focus on practical usage patterns. Key points
-for automated agents:
-
-1. =denote-silo-extras= does NOT exist as a MELPA package - implement silo
-   functionality locally with custom functions
-2. Note filenames follow the pattern: =YYYYMMDD--title__keywords.ext=
-3. =denote-directory= must exist or be created before use
-4. Keywords in filenames use =__= separator from title and commas between keywords
-   with NO spaces around commas
-5. =denote-link= requires both notes to exist before linking
-6. Always use =denote-rename-file= to rename notes (not external tools)
-7. Links use the =denote:ID= format where ID comes from the filename timestamp
-8. File types supported: =org-mode=, =markdown=, =plain=, =toml=, =yaml=
-9. Front matter format differs by file type (org properties vs YAML)
-10. Denote is file-based - no database, notes are plain text files
-11. =denote-open-or-create= can find existing notes by title fuzzy match
