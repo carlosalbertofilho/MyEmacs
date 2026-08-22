@@ -1691,7 +1691,7 @@ FILETAGS (default ':RAG:DOCS:') é a tag do arquivo."
                  lines))))))
 
 (defun +carlos/magent-tool-magit-submodule-list (&optional directory _reason)
-  "Lists Git submodules in DIRECTORY with status, path, commit and remote URL in JSON."
+  "Lists Git submodules in DIRECTORY with status, path, and commit in JSON."
   (require 'magit nil t)
   (let* ((default-directory (or (and (stringp directory) (file-directory-p directory) directory)
                                 (and (fboundp 'project-root)
@@ -1754,7 +1754,7 @@ FILETAGS (default ':RAG:DOCS:') é a tag do arquivo."
       (format "Added submodule '%s' at '%s' in '%s'." url target-dir default-directory))))
 
 (defun +carlos/magent-tool-magit-branch-list (&optional remote _reason)
-  "Lists local and optional REMOTE branches with upstream, ahead/behind counters and last commit in JSON."
+  "Lists local and REMOTE branches with upstream and ahead/behind info."
   (require 'magit nil t)
   (let* ((default-directory (or (and (fboundp 'project-root)
                                      (when-let* ((p (project-current)))
