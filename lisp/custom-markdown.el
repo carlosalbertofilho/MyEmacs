@@ -10,7 +10,7 @@
 
 ;; ── markdown-mode + gfm-mode ────────────────────────────────────────
 (use-package markdown-mode
-  :ensure t
+  :ensure nil
   :mode (("README\\.md\\'" . gfm-mode)
          ("\\.md\\'" . gfm-mode)
          ("\\.markdown\\'" . gfm-mode))
