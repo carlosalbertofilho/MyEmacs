@@ -8,6 +8,8 @@
 
 (defvar treesit-extra-load-path)
 (defvar +carlos/gptel-quick-local-backend)
+(defvar apheleia-mode-alist)
+(defvar apheleia-formatters)
 
 
 ;; Registrar diretórios de gramáticas Tree-Sitter do Nix no top-level

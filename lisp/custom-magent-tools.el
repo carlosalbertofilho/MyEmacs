@@ -1603,7 +1603,7 @@ FILETAGS (default ':RAG:DOCS:') é a tag do arquivo."
             dir topdir branch)))
 
 (defun +carlos/magent-tool-magit-pull (&optional remote branch _reason)
-  "Pulls updates from REMOTE (default `origin') and BRANCH via Magit programmatically."
+  "Pulls updates from REMOTE and BRANCH via Magit programmatically."
   (require 'magit nil t)
   (let* ((default-directory (or (and (fboundp 'project-root)
                                      (when-let* ((p (project-current)))
@@ -1621,7 +1621,7 @@ FILETAGS (default ':RAG:DOCS:') é a tag do arquivo."
       "Error: Magit pull function not available.")))
 
 (defun +carlos/magent-tool-magit-checkout (branch &optional create start-point _reason)
-  "Checkouts BRANCH (or creates and checkouts if CREATE is non-nil/'true') via Magit."
+  "Checkouts BRANCH (or creates it if CREATE is non-nil) via Magit."
   (require 'magit nil t)
   (if (or (null branch) (string-empty-p branch))
       "Error: branch name is required for checkout."
