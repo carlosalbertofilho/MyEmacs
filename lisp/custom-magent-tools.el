@@ -330,6 +330,12 @@ adiciona nota de truncamento e atualiza o acumulador."
   "Gptel tool for LSP navigation.")
 (defvar +carlos/magent-tool-snippet-expand nil
   "Gptel tool for Snippet expansion.")
+(defvar +carlos/magent-tool-rfc-search-topic nil
+  "Objeto gptel-make-tool da ferramenta rfc_search_topic.")
+
+(defvar +carlos/magent-tool-rfc-read-section nil
+  "Objeto gptel-make-tool da ferramenta rfc_read_section.")
+
 (defvar +carlos/magent-tool-select-model nil
   "Gptel tool for orchestrator model selection (Fase A).")
 
@@ -1177,6 +1183,179 @@ por atualização descendente e limitados por
       (error (+carlos/magent-tool-result
               nil (format "Forge indisponível: %s" (error-message-string err)))))))
 
+;; ── Ferramentas IETF/RFC (rfc_search_topic / rfc_read_section) ──────
+
+(defcustom +carlos/magent-rfc-section-max-chars 6000
+  "Teto de caracteres do texto retornado por `rfc_read_section'."
+  :type 'natnum
+  :group 'magent)
+
+(defcustom +carlos/magent-rfc-search-limit 8
+  "Máximo de resultados por `rfc_search_topic'."
+  :type 'natnum
+  :group 'magent)
+
+(defun +carlos/magent-rfc--cache-dir ()
+  "Diretório de cache de RFCs (segue `rfc-mode-directory' quando carregado)."
+  (directory-file-name
+   (file-name-as-directory
+    (or (and (boundp 'rfc-mode-directory) rfc-mode-directory)
+        (expand-file-name "rfc/" user-emacs-directory)))))
+
+(defun +carlos/magent-rfc--ensure-file (name url)
+  "Garantir arquivo NAME no cache baixando de URL se necessário."
+  (let* ((dir (+carlos/magent-rfc--cache-dir))
+         (path (expand-file-name name dir)))
+    (unless (file-exists-p path)
+      (make-directory dir t)
+      (url-copy-file url path t))
+    path))
+
+(defun +carlos/magent-rfc--fetch-text (number-or-name url-format)
+  "Texto cru do documento NUMBER-OR-NAME (ex.: 9000 ou \"-index\")."
+  (with-temp-buffer
+    (insert-file-contents
+     (+carlos/magent-rfc--ensure-file
+      (format "rfc%s.txt" number-or-name)
+      (format url-format number-or-name)))
+    (buffer-substring-no-properties (point-min) (point-max))))
+
+;; Parser puro de headings numerados de RFC txt (testável offline):
+(defconst +carlos/magent-rfc--heading-re
+  "^\\([0-9]+\\(?:\\.[0-9]+\\)*\\|Appendix [A-Z]\\)\\.?[ \t][ \t]+\\([^	].*[^ ]\\)?[ \t]*$"
+  "Regex de linha-cabeçalho numerada de RFC txt.
+Grupo 1: número (\"3.1\", \"Appendix B\"); grupo 2: título opcional.
+Exige >=2 espaços após o número (itens de lista usam 1).")
+
+(defun +carlos/magent-rfc-parse-sections (text)
+  "Lista de plists (:num :title :start) das seções numeradas do TEXT.
+Ignora linhas de sumário (pontilhado \"...\"/\". . .\") e cabeçalhos de página."
+  (let ((start 0)
+        (skip-re "[.][.][.]\\|[.] [.]\\|\\[Page")
+        out)
+    (while (string-match +carlos/magent-rfc--heading-re text start)
+      (setq start (match-end 0))
+      (unless (string-match-p skip-re (match-string-no-properties 0 text))
+        (push (list :num (string-trim-right
+                          (match-string-no-properties 1 text) "[.]")
+                    :title (or (match-string-no-properties 2 text) "")
+                    :start (match-beginning 0))
+              out)))
+    (nreverse out)))
+
+(defun +carlos/magent-rfc--depth (num)
+  "Profundidade de NUM tipo \"3.1.2\" (Appendix tem profundidade 1)."
+  (if (string-prefix-p "Appendix" num)
+      1
+    (length (split-string num "\\." t))))
+
+(defun +carlos/magent-rfc-extract-section (text num &optional max-chars)
+  "Texto da seção NUM do TEXT até a próxima seção de profundidade ≤.
+Retorna plist (:num :title :text) ou nil se ausente.  Texto capado a
+MAX-CHARS (default `+carlos/magent-rfc-section-max-chars')."
+  (let* ((secs (+carlos/magent-rfc-parse-sections text))
+         (idx (cl-position-if (lambda (s)
+                                (equal (plist-get s :num) num))
+                              secs)))
+    (when idx
+      (let* ((cur (nth idx secs))
+             (depth (+carlos/magent-rfc--depth num))
+             (end (catch 'done
+                    (cl-dolist (rest (nthcdr (1+ idx) secs))
+                      (when (<= (+carlos/magent-rfc--depth
+                                 (plist-get rest :num))
+                                depth)
+                        (throw 'done (plist-get rest :start))))
+                    (length text)))
+             (raw (substring text (plist-get cur :start) end))
+             (cap (or max-chars +carlos/magent-rfc-section-max-chars))
+             (body (if (> (length raw) cap)
+                       (concat (substring raw 0 cap) "\n... [truncado]")
+                     raw)))
+        (list :num num
+              :title (plist-get cur :title)
+              :text body)))))
+
+(defun +carlos/magent-rfc-normalize-number (number-str)
+  "Extrai o número puro de NUMBER-STR (ex.: 'RFC 9000' -> '9000')."
+  (save-match-data
+    (if (string-match "[0-9]+" number-str)
+        (match-string 0 number-str)
+      nil)))
+
+(defun +carlos/magent-rfc-search-index-text (index-text query)
+  "Busca QUERY (case-insensitive) em INDEX-TEXT e retorna plists com :number e :snippet."
+  (let ((results nil)
+        (limit +carlos/magent-rfc-search-limit))
+    (with-temp-buffer
+      (let ((case-fold-search t))
+        (insert index-text)
+        (goto-char (point-min))
+        (while (and (< (length results) limit)
+                    (re-search-forward (regexp-quote query) nil t))
+          (let* ((bop (save-excursion (backward-paragraph) (point)))
+                 (eop (save-excursion (forward-paragraph) (point)))
+                 (para (buffer-substring-no-properties bop eop))
+                 (clean-para (replace-regexp-in-string "\n[ \t]*" " " para)))
+            (save-match-data
+              (when (string-match "^\\s-*\\([0-9]+\\)\\s-+" clean-para)
+                (let ((num (match-string 1 clean-para)))
+                  (unless (cl-find num results :key (lambda (x) (plist-get x :number)) :test #'equal)
+                    (push (list :number num
+                                :snippet (if (> (length clean-para) 300)
+                                             (concat (substring clean-para 0 297) "...")
+                                           clean-para))
+                          results)))))
+            (goto-char eop)))))
+    (nreverse results)))
+
+(defun +carlos/magent-tool-rfc-search-topic (query &optional _reason)
+  "Ferramenta Magent: buscar RFCs por tópico no índice oficial IETF.
+QUERY é case-insensitive; retorna número + snippet de cada entrada."
+  (condition-case err
+      (let* ((index-text (+carlos/magent-rfc--fetch-text
+                          "-index" "https://www.rfc-editor.org/rfc/rfc%s.txt"))
+             (hits (+carlos/magent-rfc-search-index-text index-text query)))
+        (+carlos/magent-tool-result
+         (list (cons "query" query)
+               (cons "count" (length hits))
+               (cons "results"
+                     (apply #'vector
+                            (mapcar (lambda (h)
+                                      (list (cons "number" (plist-get h :number))
+                                            (cons "snippet" (plist-get h :snippet))))
+                                    hits))))))
+    (error (+carlos/magent-tool-result
+            nil (format "Índice IETF indisponível: %s"
+                        (error-message-string err))))))
+
+(defun +carlos/magent-tool-rfc-read-section (number-str section &optional _reason)
+  "Ferramenta Magent: extrair SEÇÃO de um RFC (economia de tokens).
+NUMBER-STR aceita \"9000\"/\"RFC 9000\"; SECTION é o número da seção
+(ex.: \"7.2\").  Cache local respeitado (rfc-mode)."
+  (condition-case err
+      (let* ((num (+carlos/magent-rfc-normalize-number number-str))
+             (_ (unless num (error "Número inválido: %S" number-str)))
+             (text (+carlos/magent-rfc--fetch-text
+                    num "https://www.rfc-editor.org/rfc/rfc%s.txt"))
+             (found (+carlos/magent-rfc-extract-section text section)))
+        (if found
+            (+carlos/magent-tool-result
+             (list (cons "rfc" (string-to-number num))
+                   (cons "section" section)
+                   (cons "title" (plist-get found :title))
+                   (cons "chars" (length (plist-get found :text)))
+                   (cons "text" (plist-get found :text))))
+          (+carlos/magent-tool-result
+           (list (cons "rfc" (string-to-number num))
+                 (cons "sections"
+                       (apply #'vector
+                              (mapcar (lambda (s) (plist-get s :num))
+                                      (+carlos/magent-rfc-parse-sections text)))))
+           (format "Seção %s não encontrada" section))))
+    (error (+carlos/magent-tool-result
+            nil (format "RFC indisponível: %s" (error-message-string err))))))
+
 ;; ── Registro das tools curadas no catálogo do Magent ─────────────────
 
 (defun +carlos/magent-register-tools ()
@@ -1199,7 +1378,13 @@ por atualização descendente e limitados por
                    `(:name "forge_read_issue" :tool ,+carlos/magent-tool-forge-read-issue :permission forge_read_issue)))
     (when +carlos/magent-tool-forge-list-pull-requests
       (add-to-list 'magent-tools-catalog
-                   `(:name "forge_list_pull_requests" :tool ,+carlos/magent-tool-forge-list-pull-requests :permission forge_list_pull_requests)))))
+                   `(:name "forge_list_pull_requests" :tool ,+carlos/magent-tool-forge-list-pull-requests :permission forge_list_pull_requests)))
+    (when +carlos/magent-tool-rfc-search-topic
+      (add-to-list 'magent-tools-catalog
+                   `(:name "rfc_search_topic" :tool ,+carlos/magent-tool-rfc-search-topic :permission rfc_search_topic)))
+    (when +carlos/magent-tool-rfc-read-section
+      (add-to-list 'magent-tools-catalog
+                   `(:name "rfc_read_section" :tool ,+carlos/magent-tool-rfc-read-section :permission rfc_read_section)))))
 
 (with-eval-after-load 'gptel
   (when (fboundp 'gptel-make-tool)
@@ -1244,6 +1429,25 @@ por atualização descendente e limitados por
                     (:name "reason" :type string :description "Reason for this tool call"))
             :function #'+carlos/magent-tool-select-model
             :category "magent"))
+
+    (setq +carlos/magent-tool-rfc-search-topic
+          (gptel-make-tool
+           :name "rfc_search_topic"
+           :description "Search the official IETF RFC index by topic keywords (case-insensitive). Returns RFC numbers plus snippets so you can pick the right document without hallucinating references."
+           :args '((:name "query" :type string :description "Topic keywords, e.g. 'QUIC loss recovery' or 'JWT'")
+                   (:name "reason" :type string :description "Why this search"))
+           :function #'+carlos/magent-tool-rfc-search-topic
+           :category "magent"))
+
+    (setq +carlos/magent-tool-rfc-read-section
+          (gptel-make-tool
+           :name "rfc_read_section"
+           :description "Read ONE numbered section of an official RFC from ietf.org with local cache, partitioned by headings for token economy. Prefer this over reading whole documents."
+           :args '((:name "number" :type string :description "RFC number ('9000' or 'RFC 9000')")
+                   (:name "section" :type string :description "Section number to extract, e.g. '5' or '7.2' (includes subsections)")
+                   (:name "reason" :type string :description "Why reading this section"))
+           :function #'+carlos/magent-tool-rfc-read-section
+           :category "magent"))
 
     (setq +carlos/magent-tool-forge-read-issue
           (gptel-make-tool
