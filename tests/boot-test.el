@@ -45,14 +45,17 @@
       (should-not (re-search-forward "\\(void-function\\|void-variable\\|Symbol’s value as variable is void\\|Symbol’s function definition is void\\)" nil t)))))
 
 (ert-deftest myemacs-boot-daemon-debug-init-no-warnings ()
-  "Valida a inicialização em modo daemon com --debug-init e coleta de warnings."
+  "Valida a inicialização em modo daemon com --debug-init, aceitando prompts e auto-encerrando."
   (let* ((emacs-bin (expand-file-name invocation-name invocation-directory))
          (out-buf (generate-new-buffer " *ert-daemon-out*"))
          (exit-code
           (call-process emacs-bin nil out-buf nil
                         "--daemon=ert-test-daemon"
                         "--debug-init"
-                        "--init-directory" user-emacs-directory)))
+                        "--init-directory" user-emacs-directory
+                        "--eval" "(fset 'y-or-n-p (lambda (&rest _) t))"
+                        "--eval" "(fset 'yes-or-no-p (lambda (&rest _) t))"
+                        "--eval" "(add-hook 'emacs-startup-hook (lambda () (message \"DAEMON_BOOT_COMPLETE\") (kill-emacs 0)))")))
     (unwind-protect
         (progn
           (should (= exit-code 0))
@@ -64,9 +67,7 @@
               (should-not (string-match-p "An error occurred while loading" output))
               (should-not (string-match-p "Wrong type argument: listp" output)))))
       (ignore-errors
-        (call-process emacs-bin nil nil nil
-                      "--socket-name=ert-test-daemon"
-                      "--eval" "(kill-emacs)"))
+        (call-process "emacsclient" nil nil nil "-s" "ert-test-daemon" "--eval" "(kill-emacs)"))
       (when (buffer-live-p out-buf)
         (kill-buffer out-buf)))))
 

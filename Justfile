@@ -74,7 +74,10 @@ check:
 
 # Test daemon startup with --debug-init and warning collection (production)
 check-daemon:
-    @output="$$(emacs --daemon=just-check-daemon --debug-init --init-directory "{{prod_dir}}" 2>&1)"; \
+    @output="$$(emacs --daemon=just-check-daemon --debug-init --init-directory "{{prod_dir}}" \
+      --eval '(fset '\''y-or-n-p (lambda (&rest _) t))' \
+      --eval '(fset '\''yes-or-no-p (lambda (&rest _) t))' \
+      --eval '(add-hook '\''emacs-startup-hook (lambda () (message "DAEMON_BOOT_COMPLETE") (kill-emacs 0)))' 2>&1)"; \
     emacsclient --socket-name=just-check-daemon --eval '(kill-emacs)' >/dev/null 2>&1 || true; \
     if echo "$$output" | rg -q "An error occurred|Duplicate item ID|previously queued|Wrong type argument"; then \
       echo "❌ Daemon boot failed or warnings detected:"; \
