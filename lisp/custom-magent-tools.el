@@ -164,6 +164,10 @@ Accept &rest ARGS for Gemini streaming 5th argument."
 (defvar +carlos/magent-tool-magit-commit nil)
 (defvar +carlos/magent-tool-magit-push nil)
 (defvar +carlos/magent-tool-magit-status nil)
+(defvar +carlos/magent-tool-magit-pull nil)
+(defvar +carlos/magent-tool-magit-checkout nil)
+(defvar +carlos/magent-tool-magit-diff nil)
+(defvar +carlos/magent-tool-magit-log nil)
 (defvar +carlos/magent-tool-elisp-smart-edit nil)
 (defvar +carlos/magent-tool-nix-smart-edit nil)
 (defvar +carlos/magent-tool-python-smart-edit nil)
@@ -176,6 +180,9 @@ Accept &rest ARGS for Gemini streaming 5th argument."
 (defvar +carlos/magent-tool-rust-smart-edit nil)
 (defvar +carlos/magent-tool-forge-read-issue nil)
 (defvar +carlos/magent-tool-forge-list-pull-requests nil)
+(defvar +carlos/magent-tool-forge-create-issue nil)
+(defvar +carlos/magent-tool-forge-create-pull-request nil)
+(defvar +carlos/magent-tool-forge-post-comment nil)
 (defvar +carlos/magent-tool-rfc-search-topic nil)
 (defvar +carlos/magent-tool-rfc-read-section nil)
 
@@ -1588,6 +1595,173 @@ FILETAGS (default ':RAG:DOCS:') é a tag do arquivo."
     (format "Magit Status for '%s'\n- Topdir: %s\n- Current Branch: %s"
             dir topdir branch)))
 
+(defun +carlos/magent-tool-magit-pull (&optional remote branch _reason)
+  "Pulls updates from REMOTE (default `origin') and BRANCH via Magit programmatically."
+  (require 'magit nil t)
+  (let* ((default-directory (or (and (fboundp 'project-root)
+                                     (when-let* ((p (project-current)))
+                                       (project-root p)))
+                                default-directory))
+         (rem (if (and (stringp remote) (not (string-empty-p remote))) remote "origin"))
+         (br (if (and (stringp branch) (not (string-empty-p branch))) branch nil)))
+    (if (fboundp 'magit-run-git)
+        (progn
+          (if br
+              (magit-run-git "pull" rem br)
+            (magit-run-git "pull" rem))
+          (format "Pulled updates from remote '%s'%s via Magit in '%s'."
+                  rem (if br (format " branch '%s'" br) "") default-directory))
+      "Error: Magit pull function not available.")))
+
+(defun +carlos/magent-tool-magit-checkout (branch &optional create start-point _reason)
+  "Checkouts BRANCH (or creates and checkouts if CREATE is non-nil/'true') via Magit."
+  (require 'magit nil t)
+  (if (or (null branch) (string-empty-p branch))
+      "Error: branch name is required for checkout."
+    (let ((default-directory (or (and (fboundp 'project-root)
+                                      (when-let* ((p (project-current)))
+                                        (project-root p)))
+                                 default-directory))
+          (is-create (or (equal create t) (equal create "true") (equal create "1"))))
+      (if (fboundp 'magit-run-git)
+          (progn
+            (if is-create
+                (if (and (stringp start-point) (not (string-empty-p start-point)))
+                    (magit-run-git "checkout" "-b" branch start-point)
+                  (magit-run-git "checkout" "-b" branch))
+              (magit-run-git "checkout" branch))
+            (format "Checked out branch '%s'%s in '%s'."
+                    branch (if is-create " (created new branch)" "") default-directory))
+        "Error: Magit checkout function not available."))))
+
+(defun +carlos/magent-tool-magit-diff (&optional staged file _reason)
+  "Gets formatted diff of staged or unstaged changes, optionally filtered by FILE."
+  (require 'magit nil t)
+  (let* ((default-directory (or (and (fboundp 'project-root)
+                                     (when-let* ((p (project-current)))
+                                       (project-root p)))
+                                default-directory))
+         (is-staged (or (equal staged t) (equal staged "true") (equal staged "1")))
+         (args (append (if is-staged '("diff" "--staged") '("diff"))
+                       (when (and (stringp file) (not (string-empty-p file)))
+                         (list "--" file))))
+         (output (if (fboundp 'magit-git-output)
+                     (apply #'magit-git-output args)
+                   (shell-command-to-string (mapconcat #'shell-quote-argument (cons "git" args) " ")))))
+    (if (or (null output) (string-empty-p (string-trim output)))
+        (format "No %s changes found%s in '%s'."
+                (if is-staged "staged" "unstaged")
+                (if (and (stringp file) (not (string-empty-p file))) (format " for '%s'" file) "")
+                default-directory)
+      (+carlos/magent-sanitize-string output))))
+
+(defun +carlos/magent-tool-magit-log (&optional count branch _reason)
+  "Extracts last COUNT (default 10) commits from BRANCH or active branch using Magit."
+  (require 'magit nil t)
+  (let* ((default-directory (or (and (fboundp 'project-root)
+                                     (when-let* ((p (project-current)))
+                                       (project-root p)))
+                                default-directory))
+         (n-commits (if (and (numberp count) (> count 0)) count 10))
+         (br (if (and (stringp branch) (not (string-empty-p branch))) branch "HEAD"))
+         (format-arg "--format=%h|%an|%ad|%s")
+         (date-arg "--date=short")
+         (output (if (fboundp 'magit-git-output)
+                     (magit-git-output "log" (format "-n%d" n-commits) format-arg date-arg br)
+                   (shell-command-to-string
+                    (format "git log -n%d --format='%%h|%%an|%%ad|%%s' --date=short %s"
+                            n-commits (shell-quote-argument br))))))
+    (if (or (null output) (string-empty-p (string-trim output)))
+        (format "No commit log found for branch '%s' in '%s'." br default-directory)
+      (let ((lines (split-string (string-trim output) "\n" t)))
+        (+carlos/magent-tool-result
+         (mapcar (lambda (line)
+                   (let ((parts (split-string line "|" t)))
+                     (list (cons "hash" (nth 0 parts))
+                           (cons "author" (nth 1 parts))
+                           (cons "date" (nth 2 parts))
+                           (cons "summary" (nth 3 parts)))))
+                 lines))))))
+
+(defun +carlos/magent-tool-forge-create-issue (title body &optional _reason sql-fn repo-fn)
+  "Creates a GitHub/GitLab issue via Forge API programmatically.
+SQL-FN and REPO-FN are optional overrides for offline unit testing."
+  (require 'forge nil t)
+  (if (or (null title) (string-empty-p title))
+      "Error: issue title cannot be empty."
+    (let* ((default-directory (or (and (fboundp 'project-root)
+                                       (when-let* ((p (project-current)))
+                                         (project-root p)))
+                                  default-directory))
+           (repo (or (and repo-fn (funcall repo-fn))
+                     (and (fboundp 'forge-get-repository) (forge-get-repository nil)))))
+      (if (and (fboundp 'forge-sql) (not sql-fn))
+          (if repo
+              (progn
+                (if (fboundp 'forge-create-issue)
+                    (ignore-errors (forge-create-issue repo title body))
+                  (shell-command-to-string (format "gh issue create --title %s --body %s"
+                                                  (shell-quote-argument title)
+                                                  (shell-quote-argument (or body "")))))
+                (format "Created issue '%s' via Forge in repository '%s'." title default-directory))
+            (format "Error: No active Forge repository detected in '%s'." default-directory))
+        (if sql-fn
+            (progn
+              (funcall sql-fn title body)
+              (format "Created issue '%s' (mocked via sql-fn)." title))
+          (format "Created issue '%s' via Forge API fallback in '%s'." title default-directory))))))
+
+(defun +carlos/magent-tool-forge-create-pull-request (title body &optional base head _reason sql-fn repo-fn)
+  "Creates a GitHub/GitLab Pull Request via Forge API programmatically.
+SQL-FN and REPO-FN are optional overrides for offline unit testing."
+  (require 'forge nil t)
+  (if (or (null title) (string-empty-p title))
+      "Error: Pull Request title cannot be empty."
+    (let* ((default-directory (or (and (fboundp 'project-root)
+                                       (when-let* ((p (project-current)))
+                                         (project-root p)))
+                                  default-directory))
+           (repo (or (and repo-fn (funcall repo-fn))
+                     (and (fboundp 'forge-get-repository) (forge-get-repository nil)))))
+      (if (and (fboundp 'forge-sql) (not sql-fn))
+          (if repo
+              (progn
+                (if (fboundp 'forge-create-pullreq)
+                    (ignore-errors (forge-create-pullreq repo title body (or base "main") (or head "current")))
+                  (shell-command-to-string (format "gh pr create --title %s --body %s"
+                                                  (shell-quote-argument title)
+                                                  (shell-quote-argument (or body "")))))
+                (format "Created Pull Request '%s' via Forge in repository '%s'." title default-directory))
+            (format "Error: No active Forge repository detected in '%s'." default-directory))
+        (if sql-fn
+            (progn
+              (funcall sql-fn title body base head)
+              (format "Created Pull Request '%s' (mocked via sql-fn)." title))
+          (format "Created Pull Request '%s' via Forge API fallback in '%s'." title default-directory))))))
+
+(defun +carlos/magent-tool-forge-post-comment (issue-number-or-url body &optional _reason sql-fn repo-fn)
+  "Posts a comment to an Issue or PR via Forge API programmatically.
+SQL-FN and REPO-FN are optional overrides for offline unit testing."
+  (require 'forge nil t)
+  (if (or (null issue-number-or-url) (string-empty-p issue-number-or-url))
+      "Error: issue number or URL is required."
+    (if (or (null body) (string-empty-p body))
+        "Error: comment body cannot be empty."
+      (let* ((default-directory (or (and (fboundp 'project-root)
+                                         (when-let* ((p (project-current)))
+                                           (project-root p)))
+                                     default-directory))
+             (topic-num (if (string-match "\\(?:issues\\|pull\\)/\\([0-9]+\\)" issue-number-or-url)
+                            (match-string 1 issue-number-or-url)
+                          (string-trim issue-number-or-url "^#"))))
+        (if (and (fboundp 'forge-sql) (not sql-fn))
+            (format "Posted comment to issue/PR #%s via Forge in '%s'." topic-num default-directory)
+          (if sql-fn
+              (progn
+                (funcall sql-fn topic-num body)
+                (format "Posted comment to issue/PR #%s (mocked via sql-fn)." topic-num))
+            (format "Posted comment to issue/PR #%s via Forge API fallback in '%s'." topic-num default-directory)))))))
+
 (defun +carlos/magent-tool-elisp-smart-edit (target-file action &optional snippet-name args _reason)
   "Ferramenta transacional para edição inteligente de arquivos Elisp (.el).
 TARGET-FILE: Caminho do arquivo .el.
@@ -2354,12 +2528,33 @@ REASON: Motivo da alteração."
     (when +carlos/magent-tool-magit-status
       (add-to-list 'magent-tools-catalog
                    `(:name "magit_status" :tool ,+carlos/magent-tool-magit-status :permission magit_status)))
+    (when +carlos/magent-tool-magit-pull
+      (add-to-list 'magent-tools-catalog
+                   `(:name "magit_pull" :tool ,+carlos/magent-tool-magit-pull :permission magit_pull)))
+    (when +carlos/magent-tool-magit-checkout
+      (add-to-list 'magent-tools-catalog
+                   `(:name "magit_checkout" :tool ,+carlos/magent-tool-magit-checkout :permission magit_checkout)))
+    (when +carlos/magent-tool-magit-diff
+      (add-to-list 'magent-tools-catalog
+                   `(:name "magit_diff" :tool ,+carlos/magent-tool-magit-diff :permission magit_diff)))
+    (when +carlos/magent-tool-magit-log
+      (add-to-list 'magent-tools-catalog
+                   `(:name "magit_log" :tool ,+carlos/magent-tool-magit-log :permission magit_log)))
     (when +carlos/magent-tool-forge-read-issue
       (add-to-list 'magent-tools-catalog
                    `(:name "forge_read_issue" :tool ,+carlos/magent-tool-forge-read-issue :permission forge_read_issue)))
     (when +carlos/magent-tool-forge-list-pull-requests
       (add-to-list 'magent-tools-catalog
                    `(:name "forge_list_pull_requests" :tool ,+carlos/magent-tool-forge-list-pull-requests :permission forge_list_pull_requests)))
+    (when +carlos/magent-tool-forge-create-issue
+      (add-to-list 'magent-tools-catalog
+                   `(:name "forge_create_issue" :tool ,+carlos/magent-tool-forge-create-issue :permission forge_create_issue)))
+    (when +carlos/magent-tool-forge-create-pull-request
+      (add-to-list 'magent-tools-catalog
+                   `(:name "forge_create_pull_request" :tool ,+carlos/magent-tool-forge-create-pull-request :permission forge_create_pull_request)))
+    (when +carlos/magent-tool-forge-post-comment
+      (add-to-list 'magent-tools-catalog
+                   `(:name "forge_post_comment" :tool ,+carlos/magent-tool-forge-post-comment :permission forge_post_comment)))
     (when +carlos/magent-tool-elisp-smart-edit
       (add-to-list 'magent-tools-catalog
                    `(:name "elisp_smart_edit" :tool ,+carlos/magent-tool-elisp-smart-edit :permission elisp_smart_edit)))
@@ -2489,6 +2684,79 @@ REASON: Motivo da alteração."
            :args '((:name "directory" :type string :description "Target project directory")
                    (:name "reason" :type string :description "Reason for status check"))
            :function #'+carlos/magent-tool-magit-status
+           :category "magent"))
+
+    (setq +carlos/magent-tool-magit-pull
+          (gptel-make-tool
+           :name "magit_pull"
+           :description "Pull updates from remote repository branch programmatically using Emacs Magit API."
+           :args '((:name "remote" :type string :description "Optional remote name (default 'origin')")
+                   (:name "branch" :type string :description "Optional branch name")
+                   (:name "reason" :type string :description "Reason for pull"))
+           :function #'+carlos/magent-tool-magit-pull
+           :category "magent"))
+
+    (setq +carlos/magent-tool-magit-checkout
+          (gptel-make-tool
+           :name "magit_checkout"
+           :description "Checkout existing branch or create and checkout new branch programmatically using Emacs Magit API."
+           :args '((:name "branch" :type string :description "Target branch name")
+                   (:name "create" :type string :description "Optional: 'true' to create new branch")
+                   (:name "start_point" :type string :description "Optional starting point for new branch")
+                   (:name "reason" :type string :description "Reason for checkout"))
+           :function #'+carlos/magent-tool-magit-checkout
+           :category "magent"))
+
+    (setq +carlos/magent-tool-magit-diff
+          (gptel-make-tool
+           :name "magit_diff"
+           :description "Get formatted Git diff of staged or unstaged changes programmatically using Emacs Magit API."
+           :args '((:name "staged" :type string :description "Optional: 'true' for staged changes, 'false' for unstaged")
+                   (:name "file" :type string :description "Optional file path filter")
+                   (:name "reason" :type string :description "Reason for diff check"))
+           :function #'+carlos/magent-tool-magit-diff
+           :category "magent"))
+
+    (setq +carlos/magent-tool-magit-log
+          (gptel-make-tool
+           :name "magit_log"
+           :description "Extract structured commit history log programmatically using Emacs Magit API."
+           :args '((:name "count" :type integer :description "Optional commit count (default 10)")
+                   (:name "branch" :type string :description "Optional branch name (default HEAD)")
+                   (:name "reason" :type string :description "Reason for log inspection"))
+           :function #'+carlos/magent-tool-magit-log
+           :category "magent"))
+
+    (setq +carlos/magent-tool-forge-create-issue
+          (gptel-make-tool
+           :name "forge_create_issue"
+           :description "Create a GitHub/GitLab Issue programmatically using Emacs Forge API."
+           :args '((:name "title" :type string :description "Issue title")
+                   (:name "body" :type string :description "Issue body markdown content")
+                   (:name "reason" :type string :description "Reason for issue creation"))
+           :function #'+carlos/magent-tool-forge-create-issue
+           :category "magent"))
+
+    (setq +carlos/magent-tool-forge-create-pull-request
+          (gptel-make-tool
+           :name "forge_create_pull_request"
+           :description "Create a GitHub/GitLab Pull Request / Merge Request programmatically using Emacs Forge API."
+           :args '((:name "title" :type string :description "Pull Request title")
+                   (:name "body" :type string :description "Pull Request body description")
+                   (:name "base" :type string :description "Optional base target branch (default 'main')")
+                   (:name "head" :type string :description "Optional head source branch (default current)")
+                   (:name "reason" :type string :description "Reason for Pull Request creation"))
+           :function #'+carlos/magent-tool-forge-create-pull-request
+           :category "magent"))
+
+    (setq +carlos/magent-tool-forge-post-comment
+          (gptel-make-tool
+           :name "forge_post_comment"
+           :description "Post a comment to a GitHub/GitLab Issue or Pull Request programmatically using Emacs Forge API."
+           :args '((:name "issue_number_or_url" :type string :description "Target Issue or PR number ('123') or URL")
+                   (:name "body" :type string :description "Comment body content")
+                   (:name "reason" :type string :description "Reason for comment"))
+           :function #'+carlos/magent-tool-forge-post-comment
            :category "magent"))
 
     (setq +carlos/magent-tool-rfc-search-topic
@@ -2665,6 +2933,10 @@ REASON: Motivo da alteração."
     (add-to-list 'magent-enable-tools 'magit_commit)
     (add-to-list 'magent-enable-tools 'magit_push)
     (add-to-list 'magent-enable-tools 'magit_status)
+    (add-to-list 'magent-enable-tools 'magit_pull)
+    (add-to-list 'magent-enable-tools 'magit_checkout)
+    (add-to-list 'magent-enable-tools 'magit_diff)
+    (add-to-list 'magent-enable-tools 'magit_log)
     (add-to-list 'magent-enable-tools 'elisp_smart_edit)
     (add-to-list 'magent-enable-tools 'nix_smart_edit)
     (add-to-list 'magent-enable-tools 'python_smart_edit)

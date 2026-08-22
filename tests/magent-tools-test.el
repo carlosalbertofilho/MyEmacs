@@ -586,5 +586,59 @@
       (when (file-exists-p tmp-md)
         (delete-file tmp-md)))))
 
+(ert-deftest myemacs-magit-pull-test ()
+  "Valida se magit_pull executa e retorna mensagem estruturada."
+  (should (fboundp '+carlos/magent-tool-magit-pull))
+  (let ((res (+carlos/magent-tool-magit-pull "origin" "main" "test")))
+    (should (stringp res))))
+
+(ert-deftest myemacs-magit-checkout-test ()
+  "Valida checkout e criação de branch com magit_checkout."
+  (should (fboundp '+carlos/magent-tool-magit-checkout))
+  (let ((res (+carlos/magent-tool-magit-checkout "feature/test-branch" "true" "main" "test")))
+    (should (string-match-p "Checked out branch" res))))
+
+(ert-deftest myemacs-magit-diff-test ()
+  "Valida captura de diff com magit_diff."
+  (should (fboundp '+carlos/magent-tool-magit-diff))
+  (let ((res (+carlos/magent-tool-magit-diff nil nil "test")))
+    (should (stringp res))))
+
+(ert-deftest myemacs-magit-log-test ()
+  "Valida extracao do log de commits com magit_log."
+  (should (fboundp '+carlos/magent-tool-magit-log))
+  (let ((res (+carlos/magent-tool-magit-log 5 "HEAD" "test")))
+    (should (or (stringp res) (and (fboundp 'magent-tool-result-p) (magent-tool-result-p res))))))
+
+(ert-deftest myemacs-forge-create-issue-test ()
+  "Valida criacao de issue no Forge (mocked via sql-fn)."
+  (should (fboundp '+carlos/magent-tool-forge-create-issue))
+  (let ((called nil))
+    (let ((res (+carlos/magent-tool-forge-create-issue
+                "Nova Issue Teste" "Corpo da issue." "test"
+                (lambda (title body) (setq called (cons title body))))))
+      (should (string-match-p "Created issue" res))
+      (should (equal (car called) "Nova Issue Teste")))))
+
+(ert-deftest myemacs-forge-create-pull-request-test ()
+  "Valida criacao de Pull Request no Forge (mocked via sql-fn)."
+  (should (fboundp '+carlos/magent-tool-forge-create-pull-request))
+  (let ((called nil))
+    (let ((res (+carlos/magent-tool-forge-create-pull-request
+                "Novo PR Teste" "Descricao do PR." "main" "feature" "test"
+                (lambda (title body base head) (setq called (list title body base head))))))
+      (should (string-match-p "Created Pull Request" res))
+      (should (equal (car called) "Novo PR Teste")))))
+
+(ert-deftest myemacs-forge-post-comment-test ()
+  "Valida postagem de comentario em issue/PR no Forge (mocked via sql-fn)."
+  (should (fboundp '+carlos/magent-tool-forge-post-comment))
+  (let ((called nil))
+    (let ((res (+carlos/magent-tool-forge-post-comment
+                "#123" "Comentario de teste." "test"
+                (lambda (num body) (setq called (cons num body))))))
+      (should (string-match-p "Posted comment" res))
+      (should (equal (car called) "123")))))
+
 (provide 'magent-tools-test)
 ;;; magent-tools-test.el ends here

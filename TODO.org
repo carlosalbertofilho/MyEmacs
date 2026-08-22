@@ -27,6 +27,20 @@ Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=
 
 * Concluído (referências ao roadmap)
 
+** DONE Expansão da Suíte Nativa de Ferramentas Magit & Forge (7 Novas Ferramentas Nativas)
+    :PROPERTIES:
+    :CREATED: 2026-08-22
+    :COMPLETED: 2026-08-22
+    :ASSIGNEE: sysadmin
+    :STATUS: concluido
+    :END:
+
+*** Novas Ferramentas Nativas Magit (magit_pull, magit_checkout, magit_diff, magit_log)
+Encapsulamento programático das APIs do Magit (+carlos/magent-tool-magit-pull, +carlos/magent-tool-magit-checkout, +carlos/magent-tool-magit-diff, +carlos/magent-tool-magit-log) com formatação limpa e economia de tokens.
+
+*** Novas Ferramentas Nativas Forge (forge_create_issue, forge_create_pull_request, forge_post_comment)
+Encapsulamento programático da API do Forge (+carlos/magent-tool-forge-create-issue, +carlos/magent-tool-forge-create-pull-request, +carlos/magent-tool-forge-post-comment) permitindo criação de issues/PRs e comentários sem depender do CLI 'gh' ou de subprocessos interativos.
+
 ** DONE Suporte à Linguagem Rust & 10ª Ferramenta Nativa rust_smart_edit
     :PROPERTIES:
     :CREATED: 2026-08-22

@@ -71,6 +71,15 @@
                    (magit_commit . allow)
                    (magit_push . allow)
                    (magit_status . allow)
+                   (magit_pull . allow)
+                   (magit_checkout . allow)
+                   (magit_diff . allow)
+                   (magit_log . allow)
+                   (forge_read_issue . allow)
+                   (forge_list_pull_requests . allow)
+                   (forge_create_issue . allow)
+                   (forge_create_pull_request . allow)
+                   (forge_post_comment . allow)
                    (nix_smart_edit . allow)
                    (sh_smart_edit . allow)
                    (spawn_agent . allow)
@@ -108,8 +117,12 @@
                    (org_smart_edit . allow)
                    (markdown_smart_edit . allow)
                    (rust_smart_edit . allow)
+                   (magit_diff . allow)
+                   (magit_log . allow)
                    (forge_read_issue . allow)
-                   (forge_list_pull_requests . allow))))
+                   (forge_list_pull_requests . allow)
+                   (forge_create_issue . allow)
+                   (forge_post_comment . allow))))
     ("auditor" .
      (:description "Staff Engineer. Revisor de arquitetura e guardião de standards (SOLID/Norminette)."
       :prompt "You are the Auditor, architecture reviewer and standards guardian (SOLID and Norminette). Enforce the strict 25 executable line limit (Ecole 42/Norminette) using treesit_count_executable_lines and c_smart_edit. Use domain-specialized *_smart_edit tools (elisp_smart_edit, nix_smart_edit, python_smart_edit, ts_smart_edit, c_smart_edit, go_smart_edit, rust_smart_edit, org_smart_edit, sh_smart_edit, markdown_smart_edit) for validating code and document syntax. Use rfc_search_topic and rfc_read_section to verify the codebase against official IETF specs (OAuth, JWT) with zero hallucination and extreme token efficiency. Verify architecture integrity against docs/ (managed by Tech Writer via rag_create_doc) and delegate code versioning to Sysadmin (magit_*). Report findings with severity, file:line and a concrete remediation."
@@ -121,6 +134,8 @@
                    (flycheck_errors . allow)
                    (lsp_navigation . allow)
                    (emacs_eval . allow)
+                   (magit_diff . allow)
+                   (magit_log . allow)
                    (rfc_search_topic . allow)
                    (rfc_read_section . allow)
                    (c_smart_edit . allow)
@@ -130,7 +145,12 @@
                    (sh_smart_edit . allow)
                    (markdown_smart_edit . allow)
                    (spawn_agent . allow)
-                   (wait_agent . allow))))
+                   (wait_agent . allow)
+                   (magit_diff . allow)
+                   (magit_log . allow)
+                   (forge_read_issue . allow)
+                   (forge_list_pull_requests . allow)
+                   (forge_post_comment . allow))))
     ("sec-ops" .
      (:description "Red Team. Especialista em segurança, OWASP e criptografia."
       :prompt "You are Sec-Ops, the security, OWASP and cryptography specialist. Use rfc_read_section to extract ONLY the 'Security Considerations' section of RFCs, dodging context bloat. Use sh_smart_edit for reviewing or refactoring shell automation scripts securely. Audit for: Command Injection (bash), Path Traversal (TRAMP) and cryptographic failures (enforce modern AES-GCM/Argon2 and Agenix secrets). Report each finding with severity, attack vector and remediation."
