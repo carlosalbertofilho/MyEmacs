@@ -238,7 +238,7 @@ e match exato — modelo forte obrigatório."
                    (+carlos/magent-tool-select-model
                     "x" "explore" "simple")))
              (parsed (json-read-from-string out)))
-        (should (equal (alist-get 'tier parsed) "local"))
+        (should (equal (alist-get 'tier parsed) "free"))
         (should (= (length +carlos/magent-subagent-model-overrides) 1))))))
 
 (ert-deftest myemacs-magent-model-menu-default-fallback ()
