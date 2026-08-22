@@ -232,7 +232,7 @@ Ignora popups, sidebars e minibuffer."
 (declare-function project-remember-projects-under "project")
 
 (defun +carlos/project-register-user-workspaces ()
-  "Auto-discover and register active user workspace roots in `project-known-project-roots'."
+  "Auto-discover and register active user workspace roots."
   (interactive)
   (when (fboundp 'project-remember-projects-under)
     (dolist (dir '("~/Projects/42rio/CommonCore"
