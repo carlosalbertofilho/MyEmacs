@@ -1,7 +1,7 @@
 #+TITLE: Roadmap — MyEmacs Configuration
 #+AUTHOR: Carlos Filho
 #+DATE: 2026-08-05
-#+LAST_MODIFIED: 2026-08-20
+#+LAST_MODIFIED: 2026-08-21
 #+OPTIONS: toc:2 num:t
 
 * Visão Geral
@@ -1593,6 +1593,25 @@ Criar cache de referência para que agentes possam:
 - Repo: =just lint= (compile zero-warning + checkdoc + org-lint) e suíte ERT **394 testes, 0 falhas inesperadas**.
 - Nota de ambiente: com =use-package-expand-minimally=, o =:after magit= adia também o *install* — a order do forge só entrou na fila via =(elpaca (forge))= explícito em batch. Durante o primeiro =just install= houve corrida de build parcial que dava =Unknown slot 'owner'= no =compile-prod=; após instalação estável do forge, recompilação passou limpa.
 - Prod: =just sync= (6c89cf2) + =compile-prod= ✓ + =check-prod= ✓ (=Config loaded OK=) + suíte autoritativa **394 testes, 0 falhas** (7 skipped).
+
+** 2026-08-21 — [CONCLUÍDO] D5 — Context Sharing Dinâmico e Estruturas Duráveis (=lisp/custom-magent-subagent.el=)
+
+*** Implementação
+- *D5.1 Jobs duráveis:* =+carlos/magent-subagent-jobs-history= (cópia defensiva de =magent-session-agent-jobs=), =+carlos/magent-subagent-stale-job-p= e =+carlos/magent-subagent-reconcile-stale-jobs= — jobs =queued=/=running= sem runtime vivo viram =cancelled= e a sessão pai é persistida via =magent-session-save-deferred-for-session=; reconciliação dispara no evento =turn-start=.
+- *D5.2 Ledger call-id↔job:* registro =+carlos/magent-subagent--calls= alimentado pelo sink único =+carlos/magent-subagent-lifecycle-sink= (registrado em =magent-lifecycle-events--sinks=); =spawn_agent= e =wait_agent= em =+carlos/magent-subagent-tracked-tools=; spawn aberto adota o job-id do primeiro =agent-job-event=, =wait_agent= só casa com match exato de =:job_id=.
+- *D5.3 AGENTS.md nativo:* descoberta/injeção já existe no pacote (=magent-project-instructions.el=, consumido por =magent-agent-process= como 5º argumento de =magent-agent--compose-system-message=); entrega reduzida a verificação estrutural, sem duplicar pipeline.
+- *D5.4 Contexto pai:* =+carlos/magent-collect-parent-context= (session-id / project-root / goal capado em 600 chars / message-count), =+carlos/magent-render-parent-context= (bloco =<parent_context>= capado por =+carlos/magent-parent-context-max-chars= 2000 ~ 300–500 tokens) e =+carlos/magent-inject-child-parent-context= como =:filter-return= de =magent-agent--compose-system-message=, aplicado apenas quando =+carlos/magent-current-agent-is-orchestrator= é nil.
+
+*** Bugs pegos pela suíte
+- =render-parent-context= renderizava =messages: 0= para contexto =nil=; corrigido com guard =when-let* ((context context))=.
+- Ledger atualizava entradas com =append=, criando chave duplicada que mascarava o status novo no =plist-get=; migrado para =plist-put= sobre =copy-sequence=.
+
+*** Testes
+- =tests/magent-subagent-test.el= (novo): 12 testes ERT — existência das funções, reconciliação (runtime vivo protegido por =unwind-protect=), histórico-cópia, classificação stale, rastreio spawn/wait, ligação job↔call-id, sink registrado, pipeline nativa AGENTS.md, collect/render capado, filtro orquestrador×subagente (flag especial manipulada com =setq= + =unwind-protect=, pois =let= lexical não cria binding dinâmico) e advice registrado.
+
+*** Validação
+- Repo: =just lint= OK (compile zero-warning + checkdoc + org-lint) e suíte *413 testes, 0 falhas inesperadas* (12 novos; 7 skipped sem pacote magent instalado no repo).
+- Prod: =just sync= (bb7e806) + =rebuild-prod= + =compile-prod= OK + =check-prod= OK (=Config loaded OK=) + suíte autoritativa *413 testes, 0 falhas* (7 skipped). Nota: =Unknown slot 'owner'= transitório na primeira passada pós-rebuild (mesma corrida documentada na entrada Forge), verde na segunda.
 
 * Decisões Arquiteturais
 

@@ -63,11 +63,11 @@ Renderizar botões visuais =[[ Allow ]] [[ Deny ]]= através de =magent-acp.el= 
 
 *Arquivos:* =lisp/custom-magent-ui.el=, =lisp/custom-magent-team.el=, =tests/magent-ui-test.el=.
 
-** TODO D5. Context Sharing Dinamico e Estruturas Duraveis
+** DONE D5. Context Sharing Dinamico e Estruturas Duraveis
     :PROPERTIES:
     :CREATED: 2026-08-18
     :ASSIGNEE: coder
-    :STATUS: plano aprovado
+    :STATUS: DONE
     :END:
 
 *** Persistencia de Jobs de Subagente
