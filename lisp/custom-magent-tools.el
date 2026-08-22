@@ -1886,7 +1886,7 @@ SQL-FN and REPO-FN are optional overrides for offline unit testing."
           (if repo
               (progn
                 (if (fboundp 'forge-create-pullreq)
-                    (ignore-errors (forge-create-pullreq repo title body (or base "main") (or head "current")))
+                    (ignore-errors (forge-create-pullreq repo))
                   (shell-command-to-string (format "gh pr create --title %s --body %s"
                                                   (shell-quote-argument title)
                                                   (shell-quote-argument (or body "")))))
