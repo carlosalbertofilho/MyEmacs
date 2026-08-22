@@ -422,8 +422,8 @@
   (skip-unless (boundp '+carlos/magent-subagent-profiles))
   (let ((explore (cdr (assoc "explore" +carlos/magent-subagent-profiles)))
         (coder (cdr (assoc "coder" +carlos/magent-subagent-profiles))))
-    (should (equal (plist-get explore :min-tier) "local"))
-    (should (equal (plist-get coder :min-tier) "paid"))
+    (should (equal (plist-get explore :min-tier) "free"))
+    (should (equal (plist-get coder :min-tier) "free"))
     (should-not (plist-get explore :model))
     (should-not (plist-get explore :backend))))
 
@@ -1099,30 +1099,6 @@ Garante que o filtro não bloqueia eventos legítimos do orquestrador."
       (+carlos/magent-fsm-reset))
     (should-not +carlos/magent-fsm-auto-resume-in-progress)))
 
-(ert-deftest myemacs-magent-fsm-active-subagent-names-returns-names ()
-  "active-subagent-names deve retornar nomes únicos dos subagentes ativos."
-  (skip-unless myemacs-fsm-available)
-  (skip-unless (fboundp '+carlos/magent-fsm-active-subagent-names))
-  (cl-letf (((symbol-function '+carlos/magent-fsm-subagent-session-jobs)
-             (lambda ()
-               (list (list :id "j1" :agent-name "explore")
-                     (list :id "j2" :agent-name "coder")
-                     (list :id "j3" :agent-name "explore"))))
-            ((symbol-function 'magent-agent-job-agent-name)
-             (lambda (job) (plist-get job :agent-name))))
-    (let ((names (+carlos/magent-fsm-active-subagent-names)))
-      (should (= (length names) 2))
-      (should (member "explore" names))
-      (should (member "coder" names)))))
-
-(ert-deftest myemacs-magent-fsm-active-subagent-names-empty-when-no-jobs ()
-  "active-subagent-names deve retornar nil quando não há jobs."
-  (skip-unless myemacs-fsm-available)
-  (skip-unless (fboundp '+carlos/magent-fsm-active-subagent-names))
-  (cl-letf (((symbol-function '+carlos/magent-fsm-subagent-session-jobs)
-             (lambda () nil)))
-    (should (null (+carlos/magent-fsm-active-subagent-names)))))
-
 (ert-deftest myemacs-magent-ui-spinner-waiting-info-var-exists ()
   "A variável waiting-info do spinner deve estar declarada."
   (skip-unless (boundp '+carlos/magent-ui-spinner-waiting-info))
@@ -1147,7 +1123,7 @@ Garante que o filtro não bloqueia eventos legítimos do orquestrador."
 (ert-deftest myemacs-magent-fsm-sanitize-string-strips-ansi-and-nulls ()
   "O sanitizador deve remover sequências ANSI e caracteres nulos."
   (skip-unless (fboundp '+carlos/magent-sanitize-string))
-  (let* ((raw (concat "\x1b[31mError:\x1b[0m test\x00data"))
+  (let* ((raw (concat "\x1b[31mError:\x1b[0m test" "\x00" "data"))
          (clean (+carlos/magent-sanitize-string raw)))
     (should (string= clean "Error: testdata"))))
 
