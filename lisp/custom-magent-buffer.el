@@ -74,17 +74,17 @@ Chamado pelo advice do read_buffer para coordenar o estado vivo lido."
   "Verifica/adota o contrato de dono único para BUF.
 Sem baseline registrado, adota o tick atual.  Com baseline, falha com
 `user-error' buffer_conflict quando o tick atual difere (edição fora do
-driver desde a última leitura/mutação)."
+driver desde a última leitura/mutação).  Embuti o texto atualizado do buffer
+no erro para re-sincronização automática em 1 turno (auto-resync)."
   (let* ((name (buffer-name buf))
          (entry (assoc name +carlos/magent-buffer-session))
          (tick (with-current-buffer buf (buffer-chars-modified-tick))))
     (if entry
         (unless (= (cdr entry) tick)
-          (user-error (concat "buffer_conflict: %S foi modificado fora do "
-                              "driver desde a última operação; chame "
-                              "read_buffer novamente para re-sincronizar "
-                              "antes de editar")
-                      name))
+          (let ((content (with-current-buffer buf
+                           (buffer-substring-no-properties (point-min) (point-max)))))
+            (user-error "buffer_conflict: %S foi modificado fora do driver. ESTADO_ATUALIZADO_DO_BUFFER:\n%s"
+                        name content)))
       (setq +carlos/magent-buffer-session
             (cons (cons name tick) +carlos/magent-buffer-session))))
   t)

@@ -326,14 +326,27 @@ pela FSM."
   (when (fboundp '+carlos/magent-ui-spinner-stop)
     (+carlos/magent-ui-spinner-stop)))
 
+(defvar +carlos/magent-fsm-default-gc-cons-threshold gc-cons-threshold
+  "Valor padrão de `gc-cons-threshold' restaurado após transições da FSM.")
+
 (defun +carlos/magent-fsm-transition (new-state)
-  "Transiciona a FSM para NEW-STATE e emite mensagem diagnóstica.
-Inicia o spinner de subagente (D6) ao bloquear em `subagent-waiting' e o
-para ao sair do estado (qualquer transição a partir dele)."
+  "Transiciona a FSM para NEW-STATE, emite diagnóstico e gerencia GC dinâmico.
+Nos estados computacionalmente intensos (`thinking' e `tool-executing'), eleva
+`gc-cons-threshold' para 100MB (evitando engasgos de alocação de UI).
+Ao transicionar de volta para `idle', `subagent-waiting' ou `planning',
+restaura `gc-cons-threshold' ao valor padrão e executa `(garbage-collect)'."
   (let ((prev +carlos/magent-fsm-state))
     (setq +carlos/magent-fsm-state new-state)
     (unless (eq prev new-state)
       (message "[Magent FSM] %s → %s" prev new-state)
+      ;; GC Dinâmico
+      (cond
+       ((memq new-state '(thinking tool-executing))
+        (setq gc-cons-threshold (* 100 1024 1024)))
+       ((memq new-state '(idle subagent-waiting planning))
+        (setq gc-cons-threshold (or +carlos/magent-fsm-default-gc-cons-threshold (* 16 1024 1024)))
+        (garbage-collect)))
+      ;; Spinner de subagente (D6)
       (cond
        ((eq new-state 'subagent-waiting)
         (when (fboundp '+carlos/magent-ui-spinner-start)

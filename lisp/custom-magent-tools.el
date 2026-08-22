@@ -342,20 +342,87 @@ adiciona nota de truncamento e atualiza o acumulador."
 (defvar +carlos/magent-tool-select-model nil
   "Gptel tool for orchestrator model selection (Fase A).")
 
+;; ── Sanitização ANSI e XML ──────────────────────────────────────────
+(defun +carlos/magent-sanitize-string (str)
+  "Sanitiza STR removendo sequências de escape ANSI e caracteres nulos.
+Garante integridade textual para codificação JSON e parsing DSML/XML."
+  (if (not (stringp str))
+      str
+    (let* ((clean-ansi (replace-regexp-in-string "\x1b\\[[0-9;]*[a-zA-Z]" "" str))
+           (clean-null (replace-regexp-in-string "\x00" "" clean-ansi)))
+      clean-null)))
+
+;; ── Circuit Breaker de Nuvem (Preventivo) ──────────────────────────
+(defvar +carlos/magent-cb-failures (make-hash-table :test 'equal)
+  "Hash-table que rastreia falhas e cooldowns de modelos.
+Chaves são nomes de modelos (string/símbolo), valores plists `(:failures N :timestamp TIME)'.")
+
+(defcustom +carlos/magent-cb-max-failures 3
+  "Número máximo de falhas consecutivas antes de abrir o Circuit Breaker."
+  :type 'integer
+  :group '+carlos/ai)
+
+(defcustom +carlos/magent-cb-cooldown-seconds 60
+  "Tempo em segundos para o Circuit Breaker permanecer ABERTO (cooldown)."
+  :type 'integer
+  :group '+carlos/ai)
+
+(defun +carlos/magent-cb-record-failure (model-key)
+  "Registra uma falha para MODEL-KEY no Circuit Breaker."
+  (let* ((key (format "%s" model-key))
+         (entry (gethash key +carlos/magent-cb-failures))
+         (failures (1+ (or (plist-get entry :failures) 0))))
+    (puthash key (list :failures failures :timestamp (float-time)) +carlos/magent-cb-failures)))
+
+(defun +carlos/magent-cb-record-success (model-key)
+  "Registra um sucesso para MODEL-KEY, resetando a contagem de falhas."
+  (remhash (format "%s" model-key) +carlos/magent-cb-failures))
+
+(defun +carlos/magent-cb-open-p (model-key)
+  "Retorna t se o Circuit Breaker está ABERTO para MODEL-KEY."
+  (let* ((key (format "%s" model-key))
+         (entry (gethash key +carlos/magent-cb-failures))
+         (failures (or (plist-get entry :failures) 0))
+         (timestamp (or (plist-get entry :timestamp) 0.0))
+         (now (float-time)))
+    (if (>= failures +carlos/magent-cb-max-failures)
+        (if (> (- now timestamp) +carlos/magent-cb-cooldown-seconds)
+            (progn
+              (+carlos/magent-cb-record-success model-key)
+              nil)
+          t)
+      nil)))
+
+(defun +carlos/magent-cb-execute (model-key thunk)
+  "Executa THUNK com proteção de Circuit Breaker para MODEL-KEY.
+Se o Circuit Breaker estiver ABERTO, sinaliza erro local sem chamar a API remota."
+  (if (+carlos/magent-cb-open-p model-key)
+      (error "Circuit Breaker OPEN for model %s: temporary cloud instability / backoff active"
+             model-key)
+    (condition-case err
+        (let ((result (funcall thunk)))
+          (+carlos/magent-cb-record-success model-key)
+          result)
+      (error
+       (+carlos/magent-cb-record-failure model-key)
+       (signal (car err) (cdr err))))))
+
 (defun +carlos/magent-tool-result (payload &optional error)
   "Constrói o resultado de uma tool do Magent a partir de PAYLOAD (JSON-safe).
 Quando `magent-protocol' está carregado retorna um `magent-tool-result'
 com `:output' JSON, `:success', `:status' e `:error'; caso contrário (ex.:
 testes batch sem o magent), retorna o JSON como string para compatibilidade
 com o gptel.  ERROR, quando presente, vira um resultado de falha e o payload
-é descartado."
-  (let ((output (if error (format "Error: %s" error) (json-encode payload))))
+é descartado.  Aplica `+carlos/magent-sanitize-string' no resultado."
+  (let* ((raw-output (if error (format "Error: %s" error) (json-encode payload)))
+         (output (+carlos/magent-sanitize-string raw-output))
+         (clean-error (when error (+carlos/magent-sanitize-string (format "%s" error)))))
     (if (fboundp 'magent-tool-result-create)
         (magent-tool-result-create
          :output output
          :success (null error)
          :status (if error 'failed 'completed)
-         :error error)
+         :error clean-error)
       output)))
 
 (defun +carlos/magent-tool-flycheck-errors (path &optional _reason)

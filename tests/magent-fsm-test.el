@@ -1128,5 +1128,54 @@ Garante que o filtro não bloqueia eventos legítimos do orquestrador."
   (skip-unless (boundp '+carlos/magent-ui-spinner-waiting-info))
   (should (boundp '+carlos/magent-ui-spinner-waiting-info)))
 
+;; ── GRUPO 10: Resiliência & Robustez (Circuit Breaker, Sanitizer, Dynamic GC) ──
+
+(ert-deftest myemacs-magent-fsm-circuit-breaker-tracks-and-opens ()
+  "O Circuit Breaker deve abrir após 3 falhas e bloquear chamadas."
+  (skip-unless (fboundp '+carlos/magent-cb-execute))
+  (clrhash +carlos/magent-cb-failures)
+  (let ((model "test-unstable-model"))
+    (should-not (+carlos/magent-cb-open-p model))
+    ;; Registrar 3 falhas
+    (+carlos/magent-cb-record-failure model)
+    (+carlos/magent-cb-record-failure model)
+    (+carlos/magent-cb-record-failure model)
+    (should (+carlos/magent-cb-open-p model))
+    ;; Tentar executar thunk deve sinalizar erro local (Circuit Breaker OPEN)
+    (should-error (+carlos/magent-cb-execute model (lambda () "should not run")))))
+
+(ert-deftest myemacs-magent-fsm-sanitize-string-strips-ansi-and-nulls ()
+  "O sanitizador deve remover sequências ANSI e caracteres nulos."
+  (skip-unless (fboundp '+carlos/magent-sanitize-string))
+  (let* ((raw (concat "\x1b[31mError:\x1b[0m test\x00data"))
+         (clean (+carlos/magent-sanitize-string raw)))
+    (should (string= clean "Error: testdata"))))
+
+(ert-deftest myemacs-magent-fsm-dynamic-gc-elevates-and-restores ()
+  "A transição para thinking/tool-executing deve elevar gc-cons-threshold."
+  (skip-unless (fboundp '+carlos/magent-fsm-transition))
+  (myemacs-fsm-with-reset
+    (+carlos/magent-fsm-transition 'thinking)
+    (should (= gc-cons-threshold (* 100 1024 1024)))
+    (+carlos/magent-fsm-transition 'idle)
+    (should (<= gc-cons-threshold (* 16 1024 1024)))))
+
+(ert-deftest myemacs-magent-buffer-conflict-embeds-updated-text ()
+  "Um conflito de edição deve embutir o estado atualizado do buffer."
+  (skip-unless (fboundp '+carlos/magent-buffer-ensure-ownership))
+  (with-temp-buffer
+    (rename-buffer "*test-conflict-buf*" t)
+    (insert "Line 1\nLine 2")
+    (let ((buf (current-buffer))
+          (+carlos/magent-buffer-session nil))
+      ;; Primeira chamada adota baseline
+      (+carlos/magent-buffer-ensure-ownership buf)
+      ;; Modificar buffer externamente altera o tick
+      (insert "\nLine 3")
+      (let ((err (should-error (+carlos/magent-buffer-ensure-ownership buf))))
+        (should (string-match-p "buffer_conflict" (cadr err)))
+        (should (string-match-p "ESTADO_ATUALIZADO_DO_BUFFER" (cadr err)))
+        (should (string-match-p "Line 3" (cadr err)))))))
+
 (provide 'magent-fsm-test)
 ;;; magent-fsm-test.el ends here
