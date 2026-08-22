@@ -89,7 +89,7 @@
 
 ;; ── corfu ───────────────────────────────────────────────────────────
 (use-package corfu
-  :ensure t
+  :ensure nil
   :demand t  ;; Must load immediately for global-corfu-mode
   :config
   (global-corfu-mode 1)
@@ -128,7 +128,7 @@
                     #'cape-dabbrev)))
 
 (use-package cape
-  :ensure t
+  :ensure nil
   :config
   (add-hook 'eglot-managed-mode-hook #'+carlos/cape-setup-eglot-capf))
 
