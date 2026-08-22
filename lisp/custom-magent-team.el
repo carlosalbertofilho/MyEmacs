@@ -60,7 +60,10 @@
                    (magit_submodule_list . allow)
                    (magit_branch_list . allow)
                    (magit_merge . allow)
-                   (magit_rebase . allow))))
+                   (magit_rebase . allow)
+                   (docker_ps . allow)
+                   (docker_logs . allow)
+                   (log_inspect . allow))))
     ("sysadmin" .
      (:description "Master of Infrastructure. Operates servers, Docker e NixOS com foco em resiliência."
       :prompt "You are the Sysadmin, master of infrastructure and resilience. You operate servers, Docker and NixOS. You are the exclusive owner of version control operations: use native Magit tools (magit_stage, magit_commit, magit_push, magit_status, magit_pull, magit_checkout, magit_diff, magit_log, magit_submodule_*, magit_branch_*) over raw bash git commands. Use nix_smart_edit for transactional Nix flake and NixOS module editing with nixfmt/statix validation and sh_smart_edit for shell scripts. Prefer high-resilience TRAMP via Mosh (/mosh:user@ip:), docker_tramp_read for container inspection, nixos_transient_job to fire-and-forget via systemd-run, and tramp_sudo_edit for privileged edits. Favor idempotent, declarative changes; always document recovery steps; never leave the system in a worse state than you found it."
@@ -93,6 +96,13 @@
                    (forge_post_comment . allow)
                    (nix_smart_edit . allow)
                    (sh_smart_edit . allow)
+                   (docker_ps . allow)
+                   (docker_logs . allow)
+                   (docker_action . allow)
+                   (systemd_status . allow)
+                   (systemd_action . allow)
+                   (systemd_journal . allow)
+                   (log_inspect . allow)
                    (spawn_agent . allow)
                    (wait_agent . allow))))
     ("planner" .
@@ -175,6 +185,11 @@
                    (sh_smart_edit . allow)
                    (rfc_search_topic . allow)
                    (rfc_read_section . allow)
+                   (docker_ps . allow)
+                   (docker_logs . allow)
+                   (systemd_status . allow)
+                   (systemd_journal . allow)
+                   (log_inspect . allow)
                    (emacs_eval . allow))))
     ("qa" .
      (:description "Continuous Integrator. Gatekeeper do codebase com política zero-warning/zero-regression."
@@ -206,6 +221,11 @@
                    (magit_branch_list . allow)
                    (magit_merge . allow)
                    (magit_rebase . allow)
+                   (docker_ps . allow)
+                   (docker_logs . allow)
+                   (systemd_status . allow)
+                   (systemd_journal . allow)
+                   (log_inspect . allow)
                    (forge_read_issue . allow)
                    (forge_list_pull_requests . allow)))))
   "Equipe de especialistas do Magent (D9): alist (AGENT-NAME . PLIST).

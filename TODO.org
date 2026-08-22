@@ -27,6 +27,23 @@ Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=
 
 * Concluído (referências ao roadmap)
 
+** DONE Suíte Nativa de Infraestrutura, DevOps, Docker, Systemd e Inspeção de Logs (7 Novas Ferramentas Nativas)
+    :PROPERTIES:
+    :CREATED: 2026-08-22
+    :COMPLETED: 2026-08-22
+    :ASSIGNEE: sysadmin
+    :STATUS: concluido
+    :END:
+
+*** Novas Ferramentas Nativas de Docker (docker_ps, docker_logs, docker_action)
+Encapsulamento programático de containers Docker locais e remotos via TRAMP com respostas estruturadas em JSON, sanitização ANSI/null e controle de ciclo de vida (start, stop, restart, remove).
+
+*** Novas Ferramentas Nativas de Systemd (systemd_status, systemd_action, systemd_journal)
+Encapsulamento programático de unidades systemd com inspeção de propriedades JSON-safe, controle de serviços (start, stop, restart, reload, enable, disable) e leitura filtrada do journalctl por prioridade.
+
+*** Nova Ferramenta Nativa de Inspeção de Logs (log_inspect)
+Inspeção programática de arquivos de log com suporte a TRAMP, filtragem combinada por regex, nível de severidade e limite de linhas.
+
 ** DONE Aprimoramento do Fluxo Nix & NixOS (eglot + nixd, envrc, apheleia + nixfmt, nixos-rebuild)
     :PROPERTIES:
     :CREATED: 2026-08-22

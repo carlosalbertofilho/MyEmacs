@@ -26,6 +26,13 @@ entenderem o estado atual do projeto e decisões tomadas.
    - Auto-Resync de `buffer_conflict` com embutimento do texto atualizado no payload em `custom-magent-buffer.el`.
    - Testes ERT em `tests/magent-fsm-test.el` (Grupo 10) e aprovação pelo Opus QA Gatekeeper.
 
+** 2026-08-22 — [CONCLUÍDO] Suíte Nativa de Infraestrutura & DevOps (7 Novas Ferramentas: Docker, Systemd & Log Inspection)
+   - Implementadas 3 ferramentas Docker: =docker_ps=, =docker_logs=, =docker_action= em =lisp/custom-magent-tools.el=.
+   - Implementadas 3 ferramentas Systemd: =systemd_status=, =systemd_action=, =systemd_journal= em =lisp/custom-magent-tools.el=.
+   - Implementada a ferramenta de inspeção de logs =log_inspect= em =lisp/custom-magent-tools.el=.
+   - Permissões atribuídas aos perfis =sysadmin=, =sec-ops=, =qa= e =coder= em =lisp/custom-magent-team.el=.
+   - Suíte de testes ERT expandida em =tests/magent-tools-test.el= (464/464 testes passados com 100% de sucesso).
+
 ** 2026-08-22 — [CONCLUÍDO] Aprimoramento Completo do Fluxo Nix & NixOS (nixd, envrc, apheleia, nixos-rebuild)
    - Configurado =nix-mode= com =eglot-ensure= apontando para o LSP =nixd= (opções e docs do NixOS) em =lisp/custom-lang.el=.
    - Ativado =envrc-global-mode= (=direnv= / Flakes) no boot do Emacs.

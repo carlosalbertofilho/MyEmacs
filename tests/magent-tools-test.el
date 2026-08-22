@@ -682,5 +682,59 @@
   (let ((res (+carlos/magent-tool-magit-rebase "" "test")))
     (should (string-match-p "Error" res))))
 
+(ert-deftest myemacs-magent-tool-docker-ps-test ()
+  "Valida execucao de docker_ps."
+  (should (fboundp '+carlos/magent-tool-docker-ps))
+  (let ((res (+carlos/magent-tool-docker-ps "false" nil nil "test")))
+    (should (or (stringp res) (and (fboundp 'magent-tool-result-p) (magent-tool-result-p res))))))
+
+(ert-deftest myemacs-magent-tool-docker-logs-test ()
+  "Valida validacao de parametro em docker_logs."
+  (should (fboundp '+carlos/magent-tool-docker-logs))
+  (let* ((res (+carlos/magent-tool-docker-logs "" "10" nil nil "test"))
+         (out (if (and (fboundp 'magent-tool-result-p) (magent-tool-result-p res))
+                  (magent-tool-result-output res) (or res ""))))
+    (should (string-match-p "error" out))))
+
+(ert-deftest myemacs-magent-tool-docker-action-test ()
+  "Valida validacao de acao em docker_action."
+  (should (fboundp '+carlos/magent-tool-docker-action))
+  (let* ((res (+carlos/magent-tool-docker-action "web" "invalid" nil "test"))
+         (out (if (and (fboundp 'magent-tool-result-p) (magent-tool-result-p res))
+                  (magent-tool-result-output res) (or res ""))))
+    (should (string-match-p "Unsupported action" out))))
+
+(ert-deftest myemacs-magent-tool-systemd-status-test ()
+  "Valida validacao de parametro em systemd_status."
+  (should (fboundp '+carlos/magent-tool-systemd-status))
+  (let* ((res (+carlos/magent-tool-systemd-status "" nil "test"))
+         (out (if (and (fboundp 'magent-tool-result-p) (magent-tool-result-p res))
+                  (magent-tool-result-output res) (or res ""))))
+    (should (string-match-p "error" out))))
+
+(ert-deftest myemacs-magent-tool-systemd-action-test ()
+  "Valida validacao de acao em systemd_action."
+  (should (fboundp '+carlos/magent-tool-systemd-action))
+  (let* ((res (+carlos/magent-tool-systemd-action "nginx" "invalid" nil "test"))
+         (out (if (and (fboundp 'magent-tool-result-p) (magent-tool-result-p res))
+                  (magent-tool-result-output res) (or res ""))))
+    (should (string-match-p "Unsupported action" out))))
+
+(ert-deftest myemacs-magent-tool-systemd-journal-test ()
+  "Valida validacao de parametro em systemd_journal."
+  (should (fboundp '+carlos/magent-tool-systemd-journal))
+  (let* ((res (+carlos/magent-tool-systemd-journal "" "50" nil nil "test"))
+         (out (if (and (fboundp 'magent-tool-result-p) (magent-tool-result-p res))
+                  (magent-tool-result-output res) (or res ""))))
+    (should (string-match-p "error" out))))
+
+(ert-deftest myemacs-magent-tool-log-inspect-test ()
+  "Valida validacao de arquivo inexistente em log_inspect."
+  (should (fboundp '+carlos/magent-tool-log-inspect))
+  (let* ((res (+carlos/magent-tool-log-inspect "/nonexistent/log.file" nil nil "10" nil "test"))
+         (out (if (and (fboundp 'magent-tool-result-p) (magent-tool-result-p res))
+                  (magent-tool-result-output res) (or res ""))))
+    (should (string-match-p "Log file not found" out))))
+
 (provide 'magent-tools-test)
 ;;; magent-tools-test.el ends here
