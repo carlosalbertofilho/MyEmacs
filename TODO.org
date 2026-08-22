@@ -44,6 +44,33 @@ Executar benchmarks reais medindo TTFT, tokens/segundo e consumo de memória uni
 - Validar =mlx-community/DeepSeek-R1-Distill-Qwen-14B-4bit= para o perfil =planner=/=sec-ops=.
 - Validar =mlx-community/gemma-4-e2b-it-4bit= ou =Qwen-7B= como Orquestrador Local offline.
 
+** Ponte Proxy HTTP Local OpenAI API (AGY CLI Bridge)
+    :PROPERTIES:
+    :CREATED: 2026-08-22
+    :ASSIGNEE: coder
+    :STATUS: pendente
+    :END:
+
+*** Micro-serviço Proxy Python standalone (bin/agy-proxy)
+Desenvolver o servidor HTTP assíncrono em Python (stdlib asyncio/http.server) escutando na porta 8088.
+- Implementar o endpoint REST POST /v1/chat/completions com suporte ao formato OpenAI JSON.
+- Extrair o histórico de mensagens e parâmetros do payload.
+- Mapear os modelos agy-flash e agy-pro para invocação do binário agy CLI.
+- Converter a saída stdout em streaming SSE no formato data: {"choices": [...]} terminando com [DONE].
+
+*** Backend gptel e Salvaguarda Auto-Start (lisp/custom-ai.el)
+Registrar o backend AGY Proxy no gptel e garantir resiliência de execução.
+- Criar a inicialização do backend gptel-make-openai para AGY Proxy na porta 8088 com modelos agy-flash e agy-pro.
+- Implementar a função de verificação de porta +carlos/ensure-agy-proxy-running.
+- Iniciar o subprocesso bin/agy-proxy automaticamente no Emacs caso a porta 8088 esteja fechada.
+- Integrar o AGY Proxy na cascata do roteador dinâmico +carlos/gptel-dynamic-router-advice.
+
+*** Integração com Orquestrador e Matriz de Subagentes Magent
+Atualizar o roteamento de modelos no Magent para utilizar a ponte AGY com Custo Zero ($0.00).
+- Atualizar +carlos/magent-subagent-profiles em lisp/custom-magent-subagent.el direcionando perfis especialista (coder, planner, sysadmin, auditor, sec-ops, qa) para o backend AGY Proxy.
+- Atualizar +carlos/magent-host-profiles em lisp/custom-magent-fsm.el adicionando o AGY Proxy como backend soberano para os hosts aa102-006l e agnes.
+- Testar a comunicação FSM e invocação de subagentes via ponte agy.
+
 * Concluído (referências ao roadmap)
 
 - O histórico completo de todas as tarefas concluídas (Suíte DevOps, NixOS, Submódulos, Rust, Polyglot, Forge, Introspecção RAG, Resiliência FSM, etc.) é mantido estritamente em [[file:roadmap.org][roadmap.org]] como Linha do Tempo oficial.
