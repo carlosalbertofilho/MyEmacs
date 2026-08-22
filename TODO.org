@@ -194,6 +194,27 @@ Alterar a regex para capturar buffers =*ert*=:
 **** TODO Validar a regra com um teste
 Garantir que a chamada interativa do ERT exiba a interface adequadamente na janela correspondente.
 
+** TODO Refatoração Arquitetural e Governança do Magent (D5)
+    :PROPERTIES:
+    :CREATED: 2026-08-21
+    :STATUS: BACKLOG
+    :ASSIGNEE: coder
+    :END:
+
+*** TODO Governança: Política Estrita de Documentação e RAG
+Inserir regra no =AGENTS.md=: =TODO.org= e =roadmap.org= são changelogs. Toda nova API/FSM ou mudança do =magent= DEVE ser documentada em =docs/*.org= para o cache RAG.
+
+*** TODO Refatoração Cirúrgica: Desmembramento do custom-magent-subagent.el
+- *Passo 1:* Migrar contexto (=<parent_context>=, serialização de estado) para =lisp/custom-magent-context.el=.
+- *Passo 2:* Migrar ciclo de vida (stale jobs, ledger call-id, lifecycle events) para =lisp/custom-magent-fsm.el=.
+- *Passo 3:* Purificar =custom-magent-subagent.el= (apenas Model Routing, Profiles e spawn).
+
+*** TODO Documentação RAG: Atualização Pós-Refatoração
+Atualizar =docs/magent-reference.org=:
+- Arquitetura D5 separada (Roteamento vs Estado vs Injeção).
+- APIs de Jobs Duráveis e Ledger.
+- Interface de injeção de =<parent_context>=.
+
 * Concluído (referências ao roadmap)
 
 - *Subagentes Sem Tools* (2026-08-20) — Separação de diretivas em 3 constantes e injeção por papel. Log verificado com 100% de sucesso.
