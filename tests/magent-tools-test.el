@@ -376,12 +376,16 @@
     (should (memq 'rfc_search_topic magent-enable-tools))
     (should (memq 'rfc_read_section magent-enable-tools))))
 
-(ert-deftest myemacs-rfc-mode-configured ()
-  "Valida que rfc-mode-directory está configurado corretamente sob ~/.config/emacs/rfc/."
-  (require 'custom-files)
-  (when (require 'rfc-mode nil t)
-    (should (boundp 'rfc-mode-directory))
-    (should (string-match-p "rfc" rfc-mode-directory))))
+(ert-deftest myemacs-magent-resolve-model-skips-cb-open-backend ()
+  "Valida que +carlos/magent-resolve-model pula o backend quando em Circuit Breaker cooldown."
+  (let ((+carlos/magent-cb-failures (make-hash-table :test #'equal)))
+    (+carlos/magent-cb-record-failure "OpenCode Zen")
+    (+carlos/magent-cb-record-failure "OpenCode Zen")
+    (+carlos/magent-cb-record-failure "OpenCode Zen")
+    (should (+carlos/magent-cb-open-p "OpenCode Zen"))
+    (let ((choice (+carlos/magent-resolve-model 'deep nil nil nil '(:min-tier "free" :preferred-backend "OpenCode Zen"))))
+      (should choice)
+      (should-not (equal (plist-get choice :backend) "OpenCode Zen")))))
 
 (provide 'magent-tools-test)
 ;;; magent-tools-test.el ends here

@@ -869,7 +869,10 @@ disponível."
                           tier entries (plist-get hints :preferred-backend)))
             (when (and (stringp (car entry))
                        (fboundp 'gptel-get-backend)
-                       (gptel-get-backend (car entry)))
+                       (gptel-get-backend (car entry))
+                       (not (and (fboundp '+carlos/magent-cb-open-p)
+                                 (or (+carlos/magent-cb-open-p (car entry))
+                                     (+carlos/magent-cb-open-p (cdr entry))))))
               (throw 'resolved
                 (list :backend (car entry)
                       :model (cdr entry)
