@@ -355,7 +355,8 @@ Garante integridade textual para codificação JSON e parsing DSML/XML."
 ;; ── Circuit Breaker de Nuvem (Preventivo) ──────────────────────────
 (defvar +carlos/magent-cb-failures (make-hash-table :test 'equal)
   "Hash-table que rastreia falhas e cooldowns de modelos.
-Chaves são nomes de modelos (string/símbolo), valores plists `(:failures N :timestamp TIME)'.")
+Chaves são nomes de modelos (string/símbolo).
+Valores são plists `(:failures N :timestamp TIME)'.")
 
 (defcustom +carlos/magent-cb-max-failures 3
   "Número máximo de falhas consecutivas antes de abrir o Circuit Breaker."
