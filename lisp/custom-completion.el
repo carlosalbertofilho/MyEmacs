@@ -118,13 +118,14 @@
     (add-to-list 'corfu-margin-formatters #'nerd-icons-corfu-formatter)))
 
 ;; ── cape ────────────────────────────────────────────────────────────
+(defun +carlos/cape-setup-eglot-capf ()
+  "Merge LSP completion with Tempel snippets."
+  (setq-local completion-at-point-functions
+              (list (cape-super-capf #'eglot-completion-at-point #'tempel-expand))))
+
 (use-package cape
   :ensure nil
   :config
-  (defun +carlos/cape-setup-eglot-capf ()
-    "Merge LSP completion with Tempel snippets."
-    (setq-local completion-at-point-functions
-                (list (cape-super-capf #'eglot-completion-at-point #'tempel-expand))))
   (add-hook 'eglot-managed-mode-hook #'+carlos/cape-setup-eglot-capf))
 
 ;; ── tempel ──────────────────────────────────────────────────────────
