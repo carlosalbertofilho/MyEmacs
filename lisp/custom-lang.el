@@ -23,11 +23,20 @@
       (add-to-list 'treesit-extra-load-path expanded))))
 
 ;; ── treesit-auto ────────────────────────────────────────────────────
+(defun +carlos/watch-minibuffer-treesit-prompt ()
+  "Observa a abertura do minibuffer e loga/auto-confirma prompts do Tree-sitter."
+  (when-let* ((prompt (minibuffer-prompt)))
+    (when (string-match-p "\\(tree-sitter\\|grammar\\|Tree-sitter\\)" prompt)
+      (message "[Minibuffer Watcher] Prompt do Tree-sitter detectado: %s" prompt)
+      (ignore-errors (execute-kbd-macro (kbd "y"))))))
+
+(add-hook 'minibuffer-setup-hook #'+carlos/watch-minibuffer-treesit-prompt)
+
 (use-package treesit-auto
   :ensure (:wait t)
   :demand t
   :custom
-  (treesit-auto-install (unless noninteractive 'prompt))
+  (treesit-auto-install 'always)
   :config
   (unless noninteractive
     (global-treesit-auto-mode 1)))
