@@ -336,8 +336,11 @@ insensível no Org, mas a consistência facilita o parsing/regex).
 | `DECIDIDO` | decisão registrada |
 | `ARQUIVADO` | movido para histórico (roadmap.org) |
 
-### 7. Arquivos de referência (docs/*.org)
+### 7. Arquivos de referência (docs/*.org) e RAG (Política de Ouro)
 
+- **Regra inegociável:** `TODO.org` e `roadmap.org` são ESTRITAMENTE trackers e changelogs. Eles NÃO servem como documentação de API ou arquitetura.
+- **Toda alteração arquitetural, nova API, FSM ou mudança de comportamento (especialmente no pacote `magent`) DEVE OBRIGATORIAMENTE ser refletida no respectivo arquivo de referência `.org` em `docs/` (ex: `docs/magent-reference.org`).** Isso garante que os próximos agentes tenham acesso ao contexto técnico no cache RAG.
+- Nenhuma tarefa de refatoração ou criação de feature no `magent` pode ser considerada DONE sem que as APIs sejam documentadas no `docs/`.
 - Docs de referência de pacote ficam em `docs/` com `#+FILETAGS: :RAG:DOCS:` e
   header canônico (TITLE/AUTHOR/DATE/LAST_MODIFIED/DESCRIPTION/OPTIONS).
 - Cada arquivo tem um `* Visão Geral` no topo descrevendo o escopo.

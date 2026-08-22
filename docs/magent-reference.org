@@ -1,7 +1,7 @@
 #+TITLE: Magent Reference Guide
 #+AUTHOR: MyEmacs Documentation Generator
 #+DATE: 2026-08-06
-#+LAST_MODIFIED: 2026-08-18
+#+LAST_MODIFIED: 2026-08-21
 #+DESCRIPTION: Comprehensive reference for Magent native Emacs-Lisp AI coding agent and the MyEmacs orchestration layer (FSM, subagents, model routing, curated tools, expert team)
 #+FILETAGS: :RAG:AI:DOCS:
 #+OPTIONS: toc:2 num:t
@@ -32,6 +32,7 @@
 - [[#custom-agents][Custom Agents]]
 - [[#project-ledger--agentsmd-integration][Project Ledger & AGENTS.md Integration]]
 - [[#custom-expert-team-myemacs-profiles][Custom Expert Team (MyEmacs Profiles)]]
+- [[#arquitetura-d5-subagentes-jobs-duráveis-e-injeção-de-contexto][Arquitetura D5: Subagentes, Jobs Duráveis e Injeção de Contexto]]
 - [[#pitfalls--best-practices][Pitfalls & Best Practices]]
 :END:
 
@@ -942,6 +943,26 @@ Magent uses a team of highly specialized agent profiles (subagents) to maintain 
   coder/sysadmin/planner/auditor/sec-ops/qa `paid`. A resolução concreta é
   dinâmica por tarefa (`+carlos/magent-subagent-resolve` → complexidade +
   melhor custo no tier).
+
+* Arquitetura D5: Subagentes, Jobs Duráveis e Injeção de Contexto
+
+A Fase D5 estabeleceu uma separação estrita de responsabilidades (Princípio de Responsabilidade Única - SRP) para o gerenciamento de subagentes no Magent, distribuindo a lógica entre três domínios principais:
+
+** 1. Roteamento de Modelos (=custom-magent-subagent.el=)
+Mantém exclusividade sobre a definição de perfis de subagentes (como =explore=, =coder=, =sysadmin=) e suas dicas de roteamento (=:min-tier=, =:preferred-backend=). A função =+carlos/magent-subagent-apply-profile= aplica *overrides* de modelos contornando a herança padrão pai→filho do pacote base.
+
+** 2. Injeção de Contexto Pai (=custom-magent-context.el=)
+A injeção do bloco =<parent_context>= permite que os subagentes compreendam a missão macro do orquestrador, limitando o consumo de tokens (~300–500 tokens).
+- =+carlos/magent-collect-parent-context=: Extrai os dados críticos da sessão pai (session-id, project-root, goal).
+- =+carlos/magent-render-parent-context=: Renderiza o XML e capta o tamanho usando =+carlos/magent-parent-context-max-chars=.
+- A injeção ocorre via =:filter-return= no advice sobre =magent-agent--compose-system-message=.
+
+** 3. Ciclo de Vida e Ledger de Jobs (=custom-magent-fsm.el=)
+O Magent unifica o rastreamento via =call-id=.
+- *Jobs Duráveis:* Os jobs são persistidos na sessão pai (=magent-session-agent-jobs=). 
+- *Reconciliação:* A função =+carlos/magent-subagent-reconcile-stale-jobs= é acionada no =turn-start= para identificar e cancelar jobs que ficaram =queued= ou =running= após um restart (onde o runtime do agente morreu).
+- *Ledger:* A variável =+carlos/magent-subagent--calls= mapeia rigidamente =call-id= ↔ =job-id=. Os sinks em =+carlos/magent-subagent-lifecycle-sink= escutam os eventos do barramento (=magent-lifecycle-events=) e atualizam o estado do job quando as ferramentas =spawn_agent= ou =wait_agent= iniciam/terminam, ou quando o próprio job relata uma transição de estado (=agent-job-event=).
+
 * Pitfalls & Best Practices
 
 1. **Emacs =defvar= gotcha (dois modos):** (a) Emacs 30 — forward declarations of variables with non-nil defcustom defaults MUST use the bare form ~(defvar X)~ with ~(boundp 'X)~ guards to avoid clobbering runtime defaults with ~nil~; (b) ~(defvar X "doc")~ com 2º argumento NÃO declara docstring — LIGA o valor de X à string (e o `defcustom` posterior nunca aplica o default). Forward decl com docstring → comentário + ~(defvar X)~ pelado.

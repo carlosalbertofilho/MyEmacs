@@ -612,5 +612,86 @@ Mostra turn-id, tokens (input/output), elapsed e tools para cada turno."
   (when (fboundp 'magent-lifecycle-events-add-sink)
     (magent-lifecycle-events-add-sink #'+carlos/magent-auto-compact-check-and-run)))
 
+;; ── D5.4: Contexto pai (<parent_context> no system prompt dos filhos) ───────
+(defcustom +carlos/magent-parent-context-max-chars 2000
+  "Teto de caracteres do bloco <parent_context> (~300–500 tokens)."
+  :type 'natnum
+  :group 'magent)
+
+(defun +carlos/magent-collect-parent-context ()
+  "Coleta contexto essencial da sessão pai para herança pelos filhos.
+Retorna plist (:session-id :project-root :goal :message-count), ou nil
+sem sessão/infra disponível.  Nunca sinaliza erro."
+  (when-let* ((session (and (fboundp 'magent-tools--parent-session)
+                            (ignore-errors (magent-tools--parent-session)))))
+    (let* ((root
+            (and (boundp 'magent-tools--request-context)
+                 magent-tools--request-context
+                 (fboundp 'magent-request-context-project-root)
+                 (ignore-errors
+                   (magent-request-context-project-root
+                    magent-tools--request-context))))
+           (messages
+            (and (fboundp 'magent-session-get-messages)
+                 (ignore-errors (magent-session-get-messages session))))
+           (goal
+            (when messages
+              (seq-find (lambda (msg) (eq (magent-msg-role msg) 'user))
+                        (reverse messages))))
+           (goal-text
+            (and goal (fboundp 'magent-msg-content)
+                 (let ((content (magent-msg-content goal)))
+                   (if (stringp content) content (format "%S" content))))))
+      (append (when-let* ((id (and (fboundp 'magent-session-get-id)
+                                   (ignore-errors
+                                     (magent-session-get-id session)))))
+                (list :session-id id))
+              (when root (list :project-root root))
+              (when goal-text
+                (list :goal
+                      (truncate-string-to-width
+                       (string-trim goal-text) 600 nil nil "...")))
+              (list :message-count (length messages))))))
+
+(defun +carlos/magent-render-parent-context (context &optional max-chars)
+  "Renderiza CONTEXT como bloco <parent_context> capado a MAX-CHARS.
+nil quando CONTEXT não tem conteúdo útil."
+  (when-let* ((context context)
+              (parts
+               (delq nil
+                     (list
+                      (when-let* ((id (plist-get context :session-id)))
+                        (format "session: %s" id))
+                      (when-let* ((root (plist-get context :project-root)))
+                        (format "project_root: %s" root))
+                      (when-let* ((goal (plist-get context :goal)))
+                        (format "current_goal: %s" goal))
+                      (format "messages: %s"
+                              (or (plist-get context :message-count) 0)))))
+              (body (mapconcat #'identity parts "\n")))
+    (format "<parent_context>\n%s\n</parent_context>"
+            (truncate-string-to-width
+             body
+             (or max-chars +carlos/magent-parent-context-max-chars)
+             nil nil "..."))))
+
+(defun +carlos/magent-inject-child-parent-context (composed &rest _)
+  "Append <parent_context> ao system prompt COMPOSED de SUBAGENTES.
+Filter-return de `magent-agent--compose-system-message'; orquestrador
+(`+carlos/magent-current-agent-is-orchestrator' non-nil) fica intocado."
+  (if (and composed
+           (boundp '+carlos/magent-current-agent-is-orchestrator)
+           (not +carlos/magent-current-agent-is-orchestrator))
+      (if-let* ((block (+carlos/magent-render-parent-context
+                        (+carlos/magent-collect-parent-context))))
+          (concat composed "\n\n" block)
+        composed)
+    composed))
+
+(with-eval-after-load 'magent-agent
+  (advice-add 'magent-agent--compose-system-message
+              :filter-return #'+carlos/magent-inject-child-parent-context))
+
+
 (provide 'custom-magent-context)
 ;;; custom-magent-context.el ends here

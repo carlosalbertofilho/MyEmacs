@@ -1594,6 +1594,17 @@ Criar cache de referência para que agentes possam:
 - Nota de ambiente: com =use-package-expand-minimally=, o =:after magit= adia também o *install* — a order do forge só entrou na fila via =(elpaca (forge))= explícito em batch. Durante o primeiro =just install= houve corrida de build parcial que dava =Unknown slot 'owner'= no =compile-prod=; após instalação estável do forge, recompilação passou limpa.
 - Prod: =just sync= (6c89cf2) + =compile-prod= ✓ + =check-prod= ✓ (=Config loaded OK=) + suíte autoritativa **394 testes, 0 falhas** (7 skipped).
 
+** 2026-08-21 — [CONCLUÍDO] D5 — Governança e Refatoração Arquitetural
+
+*** Refatoração do =magent=
+- *God File Resolvido:* Desmembramento do arquivo =lisp/custom-magent-subagent.el= para respeitar o Princípio de Responsabilidade Única (SRP).
+- A lógica de injeção e extração de contexto (=<parent_context>=) foi cirurgicamente movida para =lisp/custom-magent-context.el=.
+- A lógica de persistência de jobs duráveis, ledger de chamadas e reconciliação (=stale jobs=) foi movida para =lisp/custom-magent-fsm.el=.
+
+*** RAG e Documentação
+- *Regra de Ouro (AGENTS.md):* Estabelecido que =TODO.org= e =roadmap.org= são changelogs e toda nova arquitetura/API DEVE ser registrada em =docs/*.org= para o cache RAG dos agentes.
+- *Referência D5:* O documento =docs/magent-reference.org= foi atualizado para documentar a triagem de responsabilidades (Roteamento vs Contexto vs FSM).
+
 ** 2026-08-21 — [CONCLUÍDO] D5 — Context Sharing Dinâmico e Estruturas Duráveis (=lisp/custom-magent-subagent.el=)
 
 *** Implementação
