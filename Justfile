@@ -161,6 +161,12 @@ sync:
 check-all: check test-all
     @echo "✅✅ Full check passed"
 
+# Nuke production directory, backup state files, clone fresh from git, and rebuild
+factory-reset:
+    @bash bin/factory-reset.sh
+    just install
+    just compile-prod
+
 # Full workflow: check-all -> commit -> push -> sync -> compile + boot check no prod
 deploy MSG:
     @echo "🚀 Deploying: {{MSG}}"
