@@ -230,5 +230,11 @@ Ignora popups, sidebars e minibuffer."
           (?j +carlos/project-just-run "Just (default)")
           (?t +carlos/eat-just-recipe "Just recipe"))))
 
+;; ── rfc-mode (Normas IETF) ───────────────────────────────────────────
+(use-package rfc-mode
+  :ensure t
+  :custom
+  (rfc-mode-directory (expand-file-name "rfc" user-emacs-directory)))
+
 (provide 'custom-files)
 ;;; custom-files.el ends here

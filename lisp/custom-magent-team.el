@@ -95,6 +95,8 @@
                    (flycheck_errors . allow)
                    (lsp_navigation . allow)
                    (emacs_eval . allow)
+                   (rfc_search_topic . allow)
+                   (rfc_read_section . allow)
                    (spawn_agent . allow)
                    (wait_agent . allow))))
     ("sec-ops" .
@@ -105,6 +107,8 @@
                    (grep . allow)
                    (glob . allow)
                    (bash . allow)
+                   (rfc_search_topic . allow)
+                   (rfc_read_section . allow)
                    (emacs_eval . allow))))
     ("qa" .
      (:description "Continuous Integrator. Gatekeeper do codebase com política zero-warning/zero-regression."

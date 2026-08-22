@@ -357,5 +357,31 @@
       (should (eq (cdr (assq 'forge_read_issue rules)) 'allow))
       (should (eq (cdr (assq 'forge_list_pull_requests rules)) 'allow)))))
 
+(ert-deftest myemacs-rfc-team-permissions ()
+  "Perfis auditor e sec-ops concedem allow às tools rfc_*."
+  (require 'custom-magent-team)
+  (dolist (agent '("auditor" "sec-ops"))
+    (let* ((spec (cdr (assoc agent +carlos/magent-expert-team)))
+           (rules (plist-get spec :permission)))
+      (should (assq 'rfc_search_topic rules))
+      (should (eq (cdr (assq 'rfc_search_topic rules)) 'allow))
+      (should (assq 'rfc_read_section rules))
+      (should (eq (cdr (assq 'rfc_read_section rules)) 'allow)))))
+
+(ert-deftest myemacs-rfc-tools-registered ()
+  "Valida se as funções das ferramentas RFC existem e estão registradas em magent-enable-tools."
+  (should (fboundp '+carlos/magent-tool-rfc-search-topic))
+  (should (fboundp '+carlos/magent-tool-rfc-read-section))
+  (when (boundp 'magent-enable-tools)
+    (should (memq 'rfc_search_topic magent-enable-tools))
+    (should (memq 'rfc_read_section magent-enable-tools))))
+
+(ert-deftest myemacs-rfc-mode-configured ()
+  "Valida que rfc-mode-directory está configurado corretamente sob ~/.config/emacs/rfc/."
+  (require 'custom-files)
+  (when (require 'rfc-mode nil t)
+    (should (boundp 'rfc-mode-directory))
+    (should (string-match-p "rfc" rfc-mode-directory))))
+
 (provide 'magent-tools-test)
 ;;; magent-tools-test.el ends here

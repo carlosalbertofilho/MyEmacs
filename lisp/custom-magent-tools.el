@@ -1484,7 +1484,9 @@ NUMBER-STR aceita \"9000\"/\"RFC 9000\"; SECTION é o número da seção
     (add-to-list 'magent-enable-tools 'snippet_expand)
     (add-to-list 'magent-enable-tools 'select_model)
     (add-to-list 'magent-enable-tools 'forge_read_issue)
-    (add-to-list 'magent-enable-tools 'forge_list_pull_requests)))
+    (add-to-list 'magent-enable-tools 'forge_list_pull_requests)
+    (add-to-list 'magent-enable-tools 'rfc_search_topic)
+    (add-to-list 'magent-enable-tools 'rfc_read_section)))
 
 (provide 'custom-magent-tools)
 ;;; custom-magent-tools.el ends here
