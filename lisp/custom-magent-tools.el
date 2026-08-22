@@ -930,8 +930,8 @@ fora de um repositório suportado.  Nunca sinaliza erro."
     (ignore-errors
       (let ((repo (or (forge-get-repository :known?)
                       (forge-get-repository :stub?))))
-        (when (and repo (slot-exists-p repo 'owner) (slot-exists-p repo 'name))
-          (cons (slot-value repo 'owner) (slot-value repo 'name)))))))
+        (when (and repo (funcall #'slot-exists-p repo 'owner) (funcall #'slot-exists-p repo 'name))
+          (cons (funcall #'slot-value repo 'owner) (funcall #'slot-value repo 'name)))))))
 
 (defun +carlos/magent-forge--resolve-repo (sql-fn ref repo-fn)
   "Resolve id/owner/name do repositório no db do Forge.
