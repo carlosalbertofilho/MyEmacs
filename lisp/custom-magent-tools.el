@@ -785,9 +785,11 @@ acima de `+carlos/magent-model-max-tier'."
     (mapconcat #'identity (nreverse lines) "\n")))
 
 (defun +carlos/magent-system-directives-render ()
-  "Retorna as directivas estáticas seguidas do menu de modelos renderizado."
-  (concat +carlos/magent-system-directives
-          "\n\n" (+carlos/magent-model-menu-render)))
+  "Retorna as diretivas apropriadas (Orchestrator vs Subagent) e o menu de modelos."
+  (if +carlos/magent-current-agent-is-orchestrator
+      (concat +carlos/magent-system-directives
+              "\n\n" (+carlos/magent-model-menu-render))
+    +carlos/magent-subagent-extra))
 
 (defconst +carlos/magent-deep-task-keywords
   '("refactor" "architect" "architecture" "design" "schema" "migrat"
