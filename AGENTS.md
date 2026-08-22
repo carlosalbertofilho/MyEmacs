@@ -251,6 +251,8 @@ bloqueio sem ganho.
   (add-to-list 'gptel-agent-dirs dir))
 ```
 
+**Ferramenta Nativa para Edição de Lisp (`elisp_smart_edit`):** Para inserir snippets, criar novas definições (`defun`, `use-package`, `deftest`, `defcustom`, `with-eval-after-load`), refatorar símbolos ou validar arquivos `.el`, os agentes DEVEM SEMPRE PREFERIR utilizar a ferramenta nativa `elisp_smart_edit` (`+carlos/magent-tool-elisp-smart-edit` em `lisp/custom-magent-tools.el`). Ela garante pareamento perfeito de parênteses com rollback transacional em caso de erro sintático e consumo mínimo de tokens (~30 tokens).
+
 **Emacs 30 gotcha — `defvar` sem INITVALUE NÃO liga a variável:**
 Desde o Emacs 30, `(defvar X)` sem valor inicial deixa X **void** (só marca a
 variável como special para o byte-compiler). Consequências:
