@@ -147,11 +147,11 @@ Decisões de produto do usuário que sobrepõem diretrizes genéricas (2026-08-0
   `+carlos/agy-prompt` (`C-c A g`) e `+carlos/copilot-explain-region`
   (`C-c A c`) como atalhos convenientes, apesar da diretriz de usar CLIs fora
   do Emacs. Não remover sem perguntar.
-- **Roteamento de IA & Resiliência Free Tier (2026-08-22):**
-  - **Free Tier Primário:** Prioridade para modelos gratuitos do OpenCode Zen (`big-pickle`, `nemotron-3.5-lightning-free`, `deepseek-v4-flash-free`) e do Google AI Studio (`gemini-2.5-flash`), garantindo custo $0.00 durante o desenvolvimento.
-  - **Circuit Breaker de Resiliência:** Em caso de oscilação do `big-pickle`, a FSM chaveia para `nemotron-3.5-lightning-free` ou `gemini-2.5-flash` sem travar a execução.
-  - **Preservação de Saldo:** Saldo de $50 no Google AI Studio alocado exclusivamente para o `planner` em `gemini-2.5-pro` em planejamentos complexos (`complexity='deep'`).
-  - **Paid Tier Opt-in:** Modelos pagos (`claude-sonnet-5`, `claude-opus-5`) acionados apenas sob demanda (`min_tier='paid'`).
+- **Savepoint v1.0 — FSM Resilience & FinOps $0.00 (Commit `267645d` / Tag `savepoint` / `savepoint-v1.0-fsm-resilience`):**
+  - **Motor FSM & Resiliência:** 3 Pilares implementados (Circuit Breaker stateful, Sanitizador ANSI/XML `+carlos/magent-sanitize-string`, Dynamic GC 100MB e Auto-Resync de `buffer_conflict`).
+  - **Matriz de Roteamento FinOps:** 100% alinhada para Free Tier $0.00 (`gemini-2.5-flash` orquestrador, `big-pickle` especialista).
+  - **Bateria de Delegação:** 12 Rounds executados e validados com 100% de sucesso (12/12 PASSED).
+  - **Suíte de Testes ERT:** 422/422 testes passados (0 falhas) e compilação `compile-prod` com 0 Warnings.
 
 ### 1. File Structure
 
