@@ -1898,7 +1898,7 @@ SQL-FN and REPO-FN are optional overrides for offline unit testing."
               (format "Created Pull Request '%s' (mocked via sql-fn)." title))
           (format "Created Pull Request '%s' via Forge API fallback in '%s'." title default-directory))))))
 
-(defun +carlos/magent-tool-forge-post-comment (issue-number-or-url body &optional _reason sql-fn repo-fn)
+(defun +carlos/magent-tool-forge-post-comment (issue-number-or-url body &optional _reason sql-fn _repo-fn)
   "Posts a comment to an Issue or PR via Forge API programmatically.
 SQL-FN and REPO-FN are optional overrides for offline unit testing."
   (require 'forge nil t)
