@@ -31,19 +31,25 @@ Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=
     :PROPERTIES:
     :CREATED: 2026-08-20
     :ASSIGNEE: coder
-    :STATUS: plano aprovado
+    :STATUS: plano refinado
     :END:
 
-*** Circuit Breaker de nuvem
-Implementar bloqueio preventivo (circuit breaker) em =custom-magent-tools.el= contra APIs e LLMs instáveis.
+*** Circuit Breaker de Nuvem (Preventivo)
+Implementar bloqueio preventivo (Circuit Breaker Stateful) em =custom-magent-tools.el= contra instabilidade persistente em provedores (ex: timeouts no =gpt-5.6-sol=).
+- Estruturar =+carlos/magent-cb-execute= com hash-table de falhas por modelo.
+- Falha rápida (fail-fast) local evitando que a FSM loop infinitamente aguardando requisições fantasmas.
 
-*** Sanitizacao ANSI e XML
-Aplicar filtro sanitizador para limpar saídas ANSI/XML quebradas em =+carlos/magent-tool-result=, assegurando que o seletor =:call-id= não sofra corrupção sintática.
+*** Sanitização ANSI e XML
+Aplicar filtro robusto (=+carlos/magent-sanitize-string=) em =+carlos/magent-tool-result= para higienizar saídas com PTY vazado ou tags quebradas.
+- Evitar que lixo terminal ou nulos quebrem o parser HTTP/XML do gptel/Magent.
+- Assegurar integridade e blindagem no parseamento sintático do =:call-id=.
 
-*** Otimizacao de turnos e bloqueios
-Programar threshold de GC dinâmico durante turnos ativos da FSM em =custom-magent-fsm.el= e auto-resync para estados de =buffer_conflict=.
+*** Otimização de Turnos: GC Dinâmico e Auto-Resync
+Programar threshold de alocação de memória durante turnos ativos em =custom-magent-fsm.el= e acelerar tempo de resposta a conflitos em =custom-magent-buffer.el=.
+- *Dynamic GC:* Limiar de 100MB nos estados =thinking=/=tool-executing= e trigger forçado de =garbage-collect= na volta ao =idle=.
+- *Auto-Resync:* Ao capturar um erro =buffer_conflict= (concorrência do driver), embutir automaticamente na resposta de erro da ferramenta o estado textual read-only do arquivo, poupando um turno inteiro de dedução do orquestrador.
 
-*Arquivos:* =lisp/custom-magent-fsm.el=, =lisp/custom-magent-tools.el=, =lisp/custom-magent-buffer.el=.
+*Arquivos-Alvo:* =lisp/custom-magent-fsm.el=, =lisp/custom-magent-tools.el=, =lisp/custom-magent-buffer.el=.
 
 ** TODO Teste de Delegação (12 rounds de regressão)
     :PROPERTIES:
