@@ -27,6 +27,21 @@ Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=
 
 * Pendente — Motor & Backlog (Plano Mestre Opus)
 
+** TODO Documentação RAG (Magit/Forge) e Ferramentas Nativas no Magent
+    :PROPERTIES:
+    :CREATED: 2026-08-22
+    :ASSIGNEE: tech-writer
+    :STATUS: pendente
+    :END:
+
+*** Documentação RAG Ricas para Subagentes (docs/)
+- Criar `docs/forge-reference.org` com header canônico (`#+FILETAGS: :RAG:DOCS:`) para Forge API, Issues e PRs.
+- Atualizar `docs/magit-reference.org` adicionando a seção `* Programmatic Elisp API` para automação sem UI.
+
+*** Ferramentas Nativas Magit/Forge no Magent (lisp/custom-magent-tools.el)
+- Implementar as ferramentas `magit_stage`, `magit_commit`, `magit_push` e `magit_status`.
+- Atualizar as diretivas do perfil `sysadmin` para priorizar ferramentas Magit nativas em vez de shell bash raw.
+
 ** TODO Auditoria e Benchmarking de Modelos Locais no Host agnes (Mac M2 24GB)
     :PROPERTIES:
     :CREATED: 2026-08-22
