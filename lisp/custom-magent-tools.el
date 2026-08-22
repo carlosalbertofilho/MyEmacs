@@ -3160,7 +3160,7 @@ REASON: Motivo da alteração."
 (defvar +carlos/magent-tool-docker-logs nil "Gptel tool for Docker logs.")
 (defvar +carlos/magent-tool-docker-action nil "Gptel tool for Docker container actions.")
 
-(defun +carlos/magent-tool-docker-ps (&optional all filter remote-host reason)
+(defun +carlos/magent-tool-docker-ps (&optional all filter remote-host _reason)
   "List Docker containers (local or TRAMP) in structured JSON format."
   (let* ((default-directory (if (and remote-host (not (string-empty-p remote-host)))
                                 (file-name-as-directory remote-host)
@@ -3182,7 +3182,7 @@ REASON: Motivo da alteração."
                (cons "count" (length lines))
                (cons "containers_raw" (+carlos/magent-sanitize-string (mapconcat #'identity lines "\n")))))))))
 
-(defun +carlos/magent-tool-docker-logs (container-id &optional tail grep-pattern remote-host reason)
+(defun +carlos/magent-tool-docker-logs (container-id &optional tail grep-pattern remote-host _reason)
   "Inspect container logs with tail limit and optional grep pattern."
   (if (or (not container-id) (string-empty-p container-id))
       (+carlos/magent-tool-result '((status . "error") (message . "container_id parameter is required")))
@@ -3205,7 +3205,7 @@ REASON: Motivo da alteração."
              (cons "matching_lines" (length filtered-lines))
              (cons "logs" (mapconcat #'identity (cl-subseq filtered-lines 0 (min (length filtered-lines) 100)) "\n")))))))
 
-(defun +carlos/magent-tool-docker-action (container-id action &optional remote-host reason)
+(defun +carlos/magent-tool-docker-action (container-id action &optional remote-host _reason)
   "Perform action (start, stop, restart, remove) on a Docker container."
   (if (or (not container-id) (string-empty-p container-id)
           (not action) (string-empty-p action))
@@ -3231,7 +3231,7 @@ REASON: Motivo da alteração."
 (defvar +carlos/magent-tool-systemd-action nil "Gptel tool for systemd actions.")
 (defvar +carlos/magent-tool-systemd-journal nil "Gptel tool for systemd journalctl.")
 
-(defun +carlos/magent-tool-systemd-status (unit &optional remote-host reason)
+(defun +carlos/magent-tool-systemd-status (unit &optional remote-host _reason)
   "Inspect systemd unit status in JSON-safe format."
   (if (or (not unit) (string-empty-p unit))
       (+carlos/magent-tool-result '((status . "error") (message . "unit parameter is required")))
@@ -3249,7 +3249,7 @@ REASON: Motivo da alteração."
       (+carlos/magent-tool-result
        (append (list (cons "status" "success") (cons "unit" unit)) props)))))
 
-(defun +carlos/magent-tool-systemd-action (unit action &optional remote-host reason)
+(defun +carlos/magent-tool-systemd-action (unit action &optional remote-host _reason)
   "Execute systemctl action (start, stop, restart, reload, enable, disable) on a unit."
   (if (or (not unit) (string-empty-p unit)
           (not action) (string-empty-p action))
@@ -3269,7 +3269,7 @@ REASON: Motivo da alteração."
                  (cons "action" act)
                  (cons "message" (if (string-empty-p output) (format "Unit %s %ssuccessfully." unit act) (string-trim output))))))))))
 
-(defun +carlos/magent-tool-systemd-journal (unit &optional tail priority remote-host reason)
+(defun +carlos/magent-tool-systemd-journal (unit &optional tail priority remote-host _reason)
   "Inspect systemd journalctl entries for a unit."
   (if (or (not unit) (string-empty-p unit))
       (+carlos/magent-tool-result '((status . "error") (message . "unit parameter is required")))
@@ -3296,7 +3296,7 @@ REASON: Motivo da alteração."
 ;; ── Log Inspection Native Tool ──────────────────────────────────────
 (defvar +carlos/magent-tool-log-inspect nil "Gptel tool for log file inspection.")
 
-(defun +carlos/magent-tool-log-inspect (log-path &optional regex severity tail remote-host reason)
+(defun +carlos/magent-tool-log-inspect (log-path &optional regex severity tail remote-host _reason)
   "Inspect log file (local or via TRAMP) with filtering by regex and severity."
   (if (or (not log-path) (string-empty-p log-path))
       (+carlos/magent-tool-result '((status . "error") (message . "log_path parameter is required")))
