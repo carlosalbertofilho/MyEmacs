@@ -214,7 +214,36 @@ Ignora popups, sidebars e minibuffer."
      '(:application tramp :protocol "ssh")
      'remote-direct-async-process)))
 
+;; ── recentf filtering ───────────────────────────────────────────────
+(with-eval-after-load 'recentf
+  (setq recentf-exclude
+        '("^/tmp/"
+          "^/var/folders/"
+          "\\.git/"
+          "\\.devenv/"
+          "\\.direnv/"
+          "\\.cache/"
+          "elpaca/"
+          "recentf$"
+          "bookmarks$"
+          "custom-file\\.el$")))
+
 ;; ── Project (built-in) ──────────────────────────────────────────────
+(declare-function project-remember-projects-under "project")
+
+(defun +carlos/project-register-user-workspaces ()
+  "Auto-discover and register active user workspace roots in `project-known-project-roots'."
+  (interactive)
+  (when (fboundp 'project-remember-projects-under)
+    (dolist (dir '("~/Projects/42rio/CommonCore"
+                   "~/Projects/HUPE/intranet-desit"
+                   "~/Projects/SIGER/V1"
+                   "~/Projetos/Github/MyEmacs"
+                   "~/Projetos/Nixos/MyMachine"))
+      (let ((expanded (expand-file-name dir)))
+        (when (file-directory-p expanded)
+          (ignore-errors (project-remember-projects-under expanded)))))))
+
 (use-package project
   :ensure nil
   :config
@@ -228,7 +257,8 @@ Ignora popups, sidebars e minibuffer."
           (?e project-eshell "Eshell")
           (?c project-compile "Compile")
           (?j +carlos/project-just-run "Just (default)")
-          (?t +carlos/eat-just-recipe "Just recipe"))))
+          (?t +carlos/eat-just-recipe "Just recipe")))
+  (+carlos/project-register-user-workspaces))
 
 ;; ── rfc-mode (Normas IETF) ───────────────────────────────────────────
 (use-package rfc-mode

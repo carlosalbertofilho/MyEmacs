@@ -5,13 +5,15 @@
 
 ;;; Code:
 
-;; Forward declarations for byte-compiler
-(declare-function dashboard-setup-startup-hook "dashboard")
-(declare-function dashboard-open "dashboard")
-(declare-function dashboard-refresh-buffer "dashboard")
+(declare-function elpaca "elpaca")
+(declare-function elpaca-wait "elpaca")
+
+;; Ensure dashboard package is queued and loaded synchronously via Elpaca
+(elpaca dashboard)
+(elpaca-wait)
 
 (use-package dashboard
-  :ensure t
+  :ensure nil
   :demand t
   :config
   (dashboard-setup-startup-hook)
