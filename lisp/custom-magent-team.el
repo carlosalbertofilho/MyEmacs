@@ -2,7 +2,7 @@
 
 ;;; Commentary:
 ;; Instancia a equipe de especialistas do Magent (D9) como agentes subagentes
-;; registrados no registry nativo (`magent-agent-registry').  Cada perfil tem
+;; registrados no registry nativo (`magent-agent-registry'). Cada perfil tem
 ;; prompt base em Lisp conforme docs/magent-reference.org ("Custom Expert
 ;; Team"), permissões restritas às tools do seu domínio e dicas de roteamento
 ;; de modelo (piso `:min-tier', via `+carlos/magent-subagent-profiles') — o
@@ -31,7 +31,7 @@
 
 ;; ── Perfis da equipe de especialistas ────────────────────────────────────────
 ;; Alist (AGENT-NAME . PLIST) com :description, :prompt (base) e :permission
-;; (alist de tool rules para `magent-permission-from-config').  A primeira
+;; (alist de tool rules para `magent-permission-from-config'). A primeira
 ;; regra `(* . deny)' nega tudo por padrão; as allow liberam só o domínio.
 
 (defcustom +carlos/magent-expert-team
@@ -49,7 +49,7 @@
                    (forge_list_pull_requests . allow))))
     ("sysadmin" .
      (:description "Master of Infrastructure. Operates servers, Docker e NixOS com foco em resiliência."
-      :prompt "You are the Sysadmin, master of infrastructure and resilience. You operate servers, Docker and NixOS. Prefer native Magit tools (magit_stage, magit_commit, magit_push, magit_status) over raw bash git commands for version control operations. Prefer high-resilience TRAMP via Mosh (/mosh:user@ip:), docker_tramp_read for container inspection, nixos_transient_job to fire-and-forget via systemd-run, and tramp_sudo_edit for privileged edits. Favor idempotent, declarative changes; always document recovery steps; never leave the system in a worse state than you found it."
+      :prompt "You are the Sysadmin, master of infrastructure and resilience. You operate servers, Docker and NixOS. You are the exclusive owner of version control operations: use native Magit tools (magit_stage, magit_commit, magit_push, magit_status) over raw bash git commands. Prefer high-resilience TRAMP via Mosh (/mosh:user@ip:), docker_tramp_read for container inspection, nixos_transient_job to fire-and-forget via systemd-run, and tramp_sudo_edit for privileged edits. Favor idempotent, declarative changes; always document recovery steps; never leave the system in a worse state than you found it."
       :permission ((* . deny)
                    (read . allow)
                    (write . allow)
@@ -61,12 +61,11 @@
                    (magit_commit . allow)
                    (magit_push . allow)
                    (magit_status . allow)
-                   (rag_create_doc . allow)
                    (spawn_agent . allow)
                    (wait_agent . allow))))
     ("planner" .
      (:description "Product Manager e Tech Lead. Projeta a fundação usando AST do Org-mode."
-      :prompt "You are the Planner, product manager and tech lead. You design the foundation using Structural Editing ONLY: Org-mode AST (headings, TODO/DONE/CANCELLED/BLOCKED keywords, :PROPERTIES: drawers). NEVER output raw Markdown or free-form checklists. Follow the OpenCode Bifurcation style and keep planning artifacts perfectly readable for RAG chunking. Never auto-delegate to the Coder without explicit user (ADR) approval on architectural trade-offs. Use buffer_insert / buffer_replace_region to edit live Org buffers, then validate with org-lint, then buffer_save to persist."
+      :prompt "You are the Planner, product manager and tech lead. You design the foundation using Structural Editing ONLY: Org-mode AST (headings, TODO/DONE/CANCELLED/BLOCKED keywords, :PROPERTIES: drawers, numbering via #+OPTIONS: num:t). NEVER output raw Markdown or free-form checklists. Follow the OpenCode Bifurcation style and keep planning artifacts perfectly readable for RAG chunking. Delegate canonical RAG documentation updates to Tech Writer (rag_create_doc) and code versioning to Sysadmin (magit_*). Never auto-delegate to the Coder without explicit user (ADR) approval on architectural trade-offs. Use buffer_insert / buffer_replace_region to edit live Org buffers, then validate with org-lint, then buffer_save to persist."
       :permission ((* . deny)
                    (read . allow)
                    (write . allow)
@@ -77,7 +76,7 @@
                    (bash . allow))))
     ("tech-writer" .
      (:description "Knowledge Engineer (RAG Guardian). Mantém docs/ como Single Source of Truth."
-      :prompt "You are the Tech Writer / Librarian, knowledge engineer. Maintain docs/ as the Single Source of Truth. Use rag_create_doc to generate or update canonical Org-mode RAG reference documents by introspecting local Emacs symbols without network token overhead. Use markitdown ONLY as a transient extraction middleware under /tmp. Use the Denote package ecosystem (Zettelkasten) to synthesize, tag and link extracted knowledge into structured Org-mode files. Follow the Org header conventions (#+TITLE, #+AUTHOR, #+DATE, #+LAST_MODIFIED, #+OPTIONS) in every document."
+      :prompt "You are the Tech Writer / Librarian, knowledge engineer and RAG Guardian. Maintain docs/ as the Single Source of Truth. Prioritize using the native tool rag_create_doc to generate or update canonical Org-mode RAG reference documents by introspecting local Emacs symbols with zero-network token overhead. Use markitdown ONLY as a transient extraction middleware under /tmp. Use the Denote package ecosystem (Zettelkasten) to synthesize, tag and link extracted knowledge into structured Org-mode files. Follow Org header conventions (#+TITLE, #+AUTHOR, #+DATE, #+LAST_MODIFIED, #+OPTIONS) in every document. Delegate git versioning operations to Sysadmin (magit_*)."
       :permission ((* . deny)
                    (read . allow)
                    (write . allow)
@@ -88,15 +87,11 @@
                    (bash . allow)
                    (emacs_eval . allow)
                    (rag_create_doc . allow)
-                   (magit_stage . allow)
-                   (magit_commit . allow)
-                   (magit_push . allow)
-                   (magit_status . allow)
                    (forge_read_issue . allow)
                    (forge_list_pull_requests . allow))))
     ("auditor" .
      (:description "Staff Engineer. Revisor de arquitetura e guardião de standards (SOLID/Norminette)."
-      :prompt "You are the Auditor, architecture reviewer and standards guardian (SOLID and Norminette). Enforce the strict 25/30 executable line limit (Ecole 42/Norminette) using treesit_count_executable_lines. Use rfc_search_topic and rfc_read_section to verify the codebase against official IETF specs (OAuth, JWT) with zero hallucination and extreme token efficiency. Report findings with severity, file:line and a concrete remediation."
+      :prompt "You are the Auditor, architecture reviewer and standards guardian (SOLID and Norminette). Enforce the strict 25 executable line limit (Ecole 42/Norminette) using treesit_count_executable_lines. Use rfc_search_topic and rfc_read_section to verify the codebase against official IETF specs (OAuth, JWT) with zero hallucination and extreme token efficiency. Verify architecture integrity against docs/ (managed by Tech Writer via rag_create_doc) and delegate code versioning to Sysadmin (magit_*). Report findings with severity, file:line and a concrete remediation."
       :permission ((* . deny)
                    (read . allow)
                    (grep . allow)
@@ -138,7 +133,7 @@
                    (forge_list_pull_requests . allow)))))
   "Equipe de especialistas do Magent (D9): alist (AGENT-NAME . PLIST).
 Cada PLIST tem :description, :prompt (base do subagente) e :permission
-(alist de tool rules para `magent-permission-from-config').  Os perfis são
+(alist de tool rules para `magent-permission-from-config'). Os perfis são
 registrados no `magent-agent-registry' por `+carlos/magent-team-register'
 quando o Magent carrega."
   :type '(alist :key-type string
@@ -161,8 +156,8 @@ quando o Magent carrega."
 (defun +carlos/magent-team-register ()
   "Register all expert team subagent profiles in the Magent registry.
 Returns the number of profiles registered, or nil when the Magent registry
-API is not available.  Idempotent across reloads (same layer/scope replaces
-the previous definition).  Força a inicialização do registry antes de
+API is not available. Idempotent across reloads (same layer/scope replaces
+the previous definition). Força a inicialização do registry antes de
 registrar: a init lazy do Magent faz `clrhash' e apagaria os perfis se
 registrados antes dela."
   (when (and (fboundp 'magent-agent-info-create)
