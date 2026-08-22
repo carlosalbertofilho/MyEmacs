@@ -84,12 +84,6 @@ Matriz executável dos 12 rounds de regressão do Magent sob a nova matriz de pe
 
 * Concluído (referências ao roadmap)
 
-- *Resiliência e Robustez FSM (3 Pilares)* (2026-08-22) — Implementado Circuit Breaker preventivo com hash-table em `custom-magent-tools.el`, sanitizador ANSI/XML `+carlos/magent-sanitize-string` em `+carlos/magent-tool-result`, Dynamic GC (100MB em `thinking`/`tool-executing`) e Auto-Resync de `buffer_conflict` com injeção do texto lido no erro em `custom-magent-buffer.el`. Validado com testes ERT (Grupo 10) e aprovado pelo Opus QA Gatekeeper.
-- *Limpeza & Benchmarking CPU (host aa102-006l)* (2026-08-22) — Liberados 13 GB de disco NVMe (remoção de `gemma4:e2b`, `mistral`, `llama3.2`). Validados `qwen2.5-coder:1.5b` (24 tok/s, 0.3s TTFT) como Orquestrador Local, `qwen2.5-coder:3b` (14 tok/s), `gemma2:2b` (15 tok/s) e `deepseek-r1:1.5b`.
-- *Normas IETF e Extensões (rfc-mode)* (2026-08-22) — `use-package rfc-mode` em `custom-files.el` (cache em `~/.config/emacs/rfc/`), ferramentas `rfc_search_topic` / `rfc_read_section` registradas em `custom-magent-tools.el` e permissões `allow` atribuídas aos perfis `auditor` e `sec-ops` em `custom-magent-team.el`.
-- *Otimização do Factory Reset & Build* (2026-08-22) — `install-prod` no Justfile, `elpaca-queue-limit` dinâmico por CPUs, `history` ignorado e removido do git tracking. Testado e validado com sucesso em 12 cores no host `aa102-006l`.
-- *Subagentes Sem Tools* (2026-08-20) — Separação de diretivas em 3 constantes e injeção por papel. Log verificado com 100% de sucesso.
-- *Tier Escalation* (2026-08-20) — =select_model= aceita =min_tier=. 2 testes ERT.
-- *Fix Subagente Órfão* (2026-08-20) — Observer 1-arg, auto-resume, spinner. 11 testes ERT.
-- *Reescrita Diretiva #3 + Buffer Save* (2026-08-20) — DELEGATION FIRST.
+- Histórico completo de tarefas concluídas mantido em [[file:roadmap.org][roadmap.org]] (linha do tempo).
+- Últimos entregáveis: Resiliência FSM (3 Pilares) ✅, Limpeza & Benchmark CPU aa102-006l ✅, Integ. RFC Mode ✅, Factory Reset 12 Cores ✅.
 

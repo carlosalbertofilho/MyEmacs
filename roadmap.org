@@ -12,6 +12,22 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-22 — [CONCLUÍDO] Resiliência e Robustez FSM (3 Pilares)
+   - Implementado Circuit Breaker Stateful com hash-table `+carlos/magent-cb-failures` em `custom-magent-tools.el`.
+   - Sanitizador ANSI/XML `+carlos/magent-sanitize-string` aplicado em `+carlos/magent-tool-result`.
+   - Dynamic GC (`gc-cons-threshold` 100MB em turnos ativos com trigger em `idle`) em `custom-magent-fsm.el`.
+   - Auto-Resync de `buffer_conflict` com embutimento do texto atualizado no payload em `custom-magent-buffer.el`.
+   - Testes ERT em `tests/magent-fsm-test.el` (Grupo 10) e aprovação pelo Opus QA Gatekeeper.
+
+** 2026-08-22 — [CONCLUÍDO] Limpeza & Benchmarking de Modelos Locais no Host CPU (aa102-006l)
+   - Liberados 13 GB de disco NVMe (remoção de `gemma4:e2b`, `mistral:7b`, `llama3.2:1b`).
+   - Benchmark empírico validou `qwen2.5-coder:1.5b` (24 tok/s, 0.3s TTFT) como Orquestrador Local offline.
+   - Matriz de fallback offline documentada em `docs/ai-providers-reference.org`.
+
+** 2026-08-22 — [CONCLUÍDO] Integração do rfc-mode IETF e Ferramentas RFC
+   - `use-package rfc-mode` configurado em `custom-files.el` com cache em `~/.config/emacs/rfc/`.
+   - Ferramentas `rfc_search_topic` e `rfc_read_section` registradas em `custom-magent-tools.el` e permissões atribuídas em `custom-magent-team.el`.
+
 ** 2026-08-22 — [CONCLUÍDO] Otimização e Validação do Factory Reset em Multi-Core (NixOS aa102-006l)
    - Adicionada receita `install-prod` no `Justfile` apontando para `{{prod_dir}}` e atualizada a receita `factory-reset`.
    - Limite de concorrência do Elpaca configurado dinamicamente via `(setq elpaca-queue-limit (num-processors))` no `init.el`.
