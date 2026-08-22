@@ -1663,7 +1663,7 @@ FILETAGS (default ':RAG:DOCS:') é a tag do arquivo."
       (+carlos/magent-sanitize-string output))))
 
 (defun +carlos/magent-tool-magit-log (&optional count branch _reason)
-  "Extracts last COUNT (default 10) commits from BRANCH or active branch using Magit."
+  "Extracts last COUNT (default 10) commits from BRANCH using Magit."
   (require 'magit nil t)
   (let* ((default-directory (or (and (fboundp 'project-root)
                                      (when-let* ((p (project-current)))
