@@ -27,11 +27,28 @@ Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=
 
 * Pendente — Motor & Backlog (Plano Mestre Opus)
 
-** TODO Resiliencia e Robustez FSM
+** TODO Auditoria e Benchmarking de Modelos Locais no Host agnes (Mac M2 24GB)
+    :PROPERTIES:
+    :CREATED: 2026-08-22
+    :ASSIGNEE: coder
+    :STATUS: pendente
+    :END:
+
+*** Varredura de Provedores e Modelos
+Efetuar varredura completa dos modelos instalados no Mac M2 (=agnes=) através de múltiplos provedores (Ollama, MLX, mlx-community e servidor =mlx_lm.server=).
+- Identificar e remover modelos pesados/obsoletos acumulados de testes anteriores da Escola 42.
+
+*** Benchmarking Empírico e Matriz Local 14B
+Executar benchmarks reais medindo TTFT, tokens/segundo e consumo de memória unificada para a suíte local de 14B:
+- Validar =mlx-community/Qwen3.5-Coder-14B-Instruct-4bit= para o perfil =coder=.
+- Validar =mlx-community/DeepSeek-R1-Distill-Qwen-14B-4bit= para o perfil =planner=/=sec-ops=.
+- Validar =mlx-community/gemma-4-e2b-it-4bit= ou =Qwen-7B= como Orquestrador Local offline.
+
+** DONE Resiliencia e Robustez FSM
     :PROPERTIES:
     :CREATED: 2026-08-20
     :ASSIGNEE: coder
-    :STATUS: plano refinado
+    :STATUS: concluido
     :END:
 
 *** Circuit Breaker de Nuvem (Preventivo)

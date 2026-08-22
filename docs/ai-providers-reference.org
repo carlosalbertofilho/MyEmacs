@@ -257,11 +257,22 @@ Para zerar custos durante o desenvolvimento diário e garantir resiliência cont
 | =sysadmin= | NixOS, Docker, systemd, TRAMP | =nemotron-3.5-lightning-free= | =big-pickle= | =gpt-5.6-sol= |
 | =planner= | AST Org-mode (=TODO.org=) & Arquitetura | =big-pickle= (OpenCode Free) | =gemini-2.5-pro= (Google AI Studio ~$50) | =claude-opus-5= |
 | =tech-writer= | RAG, Denote Zettelkasten & =docs/*.org= | =gemini-2.5-flash= (Google 1M) | =mimo-v2.5-free= | =claude-opus-5= |
-| =auditor= | Norminette (25 linhas) & Specs RFC IETF | =big-pickle= (OpenCode Free) | =deepseek-v4-flash-free= | =deepseek-v4-pro= |
-| =sec-ops= | OWASP, Criptografia & RFC Security | =big-pickle= (OpenCode Free) | =nemotron-3-ultra-free= | =deepseek-v4-pro= |
-| =qa= | Quality gates (=just lint=, =test-all=) | =deepseek-v4-flash-free= | =gemini-2.5-flash= | =claude-sonnet-5= |
-| =explore= | Leitura rápida & =grep_search= | =gemini-2.5-flash= (Google Free) | =deepseek-v4-flash-free= | =gemini-2.5-pro= |
-| =general= | Execução geral e scripts ad-hoc | =big-pickle= (OpenCode Free) | =mimo-v2.5-free= | =claude-sonnet-5= |
+** Matriz Oficial de Fallback 100% Offline (Modo Sem Internet)
+
+Para garantir autonomia total e privacidade sem depender de conexões de nuvem ou assinaturas pagas:
+
+| Perfil | Função no Magent | Modelo Local CPU (=aa102-006l=) | Modelo Local GPU (=agnes= Mac M2) | Razão da Escolha |
+|--------+------------------+--------------------------------+-----------------------------------+------------------|
+| *Orquestrador* | Triagem e =spawn_agent= | =qwen2.5-coder:1.5b= (0.3s TTFT) | =gemma-4-e2b-it-4bit= / =Qwen-7B= | TTFT instantâneo de 0.3s para não travar a UI |
+| =coder= | Edição de buffers vivos (=buffer_insert=) | =qwen2.5-coder:3b= (14 tok/s) | =Qwen2.5-Coder-14B-Instruct= | Maior precisão sintática para Elisp/C/Python |
+| =explore= | Leitura rápida & =grep_search= | =qwen2.5-coder:1.5b= (25 tok/s) | =Qwen2.5-Coder-7B= | Varredura ultra-rápida sem consumo de memória |
+| =planner= | AST Org-mode (=TODO.org=) | =deepseek-r1:1.5b= (24 tok/s) | =DeepSeek-R1-Distill-Qwen-14B= | Raciocínio prévio em gaveta =<thought>= |
+| =tech-writer= | RAG e =docs/*.org= | =gemma2:2b= (15 tok/s) | =Gemma 9B= / =Qwen 14B= | Excelente síntese em linguagem natural e docstrings |
+| =auditor= | Norminette (25 linhas) & RFCs | =qwen2.5-coder:3b= | =Qwen2.5-Coder-14B= | Sensível a regras de 25 linhas e limites de colunas |
+| =sec-ops= | Segurança e Criptografia | =deepseek-r1:1.5b= | =DeepSeek-R1-Distill-Qwen-14B= | Análise de vulnerabilidade e criptografia |
+| =qa= | Quality gates (=just test-all=) | =qwen2.5-coder:1.5b= | =Qwen2.5-Coder-7B= | Interpretação rápida de backtraces ERT |
+| =general= | Tarefas genéricas e scripts ad-hoc | =gemma2:2b= / =qwen2.5-coder:1.5b= | =Qwen2.5-Coder-7B= | Rascunhos rápidos e suporte geral |
+
 
 
 
