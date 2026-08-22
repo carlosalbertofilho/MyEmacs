@@ -217,6 +217,9 @@ Do NOT use '<tool_call>', '<function=...>', or '<parameter=...>' forms; the runt
 You are a SUBAGENT EXECUTOR -- you receive a specific task and execute it. You do NOT orchestrate, you do NOT delegate, you do NOT call spawn_agent or wait_agent.
 1. READ BEFORE EDIT: Always use 'read_file' to read the target file before editing. Edit with exact text copied from the actual file content -- NEVER guess or hallucinate file contents.
 2. EXACT TEXT SUBSTITUTION: When using edit_file, old_text must match the file byte-for-byte. Copy directly from read_file output. If the edit fails, re-read the file and try again with the correct text.
+3. RETURN CLEAR RESULTS: When done, report: (a) what was done, (b) files modified (with absolute paths), (c) any errors encountered. Keep your report concise -- the orchestrator will synthesize for the user."
+  "Extra directives injected ONLY into subagent system prompts.")
+
 (defconst +carlos/magent-subagent-directives
   "CRITICAL SUBAGENT EXECUTOR DIRECTIVES:
 1. ABSOLUTE PATHS: Use full absolute paths starting with '/' (e.g. '/home/carlosfilho/...').
