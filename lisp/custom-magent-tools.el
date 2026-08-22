@@ -8,6 +8,7 @@
 ;;; Code:
 
 (require 'cl-lib)
+(eval-when-compile (require 'gptel nil t))
 (require 'json)
 (require 'seq)
 
@@ -141,7 +142,7 @@ Accept &rest ARGS for Gemini streaming 5th argument."
   (when (and (boundp 'magent-tools--wait-agent-tool)
              (fboundp 'gptel-tool-args))
     (let ((tool magent-tools--wait-agent-tool))
-      (setf (gptel-tool-args tool)
+      (aset tool 4
             (mapcar (lambda (arg)
                       (if (and (stringp (plist-get arg :name))
                                (equal (plist-get arg :name) "job_ids"))
@@ -772,7 +773,7 @@ nunca acima de `+carlos/magent-model-max-tier'.  HINTS (plist) pode impor
 `:min-tier' (piso — o tier escolhido nunca fica abaixo; ex.: \"paid\" para
 perfis de alto valor) e `:preferred-backend' (desempate por backend dentro
 do tier escolhido).  Dentro do tier, o modelo mais barato vem primeiro
-(`+carlos/magent--tier-sorted-entries').  BACKENDS e LOCAL-MODELS são
+\\(`+carlos/magent--tier-sorted-entries').  BACKENDS e LOCAL-MODELS são
 repassados a `+carlos/magent-model-menu-entries' (overrides p/ testes).
 Retorna plist com :backend, :model, :tier e :reason, ou nil se nada
 disponível."
@@ -930,7 +931,7 @@ fora de um repositório suportado.  Nunca sinaliza erro."
       (let ((repo (or (forge-get-repository :known?)
                       (forge-get-repository :stub?))))
         (when (and repo (slot-exists-p repo 'owner) (slot-exists-p repo 'name))
-          (cons (oref repo owner) (oref repo name)))))))
+          (cons (eieio-oref repo 'owner) (eieio-oref repo 'name)))))))
 
 (defun +carlos/magent-forge--resolve-repo (sql-fn ref repo-fn)
   "Resolve id/owner/name do repositório no db do Forge.
@@ -1212,7 +1213,7 @@ por atualização descendente e limitados por
     path))
 
 (defun +carlos/magent-rfc--fetch-text (number-or-name url-format)
-  "Texto cru do documento NUMBER-OR-NAME (ex.: 9000 ou \"-index\")."
+  "Texto cru do documento NUMBER-OR-NAME usando URL-FORMAT (ex.: 9000 ou \"-index\")."
   (with-temp-buffer
     (insert-file-contents
      (+carlos/magent-rfc--ensure-file
@@ -1277,14 +1278,15 @@ MAX-CHARS (default `+carlos/magent-rfc-section-max-chars')."
               :text body)))))
 
 (defun +carlos/magent-rfc-normalize-number (number-str)
-  "Extrai o número puro de NUMBER-STR (ex.: 'RFC 9000' -> '9000')."
+  "Extrai o número puro de NUMBER-STR (ex.: \"RFC 9000\" -> \"9000\")."
   (save-match-data
     (if (string-match "[0-9]+" number-str)
         (match-string 0 number-str)
       nil)))
 
 (defun +carlos/magent-rfc-search-index-text (index-text query)
-  "Busca QUERY (case-insensitive) em INDEX-TEXT e retorna plists com :number e :snippet."
+  "Busca QUERY (case-insensitive) em INDEX-TEXT.
+Retorna plists com :number e :snippet."
   (let ((results nil)
         (limit +carlos/magent-rfc-search-limit))
     (with-temp-buffer
@@ -1332,7 +1334,7 @@ QUERY é case-insensitive; retorna número + snippet de cada entrada."
 (defun +carlos/magent-tool-rfc-read-section (number-str section &optional _reason)
   "Ferramenta Magent: extrair SEÇÃO de um RFC (economia de tokens).
 NUMBER-STR aceita \"9000\"/\"RFC 9000\"; SECTION é o número da seção
-(ex.: \"7.2\").  Cache local respeitado (rfc-mode)."
+\\(ex.: \"7.2\").  Cache local respeitado (rfc-mode)."
   (condition-case err
       (let* ((num (+carlos/magent-rfc-normalize-number number-str))
              (_ (unless num (error "Número inválido: %S" number-str)))

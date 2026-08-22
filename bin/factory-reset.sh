@@ -57,6 +57,10 @@ FILES_TO_SAVE=(
     "history"
     "savehist"
     "custom-file.el"
+    "projects"
+    "transient"
+    "eshell"
+    "tramp"
 )
 
 for file in "${FILES_TO_SAVE[@]}"; do
