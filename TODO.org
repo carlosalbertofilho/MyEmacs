@@ -27,6 +27,15 @@ Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=
 
 * Pendente
 
+** TODO Integração de JSON Schema e GBNF no Emacs (MLX/Ollama)
+   :PROPERTIES:
+   :STATUS: BACKLOG
+   :END:
+   A utilização de Grammar (via GBNF no llama.cpp/Ollama) ou JSON Schema (no MLX) no Emacs é perfeitamente viável e já está integrada às ferramentas mais modernas do ecossistema.
+   - =gptel=: Usar o argumento =:schema= na API de requisições (=gptel-request=) para forçar a LLM a responder seguindo um JSON Schema.
+   - =ellama= / =llm.el=: Suporta =:response-format= usando a especificação do JSON Schema.
+   - =GBNF Puro=: Extender requisição HTTP (url-retrieve/request.el) para o endpoint =/completion= injetando um payload com a gramática.
+
 ** Fase 1: Desacoplamento e Infraestrutura Base
     :PROPERTIES:
     :CREATED: 2026-08-23
@@ -193,16 +202,16 @@ Este documento descreve o planejamento para a criação de três novas ferrament
 - [x] Integrar a geração de esqueleto à pipeline de injeção do RAG de compactação.
 - [x] Validar a economia de tokens com testes ERT para assegurar a corretude do contexto gerado.
 
-** TODO 2. LSP Bridge (magent-tool-lsp)
+** DONE 2. LSP Bridge (magent-tool-lsp)
     :PROPERTIES:
-    :STATUS: BACKLOG
+    :STATUS: DONE
     :END:
-- [ ] Criar o arquivo do módulo `lisp/custom-magent-tool-lsp.el` contendo a lógica da ponte LSP.
-- [ ] Implementar a ferramenta de interface `+carlos/magent-tool-lsp`.
-- [ ] Desenvolver chamadas RPC/Elisp que façam interface com o pacote `eglot`.
-- [ ] Implementar suporte à inferência de tipos inter-módulos.
-- [ ] Implementar suporte à funcionalidade de `goto-definition` orquestrada pelo agente.
-- [ ] Atualizar o arquivo de referência técnica (RAG:DOCS) em `docs/magent-reference.org` via `rag_create_doc`.
+- [x] Criar o arquivo do módulo `lisp/custom-magent-tool-lsp.el` contendo a lógica da ponte LSP.
+- [x] Implementar a ferramenta de interface `+carlos/magent-tool-lsp`.
+- [x] Desenvolver chamadas RPC/Elisp que façam interface com o pacote `eglot`.
+- [x] Implementar suporte à inferência de tipos inter-módulos.
+- [x] Implementar suporte à funcionalidade de `goto-definition` orquestrada pelo agente.
+- [x] Atualizar o arquivo de referência técnica (RAG:DOCS) em `docs/magent-reference.org` via `rag_create_doc`.
 
 ** TODO 3. Depurador Vivo (magent-tool-debug)
     :PROPERTIES:
@@ -246,4 +255,21 @@ Este documento descreve o planejamento para a criação de três novas ferrament
 - [ ] Injetar flags `--init-directory "$EMACSDIR" --batch -l init.el` transparentemente.
 - [ ] Receber comandos/argumentos Lisp na CLI e avaliar.
 - [ ] Ajustar documentação em `docs/magent-reference.org`.
+
+* TODO ** TODO Implementar Integração de JSON Schema e GBNF no gptel (MLX/Ollama)
+   :PROPERTIES:
+   :CREATED:  2026-08-23
+   :STATUS:   BACKLOG
+   :END:
+A utilização de Grammar (via GBNF no llama.cpp/Ollama) ou JSON Schema (no MLX) no Emacs é perfeitamente viável e já está integrada às ferramentas mais modernas do ecossistema. Os pacotes mais robustos do Emacs — especificamente o gptel e o ellama (que usa o ecossistema llm por baixo) — possuem suporte nativo para restringir a saída usando schemas estruturados. [1, 2, 3, 4] 
+Aqui está como implementar essa restrição exata no Emacs para os dois cenários:
+------------------------------
+## 1. Utilizando JSON Schema com gptel (Ollama, LM Studio ou MLX)
+A partir de atualizações recentes, o gptel adicionou o argumento :schema na sua API de requisições (gptel-request), permitindo forçar a LLM a responder seguindo um JSON Schema definido diretamente em Emacs Lisp (usando plists ou objetos JSON serializados). [2] 
+Se você rodar o MLX via terminal (python -m mlx_lm.server) ou o Ollama/LM Studio localmente, você pode injetar o schema desta forma.
+
+    :PROPERTIES:
+    :CREATED: 2026-08-23
+    :STATUS: pendente
+    :END:
 
