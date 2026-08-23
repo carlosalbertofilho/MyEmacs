@@ -1,0 +1,26 @@
+#+TITLE: Magent Tool LSP
+#+AUTHOR: Carlos Filho
+#+DATE: 2026-08-23
+#+LAST_MODIFIED: 2026-08-23
+#+DESCRIPTION: Ferramenta para introspecção profunda e RAG Semântico via Eglot (LSP)
+#+FILETAGS: :RAG:DOCS:
+#+OPTIONS: toc:2 num:t
+
+* Visão Geral
+
+Ferramenta para introspecção profunda e RAG Semântico via Eglot (LSP)
+
+* Símbolos Introspectados
+
+** +carlos/magent-tool-lsp
+- *Tipo:* Função Elisp
+- *Assinatura:* =(+carlos/magent-tool-lsp action path query-str)=
+
+#+begin_src text
+Usa o Eglot para extrair informações semânticas de PATH.
+ACTION pode ser `hover', `definition' ou `references'.
+QUERY-STR é um texto literal (ou regex) para encontrar o ponto no arquivo.
+Retorna uma string sumarizada ou erro se o LSP não estiver disponível.
+
+(fn ACTION PATH QUERY-STR)
+#+end_src

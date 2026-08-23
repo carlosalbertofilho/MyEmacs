@@ -8,7 +8,7 @@
 ;;; Code:
 
 (require 'cl-lib)
-
+(require 'custom-magent-prompts)
 (declare-function magent-runtime-session-compact "magent-runtime-api")
 (declare-function magent-runtime-session-current "magent-runtime-api")
 (declare-function magent-lifecycle-events-add-sink "magent-lifecycle-events")
@@ -25,6 +25,8 @@
 (declare-function gptel--model-name "gptel")
 (declare-function project-root "project")
 (declare-function magent-msg-role "magent-msg")
+(declare-function magit-get-current-branch "magit")
+(declare-function magit-rev-parse "magit")
 (defvar +carlos/magent-model-max-tier 'paid)
 
 ;; ── Auto-Compactação Automática (Fase B) ────────────────────────────
@@ -66,26 +68,21 @@ Previne thrashing quando tokens crescem rápido pós-compactação."
   :type 'integer
   :group '+carlos/ai)
 
-(defvar +carlos/magent-preservation-instruction
-  "Compactar a sessão preservando estruturadamente:
-1. Arquivos modificados ou criados (caminhos completos) e a razão da mudança;
-2. Nomes de funções de testes ERT associadas às alterações;
-3. Decisões técnicas tomadas e suas justificativas;
-4. TODOs/estado pendente (não duplicar o TODO.org nem roadmap.org — consulte-os);
-5. Restrições e preferências do usuário persistentes;
-6. Comandos e gates de compilação/teste válidos (`just ...`).
-NÃO replicar conteúdo lido que não tenha sido alterado."
-  "Base de preservação estruturada para a auto-compactação do Magent.")
-
-(defconst +carlos/magent-compaction-rules
-  "Regras essenciais do projeto (extraído de AGENTS.md):
-- Use-package com :ensure para pacotes externos; :ensure nil para built-in.
-- Naming: +carlos/function-name para custom, +carlos/--helper para internal.
-- NÃO adicionar comments não-solicitados no código.
-- Sempre rodar just test-all após mudanças na config.
-- Guardas: (fboundp ...) antes de chamar funções de pacotes carregados via :defer.
-- require com nil t para carregamento seguro em batch."
-  "Regras essenciais do projeto para preservar pós-compactação.")
+(defun +carlos/magent-context--read-agents-rules ()
+  "Lê dinamicamente o arquivo AGENTS.md da raiz do projeto para a compactação."
+  (let* ((proj (and (fboundp 'project-current) (project-current)))
+         (root (and proj (project-root proj)))
+         (agents-md (and root (expand-file-name "AGENTS.md" root))))
+    (if (and agents-md (file-exists-p agents-md))
+        (with-temp-buffer
+          (insert-file-contents agents-md)
+          (goto-char (point-min))
+          (if (re-search-forward "^## Elisp Coding Standards" nil t)
+              (let ((start (match-beginning 0))
+                    (end (if (re-search-forward "^## " nil t) (match-beginning 0) (point-max))))
+                (buffer-substring-no-properties start end))
+            "AGENTS.md localizado, mas sem seção 'Elisp Coding Standards'."))
+      "AGENTS.md ausente (regras de projeto não carregadas).")))
 
 (defvar +carlos/magent-context-estimated-tokens 0
   "Tokens estimados consumidos desde a última compactação.")
@@ -121,6 +118,46 @@ Cada PLIST contém :input, :output, :elapsed, :tool-names, :timestamp.
   "Acumulador de caracteres de tool results no turno atual.
 Resetado no início de cada turno (turn-end).  Usado pelo cap de
 resultados em `+carlos/magent-tool-result-cap-output'.")
+
+;; ── RAG Sintático (Esqueletos AST) ────────────────────────────────────
+(defconst +carlos/magent-context-ast-skeleton-queries
+  '((python . "(function_definition name: (identifier) @name) (class_definition name: (identifier) @name)")
+    (elisp . "(list_expression (symbol) @type . (symbol) @name (#match? @type \"^(defun|defmacro|defvar|defcustom|defconst|cl-defun|cl-defstruct)$\"))")
+    (javascript . "(function_declaration name: (identifier) @name) (method_definition name: (property_identifier) @name) (class_declaration name: (identifier) @name)")
+    (typescript . "(function_declaration name: (identifier) @name) (method_definition name: (property_identifier) @name) (class_declaration name: (identifier) @name) (interface_declaration name: (identifier) @name) (type_alias_declaration name: (identifier) @name)")
+    (tsx . "(function_declaration name: (identifier) @name) (method_definition name: (property_identifier) @name) (class_declaration name: (identifier) @name) (interface_declaration name: (identifier) @name) (type_alias_declaration name: (identifier) @name)")
+    (c . "(function_definition declarator: (function_declarator declarator: (identifier) @name)) (struct_specifier name: (type_identifier) @name)")
+    (cpp . "(function_definition declarator: (function_declarator declarator: (identifier) @name)) (struct_specifier name: (type_identifier) @name) (class_specifier name: (type_identifier) @name)")
+    (go . "(function_declaration name: (identifier) @name) (method_declaration name: (field_identifier) @name) (type_spec name: (type_identifier) @name)"))
+  "Queries Tree-sitter para extração de esqueleto estrutural (RAG Sintático).")
+
+(defun +carlos/magent-context-ast-skeletons ()
+  "Extrai esqueletos AST de buffers relevantes abertos do projeto atual.
+Retorna uma string sumarizando a estrutura dos arquivos ou nil se não houver."
+  (let* ((proj (and (fboundp 'project-current) (project-current)))
+         (root (and proj (project-root proj)))
+         (results nil))
+    (when (and root (require 'custom-magent-tool-ast nil t) (fboundp '+carlos/magent-tool-treesit-query))
+      (dolist (buf (buffer-list))
+        (let ((file (buffer-file-name buf)))
+          (when (and file
+                     (string-prefix-p root (expand-file-name file))
+                     (not (string-match-p "\\(magit\\|COMMIT_EDITMSG\\|\\.git/\\)" file)))
+            (let ((lang nil)
+                  (query nil))
+              (cl-loop for (l . ext) in (bound-and-true-p +carlos/magent-treesit-ext-map)
+                       when (string-match-p ext file)
+                       do (setq lang l))
+              (when lang
+                (setq query (cdr (assq lang +carlos/magent-context-ast-skeleton-queries)))
+                (when query
+                  (let ((res (ignore-errors
+                               (+carlos/magent-tool-treesit-query lang query :path file))))
+                    (when (and res (not (string= res "Nenhum match encontrado para a query.")))
+                      (push (format "Arquivo: %s\n%s" (file-relative-name file root) res) results))))))))))
+    (when results
+      (concat "ESTRUTURA DE ARQUIVOS ABERTOS NO PROJETO (Skeletons AST):\n"
+              (mapconcat #'identity (nreverse results) "\n\n")))))
 
 ;; ── Compactação Seletiva ──────────────────────────────────────────────
 (defcustom +carlos/magent-selective-compact-trigger-chars 20000
@@ -163,13 +200,12 @@ turnos mais antigos."
                      (project-root proj))
                    default-directory))
          (branch (ignore-errors
-                   (string-trim
-                    (shell-command-to-string
-                     "git rev-parse --abbrev-ref HEAD"))))
+                   (when (require 'magit nil t)
+                     (magit-get-current-branch))))
          (rev (ignore-errors
-                (string-trim
-                 (shell-command-to-string
-                  "git rev-parse --short HEAD")))))
+                (when (require 'magit nil t)
+                  (magit-rev-parse "--short" "HEAD"))))
+         (skeletons (+carlos/magent-context-ast-skeletons)))
     (concat
      "COMPACTAÇÃO SELETIVA: foque em reduzir o tamanho dos tool results.\n"
      "Preservar:\n"
@@ -188,7 +224,8 @@ turnos mais antigos."
      "\nEstado do projeto: "
      (or (and root (file-name-nondirectory (directory-file-name root))) "n/a")
      (if (and branch rev) (format " (branch %s @ %s)" branch rev) "")
-     "\n\n" +carlos/magent-compaction-rules
+     (if skeletons (concat "\n\n" skeletons) "")
+     "\n\n" (+carlos/magent-context--read-agents-rules)
      "\n\nBase de preservação:\n" +carlos/magent-preservation-instruction)))
 
 ;; ── Acesso à sessão (helpers compartilhados) ─────────────────────────
@@ -364,13 +401,12 @@ base de preservação estática e regras de descarte."
                      (project-root proj))
                    default-directory))
          (branch (ignore-errors
-                   (string-trim
-                    (shell-command-to-string
-                     "git rev-parse --abbrev-ref HEAD"))))
+                   (when (require 'magit nil t)
+                     (magit-get-current-branch))))
          (rev (ignore-errors
-                (string-trim
-                 (shell-command-to-string
-                  "git rev-parse --short HEAD"))))
+                (when (require 'magit nil t)
+                  (magit-rev-parse "--short" "HEAD"))))
+         (skeletons (+carlos/magent-context-ast-skeletons))
          (preview (+carlos/magent-session-preview))
          (boundary (when-let* ((thread (+carlos/magent-session-thread)))
                      (+carlos/magent-safe-compaction-boundary thread))))
@@ -394,10 +430,11 @@ base de preservação estática e regras de descarte."
      "- Nomes de funções de testes ERT associadas às alterações;\n"
      "- Comandos e gates de compilação/teste válidos (`just ...`);\n"
      "- Restrições e preferências persistentes do usuário;\n"
+     (if skeletons (concat "\n" skeletons "\n") "")
       "Regras de descarte: não replique transcripts de leitura reproduzíveis "
       "(output de grep/ls/cat); preserve os últimos 3 turns crus e resuma apenas "
       "o prefixo mais antigo; não duplique TODO.org nem roadmap.org (consulte-os).\n"
-      "\n" +carlos/magent-compaction-rules
+      "\n" (+carlos/magent-context--read-agents-rules)
       "\n\nBase de preservação:\n" +carlos/magent-preservation-instruction)))
 
 ;; ── B4. Compactação manual + sink de lifecycle ──────────────────────

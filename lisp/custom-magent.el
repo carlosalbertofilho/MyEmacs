@@ -20,7 +20,16 @@
 ;;; Code:
 
 (require 'custom-magent-fsm)
+(require 'custom-magent-infra)
 (require 'custom-magent-tools)
+(require 'custom-magent-tool-smart-edit)
+(require 'custom-magent-tool-test)
+(require 'custom-magent-tool-ast)
+(require 'custom-magent-tool-pkg)
+(require 'custom-magent-tool-devops)
+(require 'custom-magent-tool-git)
+(require 'custom-magent-tool-rfc)
+(require 'custom-magent-tool-lsp)
 (require 'custom-magent-buffer)
 (require 'custom-magent-subagent)
 (require 'custom-magent-team)

@@ -141,6 +141,12 @@ lint: compile checkdoc org-lint
 
 # Run full ERT suite in batch (exit non-zero on failure)
 test:
+    emacs --init-directory "$(pwd)" --batch -l init.el \
+      -l tests/load-tests.el \
+      --eval '(ert-run-tests-batch-and-exit t)'
+
+# Test production environment
+test-prod:
     emacs --init-directory "{{prod_dir}}" --batch -l init.el \
       -l tests/load-tests.el \
       --eval '(ert-run-tests-batch-and-exit t)'
@@ -150,7 +156,7 @@ test-batch: test
 
 # AI-only tests (offline asserts; network skipped without EMACS_TEST_NETWORK)
 test-ai:
-    emacs --init-directory "{{prod_dir}}" --batch -l init.el \
+    emacs --init-directory "$(pwd)" --batch -l init.el \
       -l tests/load-tests.el \
       --eval '(ert-run-tests-batch-and-exit "myemacs-ai")'
 

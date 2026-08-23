@@ -9,6 +9,7 @@
 ;;; Code:
 
 (require 'cl-lib)
+(require 'custom-magent-prompts)
 (declare-function magent-lifecycle-events-add-sink "magent-lifecycle-events")
 (declare-function magent-lifecycle-events-context-subagent-id "magent-lifecycle-events")
 (declare-function magent-tools--parent-session "magent-tools")
@@ -17,12 +18,16 @@
 (declare-function magent-agent-job-id "magent-agent")
 (declare-function magent-agent-job-runtime "magent-agent")
 (declare-function +carlos/magent-buffer-reset-session "custom-magent-buffer")
-(declare-function +carlos/magent-ui-spinner-start "custom-magent-ui")
-(declare-function +carlos/magent-ui-spinner-stop "custom-magent-ui")
 (declare-function +carlos/magent-resolve-model "custom-magent-tools")
 (declare-function agent-shell--send-command "agent-shell")
 (defvar +carlos/magent-model-tier-order)
 
+(defvar magent-fsm-state-changed-hook nil
+  "Hook executado após a FSM transicionar para um novo estado.
+As funções recebem dois argumentos: PREV-STATE e NEW-STATE.")
+
+(defvar magent-fsm-reset-hook nil
+  "Hook executado quando a FSM é resetada.")
 ;; ── ETAPA 1: Estado da FSM & Detecção de Perfil por Host ────────────────────
 ;; Variáveis de controle do loop de eventos assíncrono do Magent.
 ;; São resetadas a cada sessão e nunca persistem entre boots.
@@ -184,10 +189,7 @@ e nenhum auto-resume já em progresso (flag de re-entrância)."
           ;; Formatar resultados pendentes como contexto
           (+carlos/magent-fsm-inject-pending-results)
           (let* ((names (+carlos/magent-fsm-active-subagent-names))
-                 (prompt (if names
-                             (format "[System] Subagentes concluídos: %s. Sintetize os resultados para o usuário."
-                                     (mapconcat #'identity names ", "))
-                           "[System] Subagente concluído. Sintetize o resultado para o usuário.")))
+                 (prompt (+carlos/magent-prompts-format-subagent-resume names)))
             (message "[Magent FSM] Auto-resume: reabrindo turno do orquestrador")
             ;; Usar a versão base (sem advice) para evitar loop
             (funcall #'agent-shell--send-command :prompt prompt)))
@@ -223,13 +225,7 @@ seta `+carlos/magent-fsm-resume-with-context'."
                (status (plist-get info :status))
                (result (plist-get info :result))
                (error-msg (plist-get info :error))
-               (text (if (eq status 'failed)
-                         (format "[Subagent %s (failed)] %s"
-                                 (or agent-name "unknown")
-                                 (or error-msg "Unknown error"))
-                       (format "[Subagent %s (completed)] %s"
-                               (or agent-name "unknown")
-                               (or result "No result")))))
+               (text (+carlos/magent-prompts-format-subagent-result agent-name status result error-msg)))
           (push text messages)))
       (setq +carlos/magent-fsm-pending-results nil
             +carlos/magent-fsm-pending-context-messages (nreverse messages)
@@ -323,8 +319,7 @@ pela FSM."
   (+carlos/magent-fsm-cleanup-observers)
   (when (fboundp '+carlos/magent-buffer-reset-session)
     (+carlos/magent-buffer-reset-session))
-  (when (fboundp '+carlos/magent-ui-spinner-stop)
-    (+carlos/magent-ui-spinner-stop)))
+  (run-hooks 'magent-fsm-reset-hook))
 
 (defvar +carlos/magent-fsm-default-gc-cons-threshold gc-cons-threshold
   "Valor padrão de `gc-cons-threshold' restaurado após transições da FSM.")
@@ -346,14 +341,8 @@ restaura `gc-cons-threshold' ao valor padrão e executa `(garbage-collect)'."
        ((memq new-state '(idle subagent-waiting planning))
         (setq gc-cons-threshold (or +carlos/magent-fsm-default-gc-cons-threshold (* 16 1024 1024)))
         (garbage-collect)))
-      ;; Spinner de subagente (D6)
-      (cond
-       ((eq new-state 'subagent-waiting)
-        (when (fboundp '+carlos/magent-ui-spinner-start)
-          (+carlos/magent-ui-spinner-start)))
-       ((eq prev 'subagent-waiting)
-        (when (fboundp '+carlos/magent-ui-spinner-stop)
-          (+carlos/magent-ui-spinner-stop)))))))
+      
+      (run-hook-with-args 'magent-fsm-state-changed-hook prev new-state))))
 
 ;; ── ETAPA 1b: Detecção de Perfil por Host ───────────────────────────────────
 

@@ -282,6 +282,17 @@ Regras:
 | Missing `:ensure nil` for built-in packages | Unnecessary MELPA lookup | Always add `:ensure nil` |
 | Hardcoded paths | Not portable | Use `expand-file-name` with `~` or variables |
 | `magit-git-string` without magit loaded | Void function | Use `shell-command-to-string` or `vc-git-*` |
+| Generic Bash/Sed edits by External CLIs | Breaks AST and bypasses validations | **External agents (AGY, Aider, etc.) MUST ALWAYS prefer Emacs native tools** (like `elisp_smart_edit`, `org_smart_edit`) or call Emacs in `--batch` to mutate project files. |
+
+### 6. SOLID Architecture & Domain Isolation (STRICT RULE)
+
+O ecossistema do Magent e de IA do MyEmacs deve **OBRIGATORIAMENTE** seguir os princípios SOLID (especialmente Responsabilidade Única - SRP e Inversão de Dependência - DIP):
+- **Evite "God Files":** Não agrupe ferramentas não relacionadas no mesmo arquivo. Separe ferramentas por domínio (ex: `custom-magent-tool-git.el`, `custom-magent-tool-devops.el`).
+- **Isole a Infraestrutura Base:** Código que conserta aridades, lida com sanitização de texto, ou implementa padrões de infraestrutura (como Circuit Breaker) deve ficar isolado (ex: `custom-magent-infra.el`).
+- **Isole a Configuração do Ambiente:** A extração de variáveis de ambiente/API keys (`/etc/api-keys.sh`) é responsabilidade primária do sistema (ex: `custom-core.el` ou módulo de auth), não da configuração dos clientes de IA.
+- **FSM Pura e Inversão de Dependência:** Máquinas de Estado (`custom-magent-fsm.el`) NÃO devem injetar prompts, formatar strings de contexto, ou controlar UI (spinners) diretamente. Elas devem apenas transicionar estados e disparar Hooks (`run-hooks`), deixando a UI ou gerenciadores de prompt assinarem e reagirem a essas mudanças de estado de forma passiva.
+- **Não solde regras de negócio ao gerenciamento de contexto:** Se um módulo é responsável por contar tokens, ele não deve possuir chamadas de shell imperativas como `git rev-parse HEAD` soldadas à sua lógica contábil, e os prompts em texto cru devem ficar em módulos separados.
+- **Avalie a coesão antes de estender arquivos:** Sempre planeje a arquitetura do código antes de implementar novas funcionalidades, garantindo que o módulo modificado mantenha seu domínio estritamente focado.
 
 ---
 

@@ -1,0 +1,53 @@
+#+TITLE: Magent Native Tools API
+#+AUTHOR: Carlos Filho
+#+DATE: 2026-08-23
+#+LAST_MODIFIED: 2026-08-23
+#+DESCRIPTION: API das ferramentas
+#+FILETAGS: :RAG:DOCS:
+#+OPTIONS: toc:2 num:t
+
+* Visão Geral
+
+API das ferramentas
+
+* Símbolos Introspectados
+
+** +carlos/magent-tool-ert-runner
+- *Tipo:* Função Elisp
+- *Assinatura:* =(+carlos/magent-tool-ert-runner selector-str &rest args)=
+
+#+begin_src text
+Executa testes ERT baseados em SELECTOR-STR e captura a saída.
+Se SELECTOR-STR for vazio, executa todos (t).  Pode ser o nome do teste
+ou uma regex de match.
+Retorna uma string formatada contendo resultados e stack traces.
+
+(fn SELECTOR-STR &rest ARGS)
+#+end_src
+
+** +carlos/magent-tool-treesit-query
+- *Tipo:* Função Elisp
+- *Assinatura:* =(+carlos/magent-tool-treesit-query language query-str &rest args)=
+
+#+begin_src text
+Executa QUERY-STR via tree-sitter na linguagem LANGUAGE.
+ARGS é uma plist onde :path pode restringir a busca a um arquivo/diretório
+e :limit pode limitar a quantidade de arquivos (default 500).
+Retorna uma string contendo os matches e suas posições.
+
+(fn LANGUAGE QUERY-STR &rest ARGS)
+#+end_src
+
+** +carlos/magent-tool-elpaca
+- *Tipo:* Função Elisp
+- *Assinatura:* =(+carlos/magent-tool-elpaca action package-name &rest args)=
+
+#+begin_src text
+Gerencia pacotes usando o Elpaca via Magent.
+ACTION: `install' ou `status'.
+PACKAGE-NAME: nome do pacote (string ou symbol).
+ARGS pode conter :recipe (string Lisp como
+"(package :host github :repo \"...\")").
+
+(fn ACTION PACKAGE-NAME &rest ARGS)
+#+end_src

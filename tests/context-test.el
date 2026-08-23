@@ -299,10 +299,13 @@ Skip quando o source do ambiente-alvo ainda não tem a forward declaration
 ;; ── Referência AGENTS.md na compactação ─────────────────────────────
 (ert-deftest myemacs-context-compaction-rules-present ()
   "Garante que a instrução de compactação contém regras essenciais do AGENTS.md."
-  (let ((instr (+carlos/magent-build-compaction-instruction)))
-    (should (string-match-p "use-package" instr))
-    (should (string-match-p "just test-all" instr))
-    (should (string-match-p "fboundp" instr))))
+  (let ((default-directory (expand-file-name ".." (file-name-directory (or load-file-name buffer-file-name)))))
+    (cl-letf (((symbol-function 'project-current) (lambda (&optional _) `(transient . ,default-directory)))
+              ((symbol-function 'project-root) (lambda (pr) (cdr pr))))
+      (let ((instr (+carlos/magent-build-compaction-instruction)))
+        (should (string-match-p "use-package" instr))
+        (should (string-match-p "just test-all" instr))
+        (should (string-match-p "fboundp" instr))))))
 
 ;; ── Sub-item 3: Compactação Seletiva ───────────────────────────────
 (ert-deftest myemacs-context-selective-compact-threshold-exceeded ()
@@ -338,3 +341,11 @@ Skip quando o source do ambiente-alvo ainda não tem a forward declaration
 
 (provide 'context-test)
 ;;; context-test.el ends here
+
+;; ── RAG Sintático (Esqueletos AST) ───────────────────────────────────
+(ert-deftest myemacs-context-ast-skeletons-safe ()
+  "Garante que a extração de esqueletos AST (Fase 5) roda sem erros."
+  (let ((skeletons (+carlos/magent-context-ast-skeletons)))
+    (should (or (null skeletons)
+                (and (stringp skeletons)
+                     (string-match-p "ESTRUTURA DE ARQUIVOS ABERTOS" skeletons))))))

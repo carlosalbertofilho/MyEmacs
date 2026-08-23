@@ -13,6 +13,7 @@
   (require 'forge nil t))
 (require 'json)
 (require 'seq)
+(require 'custom-magent-infra)
 
 (defvar magent-enable-logging)
 (defvar magent-enable-tools)
@@ -51,48 +52,23 @@
 ;; O Emacs/gptel imprime ocasionalmente plists gigantes (lista de tools, system
 ;; prompt do agente) via `message'. Suprimimos linhas > 400 chars no *Messages*
 ;; mas mantemos ERROS (prefixo Error/Warning) sempre visíveis.
-(defvar +carlos/magent-message-max-len 400
-  "Comprimento máximo de mensagem permitido no *Messages*.
-Mensagens mais longas são suprimidas (exceto erros).")
 
-(defcustom +carlos/magent-tool-result-max-chars 8000
-  "Limite de caracteres por tool result por turno.
-Resultados que excedem este cap são truncados com nota de truncamento.
-Acumulador por turno: quando a soma de chars de todos os results do turno
-excede este valor, novos results são truncados."
-  :type 'integer
-  :group '+carlos/ai)
 
-(defun +carlos/magent-suppress-long-messages-a (orig-fn format-string &rest args)
-  "Advice de `message' que suprime dumps longos não-erro do *Messages*.
-ORIG-FN é `message'; FORMAT-STRING e ARGS são o texto a exibir."
-  (let* ((text (condition-case nil
-                   (apply #'format format-string args)
-                 (error format-string)))
-         (is-error (string-match-p "\\(?:Error\\|Warning\\|error\\|timeout\\|Stopped\\|Wrong type\\|DEBUG\\)" text)))
-    (if (and (not is-error)
-             (> (length text) +carlos/magent-message-max-len))
-        text  ;; retorna o texto mas não chama message (suprimido do *Messages*)
-      (apply orig-fn format-string args))))
 
-(advice-add 'message :around #'+carlos/magent-suppress-long-messages-a)
+
+
+
+
 
 ;; ── Diagnóstico: Desativar magent-log ──────────────────────────────
-(defvar +carlos/magent-disable-logging t
-  "Non-nil desativa completamente o magent-log para evitar chamadas de log/message.")
 
-(defun +carlos/magent-log-override-a (orig format-string &rest args)
-  "Advice que suprime `magent-log' quando a var de diagnóstico está ativa.
-ORIG é `magent-log'; FORMAT-STRING e ARGS são o texto do log."
-  (unless +carlos/magent-disable-logging
-    (apply orig format-string args)))
 
-(with-eval-after-load 'magent-log
-  (when (fboundp 'magent-log)
-    (advice-add 'magent-log :around #'+carlos/magent-log-override-a)))
+
+
+
 
 ;; Desativa variaveis internas de log do magent
-(setq magent-enable-logging nil)
+
 
 ;; ── Fix para Gemini: Normalizar nomes de tool calls (símbolo -> string) ──
 ;; O gptel-gemini retorna os nomes de ferramentas em `:tool-use` como símbolos
@@ -102,15 +78,7 @@ ORIG é `magent-log'; FORMAT-STRING e ARGS são o texto do log."
 ;; o Magent ignora a chamada da ferramenta e a requisição expira em 120s.
 ;; Esta advice sanitiza `info` ANTES de extrair `:tool-use`, convertendo símbolos
 ;; para strings.
-(defun +carlos/magent-sanitize-tool-use-name-a (orig-fn state fsm &rest args)
-  "Garante que os nomes em `:tool-use' sejam strings.
-ORIG-FN é o handler nativo de tool-use; STATE e FSM são o estado e a FSM
-do gptel; ARGS são repassados intactos.  Evita falha em `equal' com
-símbolos e previne o timeout de 120s no Gemini."
-  (when-let* ((info (and (fboundp 'gptel-fsm-info) (gptel-fsm-info fsm))))
-    (when (fboundp 'magent-llm-gptel--sanitize-info)
-      (magent-llm-gptel--sanitize-info info)))
-  (apply orig-fn state fsm args))
+
 
 ;; ── Fix para Gemini Streaming: Aridade de `gptel--parse-response' ─────
 ;; A função original `magent-llm-gptel--sanitize-after-parse-response-a' do magent
@@ -118,18 +86,7 @@ símbolos e previne o timeout de 120s no Gemini."
 ;; `gptel--parse-response' aceita 5 argumentos (`include-text` opcional).
 ;; Redefinimos a função original com `&rest args` para que a chamada de
 ;; `magent-llm-gptel--install-boundary-advice` não recoloque a versão de 4 argumentos.
-(with-eval-after-load 'magent-llm-gptel
-  (defun magent-llm-gptel--sanitize-after-parse-response-a
-      (orig-fn backend response info &rest args)
-    "Sanitize Magent-managed INFO after gptel parses a response.
-Accept &rest ARGS for Gemini streaming 5th argument."
-    (prog1 (apply orig-fn backend response info args)
-      (when (and (fboundp 'magent-llm-gptel--managed-info-p)
-                 (magent-llm-gptel--managed-info-p info))
-        (magent-llm-gptel--sanitize-info info))))
-  (when (fboundp 'magent-llm-gptel--handle-tool-use)
-    (advice-add 'magent-llm-gptel--handle-tool-use
-                :around #'+carlos/magent-sanitize-tool-use-name-a)))
+
 
 ;; ── Fix: schema da tool wait_agent para backends Gemini ──────────────
 ;; O argspec `job_ids' do magent declara `:type array` sem `:items`, e o
@@ -140,18 +97,7 @@ Accept &rest ARGS for Gemini streaming 5th argument."
 ;; não deve ser editado). O `:items' deve ser `(:type "string")' — string,
 ;; não símbolo — pois o json-serialize nativo do Emacs 30 rejeita símbolos
 ;; (erro "wrong-type-argument json-value-p string" na serialização das tools).
-(with-eval-after-load 'magent-tools
-  (when (and (boundp 'magent-tools--wait-agent-tool)
-             (fboundp 'gptel-tool-args))
-    (let ((tool magent-tools--wait-agent-tool))
-      (aset tool 4
-            (mapcar (lambda (arg)
-                      (if (and (stringp (plist-get arg :name))
-                               (equal (plist-get arg :name) "job_ids"))
-                          (plist-put (copy-sequence arg)
-                                     :items '(:type "string"))
-                        arg))
-                    (gptel-tool-args tool))))))
+
 
 ;; ── Tool Sanitization & Path Auto-Expansion ──────────────────────────
 
@@ -175,16 +121,16 @@ Accept &rest ARGS for Gemini streaming 5th argument."
 (defvar +carlos/magent-tool-magit-branch-delete nil)
 (defvar +carlos/magent-tool-magit-merge nil)
 (defvar +carlos/magent-tool-magit-rebase nil)
-(defvar +carlos/magent-tool-elisp-smart-edit nil)
-(defvar +carlos/magent-tool-nix-smart-edit nil)
-(defvar +carlos/magent-tool-python-smart-edit nil)
-(defvar +carlos/magent-tool-ts-smart-edit nil)
-(defvar +carlos/magent-tool-c-smart-edit nil)
-(defvar +carlos/magent-tool-go-smart-edit nil)
-(defvar +carlos/magent-tool-org-smart-edit nil)
-(defvar +carlos/magent-tool-sh-smart-edit nil)
-(defvar +carlos/magent-tool-markdown-smart-edit nil)
-(defvar +carlos/magent-tool-rust-smart-edit nil)
+
+
+
+
+
+
+
+
+
+
 (defvar +carlos/magent-tool-forge-read-issue nil)
 (defvar +carlos/magent-tool-forge-list-pull-requests nil)
 (defvar +carlos/magent-tool-forge-create-issue nil)
@@ -317,9 +263,9 @@ ORIG-FN é `magent-llm-gptel--record-tool-result'; INFO, TOOL-SPEC,
 TOOL-CALL e RESULT são repassados.  Quando o resultado excede o cap,
 adiciona nota de truncamento e atualiza o acumulador."
   (let* ((raw (if (and (fboundp 'magent-tool-result-p)
-                      (magent-tool-result-p result))
-                 (magent-tool-result-output-string result)
-               (gptel--to-string result)))
+                       (magent-tool-result-p result))
+                  (magent-tool-result-output-string result)
+                (gptel--to-string result)))
          (name (and (fboundp 'gptel-tool-name)
                     (condition-case nil
                         (gptel-tool-name tool-spec)
@@ -337,13 +283,13 @@ adiciona nota de truncamento e atualiza o acumulador."
              (note (format "\n[... truncado: %d chars restantes ...]" dropped))
              (final (concat truncated note))
              (wrapped (if (and (fboundp 'magent-tool-result-p)
-                              (magent-tool-result-p result))
-                         (magent-tool-result-create
-                          :output final
-                          :success (magent-tool-result-success result)
-                          :status (magent-tool-result-status result)
-                          :error (magent-tool-result-error result))
-                       final)))
+                               (magent-tool-result-p result))
+                          (magent-tool-result-create
+                           :output final
+                           :success (magent-tool-result-success result)
+                           :status (magent-tool-result-status result)
+                           :error (magent-tool-result-error result))
+                        final)))
         (setq +carlos/magent-turn-tool-result-chars max)
         (apply orig-fn info tool-spec tool-call (list wrapped))))))
 
@@ -914,16 +860,16 @@ disponível."
                                  (or (+carlos/magent-cb-open-p (car entry))
                                      (+carlos/magent-cb-open-p (cdr entry))))))
               (throw 'resolved
-                (list :backend (car entry)
-                      :model (cdr entry)
-                      :tier tier
-                      :reason (format "%s task → tier %s%s (%s via %s)"
-                                      complexity tier
-                                      (if min-tier
-                                          (format " [min %s]" min-tier)
-                                        "")
-                                      (+carlos/magent-model-cost (car entry) (cdr entry))
-                                      (car entry)))))))))))
+                     (list :backend (car entry)
+                           :model (cdr entry)
+                           :tier tier
+                           :reason (format "%s task → tier %s%s (%s via %s)"
+                                           complexity tier
+                                           (if min-tier
+                                               (format " [min %s]" min-tier)
+                                             "")
+                                           (+carlos/magent-model-cost (car entry) (cdr entry))
+                                           (car entry)))))))))))
 
 (defun +carlos/magent-tool-select-model
     (task-description &optional agent complexity min-tier-arg _reason)
@@ -1062,7 +1008,7 @@ traz.  Retorna lista (ID OWNER NAME) ou nil quando desconhecido."
          (rows (and ident
                     (funcall sql-fn
                              [:select [id] :from repository
-                              :where (and (= owner $s1) (= name $s2))]
+                                      :where (and (= owner $s1) (= name $s2))]
                              (car ident) (cdr ident)))))
     (and rows
          (caar rows)
@@ -1160,8 +1106,8 @@ topic ou payload status info."
                    (`issue
                     (let* ((rows (funcall sql-fn
                                           [:select [id number title state author body created updated closed status]
-                                           :from issue
-                                           :where (and (= repository $s1) (= number $s2))]
+                                                   :from issue
+                                                   :where (and (= repository $s1) (= number $s2))]
                                           repo-id num))
                            (row (car rows)))
                       (when row
@@ -1171,16 +1117,16 @@ topic ou payload status info."
                                  row
                                  (funcall sql-fn
                                           [:select [author created body]
-                                           :from issue-post
-                                           :where (= issue $s1)
-                                           :order-by [(asc created)]]
+                                                   :from issue-post
+                                                   :where (= issue $s1)
+                                                   :order-by [(asc created)]]
                                           (nth 0 row))
                                  owner name))))))
                    (`pullreq
                     (let* ((rows (funcall sql-fn
                                           [:select [id number title state author body created updated closed merged status base-ref head-ref draft-p]
-                                           :from pullreq
-                                           :where (and (= repository $s1) (= number $s2))]
+                                                   :from pullreq
+                                                   :where (and (= repository $s1) (= number $s2))]
                                           repo-id num))
                            (row (car rows)))
                       (when row
@@ -1190,9 +1136,9 @@ topic ou payload status info."
                                  row
                                  (funcall sql-fn
                                           [:select [author created body]
-                                           :from pullreq-post
-                                           :where (= pullreq $s1)
-                                           :order-by [(asc created)]]
+                                                   :from pullreq-post
+                                                   :where (= pullreq $s1)
+                                                   :order-by [(asc created)]]
                                           (nth 0 row))
                                  owner name)))))))))))
         (if hit
@@ -1202,104 +1148,9 @@ topic ou payload status info."
                  (cons "message"
                        (format "Topic #%s não encontrado no db local do Forge. Rode M-x forge-pull para sincronizar." num)))))))))
 
-(defun +carlos/magent-tool-forge-read-issue
-    (issue-number-or-url &optional _reason sql-fn repo-fn)
-  "Handler da tool `forge_read_issue'.
-ISSUE-NUMBER-OR-URL aceita \"123\", \"#123\", \"owner/repo#123\" ou URL
-completa de issue/PR; _REASON é display-only.  SQL-FN (default
-`forge-sql') e REPO-FN (default `+carlos/magent-forge--current-repo')
-são injetáveis para testes offline.  Retorna conteúdo estruturado —
-estado, autor, corpo truncado e comentários — via
-`+carlos/magent-tool-result'; nunca sinaliza erro ao chamador: falhas
-viram payloads status info/error."
-  (let ((ref (+carlos/magent-forge-parse-ref issue-number-or-url)))
-    (cond
-     ((or (not ref) (not (plist-get ref :number)))
-      (+carlos/magent-tool-result
-       nil (format "Referência inválida '%s': use número, '#N', 'owner/repo#N' ou URL de issue/PR."
-                   (or issue-number-or-url ""))))
-     ((not (require 'forge nil t))
-      (+carlos/magent-tool-result
-       (list (cons "status" "info")
-             (cons "message" "Pacote forge indisponível neste ambiente."))))
-     (t
-      (condition-case err
-          (+carlos/magent-forge--read-topic ref sql-fn repo-fn)
-        (error (+carlos/magent-tool-result
-                nil (format "Forge indisponível: %s"
-                            (error-message-string err)))))))))
 
-(defun +carlos/magent-tool-forge-list-pull-requests
-    (&optional state _reason sql-fn repo-fn)
-  "Handler da tool `forge_list_pull_requests'.
-STATE filtra por estado: \"open\" (default), \"closed\" (tudo que não
-está aberto) ou \"all\"; _REASON é display-only. SQL-FN (default
-`forge-sql') e REPO-FN (default `+carlos/magent-forge--current-repo')
-são injetáveis para testes offline. Lista PRs E issues do repositório
-ativo a partir do db local do Forge (campo type distingue), ordenados
-por atualização descendente e limitados por
-`+carlos/magent-forge-list-limit' por tipo; nunca sinaliza erro."
-  (if (not (require 'forge nil t))
-      (+carlos/magent-tool-result
-       (list (cons "status" "info")
-             (cons "message" "Pacote forge indisponível neste ambiente.")))
-    (condition-case err
-        (let* ((sql-fn (or sql-fn #'forge-sql))
-               (repo (+carlos/magent-forge--resolve-repo
-                      sql-fn '(:number) repo-fn))
-               (repo-id (nth 0 repo))
-               (owner (nth 1 repo))
-               (name (nth 2 repo))
-               (state-key (downcase (or state "open")))
-               (open-p (lambda (st) (equal st 'open)))
-               (match-p (cond
-                         ((member state-key '("all" "any" "*")) #'identity)
-                         ((member state-key '("closed" "fechado"))
-                          (lambda (st) (not (funcall open-p st))))
-                         (t open-p)))
-               (limit +carlos/magent-forge-list-limit))
-          (if (not repo-id)
-              (+carlos/magent-tool-result
-               (list (cons "status" "info")
-                     (cons "message" (format "Repositório '%s' não encontrado no db local do Forge. Rode M-x forge-pull no repositório."
-                                             (if (and owner name)
-                                                 (format "%s/%s" owner name)
-                                               "atual")))))
-            (let* ((pr-rows (funcall sql-fn
-                                     [:select [number title state author updated]
-                                      :from pullreq
-                                      :where (= repository $s1)
-                                      :order-by [(desc updated)]]
-                                     repo-id))
-                   (is-rows (funcall sql-fn
-                                     [:select [number title state author updated]
-                                      :from issue
-                                      :where (= repository $s1)
-                                      :order-by [(desc updated)]]
-                                     repo-id))
-                   (entry (lambda (type row)
-                            (list (cons "type" type)
-                                  (cons "number" (nth 0 row))
-                                  (cons "title" (+carlos/magent-forge--scalar (nth 1 row)))
-                                  (cons "state" (+carlos/magent-forge--scalar (nth 2 row)))
-                                  (cons "author" (+carlos/magent-forge--scalar (nth 3 row)))
-                                  (cons "updated" (+carlos/magent-forge--scalar (nth 4 row))))))
-                   (prs (cl-loop for row in pr-rows
-                                 when (funcall match-p (nth 2 row))
-                                 collect (funcall entry "pullreq" row)))
-                   (issues (cl-loop for row in is-rows
-                                    when (funcall match-p (nth 2 row))
-                                    collect (funcall entry "issue" row))))
-              (+carlos/magent-tool-result
-               (list (cons "status" "success")
-                     (cons "repository" (format "%s/%s" owner name))
-                     (cons "filter" state-key)
-                     (cons "total_pullreqs" (length prs))
-                     (cons "pull_requests" (apply #'vector (seq-take prs limit)))
-                     (cons "total_issues" (length issues))
-                     (cons "issues" (apply #'vector (seq-take issues limit))))))))
-      (error (+carlos/magent-tool-result
-              nil (format "Forge indisponível: %s" (error-message-string err)))))))
+
+
 
 ;; ── Ferramentas IETF/RFC (rfc_search_topic / rfc_read_section) ──────
 
@@ -1428,52 +1279,9 @@ Retorna plists com :number e :snippet."
             (goto-char eop)))))
     (nreverse results)))
 
-(defun +carlos/magent-tool-rfc-search-topic (query &optional _reason)
-  "Ferramenta Magent: buscar RFCs por tópico no índice oficial IETF.
-QUERY é case-insensitive; retorna número + snippet de cada entrada."
-  (condition-case err
-      (let* ((index-text (+carlos/magent-rfc--fetch-text
-                          "-index" "https://www.rfc-editor.org/rfc/rfc%s.txt"))
-             (hits (+carlos/magent-rfc-search-index-text index-text query)))
-        (+carlos/magent-tool-result
-         (list (cons "query" query)
-               (cons "count" (length hits))
-               (cons "results"
-                     (apply #'vector
-                            (mapcar (lambda (h)
-                                      (list (cons "number" (plist-get h :number))
-                                            (cons "snippet" (plist-get h :snippet))))
-                                    hits))))))
-    (error (+carlos/magent-tool-result
-            nil (format "Índice IETF indisponível: %s"
-                        (error-message-string err))))))
 
-(defun +carlos/magent-tool-rfc-read-section (number-str section &optional _reason)
-  "Ferramenta Magent: extrair SEÇÃO de um RFC (economia de tokens).
-NUMBER-STR aceita \"9000\"/\"RFC 9000\"; SECTION é o número da seção
-\\(ex.: \"7.2\").  Cache local respeitado (rfc-mode)."
-  (condition-case err
-      (let* ((num (+carlos/magent-rfc-normalize-number number-str))
-             (_ (unless num (error "Número inválido: %S" number-str)))
-             (text (+carlos/magent-rfc--fetch-text
-                    num "https://www.rfc-editor.org/rfc/rfc%s.txt"))
-             (found (+carlos/magent-rfc-extract-section text section)))
-        (if found
-            (+carlos/magent-tool-result
-             (list (cons "rfc" (string-to-number num))
-                   (cons "section" section)
-                   (cons "title" (plist-get found :title))
-                   (cons "chars" (length (plist-get found :text)))
-                   (cons "text" (plist-get found :text))))
-          (+carlos/magent-tool-result
-           (list (cons "rfc" (string-to-number num))
-                 (cons "sections"
-                       (apply #'vector
-                              (mapcar (lambda (s) (plist-get s :num))
-                                      (+carlos/magent-rfc-parse-sections text)))))
-           (format "Seção %s não encontrada" section))))
-    (error (+carlos/magent-tool-result
-            nil (format "RFC indisponível: %s" (error-message-string err))))))
+
+
 
 (defun +carlos/magent-tool-rag-create-doc (symbols target-file title description &optional filetags _reason)
   "Gera ou atualiza um arquivo Org-mode RAG em TARGET-FILE introspectando SYMBOLS.
@@ -1538,1122 +1346,61 @@ FILETAGS (default ':RAG:DOCS:') é a tag do arquivo."
     (format "Documento RAG gerado com sucesso em '%s' (%d símbolos introspectados)."
             abs-file (length sym-list))))
 
-(defun +carlos/magent-tool-magit-stage (&optional file _reason)
-  "Stages FILE (or all modified files if FILE is nil/'all') using Magit API."
-  (require 'magit nil t)
-  (let ((default-directory (or (and (fboundp 'project-root)
-                                    (when-let* ((p (project-current)))
-                                      (project-root p)))
-                               default-directory)))
-    (if (and (stringp file) (not (string-empty-p file)) (not (equal file "all")))
-        (progn
-          (when (fboundp 'magit-stage-file) (magit-stage-file file))
-          (format "Staged file '%s' via Magit." file))
-      (progn
-        (when (fboundp 'magit-stage-all) (magit-stage-all))
-        (format "Staged all modified files via Magit in '%s'." default-directory)))))
 
-(defun +carlos/magent-tool-magit-commit (message &optional _reason)
-  "Creates a Git commit with MESSAGE using Magit programmatically."
-  (require 'magit nil t)
-  (if (or (null message) (string-empty-p message))
-      "Error: commit message cannot be empty."
-    (let ((default-directory (or (and (fboundp 'project-root)
-                                      (when-let* ((p (project-current)))
-                                        (project-root p)))
-                                 default-directory)))
-      (cond
-       ((fboundp 'magit-commit-create)
-        (magit-commit-create (list "-m" message))
-        (format "Created commit with message '%s' via Magit in '%s'." message default-directory))
-       ((fboundp 'magit-run-git)
-        (magit-run-git "commit" "-m" message)
-        (format "Created commit with message '%s' via Magit run-git." message))
-       (t "Error: Magit commit functions not available.")))))
 
-(defun +carlos/magent-tool-magit-push (&optional remote branch _reason)
-  "Pushes current branch to REMOTE (default `origin') and BRANCH via Magit."
-  (require 'magit nil t)
-  (let* ((default-directory (or (and (fboundp 'project-root)
-                                     (when-let* ((p (project-current)))
-                                       (project-root p)))
-                                default-directory))
-         (rem (if (and (stringp remote) (not (string-empty-p remote))) remote "origin"))
-         (br (if (and (stringp branch) (not (string-empty-p branch)))
-                 branch
-               (or (and (fboundp 'magit-get-current-branch) (magit-get-current-branch)) "main"))))
-    (if (fboundp 'magit-run-git)
-        (progn
-          (magit-run-git "push" rem br)
-          (format "Pushed branch '%s' to remote '%s' via Magit in '%s'." br rem default-directory))
-      "Error: Magit push function not available.")))
 
-(defun +carlos/magent-tool-magit-status (&optional directory _reason)
-  "Returns formatted Git status summary using Magit API."
-  (require 'magit nil t)
-  (let* ((dir (or (and (stringp directory) (not (string-empty-p directory)) (expand-file-name directory))
-                  (and (fboundp 'project-root)
-                       (when-let* ((p (project-current)))
-                         (project-root p)))
-                  default-directory))
-         (default-directory dir)
-         (branch (or (and (fboundp 'magit-get-current-branch) (magit-get-current-branch)) "unknown"))
-         (topdir (or (and (fboundp 'magit-get-topdir) (magit-get-topdir)) dir)))
-    (format "Magit Status for '%s'\n- Topdir: %s\n- Current Branch: %s"
-            dir topdir branch)))
 
-(defun +carlos/magent-tool-magit-pull (&optional remote branch _reason)
-  "Pulls updates from REMOTE and BRANCH via Magit programmatically."
-  (require 'magit nil t)
-  (let* ((default-directory (or (and (fboundp 'project-root)
-                                     (when-let* ((p (project-current)))
-                                       (project-root p)))
-                                default-directory))
-         (rem (if (and (stringp remote) (not (string-empty-p remote))) remote "origin"))
-         (br (if (and (stringp branch) (not (string-empty-p branch))) branch nil)))
-    (if (fboundp 'magit-run-git)
-        (progn
-          (if br
-              (magit-run-git "pull" rem br)
-            (magit-run-git "pull" rem))
-          (format "Pulled updates from remote '%s'%s via Magit in '%s'."
-                  rem (if br (format " branch '%s'" br) "") default-directory))
-      "Error: Magit pull function not available.")))
 
-(defun +carlos/magent-tool-magit-checkout (branch &optional create start-point _reason)
-  "Checkouts BRANCH (or creates it if CREATE is non-nil) via Magit."
-  (require 'magit nil t)
-  (if (or (null branch) (string-empty-p branch))
-      "Error: branch name is required for checkout."
-    (let ((default-directory (or (and (fboundp 'project-root)
-                                      (when-let* ((p (project-current)))
-                                        (project-root p)))
-                                 default-directory))
-          (is-create (or (equal create t) (equal create "true") (equal create "1"))))
-      (if (fboundp 'magit-run-git)
-          (progn
-            (if is-create
-                (if (and (stringp start-point) (not (string-empty-p start-point)))
-                    (magit-run-git "checkout" "-b" branch start-point)
-                  (magit-run-git "checkout" "-b" branch))
-              (magit-run-git "checkout" branch))
-            (format "Checked out branch '%s'%s in '%s'."
-                    branch (if is-create " (created new branch)" "") default-directory))
-        "Error: Magit checkout function not available."))))
 
-(defun +carlos/magent-tool-magit-diff (&optional staged file _reason)
-  "Gets formatted diff of staged or unstaged changes, optionally filtered by FILE."
-  (require 'magit nil t)
-  (let* ((default-directory (or (and (fboundp 'project-root)
-                                     (when-let* ((p (project-current)))
-                                       (project-root p)))
-                                default-directory))
-         (is-staged (or (equal staged t) (equal staged "true") (equal staged "1")))
-         (args (append (if is-staged '("diff" "--staged") '("diff"))
-                       (when (and (stringp file) (not (string-empty-p file)))
-                         (list "--" file))))
-         (output (if (fboundp 'magit-git-output)
-                     (apply #'magit-git-output args)
-                   (shell-command-to-string (mapconcat #'shell-quote-argument (cons "git" args) " ")))))
-    (if (or (null output) (string-empty-p (string-trim output)))
-        (format "No %s changes found%s in '%s'."
-                   (if is-staged "staged" "unstaged")
-                (if (and (stringp file) (not (string-empty-p file))) (format " for '%s'" file) "")
-                default-directory)
-      (+carlos/magent-sanitize-string output))))
 
-(defun +carlos/magent-tool-magit-log (&optional count branch _reason)
-  "Extracts last COUNT (default 10) commits from BRANCH using Magit."
-  (require 'magit nil t)
-  (let* ((default-directory (or (and (fboundp 'project-root)
-                                     (when-let* ((p (project-current)))
-                                       (project-root p)))
-                                default-directory))
-         (n-commits (if (and (numberp count) (> count 0)) count 10))
-         (br (if (and (stringp branch) (not (string-empty-p branch))) branch "HEAD"))
-         (format-arg "--format=%h|%an|%ad|%s")
-         (date-arg "--date=short")
-         (output (if (fboundp 'magit-git-output)
-                     (magit-git-output "log" (format "-n%d" n-commits) format-arg date-arg br)
-                   (shell-command-to-string
-                    (format "git log -n%d --format='%%h|%%an|%%ad|%%s' --date=short %s"
-                            n-commits (shell-quote-argument br))))))
-    (if (or (null output) (string-empty-p (string-trim output)))
-        (format "No commit log found for branch '%s' in '%s'." br default-directory)
-      (let ((lines (split-string (string-trim output) "\n" t)))
-        (+carlos/magent-tool-result
-         (mapcar (lambda (line)
-                   (let ((parts (split-string line "|" t)))
-                     (list (cons "hash" (nth 0 parts))
-                           (cons "author" (nth 1 parts))
-                           (cons "date" (nth 2 parts))
-                           (cons "summary" (nth 3 parts)))))
-                 lines))))))
 
-(defun +carlos/magent-tool-magit-submodule-list (&optional directory _reason)
-  "Lists Git submodules in DIRECTORY with status, path, and commit in JSON."
-  (require 'magit nil t)
-  (let* ((default-directory (or (and (stringp directory) (file-directory-p directory) directory)
-                                (and (fboundp 'project-root)
-                                     (when-let* ((p (project-current)))
-                                       (project-root p)))
-                                default-directory))
-         (output (if (fboundp 'magit-git-output)
-                     (magit-git-output "submodule" "status")
-                   (shell-command-to-string "git submodule status"))))
-    (if (or (null output) (string-empty-p (string-trim output)))
-        (format "No Git submodules configured in '%s'." default-directory)
-      (let ((lines (split-string (string-trim output) "\n" t)))
-        (+carlos/magent-tool-result
-         (mapcar (lambda (line)
-                   (let* ((trimmed (string-trim line))
-                          (prefix (substring trimmed 0 1))
-                          (rest (substring trimmed 1))
-                          (parts (split-string rest " " t))
-                          (commit (nth 0 parts))
-                          (path (nth 1 parts))
-                          (status (cond ((string= prefix "-") "uninitialized")
-                                        ((string= prefix "+") "outdated")
-                                        ((string= prefix "U") "conflict")
-                                        (t "active"))))
-                     (list (cons "path" (or path ""))
-                           (cons "commit" (or commit ""))
-                           (cons "status" status))))
-                 lines))))))
 
-(defun +carlos/magent-tool-magit-submodule-update (&optional init recursive _reason)
-  "Updates and initializes Git submodules recursively via Magit API."
-  (require 'magit nil t)
-  (let* ((default-directory (or (and (fboundp 'project-root)
-                                     (when-let* ((p (project-current)))
-                                       (project-root p)))
-                                default-directory))
-         (do-init (not (equal init "false")))
-         (do-rec (not (equal recursive "false")))
-         (args (append '("submodule" "update")
-                       (when do-init '("--init"))
-                       (when do-rec '("--recursive")))))
-    (if (fboundp 'magit-run-git)
-        (ignore-errors (apply #'magit-run-git args))
-      (shell-command-to-string (mapconcat #'shell-quote-argument (cons "git" args) " ")))
-    (format "Updated submodules in '%s' (init=%s, recursive=%s)." default-directory do-init do-rec)))
 
-(defun +carlos/magent-tool-magit-submodule-add (url target-dir &optional _reason)
-  "Adds a new Git submodule pointing to URL at TARGET-DIR."
-  (require 'magit nil t)
-  (if (or (null url) (string-empty-p url) (null target-dir) (string-empty-p target-dir))
-      "Error: url and target_dir parameters are required."
-    (let* ((default-directory (or (and (fboundp 'project-root)
-                                       (when-let* ((p (project-current)))
-                                         (project-root p)))
-                                  default-directory))
-           (args (list "submodule" "add" url target-dir)))
-      (if (fboundp 'magit-run-git)
-          (ignore-errors (apply #'magit-run-git args))
-        (shell-command-to-string (mapconcat #'shell-quote-argument (cons "git" args) " ")))
-      (format "Added submodule '%s' at '%s' in '%s'." url target-dir default-directory))))
 
-(defun +carlos/magent-tool-magit-branch-list (&optional remote _reason)
-  "Lists local and REMOTE branches with upstream and ahead/behind info."
-  (require 'magit nil t)
-  (let* ((default-directory (or (and (fboundp 'project-root)
-                                     (when-let* ((p (project-current)))
-                                       (project-root p)))
-                                default-directory))
-         (inc-remote (or (equal remote "true") (equal remote "all")))
-         (format-arg "--format=%(HEAD)|%(refname:short)|%(upstream:short)|%(upstream:track)|%(objectname:short)|%(subject)")
-         (args (append (list "branch" format-arg) (when inc-remote '("-a"))))
-         (output (if (fboundp 'magit-git-output)
-                     (apply #'magit-git-output args)
-                   (shell-command-to-string (mapconcat #'shell-quote-argument (cons "git" args) " ")))))
-    (if (or (null output) (string-empty-p (string-trim output)))
-        (format "No branches found in '%s'." default-directory)
-      (let ((lines (split-string (string-trim output) "\n" t)))
-        (+carlos/magent-tool-result
-         (mapcar (lambda (line)
-                   (let* ((parts (split-string line "|" t))
-                          (is-head (equal (nth 0 parts) "*"))
-                          (ref (nth 1 parts))
-                          (upstream (or (nth 2 parts) ""))
-                          (track (or (nth 3 parts) ""))
-                          (commit (or (nth 4 parts) ""))
-                          (subject (or (nth 5 parts) "")))
-                     (list (cons "branch" (or ref ""))
-                           (cons "active" is-head)
-                           (cons "upstream" upstream)
-                           (cons "track" track)
-                           (cons "commit" commit)
-                           (cons "summary" subject))))
-                 lines))))))
 
-(defun +carlos/magent-tool-magit-branch-delete (branch &optional remote force _reason)
-  "Deletes local or REMOTE branch programmatically."
-  (require 'magit nil t)
-  (if (or (null branch) (string-empty-p branch))
-      "Error: branch parameter is required."
-    (let* ((default-directory (or (and (fboundp 'project-root)
-                                       (when-let* ((p (project-current)))
-                                         (project-root p)))
-                                  default-directory))
-           (is-force (equal force "true"))
-           (remote-name (when (and (stringp remote) (not (string-empty-p remote)) (not (equal remote "false")))
-                          (if (equal remote "true") "origin" remote))))
-      (if remote-name
-          (progn
-            (if (fboundp 'magit-run-git)
-                (ignore-errors (magit-run-git "push" remote-name "--delete" branch))
-              (shell-command-to-string (format "git push %s --delete %s"
-                                              (shell-quote-argument remote-name)
-                                              (shell-quote-argument branch))))
-            (format "Deleted remote branch '%s/%s' from '%s'." remote-name branch default-directory))
-        (let ((flag (if is-force "-D" "-d")))
-          (if (fboundp 'magit-run-git)
-              (ignore-errors (magit-run-git "branch" flag branch))
-            (shell-command-to-string (format "git branch %s %s" flag (shell-quote-argument branch))))
-          (format "Deleted local branch '%s' in '%s'." branch default-directory))))))
 
-(defun +carlos/magent-tool-magit-merge (branch &optional no-ff _reason)
-  "Merges BRANCH into active HEAD."
-  (require 'magit nil t)
-  (if (or (null branch) (string-empty-p branch))
-      "Error: branch parameter is required for merge."
-    (let* ((default-directory (or (and (fboundp 'project-root)
-                                       (when-let* ((p (project-current)))
-                                         (project-root p)))
-                                  default-directory))
-           (is-no-ff (equal no-ff "true"))
-           (args (append '("merge") (when is-no-ff '("--no-ff")) (list branch))))
-      (if (fboundp 'magit-run-git)
-          (ignore-errors (apply #'magit-run-git args))
-        (shell-command-to-string (mapconcat #'shell-quote-argument (cons "git" args) " ")))
-      (format "Merged branch '%s' into active branch in '%s'." branch default-directory))))
 
-(defun +carlos/magent-tool-magit-rebase (target &optional _reason)
-  "Rebases active branch onto TARGET branch."
-  (require 'magit nil t)
-  (if (or (null target) (string-empty-p target))
-      "Error: target parameter is required for rebase."
-    (let* ((default-directory (or (and (fboundp 'project-root)
-                                       (when-let* ((p (project-current)))
-                                         (project-root p)))
-                                  default-directory)))
-      (if (fboundp 'magit-run-git)
-          (ignore-errors (magit-run-git "rebase" target))
-        (shell-command-to-string (format "git rebase %s" (shell-quote-argument target))))
-      (format "Rebased active branch onto '%s' in '%s'." target default-directory))))
 
-(defun +carlos/magent-tool-forge-create-issue (title body &optional _reason sql-fn repo-fn)
-  "Creates a GitHub/GitLab issue via Forge API programmatically.
-SQL-FN and REPO-FN are optional overrides for offline unit testing."
-  (require 'forge nil t)
-  (if (or (null title) (string-empty-p title))
-      "Error: issue title cannot be empty."
-    (let* ((default-directory (or (and (fboundp 'project-root)
-                                       (when-let* ((p (project-current)))
-                                         (project-root p)))
-                                  default-directory))
-           (repo (or (and repo-fn (funcall repo-fn))
-                     (and (fboundp 'forge-get-repository) (forge-get-repository nil)))))
-      (if (and (fboundp 'forge-sql) (not sql-fn))
-          (if repo
-              (progn
-                (if (fboundp 'forge-create-issue)
-                    (ignore-errors (forge-create-issue nil))
-                  (shell-command-to-string (format "gh issue create --title %s --body %s"
-                                                  (shell-quote-argument title)
-                                                  (shell-quote-argument (or body "")))))
-                (format "Created issue '%s' via Forge in repository '%s'." title default-directory))
-            (format "Error: No active Forge repository detected in '%s'." default-directory))
-        (if sql-fn
-            (progn
-              (funcall sql-fn title body)
-              (format "Created issue '%s' (mocked via sql-fn)." title))
-          (format "Created issue '%s' via Forge API fallback in '%s'." title default-directory))))))
 
-(defun +carlos/magent-tool-forge-create-pull-request (title body &optional base head _reason sql-fn repo-fn)
-  "Creates a GitHub/GitLab Pull Request via Forge API programmatically.
-SQL-FN and REPO-FN are optional overrides for offline unit testing."
-  (require 'forge nil t)
-  (if (or (null title) (string-empty-p title))
-      "Error: Pull Request title cannot be empty."
-    (let* ((default-directory (or (and (fboundp 'project-root)
-                                       (when-let* ((p (project-current)))
-                                         (project-root p)))
-                                  default-directory))
-           (repo (or (and repo-fn (funcall repo-fn))
-                     (and (fboundp 'forge-get-repository) (forge-get-repository nil)))))
-      (if (and (fboundp 'forge-sql) (not sql-fn))
-          (if repo
-              (progn
-                (if (fboundp 'forge-create-pullreq)
-                    (ignore-errors (forge-create-pullreq (or head "current") (or base "main")))
-                  (shell-command-to-string (format "gh pr create --title %s --body %s"
-                                                  (shell-quote-argument title)
-                                                  (shell-quote-argument (or body "")))))
-                (format "Created Pull Request '%s' via Forge in repository '%s'." title default-directory))
-            (format "Error: No active Forge repository detected in '%s'." default-directory))
-        (if sql-fn
-            (progn
-              (funcall sql-fn title body base head)
-              (format "Created Pull Request '%s' (mocked via sql-fn)." title))
-          (format "Created Pull Request '%s' via Forge API fallback in '%s'." title default-directory))))))
 
-(defun +carlos/magent-tool-forge-post-comment (issue-number-or-url body &optional _reason sql-fn _repo-fn)
-  "Posts a comment to an Issue or PR via Forge API programmatically.
-SQL-FN and REPO-FN are optional overrides for offline unit testing."
-  (require 'forge nil t)
-  (if (or (null issue-number-or-url) (string-empty-p issue-number-or-url))
-      "Error: issue number or URL is required."
-    (if (or (null body) (string-empty-p body))
-        "Error: comment body cannot be empty."
-      (let* ((default-directory (or (and (fboundp 'project-root)
-                                         (when-let* ((p (project-current)))
-                                           (project-root p)))
-                                     default-directory))
-             (topic-num (if (string-match "\\(?:issues\\|pull\\)/\\([0-9]+\\)" issue-number-or-url)
-                            (match-string 1 issue-number-or-url)
-                          (string-trim issue-number-or-url "^#"))))
-        (if (and (fboundp 'forge-sql) (not sql-fn))
-            (format "Posted comment to issue/PR #%s via Forge in '%s'." topic-num default-directory)
-          (if sql-fn
-              (progn
-                (funcall sql-fn topic-num body)
-                (format "Posted comment to issue/PR #%s (mocked via sql-fn)." topic-num))
-            (format "Posted comment to issue/PR #%s via Forge API fallback in '%s'." topic-num default-directory)))))))
 
-(defun +carlos/magent-tool-elisp-smart-edit (target-file action &optional snippet-name args _reason)
-  "Ferramenta transacional para edição inteligente de arquivos Elisp (.el).
-TARGET-FILE: Caminho do arquivo .el.
-ACTION: `insert_snippet', `refactor_symbol' ou `validate_buffer'.
-SNIPPET-NAME: Nome do snippet Tempel (ex: `defun', `deftest', `use-package').
-ARGS: Argumentos para o snippet ou substituição de símbolo.
-REASON: Motivo da alteração."
-  (let* ((abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
-                                                          (when-let* ((p (project-current)))
-                                                            (project-root p)))
-                                                     user-emacs-directory)))
-         (buf (or (find-buffer-visiting abs-file)
-                  (and (file-exists-p abs-file) (find-file-noselect abs-file))
-                  (get-buffer-create (file-name-nondirectory abs-file)))))
-    (with-current-buffer buf
-      (unless (derived-mode-p 'emacs-lisp-mode)
-        (emacs-lisp-mode))
-      (pcase action
-        ("insert_snippet"
-         (let* ((name (or snippet-name "defun"))
-                (arg-str (or args ""))
-                (code (cond
-                       ((equal name "use-package")
-                        (format "(use-package %s\n  :ensure t\n  :config\n  )\n" arg-str))
-                       ((equal name "deftest")
-                        (format "(ert-deftest %s ()\n  \"Docstring.\"\n  (should t))\n" arg-str))
-                       ((equal name "defcustom")
-                        (format "(defcustom %s nil\n  \"Docstring.\"\n  :type 'boolean\n  :group 'myemacs)\n" arg-str))
-                       ((equal name "with-eval-after-load")
-                        (format "(with-eval-after-load '%s\n  )\n" arg-str))
-                       (t
-                        (format "(defun %s ()\n  \"Docstring.\"\n  )\n" arg-str)))))
-           (goto-char (point-max))
-           (unless (bolp) (insert "\n"))
-           (insert code)
-           (condition-case err
-               (progn
-                 (save-excursion (check-parens))
-                 (save-buffer)
-                 (format "Snippet '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file))
-             (error
-              (primitive-undo 1 buf)
-              (format "Erro de sintaxe ao inserir snippet '%s': %s. Transação revertida." name (error-message-string err))))))
-        ("refactor_symbol"
-         (if (or (null args) (string-empty-p args))
-             "Erro: informe os símbolos 'antigo novo' em args para refatorar."
-           (let* ((parts (split-string args "[ \t]+" t))
-                  (old-sym (car parts))
-                  (new-sym (cadr parts)))
-             (if (and old-sym new-sym)
-                 (progn
-                   (goto-char (point-min))
-                   (let ((count 0))
-                     (while (search-forward old-sym nil t)
-                       (replace-match new-sym t t)
-                       (setq count (1+ count)))
-                     (condition-case err
-                         (progn
-                           (save-excursion (check-parens))
-                           (save-buffer)
-                           (format "Refatoração de '%s' -> '%s' concluída em '%s' (%d substituições). Buffer validado."
-                                   old-sym new-sym abs-file count))
-                       (error
-                        (primitive-undo count buf)
-                        (format "Erro de sintaxe ao refatorar '%s': %s. Transação revertida." old-sym (error-message-string err))))))
-               "Erro: forneça 'velho novo' em args."))))
-        ("validate_buffer"
-         (condition-case err
-             (progn
-               (save-excursion (check-parens))
-               (read-from-string (buffer-string))
-               (format "Buffer '%s' validado com sucesso (zero erros de sintaxe e parênteses equilibrados)." abs-file))
-           (error
-            (format "Erro de validação no buffer '%s': %s" abs-file (error-message-string err)))))
-        (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol' ou 'validate_buffer'." action))))))
 
-(defun +carlos/magent-tool-nix-smart-edit (target-file action &optional snippet-name args _reason)
-  "Ferramenta transacional para edição inteligente de arquivos Nix (.nix).
-TARGET-FILE: Caminho do arquivo .nix.
-ACTION: `insert_snippet', `refactor_symbol' ou `validate_buffer'.
-SNIPPET-NAME: Nome do snippet Tempel (ex: `flake', `module', `package',
-`overlay', `devshell', `option').
-ARGS: Argumentos para o snippet ou substituição de símbolo.
-REASON: Motivo da alteração."
-  (let* ((abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
-                                                          (when-let* ((p (project-current)))
-                                                            (project-root p)))
-                                                     user-emacs-directory)))
-         (buf (or (find-buffer-visiting abs-file)
-                  (and (file-exists-p abs-file) (find-file-noselect abs-file))
-                  (get-buffer-create (file-name-nondirectory abs-file)))))
-    (with-current-buffer buf
-      (unless (or (derived-mode-p 'nix-mode) (derived-mode-p 'nix-ts-mode))
-        (when (fboundp 'nix-mode) (nix-mode)))
-      (pcase action
-        ("insert_snippet"
-         (let* ((name (or snippet-name "module"))
-                (arg-str (or args ""))
-                (code (cond
-                       ((equal name "flake")
-                        (format "{\n  description = \"%s\";\n\n  inputs = {\n    nixpkgs.url = \"github:nixos/nixpkgs/nixos-unstable\";\n  };\n\n  outputs = { self, nixpkgs }:\n    let\n      system = \"x86_64-linux\";\n      pkgs = nixpkgs.legacyPackages.${system};\n    in {\n      devShells.${system}.default = pkgs.mkShell { buildInputs = [ ]; };\n    };\n}\n" arg-str))
-                       ((equal name "package")
-                        (format "{\n  lib,\n  stdenv,\n  fetchFromGitHub,\n}: stdenv.mkDerivation {\n  pname = \"%s\";\n  version = \"0.1.0\";\n  src = ./.;\n}\n" arg-str))
-                       ((equal name "overlay")
-                        (format "final: prev: {\n  %s = prev.%s.overrideAttrs (oldAttrs: {\n  });\n}\n" arg-str arg-str))
-                       ((equal name "devshell")
-                        (format "pkgs.mkShell {\n  name = \"%s\";\n  buildInputs = with pkgs; [ ];\n}\n" arg-str))
-                       ((equal name "option")
-                        (format "%s = lib.mkOption {\n  type = lib.types.str;\n  default = \"\";\n  description = \"Docstring.\";\n};\n" arg-str))
-                       (t
-                        (format "{\n  config,\n  lib,\n  pkgs,\n  ...\n}: {\n  # %s configuration\n}\n" arg-str)))))
-           (goto-char (point-max))
-           (unless (bolp) (insert "\n"))
-           (insert code)
-           (condition-case err
-               (progn
-                 (save-excursion (check-parens))
-                 (save-buffer)
-                 (format "Snippet Nix '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file))
-             (error
-              (primitive-undo 1 buf)
-              (format "Erro de sintaxe ao inserir snippet Nix '%s': %s. Transação revertida." name (error-message-string err))))))
-        ("refactor_symbol"
-         (if (or (null args) (string-empty-p args))
-             "Erro: informe os símbolos 'antigo novo' em args para refatorar."
-           (let* ((parts (split-string args "[ \t]+" t))
-                  (old-sym (car parts))
-                  (new-sym (cadr parts)))
-             (if (and old-sym new-sym)
-                 (progn
-                   (goto-char (point-min))
-                   (let ((count 0))
-                     (while (search-forward old-sym nil t)
-                       (replace-match new-sym t t)
-                       (setq count (1+ count)))
-                     (condition-case err
-                         (progn
-                           (save-excursion (check-parens))
-                           (save-buffer)
-                           (format "Refatoração Nix '%s' -> '%s' concluída em '%s' (%d substituições). Buffer validado."
-                                   old-sym new-sym abs-file count))
-                       (error
-                        (primitive-undo count buf)
-                        (format "Erro de sintaxe ao refatorar '%s': %s. Transação revertida." old-sym (error-message-string err))))))
-               "Erro: forneça 'velho novo' em args."))))
-        ("validate_buffer"
-         (condition-case err
-             (progn
-               (save-excursion (check-parens))
-               (format "Buffer Nix '%s' validado com sucesso (delimitadores equilibrados)." abs-file))
-           (error
-            (format "Erro de validação no buffer Nix '%s': %s" abs-file (error-message-string err)))))
-        (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol' ou 'validate_buffer'." action))))))
 
-(defun +carlos/magent-tool-python-smart-edit (target-file action &optional snippet-name args _reason)
-  "Ferramenta transacional para edição inteligente de arquivos Python (.py).
-TARGET-FILE: Caminho do arquivo .py.
-ACTION: `insert_snippet', `refactor_symbol' ou `validate_buffer'.
-SNIPPET-NAME: Nome do snippet Tempel (ex: `def', `class', `async_def', `pytest',
-`dataclass', `main').
-ARGS: Argumentos para o snippet ou substituição de símbolo.
-REASON: Motivo da alteração."
-  (let* ((abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
-                                                          (when-let* ((p (project-current)))
-                                                            (project-root p)))
-                                                     user-emacs-directory)))
-         (buf (or (find-buffer-visiting abs-file)
-                  (and (file-exists-p abs-file) (find-file-noselect abs-file))
-                  (get-buffer-create (file-name-nondirectory abs-file)))))
-    (with-current-buffer buf
-      (unless (or (derived-mode-p 'python-mode) (derived-mode-p 'python-ts-mode))
-        (when (fboundp 'python-mode) (python-mode)))
-      (pcase action
-        ("insert_snippet"
-         (let* ((name (or snippet-name "def"))
-                (arg-str (or args ""))
-                (code (cond
-                       ((equal name "class")
-                        (format "class %s:\n    \"\"\"Docstring.\"\"\"\n\n    def __init__(self) -> None:\n        pass\n" arg-str))
-                       ((equal name "async_def")
-                        (format "async def %s() -> None:\n    \"\"\"Docstring.\"\"\"\n    pass\n" arg-str))
-                       ((equal name "pytest")
-                        (format "def test_%s() -> None:\n    \"\"\"Test case.\"\"\"\n    assert True\n" arg-str))
-                       ((equal name "dataclass")
-                        (format "from dataclasses import dataclass\n\n@dataclass\nclass %s:\n    \"\"\"Dataclass docstring.\"\"\"\n    name: str\n" arg-str))
-                       ((equal name "main")
-                        (format "if __name__ == \"__main__\":\n    # %s main entrypoint\n    pass\n" arg-str))
-                       (t
-                        (format "def %s() -> None:\n    \"\"\"Docstring.\"\"\"\n    pass\n" arg-str)))))
-           (goto-char (point-max))
-           (unless (bolp) (insert "\n"))
-           (insert code)
-           (condition-case err
-               (progn
-                 (save-excursion (check-parens))
-                 (save-buffer)
-                 (format "Snippet Python '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file))
-             (error
-              (primitive-undo 1 buf)
-              (format "Erro de sintaxe ao inserir snippet Python '%s': %s. Transação revertida." name (error-message-string err))))))
-        ("refactor_symbol"
-         (if (or (null args) (string-empty-p args))
-             "Erro: informe os símbolos 'antigo novo' em args para refatorar."
-           (let* ((parts (split-string args "[ \t]+" t))
-                  (old-sym (car parts))
-                  (new-sym (cadr parts)))
-             (if (and old-sym new-sym)
-                 (progn
-                   (goto-char (point-min))
-                   (let ((count 0))
-                     (while (search-forward old-sym nil t)
-                       (replace-match new-sym t t)
-                       (setq count (1+ count)))
-                     (condition-case err
-                         (progn
-                           (save-excursion (check-parens))
-                           (save-buffer)
-                           (format "Refatoração Python '%s' -> '%s' concluída em '%s' (%d substituições). Buffer validado."
-                                   old-sym new-sym abs-file count))
-                       (error
-                        (primitive-undo count buf)
-                        (format "Erro de sintaxe ao refatorar '%s': %s. Transação revertida." old-sym (error-message-string err))))))
-               "Erro: forneça 'velho novo' em args."))))
-        ("validate_buffer"
-         (condition-case err
-             (progn
-               (save-excursion (check-parens))
-               (format "Buffer Python '%s' validado com sucesso." abs-file))
-           (error
-            (format "Erro de validação no buffer Python '%s': %s" abs-file (error-message-string err)))))
-        (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol' ou 'validate_buffer'." action))))))
 
-(defun +carlos/magent-tool-ts-smart-edit (target-file action &optional snippet-name args _reason)
-  "Ferramenta transacional para edição de arquivos TS/JS (.ts, .tsx, .js).
-TARGET-FILE: Caminho do arquivo TypeScript/JavaScript.
-ACTION: `insert_snippet', `refactor_symbol' ou `validate_buffer'.
-SNIPPET-NAME: Nome do snippet Tempel (ex: `interface', `type', `function',
-`export_const', `describe_it').
-ARGS: Argumentos para o snippet ou substituição de símbolo.
-REASON: Motivo da alteração."
-  (let* ((abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
-                                                          (when-let* ((p (project-current)))
-                                                            (project-root p)))
-                                                     user-emacs-directory)))
-         (buf (or (find-buffer-visiting abs-file)
-                  (and (file-exists-p abs-file) (find-file-noselect abs-file))
-                  (get-buffer-create (file-name-nondirectory abs-file)))))
-    (with-current-buffer buf
-      (pcase action
-        ("insert_snippet"
-         (let* ((name (or snippet-name "function"))
-                (arg-str (or args ""))
-                (code (cond
-                       ((equal name "interface")
-                        (format "export interface %s {\n  id: string;\n}\n" arg-str))
-                       ((equal name "type")
-                        (format "export type %s = string | number;\n" arg-str))
-                       ((equal name "export_const")
-                        (format "export const %s = () => {\n  return null;\n};\n" arg-str))
-                       ((equal name "describe_it")
-                        (format "describe('%s', () => {\n  it('should work', () => {\n    expect(true).toBe(true);\n  });\n});\n" arg-str))
-                       (t
-                        (format "export function %s(): void {\n  // %s implementation\n}\n" arg-str arg-str)))))
-           (goto-char (point-max))
-           (unless (bolp) (insert "\n"))
-           (insert code)
-           (condition-case err
-               (progn
-                 (save-excursion (check-parens))
-                 (save-buffer)
-                 (format "Snippet TS/JS '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file))
-             (error
-              (primitive-undo 1 buf)
-              (format "Erro de sintaxe ao inserir snippet TS/JS '%s': %s. Transação revertida." name (error-message-string err))))))
-        ("refactor_symbol"
-         (if (or (null args) (string-empty-p args))
-             "Erro: informe os símbolos 'antigo novo' em args para refatorar."
-           (let* ((parts (split-string args "[ \t]+" t))
-                  (old-sym (car parts))
-                  (new-sym (cadr parts)))
-             (if (and old-sym new-sym)
-                 (progn
-                   (goto-char (point-min))
-                   (let ((count 0))
-                     (while (search-forward old-sym nil t)
-                       (replace-match new-sym t t)
-                       (setq count (1+ count)))
-                     (condition-case err
-                         (progn
-                           (save-excursion (check-parens))
-                           (save-buffer)
-                           (format "Refatoração TS/JS '%s' -> '%s' concluída em '%s' (%d substituições). Buffer validado."
-                                   old-sym new-sym abs-file count))
-                       (error
-                        (primitive-undo count buf)
-                        (format "Erro de sintaxe ao refatorar '%s': %s. Transação revertida." old-sym (error-message-string err))))))
-               "Erro: forneça 'velho novo' em args."))))
-        ("validate_buffer"
-         (condition-case err
-             (progn
-               (save-excursion (check-parens))
-               (format "Buffer TS/JS '%s' validado com sucesso." abs-file))
-           (error
-            (format "Erro de validação no buffer TS/JS '%s': %s" abs-file (error-message-string err)))))
-        (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol' ou 'validate_buffer'." action))))))
 
-(defun +carlos/magent-tool-c-smart-edit (target-file action &optional snippet-name args _reason)
-  "Ferramenta transacional para edição de arquivos C/C++ (.c, .h, .cpp).
-TARGET-FILE: Caminho do arquivo C/C++.
-ACTION: `insert_snippet', `refactor_symbol' ou `validate_buffer'.
-SNIPPET-NAME: Nome do snippet Tempel (ex: `function', `struct', `header_guard',
-`main').
-ARGS: Argumentos para o snippet ou substituição de símbolo.
-REASON: Motivo da alteração."
-  (let* ((abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
-                                                          (when-let* ((p (project-current)))
-                                                            (project-root p)))
-                                                     user-emacs-directory)))
-         (buf (or (find-buffer-visiting abs-file)
-                  (and (file-exists-p abs-file) (find-file-noselect abs-file))
-                  (get-buffer-create (file-name-nondirectory abs-file)))))
-    (with-current-buffer buf
-      (unless (or (derived-mode-p 'c-mode) (derived-mode-p 'c++-mode) (derived-mode-p 'c-ts-mode))
-        (when (fboundp 'c-mode) (c-mode)))
-      (pcase action
-        ("insert_snippet"
-         (let* ((name (or snippet-name "function"))
-                (arg-str (or args ""))
-                (code (cond
-                       ((equal name "struct")
-                        (format "typedef struct s_%s\n{\n    int    id;\n} t_%s;\n" arg-str arg-str))
-                       ((equal name "header_guard")
-                        (let ((guard (upcase (concat (replace-regexp-in-string "[.-]" "_" (file-name-nondirectory abs-file)) "_H"))))
-                          (format "#ifndef %s\n# define %s\n\n#endif\n" guard guard)))
-                       ((equal name "main")
-                        (format "int main(int argc, char **argv)\n{\n    (void)argc;\n    (void)argv;\n    return (0);\n}\n"))
-                       (t
-                        (format "void %s(void)\n{\n    return ;\n}\n" arg-str)))))
-           (goto-char (point-max))
-           (unless (bolp) (insert "\n"))
-           (insert code)
-           (condition-case err
-               (progn
-                 (save-excursion (check-parens))
-                 (save-buffer)
-                 (format "Snippet C/C++ '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file))
-             (error
-              (primitive-undo 1 buf)
-              (format "Erro de sintaxe ao inserir snippet C/C++ '%s': %s. Transação revertida." name (error-message-string err))))))
-        ("refactor_symbol"
-         (if (or (null args) (string-empty-p args))
-             "Erro: informe os símbolos 'antigo novo' em args para refatorar."
-           (let* ((parts (split-string args "[ \t]+" t))
-                  (old-sym (car parts))
-                  (new-sym (cadr parts)))
-             (if (and old-sym new-sym)
-                 (progn
-                   (goto-char (point-min))
-                   (let ((count 0))
-                     (while (search-forward old-sym nil t)
-                       (replace-match new-sym t t)
-                       (setq count (1+ count)))
-                     (condition-case err
-                         (progn
-                           (save-excursion (check-parens))
-                           (save-buffer)
-                           (format "Refatoração C/C++ '%s' -> '%s' concluída em '%s' (%d substituições). Buffer validado."
-                                   old-sym new-sym abs-file count))
-                       (error
-                        (primitive-undo count buf)
-                        (format "Erro de sintaxe ao refatorar '%s': %s. Transação revertida." old-sym (error-message-string err))))))
-               "Erro: forneça 'velho novo' em args."))))
-        ("validate_buffer"
-         (condition-case err
-             (progn
-               (save-excursion (check-parens))
-               (format "Buffer C/C++ '%s' validado com sucesso." abs-file))
-           (error
-            (format "Erro de validação no buffer C/C++ '%s': %s" abs-file (error-message-string err)))))
-        (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol' ou 'validate_buffer'." action))))))
 
-(defun +carlos/magent-tool-go-smart-edit (target-file action &optional snippet-name args _reason)
-  "Ferramenta transacional para edição de arquivos Go (.go).
-TARGET-FILE: Caminho do arquivo .go.
-ACTION: `insert_snippet', `refactor_symbol' ou `validate_buffer'.
-SNIPPET-NAME: Nome do snippet Tempel (ex: `func', `struct', `interface',
-`goroutine', `table_test').
-ARGS: Argumentos para o snippet ou substituição de símbolo.
-REASON: Motivo da alteração."
-  (let* ((abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
-                                                          (when-let* ((p (project-current)))
-                                                            (project-root p)))
-                                                     user-emacs-directory)))
-         (buf (or (find-buffer-visiting abs-file)
-                  (and (file-exists-p abs-file) (find-file-noselect abs-file))
-                  (get-buffer-create (file-name-nondirectory abs-file)))))
-    (with-current-buffer buf
-      (unless (or (derived-mode-p 'go-mode) (derived-mode-p 'go-ts-mode))
-        (when (fboundp 'go-mode) (go-mode)))
-      (pcase action
-        ("insert_snippet"
-         (let* ((name (or snippet-name "func"))
-                (arg-str (or args ""))
-                (code (cond
-                       ((equal name "struct")
-                        (format "type %s struct {\n\tID string\n}\n" arg-str))
-                       ((equal name "interface")
-                        (format "type %s interface {\n\tExecute() error\n}\n" arg-str))
-                       ((equal name "goroutine")
-                        (format "go func() {\n\t// %s async task\n}()\n" arg-str))
-                       ((equal name "table_test")
-                        (format "func Test%s(t *testing.T) {\n\ttests := []struct {\n\t\tname string\n\t}{\n\t\t{\"default\"},\n\t}\n\tfor _, tt := range tests {\n\t\tt.Run(tt.name, func(t *testing.T) {\n\t\t})\n\t}\n}\n" arg-str))
-                       (t
-                        (format "func %s() error {\n\treturn nil\n}\n" arg-str)))))
-           (goto-char (point-max))
-           (unless (bolp) (insert "\n"))
-           (insert code)
-           (condition-case err
-               (progn
-                 (save-excursion (check-parens))
-                 (save-buffer)
-                 (format "Snippet Go '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file))
-             (error
-              (primitive-undo 1 buf)
-              (format "Erro de sintaxe ao inserir snippet Go '%s': %s. Transação revertida." name (error-message-string err))))))
-        ("refactor_symbol"
-         (if (or (null args) (string-empty-p args))
-             "Erro: informe os símbolos 'antigo novo' em args para refatorar."
-           (let* ((parts (split-string args "[ \t]+" t))
-                  (old-sym (car parts))
-                  (new-sym (cadr parts)))
-             (if (and old-sym new-sym)
-                 (progn
-                   (goto-char (point-min))
-                   (let ((count 0))
-                     (while (search-forward old-sym nil t)
-                       (replace-match new-sym t t)
-                       (setq count (1+ count)))
-                     (condition-case err
-                         (progn
-                           (save-excursion (check-parens))
-                           (save-buffer)
-                           (format "Refatoração Go '%s' -> '%s' concluída em '%s' (%d substituições). Buffer validado."
-                                   old-sym new-sym abs-file count))
-                       (error
-                        (primitive-undo count buf)
-                        (format "Erro de sintaxe ao refatorar '%s': %s. Transação revertida." old-sym (error-message-string err))))))
-               "Erro: forneça 'velho novo' em args."))))
-        ("validate_buffer"
-         (condition-case err
-             (progn
-               (save-excursion (check-parens))
-               (format "Buffer Go '%s' validado com sucesso." abs-file))
-           (error
-            (format "Erro de validação no buffer Go '%s': %s" abs-file (error-message-string err)))))
-        (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol' ou 'validate_buffer'." action))))))
 
-(defun +carlos/magent-tool-org-smart-edit (target-file action &optional snippet-name args _reason)
-  "Ferramenta transacional para edição da AST do Org-mode (.org).
-TARGET-FILE: Caminho do arquivo .org.
-ACTION: `insert_snippet', `refactor_symbol' ou `validate_buffer'.
-SNIPPET-NAME: Nome do snippet Tempel (ex: `heading', `properties_drawer',
-`table', `src_block').
-ARGS: Argumentos para o snippet ou substituição de símbolo.
-REASON: Motivo da alteração."
-  (let* ((abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
-                                                          (when-let* ((p (project-current)))
-                                                            (project-root p)))
-                                                     user-emacs-directory)))
-         (buf (or (find-buffer-visiting abs-file)
-                  (and (file-exists-p abs-file) (find-file-noselect abs-file))
-                  (get-buffer-create (file-name-nondirectory abs-file)))))
-    (with-current-buffer buf
-      (unless (derived-mode-p 'org-mode)
-        (when (fboundp 'org-mode) (org-mode)))
-      (pcase action
-        ("insert_snippet"
-         (let* ((name (or snippet-name "heading"))
-                (arg-str (or args ""))
-                (code (cond
-                       ((equal name "properties_drawer")
-                        (format "    :PROPERTIES:\n    :CREATED: %s\n    :STATUS: pendente\n    :END:\n"
-                                (format-time-string "%Y-%m-%d")))
-                       ((equal name "table")
-                        (format "| ID | Title | Status |\n|----+-------+--------|\n| 1  | %s | TODO   |\n" arg-str))
-                       ((equal name "src_block")
-                        (format "#+BEGIN_SRC %s\n\n#+END_SRC\n" (if (string-empty-p arg-str) "elisp" arg-str)))
-                       (t
-                        (format "* TODO %s\n    :PROPERTIES:\n    :CREATED: %s\n    :STATUS: pendente\n    :END:\n\n"
-                                arg-str (format-time-string "%Y-%m-%d"))))))
-           (goto-char (point-max))
-           (unless (bolp) (insert "\n"))
-           (insert code)
-           (save-buffer)
-           (format "Snippet Org '%s' inserido com sucesso em '%s'." name abs-file)))
-        ("refactor_symbol"
-         (if (or (null args) (string-empty-p args))
-             "Erro: informe os símbolos 'antigo novo' em args para refatorar."
-           (let* ((parts (split-string args "[ \t]+" t))
-                  (old-sym (car parts))
-                  (new-sym (cadr parts)))
-             (if (and old-sym new-sym)
-                 (progn
-                   (goto-char (point-min))
-                   (let ((count 0))
-                     (while (search-forward old-sym nil t)
-                       (replace-match new-sym t t)
-                       (setq count (1+ count)))
-                     (save-buffer)
-                     (format "Refatoração Org '%s' -> '%s' concluída em '%s' (%d substituições)." old-sym new-sym abs-file count)))
-               "Erro: forneça 'velho novo' em args."))))
-        ("validate_buffer"
-         (if (fboundp 'org-lint)
-             (let ((reports (org-lint)))
-               (if reports
-                   (format "Avisos do org-lint no buffer '%s': %d" abs-file (length reports))
-                 (format "Buffer Org '%s' validado e sintaticamente limpo." abs-file)))
-           (format "Buffer Org '%s' carregado com sucesso." abs-file)))
-        (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol' ou 'validate_buffer'." action))))))
 
-(defun +carlos/magent-tool-sh-smart-edit (target-file action &optional snippet-name args _reason)
-  "Ferramenta transacional para edição de scripts Shell/Bash (.sh, .bash).
-TARGET-FILE: Caminho do arquivo script.
-ACTION: `insert_snippet', `refactor_symbol' ou `validate_buffer'.
-SNIPPET-NAME: Nome do snippet Tempel (ex: `script_header', `function',
-`parse_args', `if_statement', `case_statement').
-ARGS: Argumentos para o snippet ou substituição de símbolo.
-REASON: Motivo da alteração."
-  (let* ((abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
-                                                          (when-let* ((p (project-current)))
-                                                            (project-root p)))
-                                                     user-emacs-directory)))
-         (buf (or (find-buffer-visiting abs-file)
-                  (and (file-exists-p abs-file) (find-file-noselect abs-file))
-                  (get-buffer-create (file-name-nondirectory abs-file)))))
-    (with-current-buffer buf
-      (unless (or (derived-mode-p 'sh-mode) (derived-mode-p 'bash-ts-mode))
-        (when (fboundp 'sh-mode) (sh-mode)))
-      (pcase action
-        ("insert_snippet"
-         (let* ((name (or snippet-name "script_header"))
-                (arg-str (or args ""))
-                (code (cond
-                       ((equal name "function")
-                        (format "%s() {\n    local arg=\"$1\"\n    return 0\n}\n" arg-str))
-                       ((equal name "parse_args")
-                        "while [[ $# -gt 0 ]]; do\n    case \"$1\" in\n        -h|--help) exit 0 ;;\n        *) shift ;;\n    esac\ndone\n")
-                       ((equal name "if_statement")
-                        (format "if [[ %s ]]; then\n    :\nfi\n" (if (string-empty-p arg-str) "-f \"$1\"" arg-str)))
-                       ((equal name "case_statement")
-                        (format "case \"%s\" in\n    pattern) :\n        ;;\n    *) :\n        ;;\nesac\n" arg-str))
-                       (t
-                        "#!/usr/bin/env bash\nset -euo pipefail\n\n# Main entrypoint\n"))))
-           (goto-char (point-max))
-           (unless (bolp) (insert "\n"))
-           (insert code)
-           (condition-case err
-               (progn
-                 (save-excursion (check-parens))
-                 (save-buffer)
-                 (format "Snippet Shell '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file))
-             (error
-              (primitive-undo 1 buf)
-              (format "Erro de sintaxe ao inserir snippet Shell '%s': %s. Transação revertida." name (error-message-string err))))))
-        ("refactor_symbol"
-         (if (or (null args) (string-empty-p args))
-             "Erro: informe os símbolos 'antigo novo' em args para refatorar."
-           (let* ((parts (split-string args "[ \t]+" t))
-                  (old-sym (car parts))
-                  (new-sym (cadr parts)))
-             (if (and old-sym new-sym)
-                 (progn
-                   (goto-char (point-min))
-                   (let ((count 0))
-                     (while (search-forward old-sym nil t)
-                       (replace-match new-sym t t)
-                       (setq count (1+ count)))
-                     (condition-case err
-                         (progn
-                           (save-excursion (check-parens))
-                           (save-buffer)
-                           (format "Refatoração Shell '%s' -> '%s' concluída em '%s' (%d substituições). Buffer validado."
-                                   old-sym new-sym abs-file count))
-                       (error
-                        (primitive-undo count buf)
-                        (format "Erro de sintaxe ao refatorar '%s': %s. Transação revertida." old-sym (error-message-string err))))))
-               "Erro: forneça 'velho novo' em args."))))
-        ("validate_buffer"
-         (condition-case err
-             (progn
-               (save-excursion (check-parens))
-               (format "Buffer Shell '%s' validado com sucesso." abs-file))
-           (error
-            (format "Erro de validação no buffer Shell '%s': %s" abs-file (error-message-string err)))))
-        (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol' ou 'validate_buffer'." action))))))
 
-(defun +carlos/magent-tool-markdown-smart-edit (target-file action &optional snippet-name args _reason)
-  "Ferramenta transacional para edição de arquivos Markdown (.md).
-TARGET-FILE: Caminho do arquivo Markdown.
-ACTION: `insert_snippet', `refactor_symbol' ou `validate_buffer'.
-SNIPPET-NAME: Nome do snippet Tempel (ex: `frontmatter', `heading', `table',
-`codeblock').
-ARGS: Argumentos para o snippet ou substituição de símbolo.
-REASON: Motivo da alteração."
-  (let* ((abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
-                                                          (when-let* ((p (project-current)))
-                                                            (project-root p)))
-                                                     user-emacs-directory)))
-         (buf (or (find-buffer-visiting abs-file)
-                  (and (file-exists-p abs-file) (find-file-noselect abs-file))
-                  (get-buffer-create (file-name-nondirectory abs-file)))))
-    (with-current-buffer buf
-      (unless (derived-mode-p 'markdown-mode)
-        (when (fboundp 'markdown-mode) (markdown-mode)))
-      (pcase action
-        ("insert_snippet"
-         (let* ((name (or snippet-name "heading"))
-                (arg-str (or args ""))
-                (code (cond
-                       ((equal name "frontmatter")
-                        (format "---\ntitle: %s\ndate: %s\n---\n" arg-str (format-time-string "%Y-%m-%d")))
-                       ((equal name "table")
-                        (format "| Col 1 | Col 2 |\n| --- | --- |\n| %s | value |\n" arg-str))
-                       ((equal name "codeblock")
-                        (format "```%s\n\n```\n" (if (string-empty-p arg-str) "bash" arg-str)))
-                       (t
-                        (format "## %s\n\n" arg-str)))))
-           (goto-char (point-max))
-           (unless (bolp) (insert "\n"))
-           (insert code)
-           (save-buffer)
-           (format "Snippet Markdown '%s' inserido com sucesso em '%s'." name abs-file)))
-        ("refactor_symbol"
-         (if (or (null args) (string-empty-p args))
-             "Erro: informe os símbolos 'antigo novo' em args para refatorar."
-           (let* ((parts (split-string args "[ \t]+" t))
-                  (old-sym (car parts))
-                  (new-sym (cadr parts)))
-             (if (and old-sym new-sym)
-                 (progn
-                   (goto-char (point-min))
-                   (let ((count 0))
-                     (while (search-forward old-sym nil t)
-                       (replace-match new-sym t t)
-                       (setq count (1+ count)))
-                     (save-buffer)
-                     (format "Refatoração Markdown '%s' -> '%s' concluída em '%s' (%d substituições)." old-sym new-sym abs-file count)))
-               "Erro: forneça 'velho novo' em args."))))
-        ("validate_buffer"
-         (format "Buffer Markdown '%s' validado com sucesso." abs-file))
-        (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol' ou 'validate_buffer'." action))))))
 
-(defun +carlos/magent-tool-rust-smart-edit (target-file action &optional snippet-name args _reason)
-  "Ferramenta transacional para edição de arquivos Rust (.rs).
-TARGET-FILE: Caminho do arquivo .rs.
-ACTION: `insert_snippet', `refactor_symbol' ou `validate_buffer'.
-SNIPPET-NAME: Nome do snippet Tempel (ex: `fn', `struct', `enum', `impl',
-`trait', `async_fn', `tokio_main', `test_case').
-ARGS: Argumentos para o snippet ou substituição de símbolo.
-REASON: Motivo da alteração."
-  (let* ((abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
-                                                          (when-let* ((p (project-current)))
-                                                            (project-root p)))
-                                                     user-emacs-directory)))
-         (buf (or (find-buffer-visiting abs-file)
-                  (and (file-exists-p abs-file) (find-file-noselect abs-file))
-                  (get-buffer-create (file-name-nondirectory abs-file)))))
-    (with-current-buffer buf
-      (unless (or (derived-mode-p 'rust-mode) (derived-mode-p 'rust-ts-mode))
-        (when (fboundp 'rust-mode) (rust-mode)))
-      (pcase action
-        ("insert_snippet"
-         (let* ((name (or snippet-name "fn"))
-                (arg-str (or args ""))
-                (code (cond
-                       ((equal name "struct")
-                        (format "pub struct %s {\n    pub id: String,\n}\n" arg-str))
-                       ((equal name "enum")
-                        (format "pub enum %s {\n    Default,\n}\n" arg-str))
-                       ((equal name "impl")
-                        (format "impl %s {\n    pub fn new() -> Self {\n        Self {}\n    }\n}\n" arg-str))
-                       ((equal name "trait")
-                        (format "pub trait %s {\n    fn execute(&self) -> Result<(), String>;\n}\n" arg-str))
-                       ((equal name "async_fn")
-                        (format "pub async fn %s() -> Result<(), Box<dyn std::error::Error>> {\n    Ok(())\n}\n" arg-str))
-                       ((equal name "tokio_main")
-                        "#[tokio::main]\nasync fn main() -> Result<(), Box<dyn std::error::Error>> {\n    Ok(())\n}\n")
-                       ((equal name "test_case")
-                        (format "#[cfg(test)]\nmod tests {\n    #[test]\n    fn test_%s() {\n        assert_eq!(2 + 2, 4);\n    }\n}\n" (if (string-empty-p arg-str) "basic" arg-str)))
-                       (t
-                        (format "pub fn %s() -> Result<(), String> {\n    Ok(())\n}\n" arg-str)))))
-           (goto-char (point-max))
-           (unless (bolp) (insert "\n"))
-           (insert code)
-           (condition-case err
-               (progn
-                 (save-excursion (check-parens))
-                 (save-buffer)
-                 (format "Snippet Rust '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file))
-             (error
-              (primitive-undo 1 buf)
-              (format "Erro de sintaxe ao inserir snippet Rust '%s': %s. Transação revertida." name (error-message-string err))))))
-        ("refactor_symbol"
-         (if (or (null args) (string-empty-p args))
-             "Erro: informe os símbolos 'antigo novo' em args para refatorar."
-           (let* ((parts (split-string args "[ \t]+" t))
-                  (old-sym (car parts))
-                  (new-sym (cadr parts)))
-             (if (and old-sym new-sym)
-                 (progn
-                   (goto-char (point-min))
-                   (let ((count 0))
-                     (while (search-forward old-sym nil t)
-                       (replace-match new-sym t t)
-                       (setq count (1+ count)))
-                     (condition-case err
-                         (progn
-                           (save-excursion (check-parens))
-                           (save-buffer)
-                           (format "Refatoração Rust '%s' -> '%s' concluída em '%s' (%d substituições). Buffer validado."
-                                   old-sym new-sym abs-file count))
-                       (error
-                        (primitive-undo count buf)
-                        (format "Erro de sintaxe ao refatorar '%s': %s. Transação revertida." old-sym (error-message-string err))))))
-               "Erro: forneça 'velho novo' em args."))))
-        ("validate_buffer"
-         (condition-case err
-             (progn
-               (save-excursion (check-parens))
-               (format "Buffer Rust '%s' validado com sucesso." abs-file))
-           (error
-            (format "Erro de validação no buffer Rust '%s': %s" abs-file (error-message-string err)))))
-        (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol' ou 'validate_buffer'." action))))))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ;; ── Registro das tools curadas no catálogo do Magent ─────────────────
 
@@ -2808,13 +1555,13 @@ REASON: Motivo da alteração."
           (gptel-make-tool
            :name "select_model"
            :description "Select and commit the model for a spawned subagent. Call BEFORE spawn_agent. Provide the task description and the target agent name ('explore' or 'general'); the runtime resolves the model by complexity and the user's tier cap and applies it to the subagent automatically."
-            :args '((:name "task_description" :type string :description "The task the subagent will perform")
-                    (:name "agent" :type string :description "Target agent name (e.g. 'explore' or 'general')")
-                    (:name "complexity" :type string :description "Optional: 'simple', 'moderate' or 'deep'. Inferred from task_description when omitted.")
-                    (:name "min_tier" :type string :description "Optional minimum tier floor: 'local', 'free' or 'paid'. Forces escalation above this tier.")
-                    (:name "reason" :type string :description "Reason for this tool call"))
-            :function #'+carlos/magent-tool-select-model
-            :category "magent"))
+           :args '((:name "task_description" :type string :description "The task the subagent will perform")
+                   (:name "agent" :type string :description "Target agent name (e.g. 'explore' or 'general')")
+                   (:name "complexity" :type string :description "Optional: 'simple', 'moderate' or 'deep'. Inferred from task_description when omitted.")
+                   (:name "min_tier" :type string :description "Optional minimum tier floor: 'local', 'free' or 'paid'. Forces escalation above this tier.")
+                   (:name "reason" :type string :description "Reason for this tool call"))
+           :function #'+carlos/magent-tool-select-model
+           :category "magent"))
 
     (setq +carlos/magent-tool-rag-create-doc
           (gptel-make-tool
@@ -2829,570 +1576,135 @@ REASON: Motivo da alteração."
            :function #'+carlos/magent-tool-rag-create-doc
            :category "magent"))
 
-    (setq +carlos/magent-tool-magit-stage
-          (gptel-make-tool
-           :name "magit_stage"
-           :description "Stage modified or untracked files programmatically using Emacs Magit API (instead of raw bash git stage)."
-           :args '((:name "file" :type string :description "Specific file relative/absolute path to stage, or 'all' for all modified files")
-                   (:name "reason" :type string :description "Reason for staging"))
-           :function #'+carlos/magent-tool-magit-stage
-           :category "magent"))
+    
 
-    (setq +carlos/magent-tool-magit-commit
-          (gptel-make-tool
-           :name "magit_commit"
-           :description "Create a Git commit with a structured message programmatically using Emacs Magit API."
-           :args '((:name "message" :type string :description "Commit message")
-                   (:name "reason" :type string :description "Reason for commit"))
-           :function #'+carlos/magent-tool-magit-commit
-           :category "magent"))
+    
 
-    (setq +carlos/magent-tool-magit-push
-          (gptel-make-tool
-           :name "magit_push"
-           :description "Push current branch to remote repository programmatically using Emacs Magit API."
-           :args '((:name "remote" :type string :description "Optional remote name (default 'origin')")
-                   (:name "branch" :type string :description "Optional branch name (default active branch)")
-                   (:name "reason" :type string :description "Reason for push"))
-           :function #'+carlos/magent-tool-magit-push
-           :category "magent"))
+    
 
-    (setq +carlos/magent-tool-magit-status
-          (gptel-make-tool
-           :name "magit_status"
-           :description "Get structured Git status summary for a repository using Emacs Magit API."
-           :args '((:name "directory" :type string :description "Target project directory")
-                   (:name "reason" :type string :description "Reason for status check"))
-           :function #'+carlos/magent-tool-magit-status
-           :category "magent"))
+    
 
-    (setq +carlos/magent-tool-magit-pull
-          (gptel-make-tool
-           :name "magit_pull"
-           :description "Pull updates from remote repository branch programmatically using Emacs Magit API."
-           :args '((:name "remote" :type string :description "Optional remote name (default 'origin')")
-                   (:name "branch" :type string :description "Optional branch name")
-                   (:name "reason" :type string :description "Reason for pull"))
-           :function #'+carlos/magent-tool-magit-pull
-           :category "magent"))
+    
 
-    (setq +carlos/magent-tool-magit-checkout
-          (gptel-make-tool
-           :name "magit_checkout"
-           :description "Checkout existing branch or create and checkout new branch programmatically using Emacs Magit API."
-           :args '((:name "branch" :type string :description "Target branch name")
-                   (:name "create" :type string :description "Optional: 'true' to create new branch")
-                   (:name "start_point" :type string :description "Optional starting point for new branch")
-                   (:name "reason" :type string :description "Reason for checkout"))
-           :function #'+carlos/magent-tool-magit-checkout
-           :category "magent"))
+    
 
-    (setq +carlos/magent-tool-magit-diff
-          (gptel-make-tool
-           :name "magit_diff"
-           :description "Get formatted Git diff of staged or unstaged changes programmatically using Emacs Magit API."
-           :args '((:name "staged" :type string :description "Optional: 'true' for staged changes, 'false' for unstaged")
-                   (:name "file" :type string :description "Optional file path filter")
-                   (:name "reason" :type string :description "Reason for diff check"))
-           :function #'+carlos/magent-tool-magit-diff
-           :category "magent"))
+    
 
-    (setq +carlos/magent-tool-magit-log
-          (gptel-make-tool
-           :name "magit_log"
-           :description "Extract structured commit history log programmatically using Emacs Magit API."
-           :args '((:name "count" :type integer :description "Optional commit count (default 10)")
-                   (:name "branch" :type string :description "Optional branch name (default HEAD)")
-                   (:name "reason" :type string :description "Reason for log inspection"))
-           :function #'+carlos/magent-tool-magit-log
-           :category "magent"))
+    
 
-    (setq +carlos/magent-tool-magit-submodule-list
-          (gptel-make-tool
-           :name "magit_submodule_list"
-           :description "List Git submodules with status, path, commit and remote URL in structured JSON format."
-           :args '((:name "directory" :type string :description "Optional target project directory")
-                   (:name "reason" :type string :description "Reason for submodule listing"))
-           :function #'+carlos/magent-tool-magit-submodule-list
-           :category "magent"))
+    
 
-    (setq +carlos/magent-tool-magit-submodule-update
-          (gptel-make-tool
-           :name "magit_submodule_update"
-           :description "Update and initialize Git submodules recursively programmatically using Emacs Magit API."
-           :args '((:name "init" :type string :description "Optional: 'true' (default) to initialize uninitialized submodules")
-                   (:name "recursive" :type string :description "Optional: 'true' (default) for recursive update")
-                   (:name "reason" :type string :description "Reason for submodule update"))
-           :function #'+carlos/magent-tool-magit-submodule-update
-           :category "magent"))
+    
 
-    (setq +carlos/magent-tool-magit-submodule-add
-          (gptel-make-tool
-           :name "magit_submodule_add"
-           :description "Add a new Git submodule pointing to URL at target_dir programmatically using Emacs Magit API."
-           :args '((:name "url" :type string :description "Git repository URL")
-                   (:name "target_dir" :type string :description "Target directory path for submodule")
-                   (:name "reason" :type string :description "Reason for adding submodule"))
-           :function #'+carlos/magent-tool-magit-submodule-add
-           :category "magent"))
+    
 
-    (setq +carlos/magent-tool-magit-branch-list
-          (gptel-make-tool
-           :name "magit_branch_list"
-           :description "List local and optional remote branches with upstream, ahead/behind counters and last commit in structured JSON format."
-           :args '((:name "remote" :type string :description "Optional: 'true' or 'all' to include remote branches")
-                   (:name "reason" :type string :description "Reason for branch listing"))
-           :function #'+carlos/magent-tool-magit-branch-list
-           :category "magent"))
+    
 
-    (setq +carlos/magent-tool-magit-branch-delete
-          (gptel-make-tool
-           :name "magit_branch_delete"
-           :description "Delete local or remote branch programmatically using Emacs Magit API."
-           :args '((:name "branch" :type string :description "Target branch name to delete")
-                   (:name "remote" :type string :description "Optional: remote name ('origin' or 'true') for remote branch deletion")
-                   (:name "force" :type string :description "Optional: 'true' to force delete (-D)")
-                   (:name "reason" :type string :description "Reason for branch deletion"))
-           :function #'+carlos/magent-tool-magit-branch-delete
-           :category "magent"))
+    
 
-    (setq +carlos/magent-tool-magit-merge
-          (gptel-make-tool
-           :name "magit_merge"
-           :description "Merge specified branch into active HEAD programmatically using Emacs Magit API."
-           :args '((:name "branch" :type string :description "Branch to merge into active HEAD")
-                   (:name "no_ff" :type string :description "Optional: 'true' to force a merge commit (--no-ff)")
-                   (:name "reason" :type string :description "Reason for merge"))
-           :function #'+carlos/magent-tool-magit-merge
-           :category "magent"))
+    
 
-    (setq +carlos/magent-tool-magit-rebase
-          (gptel-make-tool
-           :name "magit_rebase"
-           :description "Rebase active branch onto target base branch programmatically using Emacs Magit API."
-           :args '((:name "target" :type string :description "Target base branch for rebase")
-                   (:name "reason" :type string :description "Reason for rebase"))
-           :function #'+carlos/magent-tool-magit-rebase
-           :category "magent"))
+    
 
-    (setq +carlos/magent-tool-forge-create-issue
-          (gptel-make-tool
-           :name "forge_create_issue"
-           :description "Create a GitHub/GitLab Issue programmatically using Emacs Forge API."
-           :args '((:name "title" :type string :description "Issue title")
-                   (:name "body" :type string :description "Issue body markdown content")
-                   (:name "reason" :type string :description "Reason for issue creation"))
-           :function #'+carlos/magent-tool-forge-create-issue
-           :category "magent"))
+    
 
-    (setq +carlos/magent-tool-forge-create-pull-request
-          (gptel-make-tool
-           :name "forge_create_pull_request"
-           :description "Create a GitHub/GitLab Pull Request / Merge Request programmatically using Emacs Forge API."
-           :args '((:name "title" :type string :description "Pull Request title")
-                   (:name "body" :type string :description "Pull Request body description")
-                   (:name "base" :type string :description "Optional base target branch (default 'main')")
-                   (:name "head" :type string :description "Optional head source branch (default current)")
-                   (:name "reason" :type string :description "Reason for Pull Request creation"))
-           :function #'+carlos/magent-tool-forge-create-pull-request
-           :category "magent"))
+    
 
-    (setq +carlos/magent-tool-forge-post-comment
-          (gptel-make-tool
-           :name "forge_post_comment"
-           :description "Post a comment to a GitHub/GitLab Issue or Pull Request programmatically using Emacs Forge API."
-           :args '((:name "issue_number_or_url" :type string :description "Target Issue or PR number ('123') or URL")
-                   (:name "body" :type string :description "Comment body content")
-                   (:name "reason" :type string :description "Reason for comment"))
-           :function #'+carlos/magent-tool-forge-post-comment
-           :category "magent"))
+    
 
-    (setq +carlos/magent-tool-rfc-search-topic
-          (gptel-make-tool
-           :name "rfc_search_topic"
-           :description "Search the official IETF RFC index by topic keywords (case-insensitive). Returns RFC numbers plus snippets so you can pick the right document without hallucinating references."
-           :args '((:name "query" :type string :description "Topic keywords, e.g. 'QUIC loss recovery' or 'JWT'")
-                   (:name "reason" :type string :description "Why this search"))
-           :function #'+carlos/magent-tool-rfc-search-topic
-           :category "magent"))
+    
 
-    (setq +carlos/magent-tool-rfc-read-section
-          (gptel-make-tool
-           :name "rfc_read_section"
-           :description "Read ONE numbered section of an official RFC from ietf.org with local cache, partitioned by headings for token economy. Prefer this over reading whole documents."
-           :args '((:name "number" :type string :description "RFC number ('9000' or 'RFC 9000')")
-                   (:name "section" :type string :description "Section number to extract, e.g. '5' or '7.2' (includes subsections)")
-                   (:name "reason" :type string :description "Why reading this section"))
-           :function #'+carlos/magent-tool-rfc-read-section
-           :category "magent"))
+    
 
-    (setq +carlos/magent-tool-elisp-smart-edit
-          (gptel-make-tool
-           :name "elisp_smart_edit"
-           :description "Transactional native tool for intelligent Elisp (.el) code editing via Tempel Snippets, symbol refactoring, and in-memory validation (check-parens + byte-compiler + checkdoc)."
-           :args '((:name "target_file" :type string :description "Target .el file path")
-                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol' or 'validate_buffer'")
-                   (:name "snippet_name" :type string :description "Tempel snippet name (e.g. 'defun', 'deftest', 'use-package', 'defcustom', 'with-eval-after-load')")
-                   (:name "args" :type string :description "Positional or symbol replacement arguments")
-                   (:name "reason" :type string :description "Reason for edit"))
-           :function #'+carlos/magent-tool-elisp-smart-edit
-           :category "magent"))
+    
 
-    (setq +carlos/magent-tool-nix-smart-edit
-          (gptel-make-tool
-           :name "nix_smart_edit"
-           :description "Transactional native tool for intelligent Nix (.nix) code editing via Tempel Snippets, symbol refactoring, and in-memory validation (delimiters + nixfmt/statix)."
-           :args '((:name "target_file" :type string :description "Target .nix file path")
-                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol' or 'validate_buffer'")
-                   (:name "snippet_name" :type string :description "Tempel snippet name (e.g. 'flake', 'module', 'package', 'overlay', 'devshell', 'option')")
-                   (:name "args" :type string :description "Positional or symbol replacement arguments")
-                   (:name "reason" :type string :description "Reason for edit"))
-           :function #'+carlos/magent-tool-nix-smart-edit
-           :category "magent"))
+    
 
-    (setq +carlos/magent-tool-python-smart-edit
-          (gptel-make-tool
-           :name "python_smart_edit"
-           :description "Transactional native tool for intelligent Python (.py) code editing via Tempel Snippets, symbol refactoring, and in-memory validation (ruff/black/py-compile)."
-           :args '((:name "target_file" :type string :description "Target .py file path")
-                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol' or 'validate_buffer'")
-                   (:name "snippet_name" :type string :description "Tempel snippet name (e.g. 'def', 'class', 'async_def', 'pytest', 'dataclass', 'main')")
-                   (:name "args" :type string :description "Positional or symbol replacement arguments")
-                   (:name "reason" :type string :description "Reason for edit"))
-           :function #'+carlos/magent-tool-python-smart-edit
-           :category "magent"))
+    
 
-    (setq +carlos/magent-tool-ts-smart-edit
-          (gptel-make-tool
-           :name "ts_smart_edit"
-           :description "Transactional native tool for intelligent TypeScript/JavaScript (.ts, .tsx, .js) code editing via Tempel Snippets, symbol refactoring, and in-memory validation (prettier/eslint)."
-           :args '((:name "target_file" :type string :description "Target TS/JS file path")
-                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol' or 'validate_buffer'")
-                   (:name "snippet_name" :type string :description "Tempel snippet name (e.g. 'interface', 'type', 'function', 'export_const', 'describe_it')")
-                   (:name "args" :type string :description "Positional or symbol replacement arguments")
-                   (:name "reason" :type string :description "Reason for edit"))
-           :function #'+carlos/magent-tool-ts-smart-edit
-           :category "magent"))
+    
 
-    (setq +carlos/magent-tool-c-smart-edit
-          (gptel-make-tool
-           :name "c_smart_edit"
-           :description "Transactional native tool for intelligent C/C++ (.c, .h, .cpp) code editing enforcing School 42 Norminette (25-line limit) and Tempel Snippets."
-           :args '((:name "target_file" :type string :description "Target .c or .h file path")
-                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol' or 'validate_buffer'")
-                   (:name "snippet_name" :type string :description "Tempel snippet name (e.g. 'function', 'struct', 'header_guard', 'main')")
-                   (:name "args" :type string :description "Positional or symbol replacement arguments")
-                   (:name "reason" :type string :description "Reason for edit"))
-           :function #'+carlos/magent-tool-c-smart-edit
-           :category "magent"))
+    
 
-    (setq +carlos/magent-tool-go-smart-edit
-          (gptel-make-tool
-           :name "go_smart_edit"
-           :description "Transactional native tool for intelligent Go (.go) code editing via Tempel Snippets, symbol refactoring, and in-memory validation (gofmt/gopls)."
-           :args '((:name "target_file" :type string :description "Target .go file path")
-                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol' or 'validate_buffer'")
-                   (:name "snippet_name" :type string :description "Tempel snippet name (e.g. 'func', 'struct', 'interface', 'goroutine', 'table_test')")
-                   (:name "args" :type string :description "Positional or symbol replacement arguments")
-                   (:name "reason" :type string :description "Reason for edit"))
-           :function #'+carlos/magent-tool-go-smart-edit
-           :category "magent"))
+    
 
-    (setq +carlos/magent-tool-org-smart-edit
-          (gptel-make-tool
-           :name "org_smart_edit"
-           :description "Transactional native tool for Org-mode AST structural editing (headings, TODO/DONE keywords, drawers, tables) and org-lint validation."
-           :args '((:name "target_file" :type string :description "Target .org file path")
-                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol' or 'validate_buffer'")
-                   (:name "snippet_name" :type string :description "Tempel snippet name (e.g. 'heading', 'properties_drawer', 'table', 'src_block')")
-                   (:name "args" :type string :description "Positional or symbol replacement arguments")
-                   (:name "reason" :type string :description "Reason for edit"))
-           :function #'+carlos/magent-tool-org-smart-edit
-           :category "magent"))
+    
 
-    (setq +carlos/magent-tool-sh-smart-edit
-          (gptel-make-tool
-           :name "sh_smart_edit"
-           :description "Transactional native tool for intelligent Shell/Bash (.sh, .bash) script editing via Tempel Snippets, symbol refactoring, and shellcheck validation."
-           :args '((:name "target_file" :type string :description "Target .sh file path")
-                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol' or 'validate_buffer'")
-                   (:name "snippet_name" :type string :description "Tempel snippet name (e.g. 'script_header', 'function', 'parse_args', 'if_statement', 'case_statement')")
-                   (:name "args" :type string :description "Positional or symbol replacement arguments")
-                   (:name "reason" :type string :description "Reason for edit"))
-           :function #'+carlos/magent-tool-sh-smart-edit
-           :category "magent"))
+    
 
-    (setq +carlos/magent-tool-markdown-smart-edit
-          (gptel-make-tool
-           :name "markdown_smart_edit"
-           :description "Transactional native tool for Markdown (.md) editing via Tempel Snippets, symbol refactoring, and markdownlint/markitdown validation."
-           :args '((:name "target_file" :type string :description "Target .md file path")
-                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol' or 'validate_buffer'")
-                   (:name "snippet_name" :type string :description "Tempel snippet name (e.g. 'frontmatter', 'heading', 'table', 'codeblock')")
-                   (:name "args" :type string :description "Positional or symbol replacement arguments")
-                   (:name "reason" :type string :description "Reason for edit"))
-           :function #'+carlos/magent-tool-markdown-smart-edit
-           :category "magent"))
+    
 
-    (setq +carlos/magent-tool-rust-smart-edit
-          (gptel-make-tool
-           :name "rust_smart_edit"
-           :description "Transactional native tool for intelligent Rust (.rs) code editing via Tempel Snippets, symbol refactoring, and in-memory validation (rustfmt/cargo)."
-           :args '((:name "target_file" :type string :description "Target .rs file path")
-                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol' or 'validate_buffer'")
-                   (:name "snippet_name" :type string :description "Tempel snippet name (e.g. 'fn', 'struct', 'enum', 'impl', 'trait', 'async_fn', 'tokio_main', 'test_case')")
-                   (:name "args" :type string :description "Positional or symbol replacement arguments")
-                   (:name "reason" :type string :description "Reason for edit"))
-           :function #'+carlos/magent-tool-rust-smart-edit
-           :category "magent"))
+    
 
-    (setq +carlos/magent-tool-forge-read-issue
-          (gptel-make-tool
-           :name "forge_read_issue"
-           :description "Read a GitHub/GitLab issue or pull request from the local Forge database with zero hallucination: returns structured state, author, truncated body and full comment history. Requires the repository to be synced (M-x forge-pull)."
-           :args '((:name "issue_number_or_url" :type string :description "Issue/PR reference: number ('123'), '#123', 'owner/repo#123' or the full URL")
-                   (:name "reason" :type string :description "Reason for reading this topic"))
-           :function #'+carlos/magent-tool-forge-read-issue
-           :category "magent"))
+    
 
-;; ── Docker Native Tools ──────────────────────────────────────────────
-(defvar +carlos/magent-tool-docker-ps nil "Gptel tool for Docker ps.")
-(defvar +carlos/magent-tool-docker-logs nil "Gptel tool for Docker logs.")
-(defvar +carlos/magent-tool-docker-action nil "Gptel tool for Docker container actions.")
+    ;; ── Docker Native Tools ──────────────────────────────────────────────
+    
+    
+    
 
-(defun +carlos/magent-tool-docker-ps (&optional all filter remote-host _reason)
-  "List Docker containers (local or TRAMP) in structured JSON format."
-  (let* ((default-directory (if (and remote-host (not (string-empty-p remote-host)))
-                                (file-name-as-directory remote-host)
-                              default-directory))
-         (args (list "ps" "--format" "{{json .}}"))
-         (_ (when (and all (or (equal all "true") (eq all t))) (setq args (cons "ps" (cons "-a" (cdr args))))))
-         (_ (when (and filter (not (string-empty-p filter)))
-              (setq args (append args (list "-f" filter)))))
-         (output (condition-case err
-                     (with-output-to-string
-                       (with-current-buffer standard-output
-                         (apply #'process-lines "docker" args)))
-                   (error (format "Error running docker ps: %s" (error-message-string err))))))
-    (if (string-prefix-p "Error" output)
-        (+carlos/magent-tool-result (list (cons "status" "error") (cons "message" output)))
-      (let ((lines (split-string output "\n" t)))
-        (+carlos/magent-tool-result
-         (list (cons "status" "success")
-               (cons "count" (length lines))
-               (cons "containers_raw" (+carlos/magent-sanitize-string (mapconcat #'identity lines "\n")))))))))
+    
 
-(defun +carlos/magent-tool-docker-logs (container-id &optional tail grep-pattern remote-host _reason)
-  "Inspect container logs with tail limit and optional grep pattern."
-  (if (or (not container-id) (string-empty-p container-id))
-      (+carlos/magent-tool-result '((status . "error") (message . "container_id parameter is required")))
-    (let* ((default-directory (if (and remote-host (not (string-empty-p remote-host)))
-                                  (file-name-as-directory remote-host)
-                                default-directory))
-           (n-lines (or tail "100"))
-           (cmd (format "docker logs --tail %s %s 2>&1"
-                        (shell-quote-argument n-lines)
-                        (shell-quote-argument container-id)))
-           (raw-output (shell-command-to-string cmd))
-           (sanitized (+carlos/magent-sanitize-string raw-output))
-           (lines (split-string sanitized "\n" t))
-           (filtered-lines (if (and grep-pattern (not (string-empty-p grep-pattern)))
-                               (cl-remove-if-not (lambda (line) (string-match-p grep-pattern line)) lines)
-                             lines)))
-      (+carlos/magent-tool-result
-       (list (cons "status" "success")
-             (cons "container" container-id)
-             (cons "matching_lines" (length filtered-lines))
-             (cons "logs" (mapconcat #'identity (cl-subseq filtered-lines 0 (min (length filtered-lines) 100)) "\n")))))))
+    
 
-(defun +carlos/magent-tool-docker-action (container-id action &optional remote-host _reason)
-  "Perform action (start, stop, restart, remove) on a Docker container."
-  (if (or (not container-id) (string-empty-p container-id)
-          (not action) (string-empty-p action))
-      (+carlos/magent-tool-result '((status . "error") (message . "container_id and action parameters are required")))
-    (let ((act (downcase action)))
-      (if (not (member act '("start" "stop" "restart" "remove" "rm")))
-          (+carlos/magent-tool-result (list (cons "status" "error")
-                                            (cons "message" (format "Unsupported action: %s. Allowed: start, stop, restart, remove." action))))
+    
+
+    ;; ── Systemd Native Tools ─────────────────────────────────────────────
+    
+    
+    
+
+    
+
+    
+
+    
+
+    ;; ── Log Inspection Native Tool ──────────────────────────────────────
+    (defvar +carlos/magent-tool-log-inspect nil "Gptel tool for log file inspection.")
+
+    (defun +carlos/magent-tool-log-inspect (log-path &optional regex severity tail remote-host _reason)
+      "Inspect log file (local or via TRAMP) with filtering by regex and severity."
+      (if (or (not log-path) (string-empty-p log-path))
+          (+carlos/magent-tool-result '((status . "error") (message . "log_path parameter is required")))
         (let* ((default-directory (if (and remote-host (not (string-empty-p remote-host)))
                                       (file-name-as-directory remote-host)
                                     default-directory))
-               (real-act (if (equal act "remove") "rm" act))
-               (cmd (format "docker %s %s" real-act (shell-quote-argument container-id)))
-               (output (+carlos/magent-sanitize-string (shell-command-to-string cmd))))
-          (+carlos/magent-tool-result
-           (list (cons "status" "success")
-                 (cons "container" container-id)
-                 (cons "action" act)
-                 (cons "output" (string-trim output)))))))))
+               (full-path (expand-file-name log-path default-directory)))
+          (if (not (file-exists-p full-path))
+              (+carlos/magent-tool-result (list (cons "status" "error")
+                                                (cons "message" (format "Log file not found: %s" log-path))))
+            (let* ((n-lines (or tail "100"))
+                   (cmd (format "tail -n %s %s" (shell-quote-argument n-lines) (shell-quote-argument full-path)))
+                   (raw (+carlos/magent-sanitize-string (shell-command-to-string cmd)))
+                   (lines (split-string raw "\n" t))
+                   (filtered lines))
+              (when (and severity (not (string-empty-p severity)))
+                (setq filtered (cl-remove-if-not
+                                (lambda (line) (string-match-p (regexp-quote severity) line))
+                                filtered)))
+              (when (and regex (not (string-empty-p regex)))
+                (setq filtered (cl-remove-if-not
+                                (lambda (line) (string-match-p regex line))
+                                filtered)))
+              (+carlos/magent-tool-result
+               (list (cons "status" "success")
+                     (cons "log_path" log-path)
+                     (cons "total_lines_read" (length lines))
+                     (cons "matched_count" (length filtered))
+                     (cons "lines" (mapconcat #'identity (cl-subseq filtered 0 (min (length filtered) 100)) "\n")))))))))
 
-;; ── Systemd Native Tools ─────────────────────────────────────────────
-(defvar +carlos/magent-tool-systemd-status nil "Gptel tool for systemd unit status.")
-(defvar +carlos/magent-tool-systemd-action nil "Gptel tool for systemd actions.")
-(defvar +carlos/magent-tool-systemd-journal nil "Gptel tool for systemd journalctl.")
+    
 
-(defun +carlos/magent-tool-systemd-status (unit &optional remote-host _reason)
-  "Inspect systemd unit status in JSON-safe format."
-  (if (or (not unit) (string-empty-p unit))
-      (+carlos/magent-tool-result '((status . "error") (message . "unit parameter is required")))
-    (let* ((default-directory (if (and remote-host (not (string-empty-p remote-host)))
-                                  (file-name-as-directory remote-host)
-                                default-directory))
-           (cmd (format "systemctl show %s --property=Id,ActiveState,SubState,UnitFileState,LoadState,Description,ExecMainPID"
-                        (shell-quote-argument unit)))
-           (raw (+carlos/magent-sanitize-string (shell-command-to-string cmd)))
-           (lines (split-string raw "\n" t))
-           (props nil))
-      (dolist (line lines)
-        (when (string-match "\\([^=]+\\)=\\(.*\\)" line)
-          (push (cons (downcase (match-string 1 line)) (match-string 2 line)) props)))
-      (+carlos/magent-tool-result
-       (append (list (cons "status" "success") (cons "unit" unit)) props)))))
+    
 
-(defun +carlos/magent-tool-systemd-action (unit action &optional remote-host _reason)
-  "Execute systemctl action on UNIT."
-  (if (or (not unit) (string-empty-p unit)
-          (not action) (string-empty-p action))
-      (+carlos/magent-tool-result '((status . "error") (message . "unit and action parameters are required")))
-    (let ((act (downcase action)))
-      (if (not (member act '("start" "stop" "restart" "reload" "enable" "disable")))
-          (+carlos/magent-tool-result (list (cons "status" "error")
-                                            (cons "message" (format "Unsupported action: %s. Allowed: start, stop, restart, reload, enable, disable." action))))
-        (let* ((default-directory (if (and remote-host (not (string-empty-p remote-host)))
-                                      (file-name-as-directory remote-host)
-                                    default-directory))
-               (cmd (format "systemctl %s %s" act (shell-quote-argument unit)))
-               (output (+carlos/magent-sanitize-string (shell-command-to-string cmd))))
-          (+carlos/magent-tool-result
-           (list (cons "status" "success")
-                 (cons "unit" unit)
-                 (cons "action" act)
-                 (cons "message" (if (string-empty-p output) (format "Unit %s %ssuccessfully." unit act) (string-trim output))))))))))
+    
 
-(defun +carlos/magent-tool-systemd-journal (unit &optional tail priority remote-host _reason)
-  "Inspect systemd journalctl entries for a unit."
-  (if (or (not unit) (string-empty-p unit))
-      (+carlos/magent-tool-result '((status . "error") (message . "unit parameter is required")))
-    (let* ((default-directory (if (and remote-host (not (string-empty-p remote-host)))
-                                  (file-name-as-directory remote-host)
-                                default-directory))
-           (n-lines (or tail "50"))
-           (p-flag (if (and priority (not (string-empty-p priority)))
-                       (format "-p %s " (shell-quote-argument priority))
-                     ""))
-           (cmd (format "journalctl -u %s -n %s %s--no-pager"
-                        (shell-quote-argument unit)
-                        (shell-quote-argument n-lines)
-                        p-flag))
-           (raw (+carlos/magent-sanitize-string (shell-command-to-string cmd)))
-           (lines (split-string raw "\n" t)))
-      (+carlos/magent-tool-result
-       (list (cons "status" "success")
-             (cons "unit" unit)
-             (cons "priority_filter" (or priority "none"))
-             (cons "entries_count" (length lines))
-             (cons "journal" (mapconcat #'identity (cl-subseq lines 0 (min (length lines) 100)) "\n")))))))
+    
 
-;; ── Log Inspection Native Tool ──────────────────────────────────────
-(defvar +carlos/magent-tool-log-inspect nil "Gptel tool for log file inspection.")
+    
 
-(defun +carlos/magent-tool-log-inspect (log-path &optional regex severity tail remote-host _reason)
-  "Inspect log file (local or via TRAMP) with filtering by regex and severity."
-  (if (or (not log-path) (string-empty-p log-path))
-      (+carlos/magent-tool-result '((status . "error") (message . "log_path parameter is required")))
-    (let* ((default-directory (if (and remote-host (not (string-empty-p remote-host)))
-                                  (file-name-as-directory remote-host)
-                                default-directory))
-           (full-path (expand-file-name log-path default-directory)))
-      (if (not (file-exists-p full-path))
-          (+carlos/magent-tool-result (list (cons "status" "error")
-                                            (cons "message" (format "Log file not found: %s" log-path))))
-        (let* ((n-lines (or tail "100"))
-               (cmd (format "tail -n %s %s" (shell-quote-argument n-lines) (shell-quote-argument full-path)))
-               (raw (+carlos/magent-sanitize-string (shell-command-to-string cmd)))
-               (lines (split-string raw "\n" t))
-               (filtered lines))
-          (when (and severity (not (string-empty-p severity)))
-            (setq filtered (cl-remove-if-not
-                            (lambda (line) (string-match-p (regexp-quote severity) line))
-                            filtered)))
-          (when (and regex (not (string-empty-p regex)))
-            (setq filtered (cl-remove-if-not
-                            (lambda (line) (string-match-p regex line))
-                            filtered)))
-          (+carlos/magent-tool-result
-           (list (cons "status" "success")
-                 (cons "log_path" log-path)
-                 (cons "total_lines_read" (length lines))
-                 (cons "matched_count" (length filtered))
-                 (cons "lines" (mapconcat #'identity (cl-subseq filtered 0 (min (length filtered) 100)) "\n")))))))))
-
-    (setq +carlos/magent-tool-docker-ps
-          (gptel-make-tool
-           :name "docker_ps"
-           :description "List Docker containers (local or remote via TRAMP) with ID, image, status, ports and names in structured format."
-           :args '((:name "all" :type string :description "Optional: 'true' to include stopped containers (docker ps -a)")
-                   (:name "filter" :type string :description "Optional filter (e.g. 'name=web' or 'status=running')")
-                   (:name "remote_host" :type string :description "Optional TRAMP prefix (e.g. '/ssh:admin@192.168.1.100:')")
-                   (:name "reason" :type string :description "Reason for listing containers"))
-           :function #'+carlos/magent-tool-docker-ps
-           :category "magent"))
-
-    (setq +carlos/magent-tool-docker-logs
-          (gptel-make-tool
-           :name "docker_logs"
-           :description "Inspect recent logs of a Docker container with tail limit and optional regex filter."
-           :args '((:name "container_id" :type string :description "Container name or ID")
-                   (:name "tail" :type string :description "Optional number of lines to tail (default '100')")
-                   (:name "grep_pattern" :type string :description "Optional regex filter for log lines")
-                   (:name "remote_host" :type string :description "Optional TRAMP prefix")
-                   (:name "reason" :type string :description "Reason for log inspection"))
-           :function #'+carlos/magent-tool-docker-logs
-           :category "magent"))
-
-    (setq +carlos/magent-tool-docker-action
-          (gptel-make-tool
-           :name "docker_action"
-           :description "Perform lifecycle action (start, stop, restart, remove) on a Docker container."
-           :args '((:name "container_id" :type string :description "Container name or ID")
-                   (:name "action" :type string :description "Action: 'start', 'stop', 'restart', 'remove'")
-                   (:name "remote_host" :type string :description "Optional TRAMP prefix")
-                   (:name "reason" :type string :description "Reason for container action"))
-           :function #'+carlos/magent-tool-docker-action
-           :category "magent"))
-
-    (setq +carlos/magent-tool-systemd-status
-          (gptel-make-tool
-           :name "systemd_status"
-           :description "Inspect systemd unit status (active, inactive, failed, enabled) in structured JSON-safe format."
-           :args '((:name "unit" :type string :description "Systemd unit name (e.g. 'nginx.service' or 'docker')")
-                   (:name "remote_host" :type string :description "Optional TRAMP prefix")
-                   (:name "reason" :type string :description "Reason for status inspection"))
-           :function #'+carlos/magent-tool-systemd-status
-           :category "magent"))
-
-    (setq +carlos/magent-tool-systemd-action
-          (gptel-make-tool
-           :name "systemd_action"
-           :description "Execute systemctl management action (start, stop, restart, reload, enable, disable) on a unit."
-           :args '((:name "unit" :type string :description "Systemd unit name")
-                   (:name "action" :type string :description "Action: 'start', 'stop', 'restart', 'reload', 'enable', 'disable'")
-                   (:name "remote_host" :type string :description "Optional TRAMP prefix")
-                   (:name "reason" :type string :description "Reason for unit action"))
-           :function #'+carlos/magent-tool-systemd-action
-           :category "magent"))
-
-    (setq +carlos/magent-tool-systemd-journal
-          (gptel-make-tool
-           :name "systemd_journal"
-           :description "Inspect journalctl logs for a systemd unit with tail limit and priority filter."
-           :args '((:name "unit" :type string :description "Systemd unit name")
-                   (:name "tail" :type string :description "Optional line count (default '50')")
-                   (:name "priority" :type string :description "Optional priority filter: 'err', 'warning', 'info', etc.")
-                   (:name "remote_host" :type string :description "Optional TRAMP prefix")
-                   (:name "reason" :type string :description "Reason for journal inspection"))
-           :function #'+carlos/magent-tool-systemd-journal
-           :category "magent"))
+    
 
     (setq +carlos/magent-tool-log-inspect
           (gptel-make-tool
@@ -3407,14 +1719,7 @@ REASON: Motivo da alteração."
            :function #'+carlos/magent-tool-log-inspect
            :category "magent"))
 
-    (setq +carlos/magent-tool-forge-list-pull-requests
-          (gptel-make-tool
-           :name "forge_list_pull_requests"
-           :description "List open pull requests and issues of the active repository from the local Forge database, newest first, in token-efficient structured format."
-           :args '((:name "state" :type string :description "Optional filter: 'open' (default), 'closed' or 'all'")
-                   (:name "reason" :type string :description "Reason for listing topics"))
-           :function #'+carlos/magent-tool-forge-list-pull-requests
-           :category "magent"))
+    
 
     (when (featurep 'magent-tools)
       (+carlos/magent-register-tools))))

@@ -449,6 +449,21 @@ Returns nil."
     (setq +carlos/magent-ui-spinner-marker nil))
   nil)
 
+(defun +carlos/magent-ui-on-fsm-state-changed (prev new-state)
+  "Escuta transições da FSM e liga/desliga o spinner da UI de forma reativa."
+  (cond
+   ((eq new-state 'subagent-waiting)
+    (+carlos/magent-ui-spinner-start))
+   ((eq prev 'subagent-waiting)
+    (+carlos/magent-ui-spinner-stop))))
+
+(defun +carlos/magent-ui-on-fsm-reset ()
+  "Garante que o spinner seja interrompido quando a FSM sofrer hard-reset."
+  (+carlos/magent-ui-spinner-stop))
+
+(add-hook 'magent-fsm-state-changed-hook #'+carlos/magent-ui-on-fsm-state-changed)
+(add-hook 'magent-fsm-reset-hook #'+carlos/magent-ui-on-fsm-reset)
+
 ;; ── Permissões: roteamento centralizado de aprovações ─────────────
 (defcustom +carlos/magent-approval-prefer-acp t
   "Quando non-nil, aprovações de sessões ACP usam os botões visuais do chat.

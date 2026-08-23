@@ -118,6 +118,7 @@
     (add-to-list 'corfu-margin-formatters #'nerd-icons-corfu-formatter)))
 
 ;; ── cape ────────────────────────────────────────────────────────────
+(declare-function python-completion-at-point "python")
 (defun +carlos/cape-setup-eglot-capf ()
   "Merge LSP completion with Tempel snippets, python-completion, and Cape helpers."
   (setq-local completion-at-point-functions
