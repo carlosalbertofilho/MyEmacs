@@ -31,6 +31,56 @@
 
 (defvar +carlos/magent-tool-rust-smart-edit nil)
 
+;; ── Infraestrutura transacional compartilhada ─────────────────────────
+
+(defun +carlos/magent--smart-edit-transaction (buf kind thunk)
+  "Executa THUNK em BUF como uma transação validada por KIND.
+KIND é `code' (check-parens) ou `org' (org-lint). THUNK realiza apenas
+mutações no buffer e devolve a mensagem de sucesso. Em falha de
+validação, restaura o buffer byte-a-byte do snapshot pré-mutação,
+persiste a restauração e devolve a mensagem de erro sem sinalizar."
+  (let ((snapshot (with-current-buffer buf
+                    (buffer-substring-no-properties (point-min) (point-max)))))
+    (with-current-buffer buf
+      (condition-case err
+          (let ((msg (funcall thunk)))
+            (pcase kind
+              ('org (when (fboundp 'org-lint)
+                      (let ((reports (org-lint)))
+                        (when reports
+                          (error "org-lint reportou %d problema(s)" (length reports))))))
+              (_ (save-excursion (check-parens))))
+            (save-buffer)
+            msg)
+        (error
+         (erase-buffer)
+         (insert snapshot)
+         (save-buffer)
+         (format "Erro: %s. Transação revertida." (error-message-string err)))))))
+
+(defun +carlos/magent--smart-edit-replace-core (old new &optional flags)
+  "Substitui OLD por NEW respeitando FLAGS; devolve contagem.
+FLAGS (opcional): nil/vazio/\"ALL\" = literal global (default);
+\"FIRST\" = primeira ocorrência; \"WORD\" = limitado a fronteiras de
+símbolo; \"REGEX\" = trata OLD como expressão regular."
+  (goto-char (point-min))
+  (let* ((flag (and flags (upcase flags)))
+         (first-p (equal flag "FIRST"))
+         (pattern (pcase flag
+                    ("REGEX" old)
+                    ("WORD" (concat "\\_<" (regexp-quote old) "\\_>"))))
+         (count 0))
+    (if pattern
+        (while (re-search-forward pattern nil t)
+          (replace-match new t t)
+          (setq count (1+ count))
+          (when first-p (goto-char (point-max))))
+      (while (search-forward old nil t)
+        (replace-match new t t)
+        (setq count (1+ count))
+        (when first-p (goto-char (point-max)))))
+    count))
+
 (defun +carlos/magent-tool-elisp-smart-edit (target-file action &optional snippet-name args _reason)
   "Ferramenta transacional para edição inteligente de arquivos Elisp (.el).
 TARGET-FILE: Caminho do arquivo .el.
@@ -520,15 +570,27 @@ REASON: Motivo da alteração."
             (format "Erro de validação no buffer Go '%s': %s" abs-file (error-message-string err)))))
         (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol' ou 'validate_buffer'." action))))))
 
+
+
+
 (defun +carlos/magent-tool-org-smart-edit (target-file action &optional snippet-name args _reason)
   "Ferramenta transacional para edição da AST do Org-mode (.org).
 TARGET-FILE: Caminho do arquivo .org.
-ACTION: `insert_snippet', `refactor_symbol', `set_property'
-ou `validate_buffer'.
+ACTION: `insert_snippet', `refactor_symbol', `set_property',
+`replace_heading', `replace_text' ou `validate_buffer'.
 SNIPPET-NAME: Nome do snippet Tempel (ex: `heading', `properties_drawer',
 `table', `src_block').
-ARGS: Argumentos. Para `set_property', passe
-`Heading Exato|PROPRIEDADE|VALOR'.
+ARGS:
+- `insert_snippet': texto livre do snippet.
+- `refactor_symbol': \"antigo novo [FLAGS]\", FLAGS opcional
+  ALL|FIRST|WORD|REGEX (default ALL).
+- `set_property': \"Heading Exato|PROPRIEDADE|VALOR\" (casamento exato
+  de :raw-value via AST).
+- `replace_heading': \"heading-exato|novo-titulo\" (preserva nível,
+  keyword e tags).
+- `replace_text': \"old|new|L1|L2\" restrito ao intervalo de linhas.
+Toda mutação passa pelo gate transacional compartilhado (snapshot +
+org-lint + restore byte-a-byte em falha).
 REASON: Motivo da alteração."
   (let* ((abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
                                                           (when-let* ((p (project-current)))
@@ -555,27 +617,85 @@ REASON: Motivo da alteração."
                        (t
                         (format "* TODO %s\n    :PROPERTIES:\n    :CREATED: %s\n    :STATUS: pendente\n    :END:\n\n"
                                 arg-str (format-time-string "%Y-%m-%d"))))))
-           (goto-char (point-max))
-           (unless (bolp) (insert "\n"))
-           (insert code)
-           (save-buffer)
-           (format "Snippet Org '%s' inserido com sucesso em '%s'." name abs-file)))
+           (+carlos/magent--smart-edit-transaction buf 'org
+             (lambda ()
+               (goto-char (point-max))
+               (unless (bolp) (insert "\n"))
+               (insert code)
+               (format "Snippet Org '%s' inserido com sucesso em '%s'." name abs-file)))))
         ("refactor_symbol"
          (if (or (null args) (string-empty-p args))
-             "Erro: informe os símbolos 'antigo novo' em args para refatorar."
+             "Erro: informe \"antigo novo [FLAGS]\" em args para refatorar."
            (let* ((parts (split-string args "[ \t]+" t))
-                  (old-sym (car parts))
-                  (new-sym (cadr parts)))
+                  (old-sym (nth 0 parts))
+                  (new-sym (nth 1 parts))
+                  (flags (nth 2 parts)))
              (if (and old-sym new-sym)
-                 (progn
-                   (goto-char (point-min))
-                   (let ((count 0))
-                     (while (search-forward old-sym nil t)
-                       (replace-match new-sym t t)
-                       (setq count (1+ count)))
-                     (save-buffer)
-                     (format "Refatoração Org '%s' -> '%s' concluída em '%s' (%d substituições)." old-sym new-sym abs-file count)))
+                 (+carlos/magent--smart-edit-transaction buf 'org
+                   (lambda ()
+                     (let ((count (+carlos/magent--smart-edit-replace-core old-sym new-sym flags)))
+                       (format "Refatoração Org '%s' -> '%s' concluída em '%s' (%d substituições%s)."
+                               old-sym new-sym abs-file count
+                               (if flags (format ", flags=%s" flags) "")))))
                "Erro: forneça 'velho novo' em args."))))
+        ("replace_heading"
+         (if (or (null args) (string-empty-p args))
+             "Erro: args deve ser 'heading-exato|novo-titulo'."
+           (let* ((parts (split-string args "|" t))
+                  (heading-text (nth 0 parts))
+                  (new-title (nth 1 parts)))
+             (if (and heading-text new-title)
+                 (+carlos/magent--smart-edit-transaction buf 'org
+                   (lambda ()
+                     (let* ((tree (org-element-parse-buffer))
+                            (node (org-element-map tree 'headline
+                                    (lambda (h)
+                                      (and (string-equal (org-element-property :raw-value h)
+                                                         heading-text)
+                                           h))
+                                    nil t)))
+                       (unless node
+                         (error "Heading '%s' não encontrado" heading-text))
+                       (goto-char (org-element-property :begin node))
+                       (delete-region (point) (progn (forward-line 1) (point)))
+                       (insert (concat
+                                (make-string (org-element-property :level node) ?*)
+                                (let ((kw (org-element-property :todo-keyword node)))
+                                  (if kw (concat " " kw) ""))
+                                (let ((prio (org-element-property :priority node)))
+                                  (if prio (format " [#%s]" prio) ""))
+                                " " new-title
+                                (let ((tags (org-element-property :tags node)))
+                                  (if tags (format " :%s:" (mapconcat #'identity tags ":")) ""))
+                                "\n"))
+                       (format "Heading '%s' renomeado para '%s' (nível, keyword e tags preservados)."
+                               heading-text new-title))))
+               "Erro: formato de args deve ser 'heading-exato|novo-titulo'."))))
+        ("replace_text"
+         (if (or (null args) (string-empty-p args))
+             "Erro: args deve ser 'old|new|L1|L2'."
+           (let* ((parts (split-string args "|" t))
+                  (old-txt (nth 0 parts))
+                  (new-txt (nth 1 parts))
+                  (l1 (and (nth 2 parts) (string-to-number (nth 2 parts))))
+                  (l2 (and (nth 3 parts) (string-to-number (nth 3 parts)))))
+             (cond
+              ((or (not old-txt) (not new-txt) (not l1) (not l2))
+               "Erro: formato de args deve ser 'old|new|L1|L2'.")
+              ((or (< l1 1) (< l2 l1) (> l2 (line-number-at-pos (point-max))))
+               (format "Erro: intervalo L%d-L%d inválido (arquivo tem %d linhas)."
+                       l1 l2 (line-number-at-pos (point-max))))
+              (t
+               (+carlos/magent--smart-edit-transaction buf 'org
+                 (lambda ()
+                   (save-excursion
+                     (save-restriction
+                       (narrow-to-region
+                        (save-excursion (goto-char (point-min)) (forward-line (1- l1)) (point))
+                        (save-excursion (goto-char (point-min)) (forward-line l2) (point)))
+                       (let ((count (+carlos/magent--smart-edit-replace-core old-txt new-txt)))
+                         (format "Substituição em L%d-L%d concluída (%d ocorrência(s))."
+                                 l1 l2 count)))))))))))
         ("set_property"
          (if (or (null args) (string-empty-p args))
              "Erro: args deve ser 'Heading|PROP|VALOR'."
@@ -584,14 +704,18 @@ REASON: Motivo da alteração."
                   (prop (nth 1 parts))
                   (val (nth 2 parts)))
              (if (and heading prop val)
-                 (progn
-                   (goto-char (point-min))
-                   (if (search-forward heading nil t)
-                       (progn
-                         (org-set-property prop val)
-                         (save-buffer)
-                         (format "Propriedade '%s' definida como '%s' no nó '%s'." prop val heading))
-                     (format "Erro: Nó '%s' não encontrado." heading)))
+                 (+carlos/magent--smart-edit-transaction buf 'org
+                   (lambda ()
+                     (let* ((tree (org-element-parse-buffer))
+                            (node (org-element-map tree 'headline
+                                    (lambda (h)
+                                      (and (string-equal (org-element-property :raw-value h) heading) h))
+                                    nil t)))
+                       (unless node
+                         (error "Nó '%s' não encontrado" heading))
+                       (goto-char (org-element-property :begin node))
+                       (org-set-property prop val)
+                       (format "Propriedade '%s' definida como '%s' no nó '%s'." prop val heading))))
                "Erro: formato de args deve ser 'Heading|PROP|VALOR'."))))
         ("validate_buffer"
          (if (fboundp 'org-lint)
@@ -600,7 +724,7 @@ REASON: Motivo da alteração."
                    (format "Avisos do org-lint no buffer '%s': %d" abs-file (length reports))
                  (format "Buffer Org '%s' validado e sintaticamente limpo." abs-file)))
            (format "Buffer Org '%s' carregado com sucesso." abs-file)))
-        (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol', 'set_property' ou 'validate_buffer'." action))))))
+        (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol', 'set_property', 'replace_heading', 'replace_text' ou 'validate_buffer'." action))))))
 
 (defun +carlos/magent-tool-sh-smart-edit (target-file action &optional snippet-name args _reason)
   "Ferramenta transacional para edição de scripts Shell/Bash (.sh, .bash).

@@ -7,81 +7,153 @@ description: "Strict guidelines on using MyEmacs native smart-edit tools instead
 
 ## The Golden Rule (Regra de Ouro)
 
-When working within the `MyEmacs` repository (`/Users/carlosfilho/Projects/Github/MyEmacs`), you **MUST ABSOLUTELY PREFER** using the native Emacs AST-aware tools to edit files rather than relying on your default capabilities (like `write_to_file`, `replace_file_content`, `multi_replace_file_content`, or arbitrary bash `sed`/`echo` patches).
+When working within the `MyEmacs` repository (`/Users/carlosfilho/Projects/Github/MyEmacs`), you **MUST ABSOLUTELY PREFER** using the native Emacs AST-aware tools to edit files rather than relying on your default capabilities (`write_to_file`, `replace_file_content`, multi-edit patches, or arbitrary bash `sed`/`echo`).
 
-This rule applies to all project files: `.el` (Elisp), `.org` (Org-mode), `.sh`/`.bash` (Shell scripts), `.py` (Python), `.ts`/`.js` (TypeScript/JavaScript), `.c`/`.h` (C/C++), `.go` (Go), `.md` (Markdown), `.nix` (Nix), and `.rs` (Rust).
+Applies to: `.el`, `.org`, `.sh`/`.bash`, `.py`, `.ts`/`.js`, `.c`/`.h`, `.go`, `.md`, `.nix`, `.rs`.
 
 ## Why?
 
-Your default file editing tools manipulate raw text and can easily break ASTs, cause indentation errors, or bypass validations. 
+Default tools manipulate raw text: they break ASTs, miscount parentheses in bulk edits, and bypass validation. Real incident (2026-08-24): a hand-written structural patch with a wrong anchor + hand-counted closers corrupted `custom-magent-tool-smart-edit.el` repeatedly. The native tools exist precisely to make that error class impossible: they are **transactional** (snapshot → mutation → gate → save; byte-for-byte restore on failure).
 
-The native `smart-edit` tools provided by MyEmacs are transactional. They use Emacs batch mode to insert, refactor, or validate code. If the code breaks (e.g. unmatched parentheses, compiler warnings, or linter errors like `shellcheck`), the transaction is automatically rolled back, keeping the repository safe.
+## Transactional guarantee (all smart-edit mutations)
 
-## How to use them
+1. Snapshot of the whole buffer before any change.
+2. Mutation runs inside a thunk.
+3. Gate before saving: `org-lint` for `.org`; `check-parens` (+ language checks) for code.
+4. On gate failure: buffer restored byte-a-byte from snapshot, restore persisted, error returned as message (never a half-edited file).
 
-You must orchestrate the native tools by calling `emacs --batch` via the `run_command` tool at the root of the project.
+## How to invoke
 
-### 1. Elisp (`.el`)
-Tool: `elisp_smart_edit`
-Validations: `check-parens`, byte-compiler, `checkdoc`
+From the repository root:
+
 ```bash
-# Insert a snippet
-emacs --batch -l init.el --eval '(message (+carlos/magent-tool-elisp-smart-edit "lisp/custom-magent.el" "insert_snippet" "defun" "(+carlos/my-func () (message \"hello\"))"))'
+# Repo context (fast, no package bootstrap):
+emacs --batch -Q -L lisp -l custom-magent-tool-smart-edit \
+  --eval '(message (+carlos/magent-tool-org-smart-edit "FILE" "ACTION" ...))'
 
-# Refactor a symbol
-emacs --batch -l init.el --eval '(message (+carlos/magent-tool-elisp-smart-edit "lisp/custom-magent.el" "refactor_symbol" "OLD_NAME NEW_NAME"))'
-
-# Validate buffer
-emacs --batch -l init.el --eval '(message (+carlos/magent-tool-elisp-smart-edit "lisp/custom-magent.el" "validate_buffer"))'
+# Full environment (when other custom-* deps are needed):
+emacs --batch -l init.el --eval '(message (+carlos/magent-tool-context_search "query"))'
 ```
 
-### 2. Org-mode (`.org`)
-Tool: `org_smart_edit`
-Validations: `org-lint`
-Actions: `insert_snippet`, `refactor_symbol`, `validate_buffer`, `set_property` (e.g. updating :STATUS: BACKLOG to DONE).
-```bash
-emacs --batch -l init.el --eval '(message (+carlos/magent-tool-org-smart-edit "TODO.org" "insert_snippet" "heading" "* Novo Planejamento"))'
+Prefer writing complex call scripts to a temp `.el` under `/tmp` and running `emacs --batch -Q -l script.el` — avoids shell-quoting corruption of nested quotes. One-liners are fine for simple calls.
 
-# Update a property (e.g., changing STATUS from BACKLOG to DONE)
-emacs --batch -l init.el --eval '(message (+carlos/magent-tool-org-smart-edit "TODO.org" "set_property" "heading_name_or_regex" "STATUS" "DONE"))'
+---
+
+## 1. Smart-Edit Family (transactional file editing)
+
+One tool per language, same signature:
+`(plus-carlos TOOL TARGET-FILE ACTION &optional SNIPPET-NAME ARGS REASON)`
+
+| Tool | File types | Extra validations |
+|------|-----------|-------------------|
+| `+carlos/magent-tool-elisp-smart-edit` | `.el` | check-parens |
+| `+carlos/magent-tool-nix-smart-edit` | `.nix` | delimiters |
+| `+carlos/magent-tool-python-smart-edit` | `.py` | py-compile/ruff |
+| `+carlos/magent-tool-ts-smart-edit` | `.ts`/`.js` | prettier/eslint |
+| `+carlos/magent-tool-c-smart-edit` | `.c`/`.h` | Norminette 42 |
+| `+carlos/magent-tool-go-smart-edit` | `.go` | gofmt/gopls |
+| `+carlos/magent-tool-org-smart-edit` | `.org` | **org-lint gate** |
+| `+carlos/magent-tool-sh-smart-edit` | `.sh`/`.bash` | shellcheck |
+| `+carlos/magent-tool-markdown-smart-edit` | `.md` | markdownlint |
+| `+carlos/magent-tool-rust-smart-edit` | `.rs` | rustfmt/cargo |
+
+Shared actions: `insert_snippet`, `refactor_symbol`, `validate_buffer`.
+
+### Org actions (canonical reference)
+
+```elisp
+;; Rename EXACTLY one heading (matched by exact :raw-value via AST);
+;; preserves level, TODO keyword, priority cookie and tags:
+(org-smart-edit "TODO.org" "replace_heading" nil
+                "Tarefa Alpha|Tarefa Alpha Renomeada")
+
+;; Global replace with optional FLAGS (3rd token of ARGS):
+;;   ALL (default) | FIRST | WORD (symbol boundaries) | REGEX
+(org-smart-edit "TODO.org" "refactor_symbol" nil "old new FIRST")
+(org-smart-edit "TODO.org" "refactor_symbol" nil "old new WORD")
+
+;; Line-range-restricted replace; errors on invalid range:
+(org-smart-edit "TODO.org" "replace_text" nil "old|new|L1|L2")
+
+;; Property on the AST-anchored node (exact raw-value match):
+(org-smart-edit "TODO.org" "set_property" nil "Heading Exato|STATUS|DONE")
 ```
 
-### 3. Shell Scripts (`.sh`, `.bash`)
-Tool: `sh_smart_edit`
-Validations: `shellcheck`
-Snippets: `script_header`, `function`, `parse_args`, `if_statement`, `case_statement`
+Snippets (SNIPPET-NAME): `heading`, `properties_drawer`, `table`, `src_block`.
+
+### Elisp snippets
+
+`defun`, `deftest`, `defcustom`, `use-package`, `with-eval-after-load`.
+Elisp-only action: `extract_sexp` (moves a sexp to another file, validating both).
+
+---
+
+## 2. Context & Knowledge (RAG)
+
 ```bash
-emacs --batch -l init.el --eval '(message (+carlos/magent-tool-sh-smart-edit "bin/my-script.sh" "insert_snippet" "script_header" "#!/bin/bash\nset -e"))'
+# Semantic search over project .org/.el knowledge:
+(+carlos/magent-tool-context_search "QUERY" &optional DIRECTORY)
+
+# Generate/update reference docs under docs/ from live Elisp introspection
+# (zero network, canonical header, :RAG:DOCS: tags):
+(+carlos/magent-tool-rag-create-doc SYMBOLS TARGET-FILE TITLE DESCRIPTION
+                                    &optional FILETAGS REASON)
 ```
 
-### Other Languages
-- Python: `python_smart_edit` (ruff/black/py-compile)
-- TypeScript: `ts_smart_edit` (prettier/eslint)
-- C/C++: `c_smart_edit` (Norminette 42)
-- Go: `go_smart_edit` (gofmt/gopls)
-- Nix: `nix_smart_edit` (nixfmt/statix)
-- Markdown: `markdown_smart_edit` (markdownlint/markitdown)
-- Rust: `rust_smart_edit` (rustfmt/cargo)
+## 3. Code Intelligence
 
-## 4. Advanced Native Tools (Omniscience & DevOps)
-
-MyEmacs provides advanced introspection and testing tools. You should prefer these over standard bash commands like `grep`, `find`, or invoking `pytest`/`ert` manually.
-
-- **AST Search (`magent-tool-treesit-query`)**: Uses Tree-sitter for structural code queries (functions, classes) saving thousands of tokens compared to `view_file`.
 ```bash
-emacs --batch -l init.el --eval '(require '\''custom-magent-tools)' --eval '(message (+carlos/magent-tool-treesit-query "python" "(function_definition name: (identifier) @name)" "path/to/file.py"))'
+(+carlos/magent-tool-flycheck-errors PATH)                 # diagnostics for a file
+(+carlos/magent-tool-lsp-navigation "SYM" &optional ACTION) # definition/references
+(+carlos/magent-tool-lsp ACTION PATH QUERY-STR)             # generic lsp-bridge
+(+carlos/magent-tool-treesit-query LANG "QUERY" &rest ARGS) # tree-sitter AST query
+(+carlos/magent-tool-snippet-expand NAME &optional ACTION MODE) # tempel expansion
 ```
 
-- **Test Runner (`magent-tool-ert-runner`)**: Runs ERT tests isolated and captures smart stack traces upon failure.
+## 4. Git / Forge (`custom-magent-tool-git.el`)
+
 ```bash
-emacs --batch -l init.el --eval '(require '\''custom-magent-tools)' --eval '(message (+carlos/magent-tool-ert-runner "my-test-selector"))'
+magit-status / magit-stage / magit-commit / magit-push / magit-pull
+magit-checkout / magit-diff / magit-log / magit-merge / magit-rebase
+magit-branch-list / magit-branch-delete
+magit-submodule-list / magit-submodule-update / magit-submodule-add
+forge-list-pull-requests / forge-read-issue
+forge-create-issue TITLE BODY / forge-create-pull-request TITLE BODY BASE HEAD
+forge-post-comment ISSUE-NUMBER-OR-URL BODY
 ```
 
-- **Package Manager (`magent-tool-elpaca`)**: Manages and queries Elpaca dependencies.
+## 5. Tests & Debugging
+
 ```bash
-emacs --batch -l init.el --eval '(require '\''custom-magent-tools)' --eval '(message (+carlos/magent-tool-elpaca "status" "magit"))'
+(+carlos/magent-tool-ert-runner "SELECTOR")   # isolated ERT run + smart stacktrace
+(+carlos/magent-tool-debug ACTION &optional ARG1 ARG2)
 ```
+
+## 6. Environment & DevOps
+
+```bash
+(+carlos/magent-tool-elpaca ACTION &optional PKG ARGS)  # package manager state
+docker-ps / docker-logs / docker-action                 # containers (remote-host aware)
+systemd-status / systemd-action / systemd-journal       # services (remote-host aware)
+rfc-search-topic QUERY / rfc-read-section NUMBER SECTION
+```
+
+## 7. Model routing
+
+```elisp
+(+carlos/magent-tool-select-model ...) ; tier-aware model selection used by subagents
+```
+
+---
+
+## Lessons learned (encode these habits)
+
+1. **Never hand-count parentheses in bulk structural edits.** Build text via `pp` of real data, or make single-token anchored changes verified by `syntax-ppss` depth checks.
+2. **Anchors must match reality byte-for-byte** — grep the file first; remember punctuation often lives inside string literals (e.g. `'.'` in format strings).
+3. **Verify structure by depth, not by eye**: compare `(nth 0 (syntax-ppss))` across sibling forms; uniform depth == balanced siblings.
+4. After ANY structural edit: `just compile` (zero-warning gate) before committing.
 
 ## Exceptions
-- If you are creating a temporary, "throwaway" script outside the project scope (e.g., in `/tmp/`), you may use your standard `write_to_file` tool to save tokens and time. 
-- However, if the user explicitly asks you to be rigorous even with temporary files, use `sh_smart_edit` to initialize them.
+
+- Throwaway scripts outside the project scope (`/tmp`) may use default write tools.
+- If the user explicitly demands rigor even for throwaways, initialize them with `sh_smart_edit`.

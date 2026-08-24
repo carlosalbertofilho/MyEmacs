@@ -90,10 +90,13 @@ Arquivo-alvo: =lisp/custom-magent-tool-smart-edit.el=. Incidente (2026-08-24):
 =refactor_symbol= usa =(search-forward old nil t)= sem =regexp-quote= — ao passar
 uma string contendo asteriscos de heading (ex.: ="* TODO ** TODO"=), o padrão casou
 com todos os headings do arquivo e destruiu o TODO.org inteiro.
-- [ ] Nova ação =replace_heading= (AST-aware): localizar o heading exato pelo texto (=raw-value=) via =org-element-map= e modificar apenas ele, preservando nível e keyword (=TODO=/=DONE=). Nunca toca em outros headings (~20 linhas). Prioridade Alta.
-- [ ] Nova ação =replace_text= (range de linhas): substituição genérica limitada a um intervalo (args: ="old|new|L1|L2"=), evitando cascata global; fallback quando =replace_heading= não se aplica (~15 linhas). Prioridade Média.
-- [ ] Endurecer =refactor_symbol= existente: adicionar =regexp-quote= ao pattern e flags opcionais (=FIRST=, =WORD=, =REGEX=); default continua ALL (backward-compatible, agora seguro; ~10 linhas alteradas). Prioridade Média.
-- [ ] Testes ERT para as três ações, incluindo regressão do incidente (padrão com asteriscos não deve vazar além do alvo).
+    - [ ] Helper transacional =+carlos/magent--smart-edit-transaction=: snapshot =(buffer-substring)= antes da mutação, gate pós-mutação (=org-lint= para .org / =check-parens= para código) e restore byte-a-byte em erro. Substitui o =primitive-undo= mal usado nas variantes elisp/go (espera undo-list, não buffer — rollback atual é fictício).
+    - [ ] Endurecer =refactor_symbol=: flags opcionais =FIRST=|=WORD=|=REGEX=|=ALL= (default =ALL=, backward-compat), executando dentro do helper transacional. Diagnóstico corrigido: =search-forward= já é literal — o perigo real é substituição global sem âncora AST e sem transação (incidente 2026-08-24).
+    - [ ] Nova ação =replace_heading= (AST-aware): casar =:raw-value= exato via =org-element-map=, editar apenas a linha do heading preservando STARS/KEYWORD/tags (~20 linhas). Prioridade Alta.
+    - [ ] Ancorar =set_property= no mesmo primitivo AST (a busca solta atual pode definir propriedade no nó errado).
+    - [ ] Nova ação =replace_text= com range validado (args: ="old|new|L1|L2"=; erro se L1>L2 ou fora do buffer; reporta contagem). Prioridade Média.
+    - [ ] Testes ERT: regressão do incidente (padrão com asteriscos não vaza além do alvo), rollback forçado (arquivo restaurado idêntico byte-a-byte), contratos das ações novas e das flags.
+    - [ ] Atualizar =docs/magent-reference.org= (regra de ouro: API Magent documentada) e flip deste nó para DONE.
 - Link to plan: [[file:../.gemini/antigravity-cli/brain/6939fb0d-b068-4595-850d-99e9321fe46f/plan_consolidated.md][Plano Consolidado §2]]
 
 ** TODO 5. Evoluir =bin/magent-cli= — CLI auto-descritiva
