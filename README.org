@@ -259,3 +259,12 @@ A integração com a Norminette da 42 School foi reimplementada:
 - Norminette: https://github.com/42School/norminette
 - SuperChat: https://github.com/yibie/superchat
 - MCP.el: https://github.com/lizqwerscott/mcp.el
+* TODO * Arquitetura Proxy Híbrido (AGY)
+O ecossistema MyEmacs foi elevado com a introdução do =agy-proxy=, um servidor Python que aplica Roteamento FSM baseado em Hardware (FinOps).
+- **M2 (agnes):** Orquestrador local =gemma4=, Planejamento via Nuvem (Gemini) e Edição via =big-pickle=.
+- **EliteDesk (aa102-006l):** Orquestrador =gemini-2.5-flash=, Planejamento via Nuvem e Edição via =big-pickle=.
+    :PROPERTIES:
+    :CREATED: 2026-08-24
+    :STATUS: pendente
+    :END:
+

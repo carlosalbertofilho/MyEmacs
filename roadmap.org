@@ -1846,3 +1846,13 @@ Catálogo de 257 regras movido em 2026-08-16 para o arquivo dedicado
 - gptel-agent: https://github.com/karthink/gptel-agent
 - Dirvish: https://github.com/alexluigit/dirvish
 - Denote: https://protesilaos.com/emacs/denote
+* TODO ** 2026-08-24 — [CONCLUÍDO] Fase 4: Ponte Proxy HTTP OpenAI (FSM Quota & Model Mapping)
+   - Implementado servidor Proxy HTTP assíncrono em Python (agy-proxy).
+   - Motor de execução de tools nativas Lisp no backend (tool_bridge e magent-cli).
+   - Roteamento inteligente FSM com fallback de cota preemptivo.
+   - Definida a Matriz de Roteamento Híbrido sensível ao host (gemma4/agnes vs gemini-flash/aa102-006l).
+    :PROPERTIES:
+    :CREATED: 2026-08-24
+    :STATUS: pendente
+    :END:
+

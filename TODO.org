@@ -187,3 +187,12 @@ O Proxy resolve isso agindo como ponte de inversão de controle.
     :STATUS: pendente
     :END:
 
+* TODO ** TODO Matriz de Roteamento Híbrido e Model Mapping no Proxy
+- [ ] Implementar dicionário model_mapping no proxy.toml
+- [ ] Atualizar upstream.py para ler o map e a Role
+- [ ] Testar rotas com agnes e aa102-006l
+    :PROPERTIES:
+    :CREATED: 2026-08-24
+    :STATUS: pendente
+    :END:
+

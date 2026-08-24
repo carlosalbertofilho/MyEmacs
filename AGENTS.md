@@ -149,7 +149,9 @@ Decisões de produto do usuário que sobrepõem diretrizes genéricas (2026-08-0
   do Emacs. Não remover sem perguntar.
 - **Savepoint v1.0 — FSM Resilience & FinOps $0.00 (Commit `267645d` / Tag `savepoint` / `savepoint-v1.0-fsm-resilience`):**
   - **Motor FSM & Resiliência:** 3 Pilares implementados (Circuit Breaker stateful, Sanitizador ANSI/XML `+carlos/magent-sanitize-string`, Dynamic GC 100MB e Auto-Resync de `buffer_conflict`).
-  - **Matriz de Roteamento FinOps:** 100% alinhada para Free Tier $0.00 (`gemini-2.5-flash` orquestrador, `big-pickle` especialista).
+  - **Matriz de Roteamento Híbrida (FinOps $0.00 + Performance):** Topologia sensível ao Host:
+    - **agnes (Mac M2):** `gemma4` local (Orquestrador, GPU Metal) / `agy` via Proxy Gemini (Planejamento/QA) / `big-pickle` local (Editor Especialista).
+    - **aa102-006l (EliteDesk):** `gemini-2.5-flash` nuvem (Orquestrador, poupa CPU) / `agy` via Proxy Gemini (Planejamento/QA) / `big-pickle` local (Editor).
   - **Bateria de Delegação:** 12 Rounds executados e validados com 100% de sucesso (12/12 PASSED).
   - **Suíte de Testes ERT:** 422/422 testes passados (0 falhas) e compilação `compile-prod` com 0 Warnings.
 
@@ -282,7 +284,7 @@ Regras:
 | Missing `:ensure nil` for built-in packages | Unnecessary MELPA lookup | Always add `:ensure nil` |
 | Hardcoded paths | Not portable | Use `expand-file-name` with `~` or variables |
 | `magit-git-string` without magit loaded | Void function | Use `shell-command-to-string` or `vc-git-*` |
-| Generic Bash/Sed edits by External CLIs | Breaks AST and bypasses validations | **External agents (AGY, Aider, etc.) MUST ALWAYS prefer Emacs native tools** (like `elisp_smart_edit`, `org_smart_edit`) or call Emacs in `--batch` to mutate project files. |
+| Generic Bash/Sed edits by External CLIs | Breaks AST and bypasses validations | **External agents (AGY, Aider, etc.) MUST ALWAYS prefer Emacs native tools** (like `elisp_smart_edit`, `org_smart_edit`) or call Emacs in `--batch` to mutate project files. Utilize the `bin/magent-cli` wrapper to easily bridge external CLIs to Emacs native FSM tools. |
 
 ### 6. SOLID Architecture & Domain Isolation (STRICT RULE)
 
