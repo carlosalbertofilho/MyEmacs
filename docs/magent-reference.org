@@ -48,3 +48,9 @@ _Sem documentação registrada._
   - =pause=: Pausa a execução.
   - =breakpoint= (arg1=file, arg2=line): Toggle num breakpoint específico.
   - =eval= (arg1=expression): Inspeciona expressão no console repl (requer estado parado).
+
+** +carlos/magent-tool-context_search**
+- *Tipo:* Função Interativa
+- *Módulo:* =lisp/custom-magent-tools.el=
+- *Descrição:* Busca rápida em arquivos `.org` e `.el` por símbolos, cabeçalhos ou docstrings usando RAG interno. Retorna lista de resultados com cabeçalhos e links.
+

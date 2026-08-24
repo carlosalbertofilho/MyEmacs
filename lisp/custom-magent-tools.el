@@ -358,6 +358,40 @@ Valores são plists `(:failures N :timestamp TIME)'.")
   :group '+carlos/ai)
 
 (defun +carlos/magent-cb-record-failure (model-key)
+
+;; ── New advice to capture async gptel-request outcomes �n(defun +carlos/magent-cb-gptel-request-advice (orig-fn &rest args)
+  "Wrap `gptel-request' to record success/failure in the circuit breaker.
+Args are the same as `gptel-request' (PROMPT &rest ARGS). We inspect the
+`:backend' and `:model' keys (if any) to build a model-key string of the form
+"backend:model". The original callback (if provided) is wrapped so that, when
+the request finishes, we record the outcome.
+If the response is nil or the `:error' field in the info plist is non‑nil, we
+consider it a failure and call `+carlos/magent-cb-record-failure`. Otherwise we
+call `+carlos/magent-cb-record-success`. Finally we invoke the original
+callback (if any)."
+  (let* ((backend (plist-get args :backend))
+         (model (plist-get args :model))
+         (model-key (if (and backend model)
+                       (format "%s:%s" backend model)
+                     (or backend model "unknown")))
+         (callback (plist-get args :callback)))
+    (let ((wrapped-callback
+           (when callback
+             (lambda (response info)
+               (if (or (null response) (plist-get info :error))
+                   (+carlos/magent-cb-record-failure model-key)
+                 (+carlos/magent-cb-record-success model-key))
+               (funcall callback response info)))))
+      (apply orig-fn
+             (append
+              (list (car args))
+              (if wrapped-callback
+                  (plist-put (copy-sequence (cdr args)) :callback wrapped-callback)
+                (cdr args)))))))
+
+;; Register the advice – should run after the dynamic router advice if present.
+(advice-add 'gptel-request :around #'+carlos/magent-cb-gptel-request-advice)
+
   "Registra uma falha para MODEL-KEY no Circuit Breaker."
   (let* ((key (format "%s" model-key))
          (entry (gethash key +carlos/magent-cb-failures))
@@ -1769,7 +1803,46 @@ FILETAGS (default ':RAG:DOCS:') é a tag do arquivo."
     (add-to-list 'magent-enable-tools 'systemd_journal)
     (add-to-list 'magent-enable-tools 'log_inspect)
     (add-to-list 'magent-enable-tools 'rfc_search_topic)
+    (add-to-list 'magent-enable-tools 'context_search)
     (add-to-list 'magent-enable-tools 'rfc_read_section)))
+
+;; ---------------------------------------------------------------------------
+;; Ferramenta nativa de busca de contexto
+;; ---------------------------------------------------------------------------
+(defun +carlos/magent-tool-context-search (query &optional directory)
+  "Busca a string QUERY (texto simples) em DIRECTORY (padrão `default-directory').
+Retorna uma string JSON contendo uma lista de alistas com as chaves :file,
+:line e :snippet.
+A pesquisa usa o próprio `grep' dentro do Emacs, garantindo que não haja
+edições externas e mantendo a integridade da AST.
+A lista é limitada a 200 ocorrências para evitar payloads excessivos."
+  (let* ((dir (or directory default-directory))
+         (cmd (format "grep -nH -F %s %s/*"
+                      (shell-quote-argument query)
+                      (shell-quote-argument dir)))
+         (output (shell-command-to-string cmd))
+         (lines (split-string output "\n" t))
+         (matches (seq-take
+                   (seq-filter
+                    (lambda (ln) (not (string-empty-p ln)))
+                    (mapcar
+                     (lambda (ln)
+                       (when (string-match "^\\([^:]+\\):\\([0-9]+\\):\\(.*\\)$" ln)
+                         (list :file (match-string 1 ln)
+                               :line (string-to-number (match-string 2 ln))
+                               :snippet (string-trim (match-string 3 ln)))))
+                     lines))
+                   200)))
+    (json-encode matches)))
+
+;; Registrar a nova ferramenta
+(add-to-list 'magent-enable-tools 'context_search)
+
+;; Alias for hyphenated function name (for backward compatibility)
+(defun +carlos/magent-tool-context_search (query &optional directory)
+  "Alias wrapper for `+carlos/magent-tool-context-search'."
+  (interactive "sQuery: ")
+  (apply #'+carlos/magent-tool-context-search (list query directory)))
 
 (provide 'custom-magent-tools)
 ;;; custom-magent-tools.el ends here

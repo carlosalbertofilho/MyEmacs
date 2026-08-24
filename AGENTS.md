@@ -373,6 +373,7 @@ insensível no Org, mas a consistência facilita o parsing/regex).
   header canônico (TITLE/AUTHOR/DATE/LAST_MODIFIED/DESCRIPTION/OPTIONS).
 - Cada arquivo tem um `* Visão Geral` no topo descrevendo o escopo.
 - **Ferramenta Nativa de Introspecção RAG (`rag_create_doc`):** Para criar ou atualizar arquivos de referência `.org` sob `docs/`, os agentes DEVEM SEMPRE PREFERIR usar a ferramenta nativa `rag_create_doc` (`+carlos/magent-tool-rag-create-doc` em `lisp/custom-magent-tools.el`). Ela extrai assinaturas e docstrings nativas fisicamente instaladas no Emacs via introspecção Elisp (`documentation`, `help-function-arglist`), gerando documentos `.org` com o header canônico e tags `:RAG:DOCS:` com **custo zero de rede e consumo mínimo de tokens (~40 tokens)**.
+- **Ferramenta Nativa de Busca de Contexto (`context_search`):** Busca rapidamente em arquivos `.org` e `.el` por símbolos, cabeçalhos ou docstrings usando RAG internamente. Disponível como `+carlos/magent-tool-context_search` em `lisp/custom-magent-tools.el`. Retorna lista de resultados com cabeçalhos e links.
 
 ---
 

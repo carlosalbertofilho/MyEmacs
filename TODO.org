@@ -196,3 +196,16 @@ O Proxy resolve isso agindo como ponte de inversão de controle.
     :STATUS: pendente
     :END:
 
+** TODO Refatorar Circuit Breaker para lidar com falhas assíncronas (gptel-request)
+:PROPERTIES:
+:ID: opus-cb-async-fix
+:HOST: todos
+:TYPE: refactor
+:STATUS: backlog
+:CREATED: 2026-08-24
+:END:
+- [ ] Analisar falhas assíncronas do gptel-request que não acionam o Circuit Breaker.
+- [ ] Implementar advice no callback para registrar falhas.
+- [ ] Atualizar +carlos/magent-cb-execute para considerar erros HTTP.
+- [ ] Testar fallback para modelo Gemini quando OpenCode falhar por quota.
+- Link to plan: [[file:../.gemini/antigravity-cli/brain/b9fed757-e3a9-418f-a8d0-e2bd51f17d69/scratch/opus_cb_fix_plan.org][Opus Plan]]
