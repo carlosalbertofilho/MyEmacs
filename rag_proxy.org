@@ -1,0 +1,51 @@
+#+TITLE: Contexto para Fase 4 - Proxy HTTP e Cotas
+#+AUTHOR: Carlos Filho
+#+DATE: 2026-08-23
+#+LAST_MODIFIED: 2026-08-23
+#+DESCRIPTION: Descrição do RAG para o Opus sobre as cotas
+#+FILETAGS: :RAG:DOCS:
+#+OPTIONS: toc:2 num:t
+
+* Visão Geral
+
+Descrição do RAG para o Opus sobre as cotas
+
+* Símbolos Introspectados
+
+** +carlos/gptel-dynamic-router-advice
+- *Tipo:* Função Elisp
+- *Assinatura:* =(+carlos/gptel-dynamic-router-advice prompt &rest args)=
+
+#+begin_src text
+Roteador dinamico de IA para PROMPT com ARGS com cascata estrita de cotas.
+Prioridade: Gemini free tier > OpenCode Zen free (big-pickle / *-free)
+> Local (fallback final, impraticável em CPU). Ignora requisições
+gerenciadas pelo Magent — ver `+carlos/magent-managed-request-p'.
+
+(fn PROMPT &rest ARGS)
+#+end_src
+
+** +carlos/magent-host-profiles
+- *Tipo:* Variável
+
+_Sem documentação registrada._
+
+** +carlos/magent-subagent-profiles
+- *Tipo:* Variável
+
+_Sem documentação registrada._
+
+** +carlos/magent-subagent-resolve
+- *Tipo:* Função Elisp
+- *Assinatura:* =(+carlos/magent-subagent-resolve agent-name task-description)=
+
+#+begin_src text
+Resolve o modelo de AGENT-NAME para TASK-DESCRIPTION via dicas de perfil.
+Classifica TASK-DESCRIPTION com `+carlos/magent-task-complexity' e delega a
+`+carlos/magent-resolve-model' com as dicas (:min-tier/:preferred-backend) de
+`+carlos/magent-subagent-profiles'.  Retorna plist (:backend B :model M), ou
+nil quando AGENT-NAME não tem perfil (a herança do pai fica como fallback
+final) ou nada disponível.
+
+(fn AGENT-NAME TASK-DESCRIPTION)
+#+end_src

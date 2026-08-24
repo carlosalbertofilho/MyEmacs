@@ -36,3 +36,15 @@ _Sem documentação registrada._
 - *Tipo:* Símbolo
 
 _Sem documentação registrada._
+
+** +carlos/magent-tool-debug
+- *Tipo:* Função Interativa
+- *Módulo:* =lisp/custom-magent-tool-debug.el=
+- *Descrição:* Orquestra o depurador nativo via `dape` para uso do agente.
+- *API:*
+  - =start= (arg1=config_name): Inicia o debug (ex: 'python').
+  - =stop=: Interrompe a execução.
+  - =continue=: Continua a execução pausada.
+  - =pause=: Pausa a execução.
+  - =breakpoint= (arg1=file, arg2=line): Toggle num breakpoint específico.
+  - =eval= (arg1=expression): Inspeciona expressão no console repl (requer estado parado).
