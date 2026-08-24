@@ -1,7 +1,7 @@
 #+TITLE: TODO — Planejamento Ativo e Backlog (MyEmacs)
 #+AUTHOR: Carlos Filho
 #+DATE: 2026-08-05
-#+LAST_MODIFIED: 2026-08-22
+#+LAST_MODIFIED: 2026-08-24
 #+FILETAGS: :PLANNING:
 #+OPTIONS: toc:2 num:t
 #+STARTUP: content
@@ -209,3 +209,14 @@ O Proxy resolve isso agindo como ponte de inversão de controle.
 - [ ] Atualizar +carlos/magent-cb-execute para considerar erros HTTP.
 - [ ] Testar fallback para modelo Gemini quando OpenCode falhar por quota.
 - Link to plan: [[file:../.gemini/antigravity-cli/brain/b9fed757-e3a9-418f-a8d0-e2bd51f17d69/scratch/opus_cb_fix_plan.org][Opus Plan]]
+
+** TODO Corrigir falhas de testes do Magent
+    :PROPERTIES:
+    :STATUS: BACKLOG
+    :END:
+    - [ ] magent-cb-gptel-request-failure-test
+    - [ ] magent-cb-gptel-request-success-test
+    - [ ] myemacs-boot-no-lisp-errors
+    - [ ] myemacs-context-compaction-rules-present
+    - [ ] myemacs-magent-select-model-honors-complexity-arg
+    - [ ] myemacs-magent-subagent-profiles-defaults

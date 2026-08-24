@@ -1809,7 +1809,7 @@ FILETAGS (default ':RAG:DOCS:') é a tag do arquivo."
 ;; ---------------------------------------------------------------------------
 ;; Ferramenta nativa de busca de contexto
 ;; ---------------------------------------------------------------------------
-(defun +carlos/magent-tool-context-search (query &optional directory)
+(defun +carlos/magent-tool-context_search (query &optional directory)
   "Busca a string QUERY (texto simples) em DIRECTORY (padrão `default-directory').
 Retorna uma string JSON contendo uma lista de alistas com as chaves :file,
 :line e :snippet.
