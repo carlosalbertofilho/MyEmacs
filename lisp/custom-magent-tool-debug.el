@@ -64,5 +64,14 @@ ACTION: `start', `stop', `breakpoint' (arg1=file, arg2=line), `eval'."
        
       (_ (error "Ação '%s' desconhecida em magent-tool-debug" action)))))
 
+(with-eval-after-load 'gptel
+  (when (fboundp '+carlos/magent-tool-debug)
+    (setq gptel-tools
+          (append gptel-tools
+                  `((:name "magent_debug"
+                     :tool ,#'+carlos/magent-tool-debug
+                     :description "Orquestra o depurador nativo via dape. Use 'start' (arg1=config_name), 'stop', 'breakpoint' (arg1=filepath, arg2=line_number), ou 'eval' (arg1=expression)."
+                     :category "debugging"))))))
+
 (provide 'custom-magent-tool-debug)
 ;;; custom-magent-tool-debug.el ends here
