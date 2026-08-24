@@ -115,6 +115,13 @@ Candidatos sweet spot:
     - [ ] Granite Vision 4.1 4B (~3 GB): nova capability — extração de PDFs/tabelas.
     - [ ] Granite Speech 4.1 2B Plus (~1.5 GB): nova capability — transcrição local com diarização.
 Critério: pull via Ollama + benchmark de latência/qualidade contra os modelos atuais da matriz de roteamento; avaliar adoção como subagentes Magent (=min-tier= free).
+Veredito da análise (2026-08-24):
+    - ORQUESTRADOR: nenhum Granite. O acumulador do FSM (=custom-magent-fsm.el=) extrai tool calls de dentro do bloco reasoning =<thought>= do Gemma; Granite não tem reasoning nativo — chamadas emitidas ali seriam perdidas. Manter =gemma4= E2B como orquestrador local (30 tok/s no MLX, turno ~1.40s vs ~15-20 tok/s de um Granite 8B).
+    - [ ] Subagente =coder=: testar Granite Code 4.1 8B substituindo Qwen3.5-Coder-7B.
+    - [ ] Subagente =tech-writer=: testar Granite 4.1 8B substituindo Gemma-4-9B.
+    - [ ] Subagente =explore=/=qa=: testar Granite 4.1 3B substituindo Qwen2.5-Coder.
+    - [ ] Capabilities novas a avaliar: Vision 4B (extração de PDFs/tabelas), Guardian 8B (safety), Embedding 278M (RAG local).
+
 
 ** TODO 5. Evoluir =bin/magent-cli= — CLI auto-descritiva
     :PROPERTIES:
