@@ -41,6 +41,18 @@ ACTION: `start', `stop', `breakpoint' (arg1=file, arg2=line), `eval'."
       ("stop"
        (dape-quit)
        "Sessão de depuração encerrada.")
+       
+      ("continue"
+       (unless (dape--live-connection 'stopped)
+         (error "O depurador já está rodando ou não foi iniciado"))
+       (dape-continue (dape--live-connection 'stopped))
+       "Execução continuada.")
+       
+      ("pause"
+       (unless (dape--live-connection 'running)
+         (error "O depurador já está pausado ou não foi iniciado"))
+       (dape-pause (dape--live-connection 'running))
+       "Execução pausada.")
       
       ("breakpoint"
        (unless (and arg1 arg2) (error "Para 'breakpoint' forneça arquivo e linha"))
@@ -70,7 +82,7 @@ ACTION: `start', `stop', `breakpoint' (arg1=file, arg2=line), `eval'."
           (append gptel-tools
                   `((:name "magent_debug"
                      :tool ,#'+carlos/magent-tool-debug
-                     :description "Orquestra o depurador nativo via dape. Use 'start' (arg1=config_name), 'stop', 'breakpoint' (arg1=filepath, arg2=line_number), ou 'eval' (arg1=expression)."
+                     :description "Orquestra o depurador nativo via dape. Use 'start' (arg1=config_name), 'stop', 'continue', 'pause', 'breakpoint' (arg1=filepath, arg2=line_number), ou 'eval' (arg1=expression)."
                      :category "debugging"))))))
 
 (provide 'custom-magent-tool-debug)
