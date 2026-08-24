@@ -4,8 +4,27 @@ import os
 
 from .router import RouterFSM
 
+import time
+
+start_time = time.time()
+
 async def health_check(request):
-    return web.json_response({"status": "ok", "version": "1.0.0"})
+    router = request.app["router"]
+    upstreams = {}
+    
+    for name, status in router.provider_status.items():
+        quota_info = router.quota_monitor.get_info(name)
+        upstreams[name] = {
+            "status": "ok" if status["available"] else "down",
+            "quota_remaining_pct": quota_info.quota_remaining_pct
+        }
+        
+    return web.json_response({
+        "status": "healthy",
+        "uptime_seconds": int(time.time() - start_time),
+        "fsm_state": router.state.value,
+        "upstreams": upstreams
+    })
 
 async def list_models(request):
     config = request.app["config"]
