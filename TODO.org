@@ -49,7 +49,7 @@ Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=
 ** Fase 2: Fatiamento do God File e Implementação de Ferramentas
     :PROPERTIES:
     :CREATED: 2026-08-23
-    :STATUS: BACKLOG
+    :STATUS: DONE
     :END:
 
 - Criar =custom-magent-tool-smart-edit.el= e mover as ferramentas polyglot. Implementar as funções faltantes apontadas pelos testes.
@@ -60,7 +60,7 @@ Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=
 ** Fase 3: Estabilização de Contexto
     :PROPERTIES:
     :CREATED: 2026-08-23
-    :STATUS: BACKLOG
+    :STATUS: DONE
     :END:
 
 - Refatorar =custom-magent-context.el=: Remover hardcodes de regras, ler configurações do =AGENTS.md= e usar =project.el= em vez de chamadas bash ativas do =git=.
@@ -142,7 +142,7 @@ Mecanismo de Failover Pre-emptivo:
 
 - O histórico completo de todas as tarefas concluídas (Suíte DevOps, NixOS, Submódulos, Rust, Polyglot, Forge, Introspecção RAG, Resiliência FSM, etc.) é mantido estritamente em [[file:roadmap.org][roadmap.org]] como Linha do Tempo oficial.
 
-* TODO # Planejamento de Arquitetura e Implementação - Ferramentas Magent
+* DONE # Planejamento de Arquitetura e Implementação - Ferramentas Magent
 
 Este documento descreve o planejamento para a criação de três novas ferramentas nativas para o agente Magent no Emacs, respeitando as diretrizes SOLID e de isolamento de domínio estabelecidas em `AGENTS.md`.
 
