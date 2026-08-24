@@ -36,201 +36,7 @@ Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=
    - =ellama= / =llm.el=: Suporta =:response-format= usando a especificação do JSON Schema.
    - =GBNF Puro=: Extender requisição HTTP (url-retrieve/request.el) para o endpoint =/completion= injetando um payload com a gramática.
 
-** Fase 1: Desacoplamento e Infraestrutura Base
-    :PROPERTIES:
-    :CREATED: 2026-08-23
-    :STATUS: DONE
-    :END:
-
-- Criar =custom-magent-infra.el=: Mover o Circuit Breaker, sanitizadores e =suppress-long-messages=.
-- Limpar =custom-ai.el=: Extrair o parser de senhas para =custom-core.el= ou um módulo de auth.
-- Refatorar =custom-magent-fsm.el=: Remover chamadas de UI. Usar Hooks (=run-hooks 'magent-fsm-state-changed-hook=) para a UI escutar passivamente. Isolar formatação de texto em =custom-magent-prompts.el=.
-
-** Fase 2: Fatiamento do God File e Implementação de Ferramentas
-    :PROPERTIES:
-    :CREATED: 2026-08-23
-    :STATUS: DONE
-    :END:
-
-- Criar =custom-magent-tool-smart-edit.el= e mover as ferramentas polyglot. Implementar as funções faltantes apontadas pelos testes.
-- Criar =custom-magent-tool-git.el= e mover as funções magit/forge.
-- Criar =custom-magent-tool-devops.el= e mover Docker e Systemd.
-- Criar =custom-magent-tool-rfc.el= para as ferramentas da IETF.
-
-** Fase 3: Estabilização de Contexto
-    :PROPERTIES:
-    :CREATED: 2026-08-23
-    :STATUS: DONE
-    :END:
-
-- Refatorar =custom-magent-context.el=: Remover hardcodes de regras, ler configurações do =AGENTS.md= e usar =project.el= em vez de chamadas bash ativas do =git=.
-
-** Fase 4: Recursos Avançados (Pós-Refatoração)
-    :PROPERTIES:
-    :CREATED: 2026-08-22
-    :STATUS: BACKLOG
-    :END:
-
-*** TODO Revisão da Matriz de Modelos Locais (MLX no Mac M2)
-    :PROPERTIES:
-    :CREATED: 2026-08-23
-    :STATUS: BACKLOG
-    :END:
-Atualização do roteamento e padronização do MLX como servidor principal (Ollama desativado), otimizado para os 24GB de RAM unificada.
-
-- [ ] Atualizar =custom-ai.el= com as novas prioridades do =+carlos/gptel-dynamic-router-advice=
-  - Tático/Rápido (Coder/Hephaestus): =mlx-community/Qwen2.5-Coder-7B-Instruct-4bit=
-  - Estratégico/Lógico (Planner/Architect): =DeepSeek-R1-Distill-Qwen-7B= (ou 14B)
-  - Reviewer/Auditor: MoE / DeepSeek destilado
-- [ ] Ajustar o parser/prompt do gptel para lidar com modelos DeepSeek R1
-  - Tratar a flag =(reasoning . text)= retornada pelo MLX
-  - Avaliar desativação de stream programático para estes modelos ou injetar parser que remova a tag =<think>=
-- [ ] Atualizar as definições de personas (c-42, python, architect, etc.)
-  - Forçar o modelo MLX local correspondente como primeira opção (fallback) em ambiente offline no Mac M2
-
-*** Ponte Proxy HTTP Local OpenAI API (AGY CLI Bridge & 3-Tier Fallback)
-Desenvolver o servidor HTTP assíncrono em Python (stdlib asyncio/http.server) escutando na porta 8088.
-- Implementar o endpoint REST POST /v1/chat/completions com suporte ao formato OpenAI JSON.
-- Extrair o histórico de mensagens e parâmetros do payload.
-- Mapear os modelos agy-flash e agy-pro para invocação do binário agy CLI (habilitando Google Stitch e capacidades visuais).
-- Implementar failover transparente: ao detectar cota excedida (Rate Limit 429) no agy, comutar automaticamente para a API Gemini (Google AI Studio API) usando a chave de ambiente.
-- Converter a saída stdout em streaming SSE no formato data: {"choices": [...]} terminando com [DONE].
-
-Backend gptel e Cascata de Redundância (lisp/custom-ai.el):
-- Registrar o backend AGY Proxy no gptel e integrar na cascata de resiliência em 3 níveis (AGY Proxy -> API Cloud -> Local MLX/Ollama).
-- Criar a inicialização do backend gptel-make-openai para AGY Proxy na porta 8088 com modelos agy-flash e agy-pro.
-- Implementar a função de verificação de porta +carlos/ensure-agy-proxy-running com auto-start do bin/agy-proxy.
-- Integrar a cascata de resiliência no +carlos/gptel-dynamic-router-advice: Nível 1 (AGY Proxy) -> Nível 2 (API Cloud Direct) -> Nível 3 (Agentes Locais MLX no Mac M2 / Ollama no Linux CPU).
-
-Integração com Orquestrador e Matriz de Subagentes Magent:
-- Atualizar +carlos/magent-subagent-profiles em lisp/custom-magent-subagent.el direcionando perfis especialista (coder, planner, sysadmin, auditor, sec-ops, qa) para o backend AGY Proxy.
-- Atualizar +carlos/magent-host-profiles em lisp/custom-magent-fsm.el adicionando o AGY Proxy como backend soberano para os hosts aa102-006l e agnes, configurando os modelos locais MLX como fallback no Mac M2.
-- Testar a comunicação FSM, invocação de subagentes e streaming via ponte agy.
-
-*** Monitoramento Proativo de Cotas, Comando /quota e Failover Pre-emptivo (lisp/custom-magent-quota.el)
-Estruturas de Dados e Tabela de Estado de Cotas:
-- Definir a struct =magent-quota-entry= com os campos correspondentes.
-- Criar a hash-table global =+carlos/magent-quota-table=.
-- Implementar funcoes de consulta e predicados de saude (=+carlos/magent-quota-healthy-p= com limiar padrao de 5%).
-
-Coletores Assincronos por Provedor:
-- Implementar =+carlos/magent-quota-fetch-all= e dispatchers por provedor utilizando requisicoes assincronas (=url-retrieve= / =make-process=).
-- Coletar dados de AGY Proxy, Google AI Studio, OpenCode Zen, DeepSeek, Anthropic e Local MLX / Ollama.
-
-Interface do Usuario, Comando Slash /quota e Menu Transient (C-c A m):
-- Implementar o comando slash =/quota= para renderizar o buffer temporario =*Magent Quotas*= formatado em tabela Org-mode.
-- Integrar o atalho no menu Transient do Magent.
-- Adicionar indicador de cota no mood-line do Emacs.
-
-Mecanismo de Failover Pre-emptivo:
-- Modificar =+carlos/magent-subagent-resolve= para consultar a saude da cota antes de acionar o LLM.
-- Quando a cota for critica, desviar preemptivamente para o proximo nivel da cascata.
-- Registrar os eventos de failover pre-emptivo na maquina de estados.
-
-*** TODO Fase 7: Structured Outputs e Eliminação de Alucinações
-- [ ] 1. **Gerador Dinâmico de Schema no Elisp:**
-  - [ ] O Magent precisará compilar as configurações das ferramentas ativas e gerar um schema no formato `{"type": "json_schema", "json_schema": {"name": "magent_tool_call", "strict": true, "schema": {...}}}`.
-  - [ ] O Schema deve obrigar o modelo a preencher o campo `"rationale"` (explicando o motivo) ANTES de preencher o `"tool_name"` e os `"args"`. Isso forçará um *Chain of Thought* (CoT) embutido no JSON que melhora o acerto de modelos fracos.
-- [ ] 2. **Interceptador (Advice) no Backend HTTP do Gptel:**
-  - [ ] Adicionar um advice na montagem do payload HTTP do gptel (como em `gptel--openai-parse-request`).
-  - [ ] Se o modo `magent-fsm-mode` estiver ativo E o modelo alvo *não* for de raciocínio (não for DeepSeek R1, pois a tag `<think>` colide com a validação estrita JSON), devemos injetar o `response_format` no JSON da requisição (para MLX/OpenAI).
-- [ ] 3. **Validação Prática com Modelo Minúsculo:**
-  - [ ] Adicionar uma subtarefa para testar a FSM localmente usando um modelo pequeno e rápido no MLX (ex: `Qwen2.5-Coder-1.5B`) para provar matematicamente que a restrição de logits força a conformidade perfeita ao JSON sem o Magent precisar gastar CPU com Regex defensivo.
-  - [ ] Executar benchmark no host =aa102-006l= (mantido habilitado para IA local) utilizando modelos locais fracos via Ollama (GBNF) para avaliar na prática se a eliminação de alucinações compensa a lentidão da CPU.
-
-* Concluído (referências ao roadmap)
-
-- O histórico completo de todas as tarefas concluídas (Suíte DevOps, NixOS, Submódulos, Rust, Polyglot, Forge, Introspecção RAG, Resiliência FSM, etc.) é mantido estritamente em [[file:roadmap.org][roadmap.org]] como Linha do Tempo oficial.
-
-* DONE # Planejamento de Arquitetura e Implementação - Ferramentas Magent
-
-Este documento descreve o planejamento para a criação de três novas ferramentas nativas para o agente Magent no Emacs, respeitando as diretrizes SOLID e de isolamento de domínio estabelecidas em `AGENTS.md`.
-
-## 1. Test Runner Direto (`magent-tool-ert-runner`)
-
-### Funcionalidades
-- Executar testes ERT (`ert` ou `ert-deftest`) de forma isolada no Emacs ativo.
-- Capturar resultados de sucesso/falha e formatá-los para leitura do agente.
-- Capturar stack traces/backtraces completos em caso de falhas para facilitar o debugging guiado por IA.
-- Permitir a filtragem por seletor (ex: nome do teste, regex, ou tags).
-
-### Domínio e Arquivo
-- **Arquivo Lisp:** `lisp/custom-magent-tool-test.el` (novo domínio isolado estritamente focado em ferramentas de testes e asserções).
-- **Função Principal:** `+carlos/magent-tool-ert-runner`.
-
-### Passos de Implementação
-1. Criar o arquivo `lisp/custom-magent-tool-test.el` seguindo o template canônico de arquivos `custom-*.el`.
-2. Implementar a função `+carlos/magent-tool-ert-runner` que aceita um seletor ERT (string/símbolo) como argumento.
-3. Usar a API nativa do ERT para execução isolada. Se necessário, sobreescrever variáveis de log do ERT (como `ert--test-execution-info`) ou capturar os buffers temporários de resultados.
-4. Implementar rotina de extração de stack trace na falha do teste, formatando a saída para minimizar consumo de tokens (excluindo frames irrelevantes do interpretador Lisp).
-5. Registrar a nova ferramenta na máquina de estados (FSM) do Magent.
-6. Atualizar os documentos RAG usando a ferramenta `rag_create_doc` para documentar a API em `docs/magent-reference.org`.
-
-## 2. Buscador AST Tree-Sitter (`magent-tool-treesit-query`)
-
-### Funcionalidades
-- Buscar referências, callers e definições de funções/classes no projeto inteiro utilizando o motor embutido `tree-sitter`.
-- Suportar consultas nativas do `treesit` usando s-expressions ou strings de queries.
-- Retornar uma estrutura limpa com caminhos de arquivo, números de linha e o código (nós AST) formatado.
-- Funcionar independentemente de LSPs pesados (eglot/lsp-mode), usando puramente a árvore sintática local.
-
-### Domínio e Arquivo
-- **Arquivo Lisp:** `lisp/custom-magent-tool-ast.el` (domínio voltado a análise estática e introspecção sintática de código).
-- **Função Principal:** `+carlos/magent-tool-treesit-query`.
-
-### Passos de Implementação
-1. Criar o arquivo `lisp/custom-magent-tool-ast.el` com o header canônico.
-2. Implementar `+carlos/magent-tool-treesit-query` aceitando a linguagem alvo, a query (string) e opcionalmente um escopo (diretório/arquivo ou projeto via `project-current`).
-3. Criar uma rotina para iterar rapidamente sobre os arquivos relevantes (filtrados por extensão), ler o conteúdo (com ou sem carregar buffers), e fazer o parse via `treesit-parse-string`.
-4. Executar `treesit-query-capture` para extrair os nós que correspondem à busca.
-5. Formatar a saída (combinando `treesit-node-text` e convertendo `treesit-node-start` para linha/coluna).
-6. Tratar o caso de ausência da gramática requerida (`treesit-language-available-p`) informando um erro tratável ao agente.
-7. Registrar a ferramenta na FSM.
-8. Documentar o comportamento em `docs/magent-reference.org` utilizando a tool `rag_create_doc`.
-
-## 3. Gerenciador de Dependências (`magent-tool-elpaca`)
-
-### Funcionalidades
-- Instalar pacotes ausentes solicitados pelo agente (via repositórios Git, MELPA, GNU) sem reiniciar o Emacs.
-- Processar e aguardar as filas do gerenciador de pacotes Elpaca (`elpaca-process-queues`, `elpaca-wait`) de maneira segura.
-- Garantir que não haja congelamento de UI (bloqueio síncrono infinito).
-- Conferir o status de instalação e carregamento de um determinado pacote.
-
-### Domínio e Arquivo
-- **Arquivo Lisp:** `lisp/custom-magent-tool-pkg.el` (domínio exclusivo para gerenciamento de dependências e pacotes de sistema/Emacs).
-- **Função Principal:** `+carlos/magent-tool-elpaca`.
-
-### Passos de Implementação
-1. Criar `lisp/custom-magent-tool-pkg.el`.
-2. Implementar a ferramenta base `+carlos/magent-tool-elpaca` aceitando ações (ex: `install`, `status`) e o identificador do pacote.
-3. Para `install`, delegar a ação para o macro do `elpaca`.
-4. Utilizar processamento assíncrono ou timers (ex: `accept-process-output` com timeout) para monitorar o andamento das queues de instalação do Elpaca, retornando ao agente o status de completado/falha sem violar o event loop do Emacs.
-5. Assegurar que esta ferramenta opere apenas no runtime, não alterando definições críticas de boot no `init.el` (respeitando a política de não adicionar `elpaca-wait` globais fora de contexto de boot).
-6. Registrar a ferramenta na interface de subagentes/FSM do Magent.
-7. Invocar `rag_create_doc` para atualizar `docs/magent-reference.org` com os detalhes da nova ferramenta.
-
-
 * Fase 5: Onisciência do Agente e RAG Sintático
-** TODO 1. Injeção de Esqueleto AST no Contexto (RAG Sintático)
-    :PROPERTIES:
-    :STATUS: DONE
-    :END:
-- [x] Analisar a infraestrutura recém-criada de Tree-Sitter do MyEmacs.
-- [x] Modificar `custom-magent-context.el` para interceptar a lista de arquivos abertos e relevantes do contexto.
-- [x] Implementar função para extrair "esqueletos" estáticos (nomes de funções, classes, structs) usando a API do Tree-Sitter.
-- [x] Integrar a geração de esqueleto à pipeline de injeção do RAG de compactação.
-- [x] Validar a economia de tokens com testes ERT para assegurar a corretude do contexto gerado.
-
-** DONE 2. LSP Bridge (magent-tool-lsp)
-    :PROPERTIES:
-    :STATUS: DONE
-    :END:
-- [x] Criar o arquivo do módulo `lisp/custom-magent-tool-lsp.el` contendo a lógica da ponte LSP.
-- [x] Implementar a ferramenta de interface `+carlos/magent-tool-lsp`.
-- [x] Desenvolver chamadas RPC/Elisp que façam interface com o pacote `eglot`.
-- [x] Implementar suporte à inferência de tipos inter-módulos.
-- [x] Implementar suporte à funcionalidade de `goto-definition` orquestrada pelo agente.
-- [x] Atualizar o arquivo de referência técnica (RAG:DOCS) em `docs/magent-reference.org` via `rag_create_doc`.
 
 ** TODO 3. Depurador Vivo (magent-tool-debug)
     :PROPERTIES:
@@ -244,8 +50,8 @@ Este documento descreve o planejamento para a criação de três novas ferrament
 - [ ] Implementar capacidade de inspecionar o valor de variáveis durante a pausa.
 - [ ] Atualizar o arquivo de referência em `docs/magent-reference.org` detalhando a API e integração do DAP.
 
-
 * Fase 6: Melhorias UX Batch para Agentes
+
 ** TODO 1. Implementar `toggle_checkbox` no `org_smart_edit`
     :PROPERTIES:
     :CREATED: 2026-08-23
@@ -275,23 +81,99 @@ Este documento descreve o planejamento para a criação de três novas ferrament
 - [ ] Receber comandos/argumentos Lisp na CLI e avaliar.
 - [ ] Ajustar documentação em `docs/magent-reference.org`.
 
-** TODO Implementar Integração de JSON Schema e GBNF no gptel (MLX/Ollama)
-   :PROPERTIES:
-   :CREATED:  2026-08-23
-   :STATUS:   BACKLOG
-   :END:
-A utilização de Grammar (via GBNF no llama.cpp/Ollama) ou JSON Schema (no MLX) no Emacs é perfeitamente viável e já está integrada às ferramentas mais modernas do ecossistema. Os pacotes mais robustos do Emacs — especificamente o gptel e o ellama (que usa o ecossistema llm por baixo) — possuem suporte nativo para restringir a saída usando schemas estruturados. [1, 2, 3, 4] 
-Aqui está como implementar essa restrição exata no Emacs para os dois cenários:
-------------------------------
-## 1. Utilizando JSON Schema com gptel (Ollama, LM Studio ou MLX)
-A partir de atualizações recentes, o gptel adicionou o argumento :schema na sua API de requisições (gptel-request), permitindo forçar a LLM a responder seguindo um JSON Schema definido diretamente em Emacs Lisp (usando plists ou objetos JSON serializados). [2] 
-Se você rodar o MLX via terminal (python -m mlx_lm.server) ou o Ollama/LM Studio localmente, você pode injetar o schema desta forma.
+* Fase 4: Recursos Avançados (Pós-Refatoração)
+    :PROPERTIES:
+    :CREATED: 2026-08-22
+    :STATUS: BACKLOG
+    :END:
 
-** DONE Revisão da Tabela de Preferências de Modelos (M2 24GB)
+
+
+** TODO Ponte Proxy HTTP Local OpenAI API (AGY CLI Bridge & 3-Tier Fallback)
+Desenvolver o servidor HTTP assíncrono em Python (stdlib asyncio/http.server) escutando na porta 8088.
+- Implementar o endpoint REST POST /v1/chat/completions com suporte ao formato OpenAI JSON.
+- Extrair o histórico de mensagens e parâmetros do payload.
+- Mapear os modelos agy-flash e agy-pro para invocação do binário agy CLI (habilitando Google Stitch e capacidades visuais).
+- Implementar failover transparente: ao detectar cota excedida (Rate Limit 429) no agy, comutar automaticamente para a API Gemini (Google AI Studio API) usando a chave de ambiente.
+- Converter a saída stdout em streaming SSE no formato data: {"choices": [...]} terminando com [DONE].
+
+Backend gptel e Cascata de Redundância (lisp/custom-ai.el):
+- Registrar o backend AGY Proxy no gptel e integrar na cascata de resiliência em 3 níveis (AGY Proxy -> API Cloud -> Local MLX/Ollama).
+- Criar a inicialização do backend gptel-make-openai para AGY Proxy na porta 8088 com modelos agy-flash e agy-pro.
+- Implementar a função de verificação de porta +carlos/ensure-agy-proxy-running com auto-start do bin/agy-proxy.
+- Integrar a cascata de resiliência no +carlos/gptel-dynamic-router-advice: Nível 1 (AGY Proxy) -> Nível 2 (API Cloud Direct) -> Nível 3 (Agentes Locais MLX no Mac M2 / Ollama no Linux CPU).
+
+Integração com Orquestrador e Matriz de Subagentes Magent:
+- Atualizar +carlos/magent-subagent-profiles em lisp/custom-magent-subagent.el direcionando perfis especialista (coder, planner, sysadmin, auditor, sec-ops, qa) para o backend AGY Proxy.
+- Atualizar +carlos/magent-host-profiles em lisp/custom-magent-fsm.el adicionando o AGY Proxy como backend soberano para os hosts aa102-006l e agnes, configurando os modelos locais MLX como fallback no Mac M2.
+- Testar a comunicação FSM, invocação de subagentes e streaming via ponte agy.
+
+** TODO Monitoramento Proativo de Cotas, Comando /quota e Failover Pre-emptivo (lisp/custom-magent-quota.el)
+Estruturas de Dados e Tabela de Estado de Cotas:
+- Definir a struct =magent-quota-entry= com os campos correspondentes.
+- Criar a hash-table global =+carlos/magent-quota-table=.
+- Implementar funcoes de consulta e predicados de saude (=+carlos/magent-quota-healthy-p= com limiar padrao de 5%).
+
+Coletores Assincronos por Provedor:
+- Implementar =+carlos/magent-quota-fetch-all= e dispatchers por provedor utilizando requisicoes assincronas (=url-retrieve= / =make-process=).
+- Coletar dados de AGY Proxy, Google AI Studio, OpenCode Zen, DeepSeek, Anthropic e Local MLX / Ollama.
+
+Interface do Usuario, Comando Slash /quota e Menu Transient (C-c A m):
+- Implementar o comando slash =/quota= para renderizar o buffer temporario =*Magent Quotas*= formatado em tabela Org-mode.
+- Integrar o atalho no menu Transient do Magent.
+- Adicionar indicador de cota no mood-line do Emacs.
+
+Mecanismo de Failover Pre-emptivo:
+- Modificar =+carlos/magent-subagent-resolve= para consultar a saude da cota antes de acionar o LLM.
+- Quando a cota for critica, desviar preemptivamente para o proximo nivel da cascata.
+- Registrar os eventos de failover pre-emptivo na maquina de estados.
+
+** TODO Fase 7: Structured Outputs e Eliminação de Alucinações
+- [ ] 1. **Gerador Dinâmico de Schema no Elisp:**
+  - [ ] O Magent precisará compilar as configurações das ferramentas ativas e gerar um schema no formato `{"type": "json_schema", "json_schema": {"name": "magent_tool_call", "strict": true, "schema": {...}}}`.
+  - [ ] O Schema deve obrigar o modelo a preencher o campo `"rationale"` (explicando o motivo) ANTES de preencher o `"tool_name"` e os `"args"`. Isso forçará um *Chain of Thought* (CoT) embutido no JSON que melhora o acerto de modelos fracos.
+- [ ] 2. **Interceptador (Advice) no Backend HTTP do Gptel:**
+  - [ ] Adicionar um advice na montagem do payload HTTP do gptel (como em `gptel--openai-parse-request`).
+  - [ ] Se o modo `magent-fsm-mode` estiver ativo E o modelo alvo *não* for de raciocínio (não for DeepSeek R1, pois a tag `<think>` colide com a validação estrita JSON), devemos injetar o `response_format` no JSON da requisição (para MLX/OpenAI).
+- [ ] 3. **Validação Prática com Modelo Minúsculo:**
+  - [ ] Adicionar uma subtarefa para testar a FSM localmente usando um modelo pequeno e rápido no MLX (ex: `Qwen2.5-Coder-1.5B`) para provar matematicamente que a restrição de logits força a conformidade perfeita ao JSON sem o Magent precisar gastar CPU com Regex defensivo.
+  - [ ] Executar benchmark no host =aa102-006l= (mantido habilitado para IA local) utilizando modelos locais fracos via Ollama (GBNF) para avaliar na prática se a eliminação de alucinações compensa a lentidão da CPU.
+
+* Concluído (referências ao roadmap)
+
+- O histórico completo de todas as tarefas concluídas (Suíte DevOps, NixOS, Submódulos, Rust, Polyglot, Forge, Introspecção RAG, Resiliência FSM, etc.) é mantido estritamente em [[file:roadmap.org][roadmap.org]] como Linha do Tempo oficial.
+
+
+
+* TODO Refatoração SOLID - Fase 7 - Structured Outputs
+
+#+INCLUDE: "../.gemini/antigravity-cli/brain/b9fed757-e3a9-418f-a8d0-e2bd51f17d69/scratch/opus_json_schema_plan.org"
     :PROPERTIES:
     :CREATED: 2026-08-23
-    :STATUS: DONE
+    :STATUS: pendente
     :END:
-- [X] Analisar os benchmarks empíricos do MLX para o Mac M2 24GB.
-- [X] Testar =Qwen2.5-Coder-7B= e =DeepSeek-R1-Distill-Qwen-7B=.
-- [X] Ajustar a recomendação do roteador híbrido em =docs/ai-providers-reference.org= e em =roadmap.org=.
+
+* TODO Refatoração SOLID - Fase 5 - Depurador Vivo
+
+#+INCLUDE: "../.gemini/antigravity-cli/brain/b9fed757-e3a9-418f-a8d0-e2bd51f17d69/scratch/opus_dape_plan.org"
+    :PROPERTIES:
+    :CREATED: 2026-08-23
+    :STATUS: pendente
+    :END:
+
+* TODO Refatoração SOLID - Fase 6 - UX Batch
+
+#+INCLUDE: "../.gemini/antigravity-cli/brain/b9fed757-e3a9-418f-a8d0-e2bd51f17d69/scratch/opus_ux_batch_plan.org"
+    :PROPERTIES:
+    :CREATED: 2026-08-23
+    :STATUS: pendente
+    :END:
+
+* TODO Refatoração SOLID - Fase 4 - Ponte Proxy HTTP e Monitoramento
+
+#+INCLUDE: "../.gemini/antigravity-cli/brain/b9fed757-e3a9-418f-a8d0-e2bd51f17d69/scratch/opus_proxy_plan.org"
+    :PROPERTIES:
+    :CREATED: 2026-08-23
+    :STATUS: pendente
+    :END:
+

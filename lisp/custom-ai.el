@@ -828,5 +828,6 @@ dinâmico. O caminho do projeto é informado ao agente no prompt."
       (magent-start (format "Analise o projeto em %s e explique o que voce entendeu"
                             target-dir)))))
 
+(require 'custom-ai-schema)
 (provide 'custom-ai)
 ;;; custom-ai.el ends here

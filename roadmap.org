@@ -12,6 +12,16 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-23 — [CONCLUÍDO] Fases 1 a 3 e Ferramentas Nativas
+   - Fase 1: Desacoplamento e Infraestrutura Base criados.
+   - Fase 2: Fatiamento do God File e implementacao das ferramentas em modulos separados.
+   - Fase 3: Estabilização de Contexto com remocao de dependencias bash (git).
+   - Implementadas 3 ferramentas: Test Runner Direto (magent-tool-ert-runner), Buscador AST Tree-Sitter (magent-tool-treesit-query) e Gerenciador Elpaca (magent-tool-elpaca).
+
+** 2026-08-23 — [CONCLUÍDO] Fase 5: Onisciência do Agente e RAG Sintático
+   - Implementada injeção de esqueleto AST no contexto via Tree-Sitter.
+   - LSP Bridge criada em magent-tool-lsp.
+
 ** 2026-08-23 — [CONCLUÍDO] Fase 4: Integração das Ferramentas Nativas (AST, ERT, Elpaca)
    - Implementada a ferramenta `magent-tool-ert-runner` para execução isolada de testes e captura de stack traces.
    - Implementada a ferramenta `magent-tool-treesit-query` para busca avançada na AST via Tree-Sitter.

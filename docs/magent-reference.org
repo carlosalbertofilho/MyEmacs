@@ -2,26 +2,37 @@
 #+AUTHOR: Carlos Filho
 #+DATE: 2026-08-23
 #+LAST_MODIFIED: 2026-08-23
-#+DESCRIPTION: Magent Reference Docs
+#+DESCRIPTION: API Reference for Magent FSM and Tools
 #+FILETAGS: :RAG:DOCS:
 #+OPTIONS: toc:2 num:t
 
 * Visão Geral
 
-Magent Reference Docs
+API Reference for Magent FSM and Tools
 
 * Símbolos Introspectados
 
-** +carlos/magent-tool-elisp-smart-edit
-- *Tipo:* Função Elisp
-- *Assinatura:* =(+carlos/magent-tool-elisp-smart-edit target-file action &optional snippet-name args _reason)=
+** +carlos/magent-tool-ert-runner
+- *Tipo:* Símbolo
 
-#+begin_src text
-Ferramenta transacional para edição inteligente de arquivos Elisp (.el).
-TARGET-FILE: Caminho do arquivo .el.
-ACTION: `insert_snippet', `refactor_symbol', `extract_sexp'
-        ou `validate_buffer'.
-SNIPPET-NAME: Nome do snippet Tempel (ex: `defun', `deftest', `use-package').
-ARGS: Argumentos para o snippet ou substituição de símbolo.
-REASON: Motivo da alteração.
-#+end_src
+_Sem documentação registrada._
+
+** +carlos/magent-tool-treesit-query
+- *Tipo:* Símbolo
+
+_Sem documentação registrada._
+
+** +carlos/magent-tool-elpaca
+- *Tipo:* Símbolo
+
+_Sem documentação registrada._
+
+** +carlos/magent-tool-lsp
+- *Tipo:* Símbolo
+
+_Sem documentação registrada._
+
+** +carlos/magent-fsm-state-changed-hook
+- *Tipo:* Símbolo
+
+_Sem documentação registrada._
