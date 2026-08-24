@@ -2,6 +2,8 @@ from aiohttp import web
 import json
 import os
 
+from .router import RouterFSM
+
 async def health_check(request):
     return web.json_response({"status": "ok", "version": "1.0.0"})
 
@@ -38,25 +40,15 @@ async def proxy_handler(request):
     if not requested_model:
         return web.json_response({"error": "Model not specified in request body"}, status=400)
     
-    # Identify which provider owns this model
-    target_provider = None
-    providers = config.get("providers", {})
-    for provider_name, provider_data in providers.items():
-        if requested_model in provider_data.get("models", []):
-            target_provider = provider_name
-            break
-            
-    if not target_provider:
-        return web.json_response({"error": f"Model '{requested_model}' not found in any configured provider."}, status=404)
-        
-    return web.json_response({
-        "status": "not_implemented",
-        "message": f"Proxy upstream routing for provider '{target_provider}' and model '{requested_model}' will be implemented in the router FSM."
-    }, status=501)
+    router = request.app["router"]
+    target_provider = request.headers.get("X-Agy-Provider", "auto")
+    
+    return await router.handle_chat_completion(request, body, target_provider)
 
 def create_app(config):
     app = web.Application()
     app["config"] = config
+    app["router"] = RouterFSM(config)
     
     app.router.add_get('/health', health_check)
     app.router.add_get('/v1/models', list_models)

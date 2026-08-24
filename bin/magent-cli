@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# bin/magent-cli - Wrapper to execute Magent Emacs tools from CLI
+
+if [ "$#" -lt 1 ]; then
+    echo "Usage: magent-cli <tool_name> [args...]"
+    exit 1
+fi
+
+TOOL_NAME="$1"
+shift
+
+# Serialize arguments for Elisp
+# We convert all arguments to double-quoted strings and escape inner quotes
+ELISP_ARGS=""
+for arg in "$@"; do
+    # Escape backslashes and double quotes
+    ESCAPED_ARG=$(printf '%s' "$arg" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')
+    ELISP_ARGS="$ELISP_ARGS \"$ESCAPED_ARG\""
+done
+
+# The Emacs Lisp form to evaluate
+ELISP_FORM="(let ((result (apply #'+carlos/magent-tool-${TOOL_NAME} (list ${ELISP_ARGS}))))
+              (if (stringp result)
+                  (princ result)
+                (princ (json-encode result))))"
+
+# Run emacs in batch mode
+emacs --batch -l init.el --eval "$ELISP_FORM" 2>/dev/null
