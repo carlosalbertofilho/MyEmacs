@@ -127,6 +127,16 @@ Mecanismo de Failover Pre-emptivo:
 - Quando a cota for critica, desviar preemptivamente para o proximo nivel da cascata.
 - Registrar os eventos de failover pre-emptivo na maquina de estados.
 
+*** TODO Fase 7: Structured Outputs e Eliminação de Alucinações
+- [ ] 1. **Gerador Dinâmico de Schema no Elisp:**
+  - [ ] O Magent precisará compilar as configurações das ferramentas ativas e gerar um schema no formato `{"type": "json_schema", "json_schema": {"name": "magent_tool_call", "strict": true, "schema": {...}}}`.
+  - [ ] O Schema deve obrigar o modelo a preencher o campo `"rationale"` (explicando o motivo) ANTES de preencher o `"tool_name"` e os `"args"`. Isso forçará um *Chain of Thought* (CoT) embutido no JSON que melhora o acerto de modelos fracos.
+- [ ] 2. **Interceptador (Advice) no Backend HTTP do Gptel:**
+  - [ ] Adicionar um advice na montagem do payload HTTP do gptel (como em `gptel--openai-parse-request`).
+  - [ ] Se o modo `magent-fsm-mode` estiver ativo E o modelo alvo *não* for de raciocínio (não for DeepSeek R1, pois a tag `<think>` colide com a validação estrita JSON), devemos injetar o `response_format` no JSON da requisição (para MLX/OpenAI).
+- [ ] 3. **Validação Prática com Modelo Minúsculo:**
+  - [ ] Adicionar uma subtarefa para testar a FSM localmente usando um modelo pequeno e rápido no MLX (ex: `Qwen2.5-Coder-1.5B`) para provar matematicamente que a restrição de logits força a conformidade perfeita ao JSON sem o Magent precisar gastar CPU com Regex defensivo.
+
 * Concluído (referências ao roadmap)
 
 - O histórico completo de todas as tarefas concluídas (Suíte DevOps, NixOS, Submódulos, Rust, Polyglot, Forge, Introspecção RAG, Resiliência FSM, etc.) é mantido estritamente em [[file:roadmap.org][roadmap.org]] como Linha do Tempo oficial.
