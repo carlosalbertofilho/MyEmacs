@@ -172,6 +172,16 @@ Mecanismo de Failover Pre-emptivo:
 * TODO Refatoração SOLID - Fase 4 - Ponte Proxy HTTP e Monitoramento
 
 #+INCLUDE: "../.gemini/antigravity-cli/brain/b9fed757-e3a9-418f-a8d0-e2bd51f17d69/scratch/opus_proxy_plan.org"
+
+** TODO Componente 5: Servidor de Ferramentas (Tool Server Bridge)
+A inteligência da CLI =agy= externa precisa consumir as ferramentas Lisp nativas do Emacs.
+O Proxy resolve isso agindo como ponte de inversão de controle.
+
+*** Fluxo FSM Tool Interceptor
+1. *Discovery*: O proxy expõe as ferramentas nativas (magit, org_smart_edit, elisp_smart_edit, dape) como array de =tools= na API OpenAI-compatible enviada ao Upstream.
+2. *Interceptação*: Quando a API retorna =tool_calls=, o FSM intercepta.
+3. *Execução Bridge*: O FSM usa =bin/magent-cli= (rodando =emacs --batch -l init.el=) para executar a função de forma idêntica à versão nativa no Emacs.
+4. *Resolução*: O FSM do Proxy retorna os =tool_results= ao LLM transparente para o cliente =agy=.
     :PROPERTIES:
     :CREATED: 2026-08-23
     :STATUS: pendente
