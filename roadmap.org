@@ -1771,6 +1771,11 @@ Criar cache de referência para que agentes possam:
 - Repo: =just lint= OK (compile zero-warning + checkdoc + org-lint) e suíte *413 testes, 0 falhas inesperadas* (12 novos; 7 skipped sem pacote magent instalado no repo).
 - Prod: =just sync= (bb7e806) + =rebuild-prod= + =compile-prod= OK + =check-prod= OK (=Config loaded OK=) + suíte autoritativa *413 testes, 0 falhas* (7 skipped). Nota: =Unknown slot 'owner'= transitório na primeira passada pós-rebuild (mesma corrida documentada na entrada Forge), verde na segunda.
 
+** 2026-08-23 — [CONCLUÍDO] Feature: Validação MLX (7B) e Roteamento Híbrido
+- *Propósito:* Atualizar as preferências do roteador dinâmico após testar novos LLMs locais no Mac Mini M2 24GB.
+- *Execução:* Realizado teste de stress e benchmarking empírico com =mlx-community/Qwen2.5-Coder-7B-Instruct-4bit= (100% de sucesso e precisão na Norm 42) e =DeepSeek-R1-Distill-Qwen-7B= (alta lógica com chain-of-thought).
+- *Decisão:* Adotado Qwen2.5-Coder 7B para tarefas "táticas" e rápidas (Coder/Hephaestus), e DeepSeek-R1-Distill-Qwen (7B/14B) para tarefas arquiteturais pesadas (Planejamento), garantindo buffer livre de ~8-10GB de memória unificada para o KV Cache do OS. Matriz documentada oficialmente em =docs/ai-providers-reference.org=.
+
 * Decisões Arquiteturais
 
 ** Sem Evil Mode

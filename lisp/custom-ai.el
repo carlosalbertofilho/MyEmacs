@@ -400,27 +400,29 @@ nil quando o resultado atual ainda não é válido ou nunca foi calculado.")
 
 (defun +carlos/local-ai-server-ping-p ()
   "Checa se o servidor de IA local (MLX ou Ollama) está ativo.
-Resultado cacheado por `+carlos/local-ai-ping-ttl-seconds' para evitar
-~2s de latência a cada `gptel-request' quando o servidor está fora."
-  (let* ((now (float-time))
-         (age (and +carlos/local-ai-ping-cache
-                   (- now (car +carlos/local-ai-ping-cache)))))
-    (if (and age (< age +carlos/local-ai-ping-ttl-seconds))
-        (cdr +carlos/local-ai-ping-cache)
-      (let* ((backend-name (car (+carlos/ai-local-backend)))
-             (url (if (string-equal backend-name "MLX Local")
-                      "http://127.0.0.1:8081/v1/models"
-                    "http://127.0.0.1:11434/api/tags"))
-             (result
-              (condition-case nil
-                  (let ((url-request-method "GET")
-                        (url-show-status nil))
-                    (with-current-buffer (url-retrieve-synchronously url t t 2)
-                      (goto-char (point-min))
-                      (search-forward "200 OK" nil t)))
-                (error nil))))
-        (setq +carlos/local-ai-ping-cache (cons now result))
-        result))))
+Desabilitado no host `aa102-006l' para forçar roteamento 100% Nuvem.
+Resultado cacheado por `+carlos/local-ai-ping-ttl-seconds'."
+  (if (string-match-p "aa102-006l" (system-name))
+      nil
+    (let* ((now (float-time))
+           (age (and +carlos/local-ai-ping-cache
+                     (- now (car +carlos/local-ai-ping-cache)))))
+      (if (and age (< age +carlos/local-ai-ping-ttl-seconds))
+          (cdr +carlos/local-ai-ping-cache)
+        (let* ((backend-name (car (+carlos/ai-local-backend)))
+               (url (if (string-equal backend-name "MLX Local")
+                        "http://127.0.0.1:8081/v1/models"
+                      "http://127.0.0.1:11434/api/tags"))
+               (result
+                (condition-case nil
+                    (let ((url-request-method "GET")
+                          (url-show-status nil))
+                      (with-current-buffer (url-retrieve-synchronously url t t 2)
+                        (goto-char (point-min))
+                        (search-forward "200 OK" nil t)))
+                  (error nil))))
+          (setq +carlos/local-ai-ping-cache (cons now result))
+          result)))))
 
 (defun +carlos/gptel-setup-defaults-by-host ()
   "Aplica preferências de IA baseadas no hostname do sistema.

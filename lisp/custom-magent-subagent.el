@@ -60,16 +60,32 @@
 ;; `magent-agent-process' — com a resolução dinâmica de modelo por perfil.
 
 (defcustom +carlos/magent-subagent-profiles
-  '(("explore"     :min-tier "free" :preferred-backend "Gemini")
-    ("general"     :min-tier "free" :preferred-backend "OpenCode Zen")
-    ;; Equipe de especialistas (D9, custom-magent-team.el) — Matriz FinOps Free Tier ($0.00)
-    ("coder"       :min-tier "free" :preferred-backend "OpenCode Zen")
-    ("sysadmin"    :min-tier "free" :preferred-backend "Gemini")
-    ("planner"     :min-tier "free" :preferred-backend "OpenCode Zen")
-    ("tech-writer" :min-tier "free" :preferred-backend "Gemini")
-    ("auditor"     :min-tier "free" :preferred-backend "OpenCode Zen")
-    ("sec-ops"     :min-tier "free" :preferred-backend "OpenCode Zen")
-    ("qa"          :min-tier "free" :preferred-backend "OpenCode Zen"))
+  (if (string-match-p "aa102-006l" (system-name))
+      ;; Host aa102-006l: 100% Nuvem (Hardware CPU-only sofre latência extrema local)
+      '(("explore"     :min-tier "free" :preferred-backend "Gemini")
+        ("general"     :min-tier "free" :preferred-backend "OpenCode Zen")
+        ("coder"       :min-tier "free" :preferred-backend "OpenCode Zen")
+        ("sysadmin"    :min-tier "free" :preferred-backend "Gemini")
+        ("planner"     :min-tier "free" :preferred-backend "Gemini")
+        ("tech-writer" :min-tier "free" :preferred-backend "Gemini")
+        ("auditor"     :min-tier "free" :preferred-backend "OpenCode Zen")
+        ("sec-ops"     :min-tier "free" :preferred-backend "Gemini")
+        ("qa"          :min-tier "free" :preferred-backend "Gemini"))
+    ;; Host agnes (Mac M2 24GB): Híbrido MLX/Nuvem Otimizado
+    '(("explore"     :min-tier "local" :preferred-backend "MLX Local")
+      ("general"     :min-tier "local" :preferred-backend "MLX Local")
+      ;; Codificação (Qwen2.5-Coder 7B)
+      ("coder"       :min-tier "local" :preferred-backend "MLX Local")
+      ("sysadmin"    :min-tier "local" :preferred-backend "MLX Local")
+      ;; Planejamento (Gemini 2.5 Flash -> 1M tokens)
+      ("planner"     :min-tier "free" :preferred-backend "Gemini")
+      ("tech-writer" :min-tier "free" :preferred-backend "Gemini")
+      ;; Code Review (OpenCode Zen big-pickle)
+      ("auditor"     :min-tier "free" :preferred-backend "OpenCode Zen")
+      ;; Arquitetura/Lógica (DeepSeek R1 Distill)
+      ("sec-ops"     :min-tier "local" :preferred-backend "MLX Local")
+      ;; Logs gigantes (Gemini 2.5 Flash)
+      ("qa"          :min-tier "free" :preferred-backend "Gemini")))
   "Dicas de roteamento de modelo dos subagentes do Magent (spawn_agent).
 Alist de (AGENT-NAME . HINTS) onde HINTS é um plist com:
 - `:min-tier' — piso de tier (`local', `free' ou `paid') que o roteamento

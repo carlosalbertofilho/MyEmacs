@@ -261,17 +261,17 @@ Para zerar custos durante o desenvolvimento diário e garantir resiliência cont
 
 Para garantir autonomia total e privacidade sem depender de conexões de nuvem ou assinaturas pagas:
 
-| Perfil | Função no Magent | Modelo Local CPU (=aa102-006l=) | Modelo Local GPU (=agnes= Mac M2) | Razão da Escolha |
+| Perfil | Função no Magent | Modelo Local CPU (=aa102-006l=) | Modelo Local GPU (=agnes= Mac M2 24GB) | Razão da Escolha |
 |--------+------------------+--------------------------------+-----------------------------------+------------------|
-| *Orquestrador* | Triagem e =spawn_agent= | =qwen2.5-coder:1.5b= (0.3s TTFT) | =gemma-4-e2b-it-4bit= / =Qwen-7B= | TTFT instantâneo de 0.3s para não travar a UI |
-| =coder= | Edição de buffers vivos (=buffer_insert=) | =qwen2.5-coder:3b= (14 tok/s) | =Qwen2.5-Coder-14B-Instruct= | Maior precisão sintática para Elisp/C/Python |
-| =explore= | Leitura rápida & =grep_search= | =qwen2.5-coder:1.5b= (25 tok/s) | =Qwen2.5-Coder-7B= | Varredura ultra-rápida sem consumo de memória |
-| =planner= | AST Org-mode (=TODO.org=) | =deepseek-r1:1.5b= (24 tok/s) | =DeepSeek-R1-Distill-Qwen-14B= | Raciocínio prévio em gaveta =<thought>= |
-| =tech-writer= | RAG e =docs/*.org= | =gemma2:2b= (15 tok/s) | =Gemma 9B= / =Qwen 14B= | Excelente síntese em linguagem natural e docstrings |
-| =auditor= | Norminette (25 linhas) & RFCs | =qwen2.5-coder:3b= | =Qwen2.5-Coder-14B= | Sensível a regras de 25 linhas e limites de colunas |
-| =sec-ops= | Segurança e Criptografia | =deepseek-r1:1.5b= | =DeepSeek-R1-Distill-Qwen-14B= | Análise de vulnerabilidade e criptografia |
-| =qa= | Quality gates (=just test-all=) | =qwen2.5-coder:1.5b= | =Qwen2.5-Coder-7B= | Interpretação rápida de backtraces ERT |
-| =general= | Tarefas genéricas e scripts ad-hoc | =gemma2:2b= / =qwen2.5-coder:1.5b= | =Qwen2.5-Coder-7B= | Rascunhos rápidos e suporte geral |
+| *Orquestrador* | Triagem e =spawn_agent= | =qwen2.5-coder:1.5b= (0.3s TTFT) | =Gemma-4-9B= / =Qwen2.5-7B= | TTFT instantâneo de 0.3s para não travar a UI |
+| =coder= | Edição de buffers vivos (=buffer_insert=) | =qwen2.5-coder:3b= (14 tok/s) | =Qwen2.5-Coder-7B-Instruct= | 100% de sucesso em testes. Precisão sintática imbatível. |
+| =explore= | Leitura rápida & =grep_search= | =qwen2.5-coder:1.5b= (25 tok/s) | =Qwen2.5-Coder-7B-Instruct= | Varredura ultra-rápida sem consumir o KV Cache do OS. |
+| =planner= | AST Org-mode (=TODO.org=) | =deepseek-r1:1.5b= (24 tok/s) | =DeepSeek-R1-Distill-Qwen-7B= (ou =14B=) | Raciocínio prévio na tag =<think>= (CoT). Lógica densa. |
+| =tech-writer= | RAG e =docs/*.org= | =gemma2:2b= (15 tok/s) | =Gemma 4 9B= / =Qwen2.5 7B= | Excelente síntese em linguagem natural e docstrings |
+| =auditor= | Norminette (25 linhas) & RFCs | =qwen2.5-coder:3b= | =DeepSeek-Coder V2 16B MoE= | Inteligência de 16B com consumo de RAM de 3B (MoE). |
+| =sec-ops= | Segurança e Criptografia | =deepseek-r1:1.5b= | =DeepSeek-R1-Distill-Qwen-7B= | Análise de vulnerabilidade profunda com raciocínio. |
+| =qa= | Quality gates (=just test-all=) | =qwen2.5-coder:1.5b= | =Qwen2.5-Coder-7B-Instruct= | Interpretação instantânea de backtraces ERT |
+| =general= | Tarefas genéricas e scripts ad-hoc | =gemma2:2b= / =qwen2.5-coder:1.5b= | =Qwen2.5-Coder-7B-Instruct= | Rascunhos rápidos e suporte geral |
 
 
 

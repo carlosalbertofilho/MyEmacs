@@ -71,14 +71,22 @@ Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=
     :STATUS: BACKLOG
     :END:
 
-*** Benchmarking Empírico e Matriz Local 14B (Soberania Offline)
-Efetuar varredura completa dos modelos instalados no Mac M2 (=agnes=) através de múltiplos provedores (Ollama, MLX, mlx-community e servidor =mlx_lm.server=).
-- Identificar e remover modelos pesados/obsoletos acumulados de testes anteriores.
+*** TODO Revisão da Matriz de Modelos Locais (MLX no Mac M2)
+    :PROPERTIES:
+    :CREATED: 2026-08-23
+    :STATUS: BACKLOG
+    :END:
+Atualização do roteamento e padronização do MLX como servidor principal (Ollama desativado), otimizado para os 24GB de RAM unificada.
 
-Executar benchmarks reais medindo TTFT, tokens/segundo e consumo de memória unificada para a suíte local de 14B:
-- Validar =mlx-community/Qwen3.5-Coder-14B-Instruct-4bit= para o perfil =coder=.
-- Validar =mlx-community/DeepSeek-R1-Distill-Qwen-14B-4bit= para o perfil =planner=/=sec-ops=.
-- Validar =mlx-community/gemma-4-e2b-it-4bit= ou =Qwen-7B= como Orquestrador Local offline.
+- [ ] Atualizar =custom-ai.el= com as novas prioridades do =+carlos/gptel-dynamic-router-advice=
+  - Tático/Rápido (Coder/Hephaestus): =mlx-community/Qwen2.5-Coder-7B-Instruct-4bit=
+  - Estratégico/Lógico (Planner/Architect): =DeepSeek-R1-Distill-Qwen-7B= (ou 14B)
+  - Reviewer/Auditor: MoE / DeepSeek destilado
+- [ ] Ajustar o parser/prompt do gptel para lidar com modelos DeepSeek R1
+  - Tratar a flag =(reasoning . text)= retornada pelo MLX
+  - Avaliar desativação de stream programático para estes modelos ou injetar parser que remova a tag =<think>=
+- [ ] Atualizar as definições de personas (c-42, python, architect, etc.)
+  - Forçar o modelo MLX local correspondente como primeira opção (fallback) em ambiente offline no Mac M2
 
 *** Ponte Proxy HTTP Local OpenAI API (AGY CLI Bridge & 3-Tier Fallback)
 Desenvolver o servidor HTTP assíncrono em Python (stdlib asyncio/http.server) escutando na porta 8088.
@@ -256,7 +264,7 @@ Este documento descreve o planejamento para a criação de três novas ferrament
 - [ ] Receber comandos/argumentos Lisp na CLI e avaliar.
 - [ ] Ajustar documentação em `docs/magent-reference.org`.
 
-* TODO ** TODO Implementar Integração de JSON Schema e GBNF no gptel (MLX/Ollama)
+** TODO Implementar Integração de JSON Schema e GBNF no gptel (MLX/Ollama)
    :PROPERTIES:
    :CREATED:  2026-08-23
    :STATUS:   BACKLOG
@@ -268,8 +276,11 @@ Aqui está como implementar essa restrição exata no Emacs para os dois cenári
 A partir de atualizações recentes, o gptel adicionou o argumento :schema na sua API de requisições (gptel-request), permitindo forçar a LLM a responder seguindo um JSON Schema definido diretamente em Emacs Lisp (usando plists ou objetos JSON serializados). [2] 
 Se você rodar o MLX via terminal (python -m mlx_lm.server) ou o Ollama/LM Studio localmente, você pode injetar o schema desta forma.
 
+** DONE Revisão da Tabela de Preferências de Modelos (M2 24GB)
     :PROPERTIES:
     :CREATED: 2026-08-23
-    :STATUS: pendente
+    :STATUS: DONE
     :END:
-
+- [X] Analisar os benchmarks empíricos do MLX para o Mac M2 24GB.
+- [X] Testar =Qwen2.5-Coder-7B= e =DeepSeek-R1-Distill-Qwen-7B=.
+- [X] Ajustar a recomendação do roteador híbrido em =docs/ai-providers-reference.org= e em =roadmap.org=.
