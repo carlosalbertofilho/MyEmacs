@@ -1829,6 +1829,92 @@ histórico completo nos registros da Linha do Tempo:
   MCP nativo, refactors pesados): movido para o TODO.org (Diagnóstico e
   Decisões Pendentes de Infraestrutura — item 4).
 
+* Histórico — Atividades Concluídas (movidas do TODO.org em 2026-08-24)
+
+** [ARQUIVADO 2026-08-24] P0: Corrigir corrupção do Circuit Breaker em custom-magent-tools.el
+    :PROPERTIES:
+    :CREATED: 2026-08-24
+    :STATUS:   DONE
+    :END:
+Causa-raiz confirmada da escolha repetida do OpenCode apesar de saldo esgotado.
+Em =lisp/custom-magent-tools.el:362= o header =(defun +carlos/magent-cb-gptel-request-advice (orig-fn &rest args)=
+foi engolido por um comentário (byte corrompido U+FFFD seguido de =n(defun= —
+mojibake de edição anterior). Consequências em cascata:
+1. A advice =+carlos/magent-cb-gptel-request-advice= nunca é definida (testes
+   =magent-cb-gptel-request-*-test= chamam-na diretamente e falham).
+2. O corpo dela (docstring + =let*=) e o =(advice-add 'gptel-request :around ...)=
+   da linha 393 foram absorvidos como formas do corpo de =+carlos/magent-cb-record-failure=
+   (=lisp/custom-magent-tools.el:360-399=).
+3. Toda chamada a =+carlos/magent-cb-record-failure= executa o =let*= órfão que
+   referencia =args= (não ligado na arglist) → =void-variable args= antes do
+   =puthash= → falhas nunca são registradas.
+4. =+carlos/magent-cb-open-p= retorna sempre nil → =+carlos/magent-resolve-model=
+   (=lisp/custom-magent-tools.el:893-895=) nunca descarta o OpenCode Zen.
+- [ ] Restaurar o header =(defun +carlos/magent-cb-gptel-request-advice (orig-fn &rest args)= na linha 362 e re-dentar docstring/corpo.
+- [ ] Mover =(advice-add 'gptel-request :around #'+carlos/magent-cb-gptel-request-advice)= para top-level (fora do defun de record-failure).
+- [X] Rodar =just rebuild= + suíte ERT (portão zero-warning; os dois testes de CB devem passar).
+Resolução (2026-08-24): header da advice restaurado. Bug LATENTE adicional corrigido: com o PROMPT na cabeça de ARGS, =plist-get= varre pares de 2 em 2 e jamais encontrava as keywords — a advice nunca teria funcionado nem sem a corrupção. Assinatura agora =(orig-fn prompt &rest args)=. Cruft adicional removido: registro duplicado de =context_search= sem guard (=void-variable magent-enable-tools= quebrava o BOOT inteiro — Emacs 30 gotcha do =defvar= pelado) e alias que chamava variante com hífen inexistente. Suíte repo: 468 testes, 461 passando, 0 falhas.
+
+** [ARQUIVADO 2026-08-24] Reverter =min-tier= dos perfis de subagente para ="free"= (unificação entre hosts)
+    :PROPERTIES:
+    :CREATED: 2026-08-24
+    :STATUS:   DONE
+    :END:
+Diagnóstico: o defcustom =+carlos/magent-subagent-profiles= (=lisp/custom-magent-subagent.el:62-88=)
+é sensível ao host — em =agnes= (Mac M2) os perfis explore/general/coder/sysadmin/sec-ops
+usam =:min-tier "local"= (MLX), mas a suíte espera ="free"=. O teste está certo: o
+roteamento deve preferir modelos gratuitos de nuvem como base, usando MLX apenas
+como desempate via =preferred-backend= (nunca exigir modelo local).
+Proposta: unificar os dois blocos — todos os perfis com =:min-tier "free"= em ambos
+os hosts; a diferença entre hosts fica apenas no =preferred-backend= (=Gemini= no
+EliteDesk aa102-006l, poupando CPU; =MLX Local= na agnes, GPU Metal):
+#+begin_src elisp
+(defcustom +carlos/magent-subagent-profiles
+  (let ((local-backend (if (string-match-p "aa102-006l" (system-name))
+                           "Gemini"     ;; EliteDesk: nuvem (poupa CPU)
+                         "MLX Local"))) ;; agnes: GPU Metal
+    `(("explore"     :min-tier "free" :preferred-backend ,local-backend)
+      ("general"     :min-tier "free" :preferred-backend "OpenCode Zen")
+      ("coder"       :min-tier "free" :preferred-backend "OpenCode Zen")
+      ("sysadmin"    :min-tier "free" :preferred-backend ,local-backend)
+      ("planner"     :min-tier "free" :preferred-backend "Gemini")
+      ("tech-writer" :min-tier "free" :preferred-backend "Gemini")
+      ("auditor"     :min-tier "free" :preferred-backend "OpenCode Zen")
+      ("sec-ops"     :min-tier "free" :preferred-backend ,local-backend)
+      ("qa"          :min-tier "free" :preferred-backend "Gemini")))
+  ...)
+#+end_src
+Impacto nos testes: resolve =myemacs-magent-subagent-profiles-defaults= e
+=myemacs-magent-select-model-honors-complexity-arg= (itens do nó "Corrigir falhas
+de testes do Magent" abaixo). Esforço: ~10 min. Prioridade Alta.
+- [X] Perfis unificados (snippet aplicado verbatim).
+Resolução (2026-08-24): aplicado via emacs --batch com âncoras estruturais; =profiles-defaults= e =select-model-honors-complexity-arg= verdes.
+- Link to plan: [[file:../.gemini/antigravity-cli/brain/6939fb0d-b068-4595-850d-99e9321fe46f/plan_consolidated.md][Plano Consolidado §1]]
+
+** [ARQUIVADO 2026-08-24] Corrigir falhas de testes do Magent
+    :PROPERTIES:
+    :STATUS:   DONE
+    :END:
+- [X] magent-cb-gptel-request-failure-test
+- [X] magent-cb-gptel-request-success-test
+- [X] myemacs-boot-no-lisp-errors
+- [X] myemacs-context-compaction-rules-present
+- [X] myemacs-magent-select-model-honors-complexity-arg
+- [X] myemacs-magent-subagent-profiles-defaults
+Resolução (2026-08-24): todos os itens deste nó resolvidos no ciclo P0 + min-tier. Nota: =compaction-rules-present= exigiu ainda refatorar o leitor de regras do AGENTS.md (compor seções Coding Standards + Testing + Workflow) e corrigir =default-directory= nil no próprio teste.
+
+** [ARQUIVADO 2026-08-24] 3. Depurador Vivo (magent-tool-debug)
+    :PROPERTIES:
+    :STATUS: DONE
+    :END:
+- [ ] Criar o arquivo do módulo `lisp/custom-magent-tool-debug.el` focado na orquestração do DAP.
+- [ ] Implementar a ferramenta de integração `+carlos/magent-tool-debug`.
+- [ ] Criar ponte de comunicação com o pacote `dape` (DAP client nativo do Emacs).
+- [X] Implementar ações para o Magent definir e remover breakpoints nas sessões do `dape`.
+- [X] Implementar ações para iniciar a execução e pausar a depuração de código através do agente.
+- [X] Implementar capacidade de inspecionar o valor de variáveis durante a pausa.
+- [X] Atualizar o arquivo de referência em `docs/magent-reference.org` detalhando a API e integração do DAP.
+
 * Apêndice A — Catálogo de Regras do awesome-cursorrules (Plano 0.14)
 
 Catálogo de 257 regras movido em 2026-08-16 para o arquivo dedicado
