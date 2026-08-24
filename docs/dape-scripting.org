@@ -1,0 +1,102 @@
+#+TITLE: Dape Scripting Guide
+#+AUTHOR: Carlos Filho
+#+DATE: 2026-08-23
+#+LAST_MODIFIED: 2026-08-23
+#+DESCRIPTION: Guia de uso programático do Dape para orquestração de testes e automações no Emacs.
+#+FILETAGS: :RAG:DOCS:DAPE:SCRIPTING:
+#+OPTIONS: toc:2 num:t
+
+* Visão Geral
+
+Guia de uso programático do Dape para orquestração de testes e automações no Emacs.
+
+* Símbolos Introspectados
+
+** dape
+- *Tipo:* Comando Interativo
+- *Assinatura:* =(dape config &optional skip-compile)=
+
+#+begin_src text
+Start debugging session with selected configuration.
+When called interactively, the command prompts for a alist KEY from
+`dape-configs', followed by additional property-value pairs.  These
+pairs override the properties in the plist associated with the key
+in `dape-configs'.
+
+For example, interactively invoking:
+  launch :program "bin"
+executes the `launch' configuration from `dape-configs', overriding
+the `:program' option with "bin".
+
+CONFIG is an keyword-value plist, see VALUEs in `dape-config' alist.
+SKIP-COMPILE argument is used internally for recursive calls
+and should not be specified manually.
+
+For more information see `dape-configs'.
+
+(fn CONFIG &optional SKIP-COMPILE)
+#+end_src
+
+** dape-configs
+- *Tipo:* Variável
+
+_Sem documentação registrada._
+
+** dape-evaluate-expression
+- *Tipo:* Comando Interativo
+- *Assinatura:* =(dape-evaluate-expression conn expression &optional context)=
+
+#+begin_src text
+Evaluate expression in current session.
+If called interactively and region is active evaluate region.
+EXPRESSION should be a string to be evaluated in CONTEXT.
+CONN is inferred by either last stopped then last created connection.
+
+(fn CONN EXPRESSION &optional CONTEXT)
+#+end_src
+
+** dape-breakpoint-toggle
+- *Tipo:* Comando Interativo
+
+#+begin_src text
+Add or remove breakpoint at current line.
+#+end_src
+
+** dape-quit
+- *Tipo:* Comando Interativo
+
+#+begin_src text
+#+end_src
+
+* Aprendizados: Scripting com Dape em Batch
+
+Ao automatizar o Dape em modo batch (para CI, IA ou testes de regressão automatizados), você frequentemente encontrará problemas de tipagem e de orquestração. Abaixo o guia para evitar esses entraves.
+
+** 1. Invocando o DAP (=(dape config)=)
+Apesar do comando =M-x dape= no Emacs permitir que você interativamente passe uma string (ex: =dlv=), a função Lisp =dape= espera **estritamente uma plist** com a configuração. Em batch, injetar apenas o nome do servidor DAP ou usar funções como =dape--config-from-string= resulta em erro de argumento =(wrong-type-argument stringp nil)= ou =plistp=.
+
+*Solução correta:*
+Você deve extrair a =plist= diretamente de =dape-configs= via =alist-get= e passar para o comando:
+
+#+begin_src elisp
+(let ((config (alist-get 'dlv dape-configs)))
+  (unless config
+    (error "Configuração dape não encontrada"))
+  (dape config))
+#+end_src
+
+** 2. Avaliando Expressões (=(dape-evaluate-expression)=)
+A função =dape-evaluate-expression= exige 2 argumentos de forma programática:
+1. =CONN=: A conexão ativa do debugger.
+2. =EXPRESSION=: A string com a expressão.
+
+Você deve usar =dape--live-connection= para capturar a sessão atual:
+
+#+begin_src elisp
+(unless (dape--live-connection 'stopped)
+  (error "O depurador precisa estar pausado para avaliar expressões"))
+(dape-evaluate-expression (dape--live-connection 'stopped) "minhaVariavel")
+#+end_src
+
+** 3. Tolerância de Dependências (Requisições Isoladas)
+Sempre lembre-se de invocar =(require 'dape nil t)= em scripts de background/automação para evitar erro de pacote não carregado (void-function), já que a automação em *batch mode* do Emacs frequentemente executa com load-paths e buffers isolados. Em caso de atualizações no =use-package=, utilize um `just clean` + `just compile` para evitar o uso de artefatos =.elc= (byte-compiled) desatualizados que podem esconder dependências.

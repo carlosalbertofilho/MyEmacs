@@ -172,10 +172,11 @@ roteamento para backends locais fica apenas como fallback final.")
     :models '("mlx-community/gemma-4-e2b-it-4bit"
               "mlx-community/gemma-4-9b-it-4bit"
               "mlx-community/Qwen3.5-9B-MLX-4bit"
+              "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit"
+              "mlx-community/DeepSeek-R1-Distill-Qwen-7B-4bit"
               "mlx-community/Qwen3.5-Coder-7B-Instruct-4bit"
               "mlx-community/Qwen3.5-Coder-14B-Instruct-4bit"
-              "mlx-community/DeepSeek-R1-Distill-Qwen-14B-4bit"))
-
+              ))
   ;; ── Set default backend and model globally (host-based detection) ─
   ;; Chat padrão: Gemini free tier (gemini-3.5-flash) — o agente local
   ;; ficou impraticável em CPU; local agora é apenas fallback final do

@@ -13,6 +13,8 @@
 (require 'ert)
 (require 'ielm)
 
+(use-package dape :ensure t)
+
 (declare-function +carlos/gptel-request "custom-ai")
 (defvar +carlos/gptel-quick-local-backend)
 (defvar +carlos/gptel-quick-local-model)

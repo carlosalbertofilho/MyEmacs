@@ -30,6 +30,7 @@
 (require 'custom-magent-tool-git)
 (require 'custom-magent-tool-rfc)
 (require 'custom-magent-tool-lsp)
+(require 'custom-magent-tool-debug)
 (require 'custom-magent-buffer)
 (require 'custom-magent-subagent)
 (require 'custom-magent-team)
