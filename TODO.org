@@ -136,6 +136,7 @@ Mecanismo de Failover Pre-emptivo:
   - [ ] Se o modo `magent-fsm-mode` estiver ativo E o modelo alvo *não* for de raciocínio (não for DeepSeek R1, pois a tag `<think>` colide com a validação estrita JSON), devemos injetar o `response_format` no JSON da requisição (para MLX/OpenAI).
 - [ ] 3. **Validação Prática com Modelo Minúsculo:**
   - [ ] Adicionar uma subtarefa para testar a FSM localmente usando um modelo pequeno e rápido no MLX (ex: `Qwen2.5-Coder-1.5B`) para provar matematicamente que a restrição de logits força a conformidade perfeita ao JSON sem o Magent precisar gastar CPU com Regex defensivo.
+  - [ ] Executar benchmark no host =aa102-006l= (mantido habilitado para IA local) utilizando modelos locais fracos via Ollama (GBNF) para avaliar na prática se a eliminação de alucinações compensa a lentidão da CPU.
 
 * Concluído (referências ao roadmap)
 

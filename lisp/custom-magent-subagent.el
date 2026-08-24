@@ -61,16 +61,16 @@
 
 (defcustom +carlos/magent-subagent-profiles
   (if (string-match-p "aa102-006l" (system-name))
-      ;; Host aa102-006l: 100% Nuvem (Hardware CPU-only sofre latência extrema local)
+      ;; Host aa102-006l: Tabela Antiga (Free Tier / OpenCode Zen predominante)
       '(("explore"     :min-tier "free" :preferred-backend "Gemini")
         ("general"     :min-tier "free" :preferred-backend "OpenCode Zen")
         ("coder"       :min-tier "free" :preferred-backend "OpenCode Zen")
         ("sysadmin"    :min-tier "free" :preferred-backend "Gemini")
-        ("planner"     :min-tier "free" :preferred-backend "Gemini")
+        ("planner"     :min-tier "free" :preferred-backend "OpenCode Zen")
         ("tech-writer" :min-tier "free" :preferred-backend "Gemini")
         ("auditor"     :min-tier "free" :preferred-backend "OpenCode Zen")
-        ("sec-ops"     :min-tier "free" :preferred-backend "Gemini")
-        ("qa"          :min-tier "free" :preferred-backend "Gemini"))
+        ("sec-ops"     :min-tier "free" :preferred-backend "OpenCode Zen")
+        ("qa"          :min-tier "free" :preferred-backend "OpenCode Zen"))
     ;; Host agnes (Mac M2 24GB): Híbrido MLX/Nuvem Otimizado
     '(("explore"     :min-tier "local" :preferred-backend "MLX Local")
       ("general"     :min-tier "local" :preferred-backend "MLX Local")
