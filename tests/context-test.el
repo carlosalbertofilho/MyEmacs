@@ -299,7 +299,7 @@ Skip quando o source do ambiente-alvo ainda não tem a forward declaration
 ;; ── Referência AGENTS.md na compactação ─────────────────────────────
 (ert-deftest myemacs-context-compaction-rules-present ()
   "Garante que a instrução de compactação contém regras essenciais do AGENTS.md."
-  (let ((default-directory (expand-file-name ".." (file-name-directory (or load-file-name buffer-file-name)))))
+  (let ((default-directory (or (locate-dominating-file default-directory "AGENTS.md") default-directory)))
     (cl-letf (((symbol-function 'project-current) (lambda (&optional _) `(transient . ,default-directory)))
               ((symbol-function 'project-root) (lambda (pr) (cdr pr))))
       (let ((instr (+carlos/magent-build-compaction-instruction)))

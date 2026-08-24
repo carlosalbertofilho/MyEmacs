@@ -63,7 +63,7 @@
     (setq custom-magent-proxy--process nil)
     (message "agy-proxy stopped")))
 
-(defun custom-magent-proxy--sentinel (process event)
+(defun custom-magent-proxy--sentinel (_process event)
   "Trata eventos do ciclo de vida do proxy."
   (cond
    ((string-match-p "finished" event)

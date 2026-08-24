@@ -68,21 +68,37 @@ Previne thrashing quando tokens crescem rápido pós-compactação."
   :type 'integer
   :group '+carlos/ai)
 
-(defun +carlos/magent-context--read-agents-rules ()
-  "Lê dinamicamente o arquivo AGENTS.md da raiz do projeto para a compactação."
+
+(defun +carlos/magent-context--agents-section (header-regex)
+  "Extrai do AGENTS.md do projeto atual a seção iniciada por HEADER-REGEX.
+A seção vai do cabeçalho casado até o próximo cabeçalho `^## ' (ou EOF).
+Retorna string vazia quando o arquivo ou a seção não existem."
   (let* ((proj (and (fboundp 'project-current) (project-current)))
          (root (and proj (project-root proj)))
          (agents-md (and root (expand-file-name "AGENTS.md" root))))
-    (if (and agents-md (file-exists-p agents-md))
-        (with-temp-buffer
-          (insert-file-contents agents-md)
-          (goto-char (point-min))
-          (if (re-search-forward "^## Elisp Coding Standards" nil t)
+    (or (when (and agents-md (file-exists-p agents-md))
+          (with-temp-buffer
+            (insert-file-contents agents-md)
+            (goto-char (point-min))
+            (when (re-search-forward header-regex nil t)
               (let ((start (match-beginning 0))
-                    (end (if (re-search-forward "^## " nil t) (match-beginning 0) (point-max))))
-                (buffer-substring-no-properties start end))
-            "AGENTS.md localizado, mas sem seção 'Elisp Coding Standards'."))
-      "AGENTS.md ausente (regras de projeto não carregadas).")))
+                    (end (if (re-search-forward "^## " nil t)
+                             (match-beginning 0)
+                           (point-max))))
+                (buffer-substring-no-properties start end)))))
+        "")))
+
+(defun +carlos/magent-context--read-agents-rules ()
+  "Lê dinamicamente as regras essenciais do AGENTS.md da raiz do projeto.
+Concatena as seções de padrões de código Elisp (`use-package', guards
+`fboundp'), portões de teste (`just test-all') e regras de workflow —
+os contratos verificados pela suíte ERT de compactação."
+  (mapconcat
+   #'+carlos/magent-context--agents-section
+   '("^## Elisp Coding Standards"
+     "^## Testing"
+     "^## Workflow Rules")
+   "\n"))
 
 (defvar +carlos/magent-context-estimated-tokens 0
   "Tokens estimados consumidos desde a última compactação.")

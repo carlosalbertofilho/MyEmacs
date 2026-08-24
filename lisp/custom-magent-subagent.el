@@ -60,31 +60,17 @@
 ;; `magent-agent-process' — com a resolução dinâmica de modelo por perfil.
 
 (defcustom +carlos/magent-subagent-profiles
-  (if (string-match-p "aa102-006l" (system-name))
-      ;; Host aa102-006l: Tabela Antiga (Free Tier / OpenCode Zen predominante)
-      '(("explore"     :min-tier "free" :preferred-backend "Gemini")
-        ("general"     :min-tier "free" :preferred-backend "OpenCode Zen")
-        ("coder"       :min-tier "free" :preferred-backend "OpenCode Zen")
-        ("sysadmin"    :min-tier "free" :preferred-backend "Gemini")
-        ("planner"     :min-tier "free" :preferred-backend "OpenCode Zen")
-        ("tech-writer" :min-tier "free" :preferred-backend "Gemini")
-        ("auditor"     :min-tier "free" :preferred-backend "OpenCode Zen")
-        ("sec-ops"     :min-tier "free" :preferred-backend "OpenCode Zen")
-        ("qa"          :min-tier "free" :preferred-backend "OpenCode Zen"))
-    ;; Host agnes (Mac M2 24GB): Híbrido MLX/Nuvem Otimizado
-    '(("explore"     :min-tier "local" :preferred-backend "MLX Local")
-      ("general"     :min-tier "local" :preferred-backend "MLX Local")
-      ;; Codificação (Qwen2.5-Coder 7B)
-      ("coder"       :min-tier "local" :preferred-backend "MLX Local")
-      ("sysadmin"    :min-tier "local" :preferred-backend "MLX Local")
-      ;; Planejamento (Gemini 2.5 Flash -> 1M tokens)
+  (let ((local-backend (if (string-match-p "aa102-006l" (system-name))
+                           "Gemini"     ;; EliteDesk: nuvem (poupa CPU)
+                         "MLX Local"))) ;; agnes: GPU Metal
+    `(("explore"     :min-tier "free" :preferred-backend ,local-backend)
+      ("general"     :min-tier "free" :preferred-backend "OpenCode Zen")
+      ("coder"       :min-tier "free" :preferred-backend "OpenCode Zen")
+      ("sysadmin"    :min-tier "free" :preferred-backend ,local-backend)
       ("planner"     :min-tier "free" :preferred-backend "Gemini")
       ("tech-writer" :min-tier "free" :preferred-backend "Gemini")
-      ;; Code Review (OpenCode Zen big-pickle)
       ("auditor"     :min-tier "free" :preferred-backend "OpenCode Zen")
-      ;; Arquitetura/Lógica (DeepSeek R1 Distill)
-      ("sec-ops"     :min-tier "local" :preferred-backend "MLX Local")
-      ;; Logs gigantes (Gemini 2.5 Flash)
+      ("sec-ops"     :min-tier "free" :preferred-backend ,local-backend)
       ("qa"          :min-tier "free" :preferred-backend "Gemini")))
   "Dicas de roteamento de modelo dos subagentes do Magent (spawn_agent).
 Alist de (AGENT-NAME . HINTS) onde HINTS é um plist com:
@@ -92,9 +78,11 @@ Alist de (AGENT-NAME . HINTS) onde HINTS é um plist com:
   nunca desce abaixo, independente da complexidade da tarefa;
 - `:preferred-backend' (opcional) — backend preferido como desempate dentro
   do tier escolhido.
-NÃO existe modelo concreto pinado por perfil: o advice
-`+carlos/magent-subagent-apply-profile' resolve o modelo em runtime pela
-complexidade da tarefa (`user-prompt') respeitando estas dicas, e a tool
+Todos os perfis usam piso \"free\": o roteamento pode preferir nuvem gratuita
+e o MLX fica para orquestrador/dev/reasoning via `+carlos/magent-host-profiles'
+(nunca exigido para subagentes). NÃO existe modelo concreto pinado por perfil:
+o advice `+carlos/magent-subagent-apply-profile' resolve o modelo em runtime
+pela complexidade da tarefa (`user-prompt') respeitando estas dicas, e a tool
 `select_model' (Fase A) aplica o override transiente quando o orquestrador
 escolhe explicitamente.  Agentes fora desta lista — ex.: o orquestrador —
 não são alterados."

@@ -81,6 +81,37 @@ Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=
 - [ ] Receber comandos/argumentos Lisp na CLI e avaliar.
 - [ ] Ajustar documentação em `docs/magent-reference.org`.
 
+** TODO 4. Melhorias =org_smart_edit= — ações AST-aware seguras
+    :PROPERTIES:
+    :CREATED: 2026-08-24
+    :STATUS: BACKLOG
+    :END:
+Arquivo-alvo: =lisp/custom-magent-tool-smart-edit.el=. Incidente (2026-08-24):
+=refactor_symbol= usa =(search-forward old nil t)= sem =regexp-quote= — ao passar
+uma string contendo asteriscos de heading (ex.: ="* TODO ** TODO"=), o padrão casou
+com todos os headings do arquivo e destruiu o TODO.org inteiro.
+- [ ] Nova ação =replace_heading= (AST-aware): localizar o heading exato pelo texto (=raw-value=) via =org-element-map= e modificar apenas ele, preservando nível e keyword (=TODO=/=DONE=). Nunca toca em outros headings (~20 linhas). Prioridade Alta.
+- [ ] Nova ação =replace_text= (range de linhas): substituição genérica limitada a um intervalo (args: ="old|new|L1|L2"=), evitando cascata global; fallback quando =replace_heading= não se aplica (~15 linhas). Prioridade Média.
+- [ ] Endurecer =refactor_symbol= existente: adicionar =regexp-quote= ao pattern e flags opcionais (=FIRST=, =WORD=, =REGEX=); default continua ALL (backward-compatible, agora seguro; ~10 linhas alteradas). Prioridade Média.
+- [ ] Testes ERT para as três ações, incluindo regressão do incidente (padrão com asteriscos não deve vazar além do alvo).
+- Link to plan: [[file:../.gemini/antigravity-cli/brain/6939fb0d-b068-4595-850d-99e9321fe46f/plan_consolidated.md][Plano Consolidado §2]]
+
+** TODO 5. Evoluir =bin/magent-cli= — CLI auto-descritiva
+    :PROPERTIES:
+    :CREATED: 2026-08-24
+    :STATUS: BACKLOG
+    :END:
+Estado atual: wrapper mínimo (28 linhas) sem =--help=, sem listagem de ferramentas,
+sem validação de argumentos, output bruto (JSON inconsistente), sem =--dry-run= e
+sem =--init-directory=. Interface alvo: =bin/magent-cli [FLAGS] <tool_name> [args...]=.
+- [ ] Flag =--list-tools= / =-l=: listar todas as funções =+carlos/magent-tool-*= com docstring resumida, via =(apropos-internal "\\+carlos/magent-tool-" #'fboundp)= + =(documentation fn)= (~30 min). Prioridade Alta.
+- [ ] Flag =--describe <tool>=: docstring + argumentos via =(help-function-arglist fn)= + =(documentation fn)=, com ações e exemplos por convenção de nome (~30 min). Prioridade Média.
+- [ ] Flag =--dry-run=: imprimir o Elisp que seria executado sem executar — útil para agentes verificarem antes de commitar (~10 min). Prioridade Baixa.
+- [ ] Output JSON estruturado (=status=, =tool=, =action=, =output=, =elapsed_ms=) e validação de argumentos com mensagem de erro apontando =--describe <tool>= (~20 min). Prioridade Média.
+- [ ] Flag =--timeout <seconds>= (default: 60, evita travamento indefinido do Emacs batch) e flag =--init-dir <path>= para override do EMACSDIR (default: =~/.config/emacs=). Prioridade Média.
+- [ ] Testes ERT das novas capacidades da CLI (~45 min junto com os demais itens do plano). Prioridade Alta.
+- Link to plan: [[file:../.gemini/antigravity-cli/brain/6939fb0d-b068-4595-850d-99e9321fe46f/plan_consolidated.md][Plano Consolidado §3]]
+
 * Fase 4: Recursos Avançados (Pós-Refatoração)
     :PROPERTIES:
     :CREATED: 2026-08-22
@@ -199,19 +230,107 @@ O Proxy resolve isso agindo como ponte de inversão de controle.
 :STATUS: backlog
 :CREATED: 2026-08-24
 :END:
-- [ ] Analisar falhas assíncronas do gptel-request que não acionam o Circuit Breaker.
-- [ ] Implementar advice no callback para registrar falhas.
+- [X] Analisar falhas assíncronas do gptel-request que não acionam o Circuit Breaker.
+  Conclusão (logs 2026-08-24 10:12–10:25): erros de billing/quota chegam como
+  CONTEÚDO da mensagem assistant (journal =item-failed=/=turn-failed=), não como
+  =:error= do gptel — mesmo com a advice funcional seriam classificados como
+  sucesso. Além disso nenhum caminho de produção chama =+carlos/magent-cb-execute=
+  ou =+carlos/magent-cb-record-failure= (só testes); o CB está desconectado do
+  loop de turno da FSM.
+- [ ] Implementar advice no callback para registrar falhas, incluindo classificação
+  de erro-em-conteúdo (padrões "Insufficient balance", 429, quota/billing) como falha.
+- [ ] Conectar o CB ao loop de turno da FSM (registrar falha do backend no
+  =turn-failed= e consultar =cb-open-p= antes de cada requisição).
 - [ ] Atualizar +carlos/magent-cb-execute para considerar erros HTTP.
 - [ ] Testar fallback para modelo Gemini quando OpenCode falhar por quota.
 - Link to plan: [[file:../.gemini/antigravity-cli/brain/b9fed757-e3a9-418f-a8d0-e2bd51f17d69/scratch/opus_cb_fix_plan.org][Opus Plan]]
 
-** TODO Corrigir falhas de testes do Magent
+** DONE P0: Corrigir corrupção do Circuit Breaker em custom-magent-tools.el
     :PROPERTIES:
+    :CREATED: 2026-08-24
+    :STATUS:   DONE
+    :END:
+Causa-raiz confirmada da escolha repetida do OpenCode apesar de saldo esgotado.
+Em =lisp/custom-magent-tools.el:362= o header =(defun +carlos/magent-cb-gptel-request-advice (orig-fn &rest args)=
+foi engolido por um comentário (byte corrompido U+FFFD seguido de =n(defun= —
+mojibake de edição anterior). Consequências em cascata:
+1. A advice =+carlos/magent-cb-gptel-request-advice= nunca é definida (testes
+   =magent-cb-gptel-request-*-test= chamam-na diretamente e falham).
+2. O corpo dela (docstring + =let*=) e o =(advice-add 'gptel-request :around ...)=
+   da linha 393 foram absorvidos como formas do corpo de =+carlos/magent-cb-record-failure=
+   (=lisp/custom-magent-tools.el:360-399=).
+3. Toda chamada a =+carlos/magent-cb-record-failure= executa o =let*= órfão que
+   referencia =args= (não ligado na arglist) → =void-variable args= antes do
+   =puthash= → falhas nunca são registradas.
+4. =+carlos/magent-cb-open-p= retorna sempre nil → =+carlos/magent-resolve-model=
+   (=lisp/custom-magent-tools.el:893-895=) nunca descarta o OpenCode Zen.
+- [ ] Restaurar o header =(defun +carlos/magent-cb-gptel-request-advice (orig-fn &rest args)= na linha 362 e re-dentar docstring/corpo.
+- [ ] Mover =(advice-add 'gptel-request :around #'+carlos/magent-cb-gptel-request-advice)= para top-level (fora do defun de record-failure).
+- [X] Rodar =just rebuild= + suíte ERT (portão zero-warning; os dois testes de CB devem passar).
+Resolução (2026-08-24): header da advice restaurado. Bug LATENTE adicional corrigido: com o PROMPT na cabeça de ARGS, =plist-get= varre pares de 2 em 2 e jamais encontrava as keywords — a advice nunca teria funcionado nem sem a corrupção. Assinatura agora =(orig-fn prompt &rest args)=. Cruft adicional removido: registro duplicado de =context_search= sem guard (=void-variable magent-enable-tools= quebrava o BOOT inteiro — Emacs 30 gotcha do =defvar= pelado) e alias que chamava variante com hífen inexistente. Suíte repo: 468 testes, 461 passando, 0 falhas.
+
+** TODO Roteamento: preferência explícita de backend no select_model + guarda no host-routing
+    :PROPERTIES:
+    :CREATED: 2026-08-24
     :STATUS: BACKLOG
     :END:
-    - [ ] magent-cb-gptel-request-failure-test
-    - [ ] magent-cb-gptel-request-success-test
-    - [ ] myemacs-boot-no-lisp-errors
-    - [ ] myemacs-context-compaction-rules-present
-    - [ ] myemacs-magent-select-model-honors-complexity-arg
-    - [ ] myemacs-magent-subagent-profiles-defaults
+Sintoma: usuário pediu explicitamente Google API/Gemini flash e o Magent manteve
+OpenCode Zen (o gptel direto funciona normalmente com Gemini).
+- [ ] Adicionar parâmetro =backend-preferred= (e/ou =model=) à tool =select_model=
+  (=+carlos/magent-tool-select-model=, =lisp/custom-magent-tools.el:908=) repassado
+  como =:preferred-backend= aos hints — hoje a instrução textual do usuário não tem
+  caminho até o resolver determinístico (hints vêm só do perfil do agente).
+- [ ] Guarda em =+carlos/magent-apply-host-routing= (=lisp/custom-magent-fsm.el:402=):
+  quando =gptel-get-backend= não resolver o backend do perfil do host, registrar erro
+  visível (warnings gate) em vez de manter silenciosamente o =gptel-backend= residual —
+  suspeito de ter enviado os turnos de 10:12–10:25 ao OpenCode Zen em vez do gemma
+  local do perfil agnes.
+- [ ] Testes ERT dos dois comportamentos.
+
+** DONE Reverter =min-tier= dos perfis de subagente para ="free"= (unificação entre hosts)
+    :PROPERTIES:
+    :CREATED: 2026-08-24
+    :STATUS:   DONE
+    :END:
+Diagnóstico: o defcustom =+carlos/magent-subagent-profiles= (=lisp/custom-magent-subagent.el:62-88=)
+é sensível ao host — em =agnes= (Mac M2) os perfis explore/general/coder/sysadmin/sec-ops
+usam =:min-tier "local"= (MLX), mas a suíte espera ="free"=. O teste está certo: o
+roteamento deve preferir modelos gratuitos de nuvem como base, usando MLX apenas
+como desempate via =preferred-backend= (nunca exigir modelo local).
+Proposta: unificar os dois blocos — todos os perfis com =:min-tier "free"= em ambos
+os hosts; a diferença entre hosts fica apenas no =preferred-backend= (=Gemini= no
+EliteDesk aa102-006l, poupando CPU; =MLX Local= na agnes, GPU Metal):
+#+begin_src elisp
+(defcustom +carlos/magent-subagent-profiles
+  (let ((local-backend (if (string-match-p "aa102-006l" (system-name))
+                           "Gemini"     ;; EliteDesk: nuvem (poupa CPU)
+                         "MLX Local"))) ;; agnes: GPU Metal
+    `(("explore"     :min-tier "free" :preferred-backend ,local-backend)
+      ("general"     :min-tier "free" :preferred-backend "OpenCode Zen")
+      ("coder"       :min-tier "free" :preferred-backend "OpenCode Zen")
+      ("sysadmin"    :min-tier "free" :preferred-backend ,local-backend)
+      ("planner"     :min-tier "free" :preferred-backend "Gemini")
+      ("tech-writer" :min-tier "free" :preferred-backend "Gemini")
+      ("auditor"     :min-tier "free" :preferred-backend "OpenCode Zen")
+      ("sec-ops"     :min-tier "free" :preferred-backend ,local-backend)
+      ("qa"          :min-tier "free" :preferred-backend "Gemini")))
+  ...)
+#+end_src
+Impacto nos testes: resolve =myemacs-magent-subagent-profiles-defaults= e
+=myemacs-magent-select-model-honors-complexity-arg= (itens do nó "Corrigir falhas
+de testes do Magent" abaixo). Esforço: ~10 min. Prioridade Alta.
+- [X] Perfis unificados (snippet aplicado verbatim).
+Resolução (2026-08-24): aplicado via emacs --batch com âncoras estruturais; =profiles-defaults= e =select-model-honors-complexity-arg= verdes.
+- Link to plan: [[file:../.gemini/antigravity-cli/brain/6939fb0d-b068-4595-850d-99e9321fe46f/plan_consolidated.md][Plano Consolidado §1]]
+
+** DONE Corrigir falhas de testes do Magent
+    :PROPERTIES:
+    :STATUS:   DONE
+    :END:
+- [X] magent-cb-gptel-request-failure-test
+- [X] magent-cb-gptel-request-success-test
+- [X] myemacs-boot-no-lisp-errors
+- [X] myemacs-context-compaction-rules-present
+- [X] myemacs-magent-select-model-honors-complexity-arg
+- [X] myemacs-magent-subagent-profiles-defaults
+Resolução (2026-08-24): todos os itens deste nó resolvidos no ciclo P0 + min-tier. Nota: =compaction-rules-present= exigiu ainda refatorar o leitor de regras do AGENTS.md (compor seções Coding Standards + Testing + Workflow) e corrigir =default-directory= nil no próprio teste.

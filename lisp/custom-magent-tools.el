@@ -358,22 +358,29 @@ Valores são plists `(:failures N :timestamp TIME)'.")
   :group '+carlos/ai)
 
 (defun +carlos/magent-cb-record-failure (model-key)
+  "Registra uma falha para MODEL-KEY no Circuit Breaker."
+  (let* ((key (format "%s" model-key))
+         (entry (gethash key +carlos/magent-cb-failures))
+         (failures (1+ (or (plist-get entry :failures) 0))))
+    (puthash key (list :failures failures :timestamp (float-time)) +carlos/magent-cb-failures)))
 
-;; ── New advice to capture async gptel-request outcomes �n(defun +carlos/magent-cb-gptel-request-advice (orig-fn &rest args)
+;; ── Advice para capturar resultados assíncronos do gptel-request ──────
+(defun +carlos/magent-cb-gptel-request-advice (orig-fn prompt &rest args)
   "Wrap `gptel-request' to record success/failure in the circuit breaker.
-Args are the same as `gptel-request' (PROMPT &rest ARGS). We inspect the
-`:backend' and `:model' keys (if any) to build a model-key string of the form
-"backend:model". The original callback (if provided) is wrapped so that, when
-the request finishes, we record the outcome.
-If the response is nil or the `:error' field in the info plist is non‑nil, we
-consider it a failure and call `+carlos/magent-cb-record-failure`. Otherwise we
-call `+carlos/magent-cb-record-success`. Finally we invoke the original
-callback (if any)."
+ORIG-FN is `gptel-request', PROMPT its first positional argument and ARGS
+the remaining keyword arguments (`:backend', `:model', `:callback', ...).
+We build a model-key of the form \"backend:model\", wrap the `:callback'
+so that when the request finishes we record the outcome — a nil response or
+a non-nil `:error' in INFO counts as failure
+(`+carlos/magent-cb-record-failure'); otherwise success
+(`+carlos/magent-cb-record-success') — and finally invoke the original
+callback.  ARGS must NOT contain PROMPT: `plist-get' scans pairs from the
+first element and would miss every keyword otherwise."
   (let* ((backend (plist-get args :backend))
          (model (plist-get args :model))
          (model-key (if (and backend model)
-                       (format "%s:%s" backend model)
-                     (or backend model "unknown")))
+                        (format "%s:%s" backend model)
+                      (or backend model "unknown")))
          (callback (plist-get args :callback)))
     (let ((wrapped-callback
            (when callback
@@ -382,21 +389,13 @@ callback (if any)."
                    (+carlos/magent-cb-record-failure model-key)
                  (+carlos/magent-cb-record-success model-key))
                (funcall callback response info)))))
-      (apply orig-fn
-             (append
-              (list (car args))
-              (if wrapped-callback
-                  (plist-put (copy-sequence (cdr args)) :callback wrapped-callback)
-                (cdr args)))))))
+      (apply orig-fn prompt
+             (if wrapped-callback
+                 (plist-put (copy-sequence args) :callback wrapped-callback)
+               args)))))
 
-;; Register the advice – should run after the dynamic router advice if present.
+;; Registra a advice — roda após a advice do router dinâmico, se presente.
 (advice-add 'gptel-request :around #'+carlos/magent-cb-gptel-request-advice)
-
-  "Registra uma falha para MODEL-KEY no Circuit Breaker."
-  (let* ((key (format "%s" model-key))
-         (entry (gethash key +carlos/magent-cb-failures))
-         (failures (1+ (or (plist-get entry :failures) 0))))
-    (puthash key (list :failures failures :timestamp (float-time)) +carlos/magent-cb-failures)))
 
 (defun +carlos/magent-cb-record-success (model-key)
   "Registra um sucesso para MODEL-KEY, resetando a contagem de falhas."
@@ -1834,15 +1833,6 @@ A lista é limitada a 200 ocorrências para evitar payloads excessivos."
                      lines))
                    200)))
     (json-encode matches)))
-
-;; Registrar a nova ferramenta
-(add-to-list 'magent-enable-tools 'context_search)
-
-;; Alias for hyphenated function name (for backward compatibility)
-(defun +carlos/magent-tool-context_search (query &optional directory)
-  "Alias wrapper for `+carlos/magent-tool-context-search'."
-  (interactive "sQuery: ")
-  (apply #'+carlos/magent-tool-context-search (list query directory)))
 
 (provide 'custom-magent-tools)
 ;;; custom-magent-tools.el ends here
