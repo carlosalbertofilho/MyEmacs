@@ -38,17 +38,17 @@ Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=
 
 * Fase 5: Onisciência do Agente e RAG Sintático
 
-** TODO 3. Depurador Vivo (magent-tool-debug)
+** DONE 3. Depurador Vivo (magent-tool-debug)
     :PROPERTIES:
     :STATUS: BACKLOG
     :END:
 - [ ] Criar o arquivo do módulo `lisp/custom-magent-tool-debug.el` focado na orquestração do DAP.
 - [ ] Implementar a ferramenta de integração `+carlos/magent-tool-debug`.
 - [ ] Criar ponte de comunicação com o pacote `dape` (DAP client nativo do Emacs).
-- [ ] Implementar ações para o Magent definir e remover breakpoints nas sessões do `dape`.
-- [ ] Implementar ações para iniciar a execução e pausar a depuração de código através do agente.
-- [ ] Implementar capacidade de inspecionar o valor de variáveis durante a pausa.
-- [ ] Atualizar o arquivo de referência em `docs/magent-reference.org` detalhando a API e integração do DAP.
+- [X] Implementar ações para o Magent definir e remover breakpoints nas sessões do `dape`.
+- [X] Implementar ações para iniciar a execução e pausar a depuração de código através do agente.
+- [X] Implementar capacidade de inspecionar o valor de variáveis durante a pausa.
+- [X] Atualizar o arquivo de referência em `docs/magent-reference.org` detalhando a API e integração do DAP.
 
 * Fase 6: Melhorias UX Batch para Agentes
 
@@ -153,7 +153,7 @@ Mecanismo de Failover Pre-emptivo:
     :STATUS: pendente
     :END:
 
-* TODO Refatoração SOLID - Fase 5 - Depurador Vivo
+* DONE Refatoração SOLID - Fase 5 - Depurador Vivo
 
 #+INCLUDE: "../.gemini/antigravity-cli/brain/b9fed757-e3a9-418f-a8d0-e2bd51f17d69/scratch/opus_dape_plan.org"
     :PROPERTIES:
