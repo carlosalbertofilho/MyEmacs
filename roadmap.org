@@ -1831,6 +1831,16 @@ histórico completo nos registros da Linha do Tempo:
 
 * Histórico — Atividades Concluídas (movidas do TODO.org em 2026-08-24)
 
+** [ARQUIVADO 2026-08-25] 3. Criar Wrapper CLI `bin/magent-cli`
+    :PROPERTIES:
+    :CREATED: 2026-08-23
+    :STATUS: BACKLOG
+    :END:
+- [ ] Criar script executável `bin/magent-cli` (`set -euo pipefail`).
+- [ ] Injetar flags `--init-directory "$EMACSDIR" --batch -l init.el` transparentemente.
+- [ ] Receber comandos/argumentos Lisp na CLI e avaliar.
+- [ ] Ajustar documentação em `docs/magent-reference.org`.
+
 ** [ARQUIVADO 2026-08-24] P0: Corrigir corrupção do Circuit Breaker em custom-magent-tools.el
     :PROPERTIES:
     :CREATED: 2026-08-24

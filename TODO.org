@@ -133,23 +133,10 @@ sem =--init-directory=. Interface alvo: =bin/magent-cli [FLAGS] <tool_name> [arg
     :END:
 
 ** TODO Ponte Proxy HTTP Local OpenAI API (AGY CLI Bridge & 3-Tier Fallback)
-Desenvolver o servidor HTTP assíncrono em Python (stdlib asyncio/http.server) escutando na porta 8088.
-- Implementar o endpoint REST POST /v1/chat/completions com suporte ao formato OpenAI JSON.
-- Extrair o histórico de mensagens e parâmetros do payload.
-- Mapear os modelos agy-flash e agy-pro para invocação do binário agy CLI (habilitando Google Stitch e capacidades visuais).
-- Implementar failover transparente: ao detectar cota excedida (Rate Limit 429) no agy, comutar automaticamente para a API Gemini (Google AI Studio API) usando a chave de ambiente.
-- Converter a saída stdout em streaming SSE no formato data: {"choices": [...]} terminando com [DONE].
-
-Backend gptel e Cascata de Redundância (lisp/custom-ai.el):
-- Registrar o backend AGY Proxy no gptel e integrar na cascata de resiliência em 3 níveis (AGY Proxy -> API Cloud -> Local MLX/Ollama).
-- Criar a inicialização do backend gptel-make-openai para AGY Proxy na porta 8088 com modelos agy-flash e agy-pro.
-- Implementar a função de verificação de porta +carlos/ensure-agy-proxy-running com auto-start do bin/agy-proxy.
-- Integrar a cascata de resiliência no +carlos/gptel-dynamic-router-advice: Nível 1 (AGY Proxy) -> Nível 2 (API Cloud Direct) -> Nível 3 (Agentes Locais MLX no Mac M2 / Ollama no Linux CPU).
-
-Integração com Orquestrador e Matriz de Subagentes Magent:
-- Atualizar +carlos/magent-subagent-profiles em lisp/custom-magent-subagent.el direcionando perfis especialista (coder, planner, sysadmin, auditor, sec-ops, qa) para o backend AGY Proxy.
-- Atualizar +carlos/magent-host-profiles em lisp/custom-magent-fsm.el adicionando o AGY Proxy como backend soberano para os hosts aa102-006l e agnes, configurando os modelos locais MLX como fallback no Mac M2.
-- Testar a comunicação FSM, invocação de subagentes e streaming via ponte agy.
+Servidor Python (=lib/agy_proxy/=), lifecycle elisp e FSM de cota já operam. Integração gptel restante:
+    - [ ] Registrar backend =gptel-make-openai= AGY Proxy (:8088, modelos =agy-flash=/=agy-pro=) em =custom-ai.el=.
+    - [ ] Criar =+carlos/ensure-agy-proxy-running= com auto-start reusando o lifecycle de =custom-magent-proxy.el=.
+    - [ ] Plugear a cascata de resiliência em 3 níveis no =+carlos/gptel-dynamic-router-advice= (Nível 1 AGY Proxy).
 
 ** TODO Monitoramento Proativo de Cotas, Comando /quota e Failover Pre-emptivo (lisp/custom-magent-quota.el)
 Estruturas de Dados e Tabela de Estado de Cotas:
@@ -226,9 +213,8 @@ O Proxy resolve isso agindo como ponte de inversão de controle.
     :CREATED: 2026-08-24
     :STATUS: BACKLOG
     :END:
-- [ ] Implementar dicionário model_mapping no proxy.toml
-- [ ] Atualizar upstream.py para ler o map e a Role
-- [ ] Testar rotas com agnes e aa102-006l
+Implementação concluída em =lib/agy_proxy/= (=router.py=, =upstream.py=, =config.py= com =model_mapping=). Restante:
+    - [ ] Testar rotas nas duas máquinas: agnes (validado localmente) e aa102-006l — agendado para quarta 2026-08-26.
 
 ** TODO Refatorar Circuit Breaker para lidar com falhas assíncronas (gptel-request)
 :PROPERTIES:
