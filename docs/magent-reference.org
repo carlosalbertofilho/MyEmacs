@@ -1,7 +1,7 @@
 #+TITLE: Magent Reference
 #+AUTHOR: Carlos Filho
 #+DATE: 2026-08-23
-#+LAST_MODIFIED: 2026-08-23
+#+LAST_MODIFIED: 2026-08-25
 #+DESCRIPTION: API Reference for Magent FSM and Tools
 #+FILETAGS: :RAG:DOCS:
 #+OPTIONS: toc:2 num:t
@@ -106,4 +106,70 @@ Nenhuma variante usa mais =primitive-undo= (API de undo-list, não buffer — ro
 anterior era fictício). Todas as mutações passam pelo helper transacional que garante
 rollback byte-a-byte via snapshot/restore. Meta-teste ERT
 =myemacs-smart-edit-no-primitive-undo= valida que =primitive-undo= não reaparece.
+
+* DevOps Tools (=custom-magent-tool-devops.el= / =custom-magent-tool-git.el=)
+
+Ferramentas nativas para operações destrutivas em Docker, Systemd e Git.
+Todas seguem o padrão *dry_run* para preview seguro antes da execução.
+
+** Padrão dry_run (operação destrutiva)
+
+Três tools destrutivas aceitam o parâmetro =dry_run= (string "true"):
+
+| Tool                  | Ações destrutivas          | Fonte                              |
+|-----------------------|----------------------------|-------------------------------------|
+| =docker_action=       | =remove=, =rm=, =stop=     | =custom-magent-tool-devops.el=     |
+| =systemd_action=      | =stop=, =disable=          | =custom-magent-tool-devops.el=     |
+| =magit_branch_delete= | (todas as deleções)        | =custom-magent-tool-git.el=        |
+
+*Comportamento:*
+
+1. Se =dry_run= não é ="true"= → executa normalmente.
+2. Se =dry_run= é ="true"= → retorna JSON com:
+   - =status= = ="dry_run"=
+   - =destructive= = =t= ou =nil= (se ação é destrutiva)
+   - =command= → comando que seria executado
+   - =message= → descrição legível
+
+*Exemplo de resposta dry_run:*
+#+begin_src json
+{"status": "dry_run", "destructive": true, "command": "docker rm 'web'", "container": "web", "action": "remove", "message": "Would remove container 'web'."}
+#+end_src
+
+*Nota:* o parâmetro =dry_run= usa =string= (não =boolean=) porque o gptel serializa tudo como JSON string. A comparação interna é =(equal dry-run "true")=.
+
+** docker_action (=+carlos/magent-tool-docker-action=)
+
+Ações de lifecycle em containers Docker (local ou TRAMP).
+
+- *Parâmetros:*
+  - =container_id= -- nome ou ID do container
+  - =action= -- =start=, =stop=, =restart=, =remove=
+  - =remote_host= -- prefixo TRAMP opcional (ex: =/ssh:admin@host:=)
+  - =dry_run= -- ="true"= para preview sem executar
+  - =reason= -- justificativa (display-only)
+
+** systemd_action (=+carlos/magent-tool-systemd-action=)
+
+Gerenciamento de units systemd (local ou TRAMP).
+
+- *Parâmetros:*
+  - =unit= -- nome da unit (ex: =nginx.service=, =docker=)
+  - =action= -- =start=, =stop=, =restart=, =reload=, =enable=, =disable=
+  - =remote_host= -- prefixo TRAMP opcional
+  - =dry_run= -- ="true"= para preview sem executar
+  - =reason= -- justificativa (display-only)
+
+** magit_branch_delete (=+carlos/magent-tool-magit-branch-delete=)
+
+Exclui branches locais ou remotas via Magit API.
+
+- *Parâmetros:*
+  - =branch= -- nome da branch alvo
+  - =remote= -- nome do remote (ex: =origin=) ou ="true"= para remota
+  - =force= -- ="true"= para force delete (-D)
+  - =dry_run= -- ="true"= para preview sem executar
+  - =reason= -- justificativa (display-only)
+
+*Nota:* esta tool requer =magit= carregado. Em batch sem magit, retorna erro informativo.
 
