@@ -1,10 +1,13 @@
-;;; custom-magent-infra.el --- Infraestrutura de baixo nível, resiliência e circuit breakers -*- lexical-binding: t; -*-
+;;; custom-magent-infra.el --- Infraestrutura de baixo nível, resiliência e helpers portáteis -*- lexical-binding: t; -*-
 
 ;;; Commentary:
 ;; Este módulo provê a infraestrutura central do ecossistema de agentes IA.
-;; Inclui sanitização de AST, correções de aridade para backends LLM (Gemini),
-;; supressão de dumps longos no log, e implementações do padrão Circuit Breaker
-;; para garantir robustez e fail-fast em requisições de rede.
+;; Inclui:
+;;   - Helpers portáteis de string (funcionam em batch -Q sem subr-x)
+;;   - Macro with-temp-file-buffer para testes ERT sem leak
+;;   - Sanitização de AST, correções de aridade para backends LLM (Gemini)
+;;   - Supressão de dumps longos no log
+;;   - Circuit Breaker para garantir robustez e fail-fast em requisições de rede
 
 ;;; Code:
 
@@ -14,6 +17,47 @@
 (declare-function magent-llm-gptel--managed-info-p "magent-llm-gptel")
 (declare-function gptel-fsm-info "gptel")
 (declare-function gptel-tool-args "gptel")
+
+;; ── Helpers Portáteis (batch -Q sem subr-x) ──────────────────────────
+
+(defun +carlos/magent--string-trim-left (s)
+  "Remove espaços em branco à esquerda de S.
+Portável: funciona em batch -Q sem \\=(require \\='subr-x)."
+  (if (string-match "\\`[ \t\n\r]+" s)
+      (substring s (match-end 0))
+    s))
+
+(defun +carlos/magent--string-trim-right (s)
+  "Remove espaços em branco à direita de S.
+Portável: funciona em batch -Q sem \\=(require \\='subr-x)."
+  (if (string-match "[ \t\n\r]+\\'" s)
+      (substring s 0 (match-beginning 0))
+    s))
+
+(defun +carlos/magent--string-trim (s)
+  "Remove espaços em branco nas duas pontas de S.
+Portável: funciona em batch -Q sem \\=(require \\='subr-x)."
+  (+carlos/magent--string-trim-right
+   (+carlos/magent--string-trim-left s)))
+
+(defmacro with-temp-file-buffer (suffix &rest body)
+  "Executa BODY em buffer file-backed temporário.
+Cria arquivo temporário com SUFFIX, abre via `find-file-noselect',
+executa BODY com o buffer corrente, e limpa arquivo + buffer ao final.
+Evita memory leak em testes ERT em lote."
+  (declare (indent 1) (debug t))
+  (let ((temp-file (make-symbol "tmpfile"))
+        (temp-buf (make-symbol "tmpbuf")))
+    `(let* ((,temp-file (make-temp-file "magent-test-" nil ,suffix))
+            (,temp-buf (find-file-noselect ,temp-file)))
+       (unwind-protect
+           (with-current-buffer ,temp-buf
+             ,@body)
+         (when (buffer-live-p ,temp-buf)
+           (with-current-buffer ,temp-buf (set-buffer-modified-p nil))
+           (kill-buffer ,temp-buf))
+         (when (file-exists-p ,temp-file)
+           (delete-file ,temp-file))))))
 
 ;; ── Infraestrutura, Diagnóstico e Sanitização ────────────────────────
 (defvar magent-enable-logging)

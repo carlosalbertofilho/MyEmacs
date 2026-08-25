@@ -21,6 +21,7 @@
 
 (require 'custom-magent-fsm)
 (require 'custom-magent-infra)
+(require 'custom-magent-lint)
 (require 'custom-magent-tools)
 (require 'custom-magent-tool-smart-edit)
 (require 'custom-magent-tool-test)

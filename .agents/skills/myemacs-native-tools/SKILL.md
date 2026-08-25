@@ -153,6 +153,19 @@ rfc-search-topic QUERY / rfc-read-section NUMBER SECTION
 3. **Verify structure by depth, not by eye**: compare `(nth 0 (syntax-ppss))` across sibling forms; uniform depth == balanced siblings.
 4. After ANY structural edit: `just compile` (zero-warning gate) before committing.
 
+## Batch portability rules (CRITICAL)
+
+When writing Elisp that runs in `emacs --batch -Q` (no init, no packages):
+
+- **NEVER use `string-trim-left` / `string-trim-right` / `string-trim`** — they require `(require 'subr-x)` which is not loaded in `-Q`.
+  Use the portable helpers from `custom-magent-infra.el`:
+  - `+carlos/magent--string-trim-left`
+  - `+carlos/magent--string-trim-right`
+  - `+carlos/magent--string-trim`
+- **NEVER use `buffer-string` with arguments** — it takes 0 args in Emacs Lisp. Use `(with-current-buffer buf (buffer-string))`.
+- **NEVER call `save-buffer` on a fileless buffer in batch** — it blocks on stdin. Use `with-temp-file-buffer` macro from `custom-magent-infra.el` instead.
+- **Run `just lint-native` after any structural edit** — catches defun-parens and arity bugs before `just compile`.
+
 ## Exceptions
 
 - Throwaway scripts outside the project scope (`/tmp`) may use default write tools.

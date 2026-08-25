@@ -137,6 +137,11 @@ org-lint:
 lint: compile checkdoc org-lint
     @echo "✅ Lint passed"
 
+# Native linters: defun-parens + arity (zero dependencies, uses Emacs parser)
+lint-native:
+    emacs --batch -Q -L lisp -l custom-magent-lint \
+      --eval '(let ((results (+carlos/magent-lint-directory "lisp"))) (if results (progn (dolist (r results) (dolist (e (cdr r)) (message "%s: %s" (car r) e))) (error "lint-native: %d files with issues" (length results))) (message "lint-native: OK")))'
+
 # ── Tests (ERT suite) ────────────────────────────────────────────────
 
 # Run full ERT suite in batch (exit non-zero on failure)
