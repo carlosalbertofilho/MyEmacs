@@ -54,3 +54,56 @@ _Sem documentação registrada._
 - *Módulo:* =lisp/custom-magent-tools.el=
 - *Descrição:* Busca rápida em arquivos `.org` e `.el` por símbolos, cabeçalhos ou docstrings usando RAG interno. Retorna lista de resultados com cabeçalhos e links.
 
+* Smart-Edit — Editor Transacional (=custom-magent-tool-smart-edit.el=)
+
+Infraestrutura de edição segura para todas as ações de smart-edit (org + 8 linguagens code).
+Cada mutação é executada como uma *transação*: snapshot do buffer antes, execução do thunk,
+validação de integridade (org-lint ou check-parens), e restauração byte-a-byte em caso de falha.
+
+** +carlos/magent--smart-edit-transaction (buf kind thunk)
+- *Tipo:* Função
+- *Módulo:* =lisp/custom-magent-tool-smart-edit.el= (linha 36)
+- *Parâmetros:*
+  - =buf= — buffer alvo (file-backed para persistência)
+  - =kind= — =\\='org= (org-lint gate), =\\='code= (check-parens gate), ou =\\='raw= (sem gate de domínio)
+  - =thunk= — função sem argumentos que executa as mutações e devolve a mensagem de sucesso
+- *Comportamento:*
+  1. Snapshot via =buffer-substring-no-properties=
+  2. Executa thunk, captura valor de retorno (=msg=)
+  3. Gate de validação conforme kind (org-lint para .org, check-parens para código)
+  4. =basic-save-buffer= para persistir
+  5. Em erro: restore byte-a-byte do snapshot, save, retorna string de erro (nunca sinaliza)
+- *Exemplo:* =(+carlos/magent--smart-edit-transaction buf \\='code (lambda () (goto-char (point-max)) (insert " x") "inserido"))=
+
+** +carlos/magent--smart-edit-replace-core (old new &optional flags)
+- *Tipo:* Função
+- *Módulo:* =lisp/custom-magent-tool-smart-edit.el= (linha 63)
+- *Parâmetros:*
+  - =old= — texto literal a buscar
+  - =new= — substituto
+  - =flags= — =nil= ou ="ALL"= (literal global), ="FIRST"= (primeira ocorrência), ="WORD"= (fronteiras de símbolo via =\\_<...\\_>=), ="REGEX"= (padrão regex bruto)
+- *Retorno:* contagem de substituições (inteiro)
+- *Nota:* =search-forward= já é literal por padrão; =WORD= e =REGEX= são as únicas formas que usam regexp.
+
+** Ações disponíveis por variante linguagem
+
+| Variante    | Ações transacionais                                     |
+|-------------+---------------------------------------------------------|
+| =org=       | =insert_snippet=, =refactor_symbol=, =replace_heading= |
+|             | =replace_text=, =set_property=, =validate_buffer=      |
+| =markdown=  | =insert_snippet=, =refactor_symbol=                     |
+| =elisp=     | =insert_snippet=, =refactor_symbol=, =extract_sexp=    |
+| =python=    | =insert_snippet=, =refactor_symbol=                     |
+| =nix=       | =insert_snippet=, =refactor_symbol=                     |
+| =ts=        | =insert_snippet=, =refactor_symbol=                     |
+| =c=         | =insert_snippet=, =refactor_symbol=                     |
+| =go=        | =insert_snippet=, =refactor_symbol=                     |
+| =sh=        | =insert_snippet=, =refactor_symbol=                     |
+| =rust=      | =insert_snippet=, =refactor_symbol=                     |
+
+** Regra de ouro: primitive-undo removido
+Nenhuma variante usa mais =primitive-undo= (API de undo-list, não buffer — rollback
+anterior era fictício). Todas as mutações passam pelo helper transacional que garante
+rollback byte-a-byte via snapshot/restore. Meta-teste ERT
+=myemacs-smart-edit-no-primitive-undo= valida que =primitive-undo= não reaparece.
+

@@ -84,10 +84,10 @@ com todos os headings do arquivo e destruiu o TODO.org inteiro.
     - [X] Ancorar =set_property= no mesmo primitivo AST (a busca solta atual pode definir propriedade no nó errado).
     - [X] Nova ação =replace_text= com range validado (args: ="old|new|L1|L2"=; erro se L1>L2 ou fora do buffer; reporta contagem). Prioridade Média.
     - [X] Auditoria de undo concluída (2026-08-24): ver relatório; 17 =primitive-undo= quebrados; markdown sem gate; branch-delete sem guarda; elpaca read-only.
-    - [ ] P1: wiring transacional das 9 variantes restantes.
-    - [ ] P2: markdown adotar gate.
+    - [X] P1: wiring transacional das 9 variantes restantes.
+    - [X] P2: markdown adotar gate.
     - [ ] P3: guardas FORCE/dry-run (branch-delete, docker rm, systemd disable).
-    - [ ] Testes ERT: regressão do incidente (padrão com asteriscos não vaza além do alvo), rollback forçado (arquivo restaurado idêntico byte-a-byte), contratos das ações novas e das flags.
+    - [X] Testes ERT: regressão do incidente (padrão com asteriscos não vaza além do alvo), rollback forçado (arquivo restaurado idêntico byte-a-byte), contratos das ações novas e das flags.
     - [ ] Atualizar =docs/magent-reference.org= (regra de ouro: API Magent documentada) e flip deste nó para DONE.
 - Link to plan: [[file:../.gemini/antigravity-cli/brain/6939fb0d-b068-4595-850d-99e9321fe46f/plan_consolidated.md][Plano Consolidado §2]]
 
