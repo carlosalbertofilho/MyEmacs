@@ -35,7 +35,8 @@
 
 (defun +carlos/magent--smart-edit-transaction (buf kind thunk)
   "Executa THUNK em BUF como uma transação validada por KIND.
-KIND é `code' (check-parens) ou `org' (org-lint). THUNK realiza apenas
+KIND é `code' (check-parens), `raw' (sem gate de
+domínio) ou `org' (org-lint). THUNK realiza apenas
 mutações no buffer e devolve a mensagem de sucesso. Em falha de
 validação, restaura o buffer byte-a-byte do snapshot pré-mutação,
 persiste a restauração e devolve a mensagem de erro sem sinalizar."
@@ -49,6 +50,7 @@ persiste a restauração e devolve a mensagem de erro sem sinalizar."
                       (let ((reports (org-lint)))
                         (when reports
                           (error "org-lint reportou %d problema(s)" (length reports))))))
+              ('raw nil)
               (_ (save-excursion (check-parens))))
             (save-buffer)
             msg)
@@ -833,11 +835,13 @@ REASON: Motivo da alteração."
                         (format "```%s\n\n```\n" (if (string-empty-p arg-str) "bash" arg-str)))
                        (t
                         (format "## %s\n\n" arg-str)))))
-           (goto-char (point-max))
-           (unless (bolp) (insert "\n"))
-           (insert code)
-           (save-buffer)
-           (format "Snippet Markdown '%s' inserido com sucesso em '%s'." name abs-file)))
+           (+carlos/magent--smart-edit-transaction
+            buf 'raw
+            (lambda ()
+              (goto-char (point-max))
+              (unless (bolp) (insert "\n"))
+              (insert code)
+              (format "Snippet Markdown '%s' inserido com sucesso em '%s'." name abs-file)))))
         ("refactor_symbol"
          (if (or (null args) (string-empty-p args))
              "Erro: informe os símbolos 'antigo novo' em args para refatorar."
@@ -845,14 +849,15 @@ REASON: Motivo da alteração."
                   (old-sym (car parts))
                   (new-sym (cadr parts)))
              (if (and old-sym new-sym)
-                 (progn
-                   (goto-char (point-min))
-                   (let ((count 0))
-                     (while (search-forward old-sym nil t)
-                       (replace-match new-sym t t)
-                       (setq count (1+ count)))
-                     (save-buffer)
-                     (format "Refatoração Markdown '%s' -> '%s' concluída em '%s' (%d substituições)." old-sym new-sym abs-file count)))
+                 (+carlos/magent--smart-edit-transaction
+                  buf 'raw
+                  (lambda ()
+                    (goto-char (point-min))
+                    (let ((count 0))
+                      (while (search-forward old-sym nil t)
+                        (replace-match new-sym t t)
+                        (setq count (1+ count)))
+                      (format "Refatoração Markdown '%s' -> '%s' concluída em '%s' (%d substituições)." old-sym new-sym abs-file count))))
                "Erro: forneça 'velho novo' em args."))))
         ("validate_buffer"
          (format "Buffer Markdown '%s' validado com sucesso." abs-file))
