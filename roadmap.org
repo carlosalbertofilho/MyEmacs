@@ -1831,6 +1831,19 @@ histórico completo nos registros da Linha do Tempo:
 
 * Histórico — Atividades Concluídas (movidas do TODO.org em 2026-08-24)
 
+** [ARQUIVADO 2026-08-25] 4. Melhorias org_smart_edit — ações AST-aware seguras
+    :PROPERTIES:
+    :CREATED: 2026-08-24
+    :STATUS:   DONE
+    :END:
+- [X] Helper transacional =+carlos/magent--smart-edit-transaction=: snapshot, gate pós-mutação (org-lint / check-parens), restore byte-a-byte.
+- [X] Endurecer =refactor_symbol=: flags FIRST/WORD/REGEX/ALL dentro do helper transacional.
+- [X] Ações novas: =replace_heading=, =replace_text=, =set_property= (AST-aware).
+- [X] Wiring transacional: 17 condition-case/primitive-undo → helper (8 linguagens × 2 ações + extract_sexp).
+- [X] Markdown com gate 'raw.
+- [X] 10 ERTs: transação, rollback, replace-core flags, meta anti-primitive-undo.
+- [X] Doc RAG: API transacional documentada em =docs/magent-reference.org=.
+
 ** [ARQUIVADO 2026-08-25] 3. Criar Wrapper CLI `bin/magent-cli`
     :PROPERTIES:
     :CREATED: 2026-08-23

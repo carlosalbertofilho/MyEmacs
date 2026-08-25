@@ -69,10 +69,10 @@ Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=
 - [ ] Receber comandos/argumentos Lisp na CLI e avaliar.
 - [ ] Ajustar documentação em `docs/magent-reference.org`.
 
-** EM ANDAMENTO 4. Melhorias =org_smart_edit= — ações AST-aware seguras
+** DONE 4. Melhorias =org_smart_edit= — ações AST-aware seguras
     :PROPERTIES:
     :CREATED: 2026-08-24
-    :STATUS:   EM ANDAMENTO
+    :STATUS:   DONE
     :END:
 Arquivo-alvo: =lisp/custom-magent-tool-smart-edit.el=. Incidente (2026-08-24):
 =refactor_symbol= usa =(search-forward old nil t)= sem =regexp-quote= — ao passar
@@ -88,7 +88,7 @@ com todos os headings do arquivo e destruiu o TODO.org inteiro.
     - [X] P2: markdown adotar gate.
     - [ ] P3: guardas FORCE/dry-run (branch-delete, docker rm, systemd disable).
     - [X] Testes ERT: regressão do incidente (padrão com asteriscos não vaza além do alvo), rollback forçado (arquivo restaurado idêntico byte-a-byte), contratos das ações novas e das flags.
-    - [ ] Atualizar =docs/magent-reference.org= (regra de ouro: API Magent documentada) e flip deste nó para DONE.
+    - [X] Atualizar =docs/magent-reference.org= (regra de ouro: API Magent documentada) e flip deste nó para DONE.
 - Link to plan: [[file:../.gemini/antigravity-cli/brain/6939fb0d-b068-4595-850d-99e9321fe46f/plan_consolidated.md][Plano Consolidado §2]]
 
 ** TODO Testar modelos IBM Granite 4.1 locais (Ollama/MLX) — Mac Mini M2
