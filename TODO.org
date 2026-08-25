@@ -1,7 +1,7 @@
 #+TITLE: TODO — Planejamento Ativo e Backlog (MyEmacs)
 #+AUTHOR: Carlos Filho
 #+DATE: 2026-08-05
-#+LAST_MODIFIED: 2026-08-24
+#+LAST_MODIFIED: 2026-08-25
 #+FILETAGS: :PLANNING:
 #+OPTIONS: toc:2 num:t
 #+STARTUP: content
@@ -14,7 +14,7 @@ Histórico consolidado no [[file:roadmap.org][roadmap.org]].
 
 - *North Star:* Magent/gptel como driver do Emacs com resiliência e FinOps $0.00.
 - *Etapas:* A (Fundação) ✅ → B (Motor) ✅ → C (Ambição) ✅.
-- *Últimos marcos:* Resiliência FSM (3 Pilares) ✅, Limpeza & Benchmark CPU aa102-006l ✅, Integ. RFC Mode ✅, Factory Reset 12 Cores ✅.
+- *Últimos marcos:* Resiliência FSM (3 Pilares) ✅, Limpeza & Benchmark CPU aa102-006l ✅, Integ. RFC Mode ✅, Factory Reset 12 Cores ✅, P3 dry-run guards ✅, Linters nativos + helpers portáteis ✅.
 - *Suíte:* Testes ERT em `tests/` com compilação zero-warning (`compile-prod`).
 
 * Contexto de Arquitetura Oficial do Magent (Referência RAG)
@@ -68,6 +68,18 @@ Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=
 - [ ] Injetar flags `--init-directory "$EMACSDIR" --batch -l init.el` transparentemente.
 - [ ] Receber comandos/argumentos Lisp na CLI e avaliar.
 - [ ] Ajustar documentação em `docs/magent-reference.org`.
+
+** TODO 6. Integrar linters nativos no pipeline de validação
+    :PROPERTIES:
+    :CREATED: 2026-08-25
+    :STATUS: BACKLOG
+    :END:
+Estado atual: `just lint-native` roda como comando standalone.
+- [ ] Adicionar `lint-native` ao recipe `lint` (Justfile: `lint: compile checkdoc org-lint lint-native`).
+- [ ] Adicionar `lint-native` ao recipe `test-all` para garantir que todo commit passe pelos linters nativos.
+- [ ] Integrar `+carlos/magent-lint-defun-parens` como gate extra no `elisp-smart-edit` (kind `'code`): rodar antes de `check-parens` para pegar off-by-one mais cedo.
+- [ ] Adicionar teste ERT que valida que `lint-native` passa no repo inteiro (=myemacs-lint-native-passes=).
+- [ ] Atualizar `docs/dev-workflow.org` com a nova pipeline de validação.
 
 ** DONE 4. Melhorias =org_smart_edit= — ações AST-aware seguras
     :PROPERTIES:
@@ -178,6 +190,8 @@ Mecanismo de Failover Pre-emptivo:
 * Concluído (referências ao roadmap)
 
 - O histórico completo de todas as tarefas concluídas (Suíte DevOps, NixOS, Submódulos, Rust, Polyglot, Forge, Introspecção RAG, Resiliência FSM, etc.) é mantido estritamente em [[file:roadmap.org][roadmap.org]] como Linha do Tempo oficial.
+- **2026-08-25:** P3 dry-run guards (branch-delete, docker-action, systemd-action) → [[file:roadmap.org][roadmap.org]] (Histórico).
+- **2026-08-25:** Linters nativos (defun-parens + arity) + helpers portáteis (trim, with-temp-file-buffer) → [[file:roadmap.org][roadmap.org]] (Histórico).
 
 * TODO Refatoração SOLID - Fase 7 - Structured Outputs
     :PROPERTIES:

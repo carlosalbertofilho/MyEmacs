@@ -1938,6 +1938,48 @@ Resolução (2026-08-24): todos os itens deste nó resolvidos no ciclo P0 + min-
 - [X] Implementar capacidade de inspecionar o valor de variáveis durante a pausa.
 - [X] Atualizar o arquivo de referência em `docs/magent-reference.org` detalhando a API e integração do DAP.
 
+** [ARQUIVADO 2026-08-25] P3: Guardas dry-run em tools destrutivas
+    :PROPERTIES:
+    :CREATED: 2026-08-25
+    :STATUS:   DONE
+    :END:
+Três tools destrutivas receberam parâmetro =dry_run= (string "true") para preview
+seguro antes da execução:
+- =branch-delete= (=custom-magent-tool-git.el=): deletar branch local/remota.
+- =docker-action= (=custom-magent-tool-devops.el=): start/stop/restart/remove.
+- =systemd-action= (=custom-magent-tool-devops.el=): start/stop/restart/reload/enable/disable.
+Comportamento: quando =dry_run= é ="true"=, retorna JSON com =status= ="dry_run"=,
+=destructive= =t/=nil, =command= (o que seria executado) e =message= (descrição).
+Off-by-one paren bug encontrado e corrigido em =docker-action= (defun engolia o
+arquivo inteiro) e =systemd-action= (parenteses faltando). Bug pré-existente no
+=myemacs-magent-tool-docker-action-test= corrigido (faltava =require= do módulo).
+Doc RAG atualizada em =docs/magent-reference.org= (seção DevOps Tools).
+478 testes, 0 falhas. Compilação zero-warning.
+
+** [ARQUIVADO 2026-08-25] Linters nativos + helpers portáteis para batch
+    :PROPERTIES:
+    :CREATED: 2026-08-25
+    :STATUS:   DONE
+    :END:
+Infraestrutura de validação estática usando parse nativo do Emacs (sem deps externas):
+*** Helpers portáteis (=custom-magent-infra.el=)
+- =+carlos/magent--string-trim-left=, =-right=, =-trim=: funciona em =emacs --batch -Q=
+  sem (require 'subr-x). Usa string-match/substring puro.
+- =with-temp-file-buffer=: macro para testes ERT com buffer file-backed temporário,
+  cleanup automático de buffer + arquivo (sem memory leak).
+*** Linters (=custom-magent-lint.el=)
+- *defun-parens*: usa =forward-sexp= nativo (syntax-table) para validar que cada
+  defun/defsubst/defmacro fecha seus parênteses. Pega off-by-one antes de compile.
+- *arity*: usa =read= (AST nativo) para detectar chamadas com arity errada em
+  funções blacklistadas (=buffer-string= etc).
+- =+carlos/magent-lint-directory=: roda todos os linters em um diretório.
+*** Justfile
+- Novo recipe =lint-native=: roda os 2 linters em batch sem dependências.
+*** SKILL.md
+- Seção "Batch portability rules": proíbe =string-trim-left=, =buffer-string= c/ args,
+  =save-buffer= em buffer sem arquivo. Require =lint-native= pós-edit.
+478 testes, 0 falhas. Compilação zero-warning. =lint-native= OK.
+
 * Apêndice A — Catálogo de Regras do awesome-cursorrules (Plano 0.14)
 
 Catálogo de 257 regras movido em 2026-08-16 para o arquivo dedicado
