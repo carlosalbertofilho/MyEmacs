@@ -116,17 +116,15 @@ REASON: Motivo da alteração."
                         (format "(with-eval-after-load '%s\n  )\n" arg-str))
                        (t
                         (format "(defun %s ()\n  \"Docstring.\"\n  )\n" arg-str)))))
-           (goto-char (point-max))
+           (+carlos/magent--smart-edit-transaction buf 'code
+          (lambda ()
+(goto-char (point-max))
            (unless (bolp) (insert "\n"))
            (insert code)
-           (condition-case err
-               (progn
-                 (save-excursion (check-parens))
-                 (save-buffer)
-                 (format "Snippet '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file))
-             (error
-              (primitive-undo 1 buf)
-              (format "Erro de sintaxe ao inserir snippet '%s': %s. Transação revertida." name (error-message-string err))))))
+           
+           
+                 (format "Snippet '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file)
+          ))))
         ("refactor_symbol"
          (if (or (null args) (string-empty-p args))
              "Erro: informe os símbolos 'antigo novo' em args para refatorar."
@@ -135,20 +133,18 @@ REASON: Motivo da alteração."
                   (new-sym (cadr parts)))
              (if (and old-sym new-sym)
                  (progn
-                   (goto-char (point-min))
+                   (+carlos/magent--smart-edit-transaction buf 'code
+          (lambda ()
+(goto-char (point-min))
                    (let ((count 0))
                      (while (search-forward old-sym nil t)
                        (replace-match new-sym t t)
                        (setq count (1+ count)))
-                     (condition-case err
-                         (progn
-                           (save-excursion (check-parens))
-                           (save-buffer)
+                     
+           
                            (format "Refatoração de '%s' -> '%s' concluída em '%s' (%d substituições). Buffer validado."
-                                   old-sym new-sym abs-file count))
-                       (error
-                        (primitive-undo count buf)
-                        (format "Erro de sintaxe ao refatorar '%s': %s. Transação revertida." old-sym (error-message-string err))))))
+                                   old-sym new-sym abs-file count)
+)          )))
                "Erro: forneça 'velho novo' em args."))))
         ("extract_sexp"
          (let* ((search-str snippet-name)
@@ -156,31 +152,39 @@ REASON: Motivo da alteração."
            (if (or (null search-str) (null dest-file) (string-empty-p dest-file))
                "Erro: para extract_sexp, informe a string de busca em snippet-name e o arquivo destino em args."
              (let ((dest-abs-file (expand-file-name dest-file (or (and (fboundp 'project-root) (when-let* ((p (project-current))) (project-root p))) user-emacs-directory))))
+               ;; s3e-extract-body.el — corpo novo do extract_sexp (substitui linhas 155-179)
+;; Validoado por este arquivo ser parseável como elisp.
+;; Estrutura: two-phase txn (source extract -> dest append), sem primitive-undo.
+(let ((code (+carlos/magent--smart-edit-transaction buf 'raw
+             (lambda ()
                (goto-char (point-min))
                (if (search-forward search-str nil t)
                    (progn
                      (goto-char (match-beginning 0))
-                     (condition-case err
-                         (let ((beg (point)))
-                           (forward-sexp 1)
-                           (let ((code (buffer-substring beg (point))))
-                             (delete-region beg (point))
-                             (save-buffer)
-                             (with-current-buffer (or (find-buffer-visiting dest-abs-file)
-                                                      (and (file-exists-p dest-abs-file) (find-file-noselect dest-abs-file))
-                                                      (get-buffer-create (file-name-nondirectory dest-abs-file)))
-                               (unless (derived-mode-p 'emacs-lisp-mode) (emacs-lisp-mode))
-                               (unless buffer-file-name (setq buffer-file-name dest-abs-file))
-                               (goto-char (point-max))
-                               (unless (bolp) (insert "\n"))
-                               (insert code "\n\n")
-                               (save-excursion (check-parens))
-                               (save-buffer))
-                             (format "Sexp '%s' extraída para '%s'. Ambos os buffers validados." search-str dest-abs-file)))
-                       (error
-                        (primitive-undo 1 buf)
-                        (format "Erro de sintaxe ao extrair sexp '%s': %s." search-str (error-message-string err)))))
-                 (format "Erro: Sexp contendo '%s' não encontrada em '%s'." search-str abs-file))))))
+                     (let ((beg (point)))
+                       (forward-sexp 1)
+                       (prog1 (buffer-substring beg (point))
+                         (delete-region beg (point)))))
+                 (error "Sexp contendo '%s' não encontrada em '%s'."
+                        search-str abs-file))))))
+  (if (string-prefix-p "Erro" code)
+      code
+    (+carlos/magent--smart-edit-transaction
+     (or (find-buffer-visiting dest-abs-file)
+         (and (file-exists-p dest-abs-file)
+              (find-file-noselect dest-abs-file))
+         (get-buffer-create (file-name-nondirectory dest-abs-file)))
+     'raw
+     (lambda ()
+       (unless (derived-mode-p 'emacs-lisp-mode) (emacs-lisp-mode))
+       (unless buffer-file-name (setq buffer-file-name dest-abs-file))
+       (goto-char (point-max))
+       (unless (bolp) (insert "\n"))
+       (insert code "\n\n")
+       (format "Sexp '%s' extraída para '%s'. Ambos os buffers validados."
+               search-str dest-abs-file)))))
+
+               ))))
         ("validate_buffer"
          (condition-case err
              (progn
@@ -226,17 +230,15 @@ REASON: Motivo da alteração."
                         (format "%s = lib.mkOption {\n  type = lib.types.str;\n  default = \"\";\n  description = \"Docstring.\";\n};\n" arg-str))
                        (t
                         (format "{\n  config,\n  lib,\n  pkgs,\n  ...\n}: {\n  # %s configuration\n}\n" arg-str)))))
-           (goto-char (point-max))
+           (+carlos/magent--smart-edit-transaction buf 'code
+          (lambda ()
+(goto-char (point-max))
            (unless (bolp) (insert "\n"))
            (insert code)
-           (condition-case err
-               (progn
-                 (save-excursion (check-parens))
-                 (save-buffer)
-                 (format "Snippet Nix '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file))
-             (error
-              (primitive-undo 1 buf)
-              (format "Erro de sintaxe ao inserir snippet Nix '%s': %s. Transação revertida." name (error-message-string err))))))
+           
+           
+                 (format "Snippet Nix '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file)
+          ))))
         ("refactor_symbol"
          (if (or (null args) (string-empty-p args))
              "Erro: informe os símbolos 'antigo novo' em args para refatorar."
@@ -245,20 +247,18 @@ REASON: Motivo da alteração."
                   (new-sym (cadr parts)))
              (if (and old-sym new-sym)
                  (progn
-                   (goto-char (point-min))
+                   (+carlos/magent--smart-edit-transaction buf 'code
+          (lambda ()
+(goto-char (point-min))
                    (let ((count 0))
                      (while (search-forward old-sym nil t)
                        (replace-match new-sym t t)
                        (setq count (1+ count)))
-                     (condition-case err
-                         (progn
-                           (save-excursion (check-parens))
-                           (save-buffer)
+                     
+           
                            (format "Refatoração Nix '%s' -> '%s' concluída em '%s' (%d substituições). Buffer validado."
-                                   old-sym new-sym abs-file count))
-                       (error
-                        (primitive-undo count buf)
-                        (format "Erro de sintaxe ao refatorar '%s': %s. Transação revertida." old-sym (error-message-string err))))))
+                                   old-sym new-sym abs-file count)
+)          )))
                "Erro: forneça 'velho novo' em args."))))
         ("validate_buffer"
          (condition-case err
@@ -304,17 +304,15 @@ REASON: Motivo da alteração."
                         (format "if __name__ == \"__main__\":\n    # %s main entrypoint\n    pass\n" arg-str))
                        (t
                         (format "def %s() -> None:\n    \"\"\"Docstring.\"\"\"\n    pass\n" arg-str)))))
-           (goto-char (point-max))
+           (+carlos/magent--smart-edit-transaction buf 'code
+          (lambda ()
+(goto-char (point-max))
            (unless (bolp) (insert "\n"))
            (insert code)
-           (condition-case err
-               (progn
-                 (save-excursion (check-parens))
-                 (save-buffer)
-                 (format "Snippet Python '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file))
-             (error
-              (primitive-undo 1 buf)
-              (format "Erro de sintaxe ao inserir snippet Python '%s': %s. Transação revertida." name (error-message-string err))))))
+           
+           
+                 (format "Snippet Python '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file)
+          ))))
         ("refactor_symbol"
          (if (or (null args) (string-empty-p args))
              "Erro: informe os símbolos 'antigo novo' em args para refatorar."
@@ -323,20 +321,18 @@ REASON: Motivo da alteração."
                   (new-sym (cadr parts)))
              (if (and old-sym new-sym)
                  (progn
-                   (goto-char (point-min))
+                   (+carlos/magent--smart-edit-transaction buf 'code
+          (lambda ()
+(goto-char (point-min))
                    (let ((count 0))
                      (while (search-forward old-sym nil t)
                        (replace-match new-sym t t)
                        (setq count (1+ count)))
-                     (condition-case err
-                         (progn
-                           (save-excursion (check-parens))
-                           (save-buffer)
+                     
+           
                            (format "Refatoração Python '%s' -> '%s' concluída em '%s' (%d substituições). Buffer validado."
-                                   old-sym new-sym abs-file count))
-                       (error
-                        (primitive-undo count buf)
-                        (format "Erro de sintaxe ao refatorar '%s': %s. Transação revertida." old-sym (error-message-string err))))))
+                                   old-sym new-sym abs-file count)
+)          )))
                "Erro: forneça 'velho novo' em args."))))
         ("validate_buffer"
          (condition-case err
@@ -378,17 +374,15 @@ REASON: Motivo da alteração."
                         (format "describe('%s', () => {\n  it('should work', () => {\n    expect(true).toBe(true);\n  });\n});\n" arg-str))
                        (t
                         (format "export function %s(): void {\n  // %s implementation\n}\n" arg-str arg-str)))))
-           (goto-char (point-max))
+           (+carlos/magent--smart-edit-transaction buf 'code
+          (lambda ()
+(goto-char (point-max))
            (unless (bolp) (insert "\n"))
            (insert code)
-           (condition-case err
-               (progn
-                 (save-excursion (check-parens))
-                 (save-buffer)
-                 (format "Snippet TS/JS '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file))
-             (error
-              (primitive-undo 1 buf)
-              (format "Erro de sintaxe ao inserir snippet TS/JS '%s': %s. Transação revertida." name (error-message-string err))))))
+           
+           
+                 (format "Snippet TS/JS '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file)
+          ))))
         ("refactor_symbol"
          (if (or (null args) (string-empty-p args))
              "Erro: informe os símbolos 'antigo novo' em args para refatorar."
@@ -397,20 +391,18 @@ REASON: Motivo da alteração."
                   (new-sym (cadr parts)))
              (if (and old-sym new-sym)
                  (progn
-                   (goto-char (point-min))
+                   (+carlos/magent--smart-edit-transaction buf 'code
+          (lambda ()
+(goto-char (point-min))
                    (let ((count 0))
                      (while (search-forward old-sym nil t)
                        (replace-match new-sym t t)
                        (setq count (1+ count)))
-                     (condition-case err
-                         (progn
-                           (save-excursion (check-parens))
-                           (save-buffer)
+                     
+           
                            (format "Refatoração TS/JS '%s' -> '%s' concluída em '%s' (%d substituições). Buffer validado."
-                                   old-sym new-sym abs-file count))
-                       (error
-                        (primitive-undo count buf)
-                        (format "Erro de sintaxe ao refatorar '%s': %s. Transação revertida." old-sym (error-message-string err))))))
+                                   old-sym new-sym abs-file count)
+)          )))
                "Erro: forneça 'velho novo' em args."))))
         ("validate_buffer"
          (condition-case err
@@ -453,17 +445,15 @@ REASON: Motivo da alteração."
                         (format "int main(int argc, char **argv)\n{\n    (void)argc;\n    (void)argv;\n    return (0);\n}\n"))
                        (t
                         (format "void %s(void)\n{\n    return ;\n}\n" arg-str)))))
-           (goto-char (point-max))
+           (+carlos/magent--smart-edit-transaction buf 'code
+          (lambda ()
+(goto-char (point-max))
            (unless (bolp) (insert "\n"))
            (insert code)
-           (condition-case err
-               (progn
-                 (save-excursion (check-parens))
-                 (save-buffer)
-                 (format "Snippet C/C++ '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file))
-             (error
-              (primitive-undo 1 buf)
-              (format "Erro de sintaxe ao inserir snippet C/C++ '%s': %s. Transação revertida." name (error-message-string err))))))
+           
+           
+                 (format "Snippet C/C++ '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file)
+          ))))
         ("refactor_symbol"
          (if (or (null args) (string-empty-p args))
              "Erro: informe os símbolos 'antigo novo' em args para refatorar."
@@ -472,20 +462,18 @@ REASON: Motivo da alteração."
                   (new-sym (cadr parts)))
              (if (and old-sym new-sym)
                  (progn
-                   (goto-char (point-min))
+                   (+carlos/magent--smart-edit-transaction buf 'code
+          (lambda ()
+(goto-char (point-min))
                    (let ((count 0))
                      (while (search-forward old-sym nil t)
                        (replace-match new-sym t t)
                        (setq count (1+ count)))
-                     (condition-case err
-                         (progn
-                           (save-excursion (check-parens))
-                           (save-buffer)
+                     
+           
                            (format "Refatoração C/C++ '%s' -> '%s' concluída em '%s' (%d substituições). Buffer validado."
-                                   old-sym new-sym abs-file count))
-                       (error
-                        (primitive-undo count buf)
-                        (format "Erro de sintaxe ao refatorar '%s': %s. Transação revertida." old-sym (error-message-string err))))))
+                                   old-sym new-sym abs-file count)
+)          )))
                "Erro: forneça 'velho novo' em args."))))
         ("validate_buffer"
          (condition-case err
@@ -529,17 +517,15 @@ REASON: Motivo da alteração."
                         (format "func Test%s(t *testing.T) {\n\ttests := []struct {\n\t\tname string\n\t}{\n\t\t{\"default\"},\n\t}\n\tfor _, tt := range tests {\n\t\tt.Run(tt.name, func(t *testing.T) {\n\t\t})\n\t}\n}\n" arg-str))
                        (t
                         (format "func %s() error {\n\treturn nil\n}\n" arg-str)))))
-           (goto-char (point-max))
+           (+carlos/magent--smart-edit-transaction buf 'code
+          (lambda ()
+(goto-char (point-max))
            (unless (bolp) (insert "\n"))
            (insert code)
-           (condition-case err
-               (progn
-                 (save-excursion (check-parens))
-                 (save-buffer)
-                 (format "Snippet Go '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file))
-             (error
-              (primitive-undo 1 buf)
-              (format "Erro de sintaxe ao inserir snippet Go '%s': %s. Transação revertida." name (error-message-string err))))))
+           
+           
+                 (format "Snippet Go '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file)
+          ))))
         ("refactor_symbol"
          (if (or (null args) (string-empty-p args))
              "Erro: informe os símbolos 'antigo novo' em args para refatorar."
@@ -548,20 +534,18 @@ REASON: Motivo da alteração."
                   (new-sym (cadr parts)))
              (if (and old-sym new-sym)
                  (progn
-                   (goto-char (point-min))
+                   (+carlos/magent--smart-edit-transaction buf 'code
+          (lambda ()
+(goto-char (point-min))
                    (let ((count 0))
                      (while (search-forward old-sym nil t)
                        (replace-match new-sym t t)
                        (setq count (1+ count)))
-                     (condition-case err
-                         (progn
-                           (save-excursion (check-parens))
-                           (save-buffer)
+                     
+           
                            (format "Refatoração Go '%s' -> '%s' concluída em '%s' (%d substituições). Buffer validado."
-                                   old-sym new-sym abs-file count))
-                       (error
-                        (primitive-undo count buf)
-                        (format "Erro de sintaxe ao refatorar '%s': %s. Transação revertida." old-sym (error-message-string err))))))
+                                   old-sym new-sym abs-file count)
+)          )))
                "Erro: forneça 'velho novo' em args."))))
         ("validate_buffer"
          (condition-case err
@@ -761,17 +745,15 @@ REASON: Motivo da alteração."
                         (format "case \"%s\" in\n    pattern) :\n        ;;\n    *) :\n        ;;\nesac\n" arg-str))
                        (t
                         "#!/usr/bin/env bash\nset -euo pipefail\n\n# Main entrypoint\n"))))
-           (goto-char (point-max))
+           (+carlos/magent--smart-edit-transaction buf 'code
+          (lambda ()
+(goto-char (point-max))
            (unless (bolp) (insert "\n"))
            (insert code)
-           (condition-case err
-               (progn
-                 (save-excursion (check-parens))
-                 (save-buffer)
-                 (format "Snippet Shell '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file))
-             (error
-              (primitive-undo 1 buf)
-              (format "Erro de sintaxe ao inserir snippet Shell '%s': %s. Transação revertida." name (error-message-string err))))))
+           
+           
+                 (format "Snippet Shell '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file)
+          ))))
         ("refactor_symbol"
          (if (or (null args) (string-empty-p args))
              "Erro: informe os símbolos 'antigo novo' em args para refatorar."
@@ -780,20 +762,18 @@ REASON: Motivo da alteração."
                   (new-sym (cadr parts)))
              (if (and old-sym new-sym)
                  (progn
-                   (goto-char (point-min))
+                   (+carlos/magent--smart-edit-transaction buf 'code
+          (lambda ()
+(goto-char (point-min))
                    (let ((count 0))
                      (while (search-forward old-sym nil t)
                        (replace-match new-sym t t)
                        (setq count (1+ count)))
-                     (condition-case err
-                         (progn
-                           (save-excursion (check-parens))
-                           (save-buffer)
+                     
+           
                            (format "Refatoração Shell '%s' -> '%s' concluída em '%s' (%d substituições). Buffer validado."
-                                   old-sym new-sym abs-file count))
-                       (error
-                        (primitive-undo count buf)
-                        (format "Erro de sintaxe ao refatorar '%s': %s. Transação revertida." old-sym (error-message-string err))))))
+                                   old-sym new-sym abs-file count)
+)          )))
                "Erro: forneça 'velho novo' em args."))))
         ("validate_buffer"
          (condition-case err
@@ -902,17 +882,15 @@ REASON: Motivo da alteração."
                         (format "#[cfg(test)]\nmod tests {\n    #[test]\n    fn test_%s() {\n        assert_eq!(2 + 2, 4);\n    }\n}\n" (if (string-empty-p arg-str) "basic" arg-str)))
                        (t
                         (format "pub fn %s() -> Result<(), String> {\n    Ok(())\n}\n" arg-str)))))
-           (goto-char (point-max))
+           (+carlos/magent--smart-edit-transaction buf 'code
+          (lambda ()
+(goto-char (point-max))
            (unless (bolp) (insert "\n"))
            (insert code)
-           (condition-case err
-               (progn
-                 (save-excursion (check-parens))
-                 (save-buffer)
-                 (format "Snippet Rust '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file))
-             (error
-              (primitive-undo 1 buf)
-              (format "Erro de sintaxe ao inserir snippet Rust '%s': %s. Transação revertida." name (error-message-string err))))))
+           
+           
+                 (format "Snippet Rust '%s' inserido com sucesso em '%s'. Buffer validado." name abs-file)
+          ))))
         ("refactor_symbol"
          (if (or (null args) (string-empty-p args))
              "Erro: informe os símbolos 'antigo novo' em args para refatorar."
@@ -921,20 +899,18 @@ REASON: Motivo da alteração."
                   (new-sym (cadr parts)))
              (if (and old-sym new-sym)
                  (progn
-                   (goto-char (point-min))
+                   (+carlos/magent--smart-edit-transaction buf 'code
+          (lambda ()
+(goto-char (point-min))
                    (let ((count 0))
                      (while (search-forward old-sym nil t)
                        (replace-match new-sym t t)
                        (setq count (1+ count)))
-                     (condition-case err
-                         (progn
-                           (save-excursion (check-parens))
-                           (save-buffer)
+                     
+           
                            (format "Refatoração Rust '%s' -> '%s' concluída em '%s' (%d substituições). Buffer validado."
-                                   old-sym new-sym abs-file count))
-                       (error
-                        (primitive-undo count buf)
-                        (format "Erro de sintaxe ao refatorar '%s': %s. Transação revertida." old-sym (error-message-string err))))))
+                                   old-sym new-sym abs-file count)
+)          )))
                "Erro: forneça 'velho novo' em args."))))
         ("validate_buffer"
          (condition-case err
