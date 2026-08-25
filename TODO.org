@@ -86,7 +86,13 @@ com todos os headings do arquivo e destruiu o TODO.org inteiro.
     - [X] Auditoria de undo concluída (2026-08-24): ver relatório; 17 =primitive-undo= quebrados; markdown sem gate; branch-delete sem guarda; elpaca read-only.
     - [X] P1: wiring transacional das 9 variantes restantes.
     - [X] P2: markdown adotar gate.
-    - [ ] P3: guardas FORCE/dry-run (branch-delete, docker rm, systemd disable).
+    - [X] P3: guardas FORCE/dry-run (branch-delete, docker rm, systemd disable).
+      - Implementação: adicionar parâmetro =dry_run= (string "true") em 3 tools destrutivas.
+      - Quando =dry_run= é "true": retorna o comando que seria executado SEM executar.
+      - Flag =destructive= no resultado quando a ação é destrutiva (delete/rm/disable/stop).
+      - Arquivos: =custom-magent-tool-git.el= (=branch-delete=), =custom-magent-tool-devops.el= (=docker-action=, =systemd-action=).
+      - Atualizar definições =gptel-make-tool= com o novo parâmetro.
+      - Testes ERT para dry-run em cada tool.
     - [X] Testes ERT: regressão do incidente (padrão com asteriscos não vaza além do alvo), rollback forçado (arquivo restaurado idêntico byte-a-byte), contratos das ações novas e das flags.
     - [X] Atualizar =docs/magent-reference.org= (regra de ouro: API Magent documentada) e flip deste nó para DONE.
 - Link to plan: [[file:../.gemini/antigravity-cli/brain/6939fb0d-b068-4595-850d-99e9321fe46f/plan_consolidated.md][Plano Consolidado §2]]

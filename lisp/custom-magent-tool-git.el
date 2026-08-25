@@ -532,8 +532,9 @@ por atualização descendente e limitados por
            :category "magent"))))
 
 
-(defun +carlos/magent-tool-magit-branch-delete (branch &optional remote force _reason)
-  "Deletes local or REMOTE branch programmatically."
+(defun +carlos/magent-tool-magit-branch-delete (branch &optional remote force dry-run _reason)
+  "Deletes local or REMOTE branch programmatically.
+When DRY-RUN is \"true\", returns the command without executing."
   (require 'magit nil t)
   (if (or (null branch) (string-empty-p branch))
       "Error: branch parameter is required."
@@ -542,31 +543,52 @@ por atualização descendente e limitados por
                                          (project-root p)))
                                   default-directory))
            (is-force (equal force "true"))
+           (is-dry (equal dry-run "true"))
            (remote-name (when (and (stringp remote) (not (string-empty-p remote)) (not (equal remote "false")))
                           (if (equal remote "true") "origin" remote))))
       (if remote-name
-          (progn
+          (let ((cmd (format "git push %s --delete %s" remote-name (shell-quote-argument branch))))
+            (if is-dry
+                (+carlos/magent-tool-result
+                 (list (cons "status" "dry_run")
+                       (cons "destructive" t)
+                       (cons "command" cmd)
+                       (cons "message" (format "Would delete remote branch '%s/%s'." remote-name branch))))
+              (if (fboundp 'magit-run-git)
+                  (ignore-errors (magit-run-git "push" remote-name "--delete" branch))
+                (shell-command-to-string cmd))
+              (+carlos/magent-tool-result
+               (list (cons "status" "success")
+                     (cons "destructive" t)
+                     (cons "command" cmd)
+                     (cons "message" (format "Deleted remote branch '%s/%s' from '%s'." remote-name branch default-directory))))))
+        (let* ((flag (if is-force "-D" "-d"))
+               (cmd (format "git branch %s %s" flag (shell-quote-argument branch))))
+          (if is-dry
+              (+carlos/magent-tool-result
+               (list (cons "status" "dry_run")
+                     (cons "destructive" t)
+                     (cons "command" cmd)
+                     (cons "message" (format "Would delete local branch '%s'." branch))))
             (if (fboundp 'magit-run-git)
-                (ignore-errors (magit-run-git "push" remote-name "--delete" branch))
-              (shell-command-to-string (format "git push %s --delete %s"
-                                               (shell-quote-argument remote-name)
-                                               (shell-quote-argument branch))))
-            (format "Deleted remote branch '%s/%s' from '%s'." remote-name branch default-directory))
-        (let ((flag (if is-force "-D" "-d")))
-          (if (fboundp 'magit-run-git)
-              (ignore-errors (magit-run-git "branch" flag branch))
-            (shell-command-to-string (format "git branch %s %s" flag (shell-quote-argument branch))))
-          (format "Deleted local branch '%s' in '%s'." branch default-directory))))))
+                (ignore-errors (magit-run-git "branch" flag branch))
+              (shell-command-to-string cmd))
+            (+carlos/magent-tool-result
+             (list (cons "status" "success")
+                   (cons "destructive" t)
+                   (cons "command" cmd)
+                   (cons "message" (format "Deleted local branch '%s' in '%s'." branch default-directory))))))))))
 
 (with-eval-after-load 'gptel
   (when (fboundp 'gptel-make-tool)
     (setq +carlos/magent-tool-magit-branch-delete
           (gptel-make-tool
            :name "magit_branch_delete"
-           :description "Delete local or remote branch programmatically using Emacs Magit API."
+           :description "Delete local or remote branch programmatically using Emacs Magit API. Use dry_run='true' to preview without executing."
            :args '((:name "branch" :type string :description "Target branch name to delete")
                    (:name "remote" :type string :description "Optional: remote name ('origin' or 'true') for remote branch deletion")
                    (:name "force" :type string :description "Optional: 'true' to force delete (-D)")
+                   (:name "dry_run" :type string :description "Optional: 'true' to preview command without executing")
                    (:name "reason" :type string :description "Reason for branch deletion"))
            :function #'+carlos/magent-tool-magit-branch-delete
            :category "magent"))))

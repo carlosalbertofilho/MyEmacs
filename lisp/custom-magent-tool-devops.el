@@ -86,8 +86,9 @@
 
 (defvar +carlos/magent-tool-docker-action nil "Gptel tool for Docker container actions.")
 
-(defun +carlos/magent-tool-docker-action (container-id action &optional remote-host _reason)
-  "Perform action (start, stop, restart, remove) on a Docker container."
+(defun +carlos/magent-tool-docker-action (container-id action &optional remote-host dry-run _reason)
+  "Perform action (start, stop, restart, remove) on a Docker container.
+When DRY-RUN is \"true\", returns the command without executing."
   (if (or (not container-id) (string-empty-p container-id)
           (not action) (string-empty-p action))
       (+carlos/magent-tool-result '((status . "error") (message . "container_id and action parameters are required")))
@@ -100,22 +101,35 @@
                                     default-directory))
                (real-act (if (equal act "remove") "rm" act))
                (cmd (format "docker %s %s" real-act (shell-quote-argument container-id)))
-               (output (+carlos/magent-sanitize-string (shell-command-to-string cmd))))
-          (+carlos/magent-tool-result
-           (list (cons "status" "success")
-                 (cons "container" container-id)
-                 (cons "action" act)
-                 (cons "output" (string-trim output)))))))))
+               (is-dry (equal dry-run "true"))
+               (destructive (member act '("remove" "rm" "stop"))))
+          (if is-dry
+              (+carlos/magent-tool-result
+               (list (cons "status" "dry_run")
+                     (cons "destructive" destructive)
+                     (cons "command" cmd)
+                     (cons "container" container-id)
+                     (cons "action" act)
+                     (cons "message" (format "Would %s container '%s'." act container-id))))
+            (let ((output (+carlos/magent-sanitize-string (shell-command-to-string cmd))))
+              (+carlos/magent-tool-result
+               (list (cons "status" "success")
+                     (cons "destructive" destructive)
+                     (cons "command" cmd)
+                     (cons "container" container-id)
+                     (cons "action" act)
+                                           (cons "output" (string-trim output)))))))))))
 
 (with-eval-after-load 'gptel
   (when (fboundp 'gptel-make-tool)
     (setq +carlos/magent-tool-docker-action
           (gptel-make-tool
            :name "docker_action"
-           :description "Perform lifecycle action (start, stop, restart, remove) on a Docker container."
+           :description "Perform lifecycle action (start, stop, restart, remove) on a Docker container. Use dry_run='true' to preview without executing."
            :args '((:name "container_id" :type string :description "Container name or ID")
                    (:name "action" :type string :description "Action: 'start', 'stop', 'restart', 'remove'")
                    (:name "remote_host" :type string :description "Optional TRAMP prefix")
+                   (:name "dry_run" :type string :description "Optional: 'true' to preview command without executing")
                    (:name "reason" :type string :description "Reason for container action"))
            :function #'+carlos/magent-tool-docker-action
            :category "magent"))))
@@ -156,8 +170,9 @@
 
 (defvar +carlos/magent-tool-systemd-action nil "Gptel tool for systemd actions.")
 
-(defun +carlos/magent-tool-systemd-action (unit action &optional remote-host _reason)
-  "Execute systemctl action on UNIT."
+(defun +carlos/magent-tool-systemd-action (unit action &optional remote-host dry-run _reason)
+  "Execute systemctl action on UNIT.
+When DRY-RUN is \"true\", returns the command without executing."
   (if (or (not unit) (string-empty-p unit)
           (not action) (string-empty-p action))
       (+carlos/magent-tool-result '((status . "error") (message . "unit and action parameters are required")))
@@ -169,22 +184,35 @@
                                       (file-name-as-directory remote-host)
                                     default-directory))
                (cmd (format "systemctl %s %s" act (shell-quote-argument unit)))
-               (output (+carlos/magent-sanitize-string (shell-command-to-string cmd))))
-          (+carlos/magent-tool-result
-           (list (cons "status" "success")
-                 (cons "unit" unit)
-                 (cons "action" act)
-                 (cons "message" (if (string-empty-p output) (format "Unit %s %ssuccessfully." unit act) (string-trim output))))))))))
+               (is-dry (equal dry-run "true"))
+               (destructive (member act '("stop" "disable"))))
+          (if is-dry
+              (+carlos/magent-tool-result
+               (list (cons "status" "dry_run")
+                     (cons "destructive" destructive)
+                     (cons "command" cmd)
+                     (cons "unit" unit)
+                     (cons "action" act)
+                     (cons "message" (format "Would %s unit '%s'." act unit))))
+            (let ((output (+carlos/magent-sanitize-string (shell-command-to-string cmd))))
+              (+carlos/magent-tool-result
+               (list (cons "status" "success")
+                     (cons "destructive" destructive)
+                     (cons "command" cmd)
+                     (cons "unit" unit)
+                     (cons "action" act)
+                                           (cons "message" (if (string-empty-p output) (format "Unit %s %ssuccessfully." unit act) (string-trim output))))))))))))
 
 (with-eval-after-load 'gptel
   (when (fboundp 'gptel-make-tool)
     (setq +carlos/magent-tool-systemd-action
           (gptel-make-tool
            :name "systemd_action"
-           :description "Execute systemctl management action (start, stop, restart, reload, enable, disable) on a unit."
+           :description "Execute systemctl management action (start, stop, restart, reload, enable, disable) on a unit. Use dry_run='true' to preview without executing."
            :args '((:name "unit" :type string :description "Systemd unit name")
                    (:name "action" :type string :description "Action: 'start', 'stop', 'restart', 'reload', 'enable', 'disable'")
                    (:name "remote_host" :type string :description "Optional TRAMP prefix")
+                   (:name "dry_run" :type string :description "Optional: 'true' to preview command without executing")
                    (:name "reason" :type string :description "Reason for unit action"))
            :function #'+carlos/magent-tool-systemd-action
            :category "magent"))))

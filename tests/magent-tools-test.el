@@ -11,6 +11,7 @@
 (require 'cl-lib)
 (require 'json)
 (require 'custom-magent-tools)
+(require 'custom-magent-tool-devops)
 
 ;; ── Cap de tool results ──────────────────────────────────────────────
 (ert-deftest myemacs-tool-result-cap-output-truncates ()
