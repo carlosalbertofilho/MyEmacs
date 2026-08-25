@@ -117,5 +117,34 @@ Garante cleanup automático e desfaz modificações no arquivo."
       (should (= 0 count))
       (should (equal (buffer-string) "hello world")))))
 
+(ert-deftest myemacs-smart-edit-org-toggle-checkbox ()
+  "toggle_checkbox alterna checkbox no heading alvo."
+  (let ((tmp (make-temp-file "test-toggle-" nil ".org")))
+    (unwind-protect
+        (with-current-buffer (find-file-noselect tmp)
+          (erase-buffer)
+          (insert "* TODO Tarefa\n  - [ ] Item A\n  - [X] Item B\n")
+          (goto-char (point-min))
+          (let ((res (+carlos/magent-tool-org-smart-edit tmp "toggle_checkbox" nil "Tarefa")))
+            (should (string-match-p "Checkbox toggled" res))
+            (should (string-match-p "Tarefa" res))))
+      (when (file-exists-p tmp) (delete-file tmp)))))
+
+(ert-deftest myemacs-smart-edit-org-toggle-checkbox-missing-heading ()
+  "toggle_checkbox com heading inexistente retorna erro."
+  (let ((tmp (make-temp-file "test-toggle-" nil ".org")))
+    (unwind-protect
+        (with-current-buffer (find-file-noselect tmp)
+          (erase-buffer)
+          (insert "* TODO Existe\n")
+          (let ((res (+carlos/magent-tool-org-smart-edit tmp "toggle_checkbox" nil "NaoExiste")))
+            (should (string-match-p "não encontrado" res))))
+      (when (file-exists-p tmp) (delete-file tmp)))))
+
+(ert-deftest myemacs-smart-edit-org-toggle-checkbox-empty-args ()
+  "toggle_checkbox sem args retorna erro de uso."
+  (let ((res (+carlos/magent-tool-org-smart-edit "/tmp/x.org" "toggle_checkbox" nil "")))
+    (should (string-match-p "Erro" res))))
+
 (provide 'smart-edit-test)
 ;;; smart-edit-test.el ends here

@@ -710,7 +710,23 @@ REASON: Motivo da alteração."
                    (format "Avisos do org-lint no buffer '%s': %d" abs-file (length reports))
                  (format "Buffer Org '%s' validado e sintaticamente limpo." abs-file)))
            (format "Buffer Org '%s' carregado com sucesso." abs-file)))
-        (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol', 'set_property', 'replace_heading', 'replace_text' ou 'validate_buffer'." action))))))
+        ("toggle_checkbox"
+         (if (or (null args) (string-empty-p args))
+             "Erro: informe o texto do heading alvo em args para toggle_checkbox."
+           (let ((heading args))
+             (+carlos/magent--smart-edit-transaction buf 'org
+               (lambda ()
+                 (let* ((tree (org-element-parse-buffer))
+                        (node (org-element-map tree 'headline
+                                (lambda (h)
+                                  (and (string-equal (org-element-property :raw-value h) heading) h))
+                                nil t)))
+                   (unless node
+                     (error "Nó '%s' não encontrado" heading))
+                   (goto-char (org-element-property :begin node))
+                   (org-toggle-checkbox 'toggle)
+                   (format "Checkbox toggled no heading '%s' em '%s'." heading abs-file)))))))
+        (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol', 'set_property', 'replace_heading', 'replace_text', 'toggle_checkbox' ou 'validate_buffer'." action))))))
 
 (defun +carlos/magent-tool-sh-smart-edit (target-file action &optional snippet-name args _reason)
   "Ferramenta transacional para edição de scripts Shell/Bash (.sh, .bash).
@@ -998,11 +1014,11 @@ REASON: Motivo da alteração."
     (setq +carlos/magent-tool-org-smart-edit
           (gptel-make-tool
            :name "org_smart_edit"
-           :description "Transactional native tool for Org-mode AST structural editing (headings, TODO/DONE keywords, drawers, tables) and org-lint validation."
+           :description "Transactional native tool for Org-mode AST structural editing (headings, TODO/DONE keywords, drawers, tables, checkboxes) and org-lint validation."
            :args '((:name "target_file" :type string :description "Target .org file path")
-                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol' or 'validate_buffer'")
+                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol', 'toggle_checkbox' or 'validate_buffer'")
                    (:name "snippet_name" :type string :description "Tempel snippet name (e.g. 'heading', 'properties_drawer', 'table', 'src_block')")
-                   (:name "args" :type string :description "Positional or symbol replacement arguments")
+                   (:name "args" :type string :description "Positional, symbol replacement, or heading target arguments")
                    (:name "reason" :type string :description "Reason for edit"))
            :function #'+carlos/magent-tool-org-smart-edit
            :category "magent"))

@@ -133,8 +133,8 @@ checkdoc:
 org-lint:
     @emacs --batch -Q -l bin/org-lint.el --eval '(org-lint-run-and-exit)' 2>&1 || exit 1
 
-# Lint: byte-compile + checkdoc + org structure
-lint: compile checkdoc org-lint
+# Lint: byte-compile + checkdoc + org structure + native linters
+lint: compile checkdoc org-lint lint-native
     @echo "✅ Lint passed"
 
 # Native linters: defun-parens + arity (zero dependencies, uses Emacs parser)

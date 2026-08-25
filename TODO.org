@@ -17,6 +17,31 @@ Histórico consolidado no [[file:roadmap.org][roadmap.org]].
 - *Últimos marcos:* Resiliência FSM (3 Pilares) ✅, Limpeza & Benchmark CPU aa102-006l ✅, Integ. RFC Mode ✅, Factory Reset 12 Cores ✅, P3 dry-run guards ✅, Linters nativos + helpers portáteis ✅.
 - *Suíte:* Testes ERT em `tests/` com compilação zero-warning (`compile-prod`).
 
+* Plano de Execução — Fases 6 e 4 (2026-08-25)
+
+Ordem de implementação baseada em dependências, risco e alavanca.
+
+** Fase A — Quick Wins (paralelos, independentes)
+  - [ ] F6-1: =toggle_checkbox= no =org_smart_edit= (Simple/Low)
+  - [ ] F6-6: Integrar =lint-native= no pipeline (Medium/Low)
+
+** Fase B — Fundação (sequencial, blocks downstream)
+  - [ ] F6-2: =+carlos/magent-project-root= utility (Simple/Medium — alto blast radius, ~40 call sites)
+  - [ ] F6-3/F6-5: Evoluir =bin/magent-cli= (Medium/Low — CLI já existe, evolui)
+
+** Fase C — Infraestrutura Core (sequencial)
+  - [ ] F4-select: preferência explícita de backend no =select_model= (Medium/Medium)
+  - [ ] F4-cb: Circuit Breaker async fix (Medium-High/High — advice chain + FSM loop)
+  - [ ] F4-router: validação proxy cross-machine (Simple/Low — agendado 26/08)
+
+** Fase D — Integração (sequencial, alta coordenação)
+  - [ ] F4-proxy: AGY Proxy gptel bridge (Medium/Medium)
+  - [ ] F4-quota: monitoramento de cotas (Complex/High — módulo novo, 6+ coletores)
+  - [ ] F4-toolserver: Tool Server Bridge capstone (Complex/High — depende de tudo)
+
+** Fase E — Avaliação (paralelo)
+  - [ ] F6-g: Testar Granite 4.1 locais (Medium/Medium — benchmark hardware)
+
 * Contexto de Arquitetura Oficial do Magent (Referência RAG)
 
 Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=, =docs/AGENT_WORKFLOW.org=, =docs/ONBOARDING.org=):

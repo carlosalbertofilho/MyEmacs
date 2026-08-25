@@ -27,6 +27,7 @@
           (condition-case nil
               (forward-sexp 1)
             (scan-error
+             (forward-char 1)
              (push (format "Linha %d: defun/defsubst/defmacro não fecha parênteses"
                            (line-number-at-pos start))
                    errors)))))
@@ -63,13 +64,17 @@
 
 (defun +carlos/magent-lint-arity-in-buffer ()
   "Valida arity de funções blacklistadas no buffer atual.
- Retorna nil se OK, ou sinaliza `error'."
+ Retorna nil se OK, ou string de erro."
   (goto-char (point-min))
-  (condition-case nil
-      (while t
-        (let ((form (read (current-buffer))))
-          (+carlos/magent--check-arity-form form)))
-    (end-of-file nil)))
+  (let ((err-msg nil))
+    (condition-case err
+        (while t
+          (let ((form (read (current-buffer))))
+            (+carlos/magent--check-arity-form form)))
+      (error
+       (unless (eq (car err) 'end-of-file)
+         (setq err-msg (error-message-string err)))))
+    err-msg))
 
 (defun +carlos/magent-lint-arity (file)
   "Valida arity de funções blacklistadas em FILE.
