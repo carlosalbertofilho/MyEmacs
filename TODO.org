@@ -1,7 +1,7 @@
 #+TITLE: TODO — Planejamento Ativo e Backlog (MyEmacs)
 #+AUTHOR: Carlos Filho
 #+DATE: 2026-08-05
-#+LAST_MODIFIED: 2026-08-25
+#+LAST_MODIFIED: 2026-08-26
 #+FILETAGS: :PLANNING:
 #+OPTIONS: toc:2 num:t
 #+STARTUP: content
@@ -27,10 +27,11 @@ Ordem de implementação baseada em dependências, risco e alavanca.
 
 ** Fase B — Fundação (sequencial, blocks downstream)
   - [X] F6-2: =+carlos/magent-project-root= utility (Simple/Medium — alto blast radius, ~40 call sites) → commit bc763fd
-  - [ ] F6-3/F6-5: Evoluir =bin/magent-cli= (Medium/Low — CLI já existe, evolui)
+  - [X] F6-3/F6-5: Evoluir =bin/magent-cli= (Medium/Low — CLI já existe, evolui) → commits c95438b, 5fcc39d
+  - [ ] F6-3b: =magent-cli run= — agent launcher batch para Granite e orquestração (Medium/Medium)
 
 ** Fase C — Infraestrutura Core (sequencial)
-  - [ ] F4-select: preferência explícita de backend no =select_model= (Medium/Medium)
+  - [X] F4-select: preferência explícita de backend no =select_model= (Medium/Medium) → commit d23a69c
   - [ ] F4-cb: Circuit Breaker async fix (Medium-High/High — advice chain + FSM loop)
   - [ ] F4-router: validação proxy cross-machine (Simple/Low — agendado 26/08)
 
@@ -60,6 +61,23 @@ Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=
    - =gptel=: Usar o argumento =:schema= na API de requisições (=gptel-request=) para forçar a LLM a responder seguindo um JSON Schema.
    - =ellama= / =llm.el=: Suporta =:response-format= usando a especificação do JSON Schema.
    - =GBNF Puro=: Extender requisição HTTP (url-retrieve/request.el) para o endpoint =/completion= injetando um payload com a gramática.
+
+** TODO F6-3b: =magent-cli run= — Agent Launcher Batch
+   :PROPERTIES:
+   :CREATED: 2026-08-26
+   :STATUS:  EM ANDAMENTO
+   :END:
+   Subcomando =run= no =bin/magent-cli= para spawar agentes Magent em batch.
+   Útil para testar Granite local e orquestração externa.
+   - [X] Decisões: JSON final + JSONL status file, tools do profile, sem benchmark
+   - [ ] Fix: =INIT_DIR= default de prod para =$(pwd)=
+   - [ ] Criar =lisp/custom-magent-run.el= com =+carlos/magent-run-execute= e =+carlos/magent-jsonl-sink=
+   - [ ] Adicionar =require= em =init.el=
+   - [ ] Adicionar subcomando =run= em =bin/magent-cli= (=--model=, =--profile=, =--prompt=, =--status-file=)
+   - [ ] Testes ERT em =tests/magent-run-test.el=
+   - [ ] Atualizar =tests/cli-test.el=
+   - [ ] Gate: =just compile= zero-warning + =just test-all= zero-failure
+   Referências: =magent-runtime-submit= (UI-neutral), benchmark runner pattern, lifecycle event sinks.
 
 * Fase 5: Onisciência do Agente e RAG Sintático
 
