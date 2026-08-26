@@ -400,16 +400,21 @@ Ex: (+carlos/magent-profile-get :watchdog-timeout) → 8"
 ;; Gemma local MLX no agnes).
 
 (defun +carlos/magent-apply-host-routing ()
-  "Aplica o perfil de backend do host ao gptel para a sessão Magent."
+  "Aplica o perfil de backend do host ao gptel para a sessão Magent.
+Quando o backend do perfil não é encontrado, registra um warning visível
+em vez de manter silenciosamente o gptel-backend residual."
   (let* ((profile (+carlos/magent-host-profile))
          (orch-backend (plist-get profile :orchestrator-backend))
          (orch-model   (plist-get profile :orchestrator-model))
          (backend-obj  (and orch-backend (gptel-get-backend orch-backend))))
-    (when backend-obj
-      (setq gptel-backend backend-obj
-            gptel-model   (intern orch-model))
-      (message "[Magent FSM] Host=%s → backend=%s modelo=%s"
-               (system-name) orch-backend orch-model))))
+    (if backend-obj
+        (progn
+          (setq gptel-backend backend-obj
+                gptel-model   (intern orch-model))
+          (message "[Magent FSM] Host=%s → backend=%s modelo=%s"
+                   (system-name) orch-backend orch-model))
+      (warn "[Magent FSM] Host=%s: backend '%s' não encontrado em gptel-backends — mantendo backend residual"
+            (system-name) orch-backend))))
 
 ;; ── ETAPA 2: Acumulador de Reasoning & Parser DSML de Tool Calls ────────────
 ;; Captura o fluxo de reasoning do gptel e detecta tool calls emitidas dentro

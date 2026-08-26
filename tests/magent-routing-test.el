@@ -178,6 +178,29 @@ e match exato — modelo forte obrigatório."
         (should (equal (alist-get 'status parsed) "success"))
         (should (equal (alist-get 'tier parsed) "paid"))))))
 
+(ert-deftest myemacs-magent-resolve-model-preferred-backend ()
+  "Dica :preferred-backend 'Gemini' desempata dentro do tier free."
+  (let ((choice (+carlos/magent-resolve-model
+                 'simple nil myemacs-routing-backends myemacs-routing-local-models
+                 '(:preferred-backend "Gemini"))))
+    (should (equal (plist-get choice :backend) "Gemini"))
+    (should (equal (plist-get choice :model) "gemini-3.5-flash"))))
+
+(ert-deftest myemacs-magent-select-model-backend-preferred ()
+  "select_model com backend_preferred registra override com backend preferido."
+  (cl-letf (((symbol-function '+carlos/ai-local-backend)
+             (lambda () (cons "MLX Local" 'mlx-community/gemma-4-e2b-it-4bit)))
+            ((symbol-function '+carlos/local-ai-server-ping-p) (lambda () t))
+            ((symbol-function '+carlos/magent-local-installed-models)
+             (lambda () nil)))
+    (let ((+carlos/magent-subagent-model-overrides nil))
+      (let* ((out (myemacs-routing-result-output
+                   (+carlos/magent-tool-select-model
+                    "Write tests for the new feature" "general" "simple" nil "Gemini")))
+             (parsed (json-read-from-string out)))
+        (should (equal (alist-get 'status parsed) "success"))
+        (should (equal (alist-get 'backend parsed) "Gemini"))))))
+
 (ert-deftest myemacs-magent-system-directives-render ()
   "Garante que as directivas renderizadas incluem rule 9 e o menu."
   (cl-letf (((symbol-function '+carlos/ai-local-backend)
@@ -261,7 +284,7 @@ e match exato — modelo forte obrigatório."
                     (gptel-tool-p +carlos/magent-tool-select-model)))
   (let ((args (gptel-tool-args +carlos/magent-tool-select-model)))
     (should (equal (mapcar (lambda (a) (plist-get a :name)) args)
-                   '("task_description" "agent" "complexity" "min_tier" "reason")))))
+                   '("task_description" "agent" "complexity" "min_tier" "backend_preferred" "reason")))))
 
 (ert-deftest myemacs-magent-subagent-override-consumed ()
   "Garante que o override da select_model é consumido (pop) e aplicado."

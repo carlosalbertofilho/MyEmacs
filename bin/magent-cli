@@ -73,9 +73,10 @@ Flags:
 Examples:
   magent-cli --list-tools
   magent-cli --describe magit_status
-  magent-cli magit_status
-  magent-cli elisp_smart_edit insert "(defun foo () 42)"
+  magent-cli magit_status                    # execute tool
+  magent-cli elisp_smart_edit elisp insert_snippet "defun"
   magent-cli --dry-run --timeout 30 magit_log main 10
+  magent-cli --plain --dry-run select_model "write tests" general deep free gemini
 EOF
     exit 0
 fi
@@ -150,10 +151,16 @@ ELISP
 build_tool_elisp() {
     local tool_name="$1"
     shift
+    # Convert underscores to hyphens for Lisp symbol lookup
+    local lisp_name="${tool_name//_/-}"
+    # Auto-prefix if not already prefixed
+    if [[ "$lisp_name" != +carlos/magent-tool-* ]]; then
+        lisp_name="+carlos/magent-tool-${lisp_name}"
+    fi
     local args
     args=$(serialize_args "$@")
     cat <<ELISP
-(let ((result (apply #'+carlos/magent-tool-${tool_name} (list ${args}))))
+(let ((result (apply #'${lisp_name} (list ${args}))))
   (if (stringp result)
       (princ result)
     (let ((json-encoding-pretty-print t))
