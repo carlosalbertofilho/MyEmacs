@@ -33,7 +33,7 @@ Retorna uma string formatada contendo resultados e stack traces."
           ;; Run in subprocess with stdout+stderr redirected to tmp file
           (shell-command
            (format "%s --batch --init-directory %s -l init.el -l tests/load-tests.el --eval \"(ert-run-tests-batch-and-exit %s)\" > %s 2>&1"
-                   (invocation-name)
+                   invocation-name
                    (shell-quote-argument init-dir)
                    selector-sexp
                    (shell-quote-argument tmp)))

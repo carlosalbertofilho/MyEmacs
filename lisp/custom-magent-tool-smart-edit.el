@@ -7,6 +7,7 @@
 ;;; Code:
 
 (require 'cl-lib)
+(require 'org-element)
 (declare-function org-set-property "org")
 (declare-function org-toggle-checkbox "org")
 
