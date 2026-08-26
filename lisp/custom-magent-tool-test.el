@@ -18,32 +18,37 @@ Carrega automaticamente tests/load-tests.el se os testes ainda não
 estiverem definidos (batch mode).
 Retorna uma string formatada contendo resultados e stack traces."
   (let* ((selector (if (or (null selector-str) (string-empty-p selector-str))
-                       t
-                     (let ((sym (intern-soft selector-str)))
-                       (if (and sym (ert-test-boundp sym))
-                           sym
-                         selector-str))))
+                        t
+                      (let ((sym (intern-soft selector-str)))
+                        (if (and sym (ert-test-boundp sym))
+                            sym
+                          selector-str))))
          (selector-sexp (if (eq selector t) "t"
                            (if (symbolp selector) (format "'%s" selector)
                              (format "%S" selector))))
-         (init-dir (expand-file-name (+carlos/magent-project-root)))
-         (tmp (make-temp-file "magent-ert-")))
+         (init-dir (+carlos/magent-project-root))
+         (eval-file (make-temp-file "magent-ert-eval-" nil ".el"))
+         (output-file (make-temp-file "magent-ert-out-")))
     (unwind-protect
         (progn
+          ;; Write eval form to a temp file — avoids shell quoting hell
+          (with-temp-file eval-file
+            (insert (format "(ert-run-tests-batch-and-exit %s)" selector-sexp)))
           ;; Run in subprocess with stdout+stderr redirected to tmp file
           (shell-command
-           (format "%s --batch --init-directory %s -l init.el -l tests/load-tests.el --eval \"(ert-run-tests-batch-and-exit %s)\" > %s 2>&1"
+           (format "%s --batch --init-directory %s -l init.el -l tests/load-tests.el -l %s > %s 2>&1"
                    invocation-name
                    (shell-quote-argument init-dir)
-                   selector-sexp
-                   (shell-quote-argument tmp)))
+                   (shell-quote-argument eval-file)
+                   (shell-quote-argument output-file)))
           (let ((output (with-temp-buffer
-                          (insert-file-contents tmp)
+                          (insert-file-contents output-file)
                           (buffer-string))))
             (if (string-match-p "passed\\|failed\\|Ran\\|Running" output)
                 output
               (format "Nenhum teste correspondente encontrado.\n%s" output))))
-      (ignore-errors (delete-file tmp)))))
+      (ignore-errors (delete-file eval-file))
+      (ignore-errors (delete-file output-file)))))
 
 ;; Registra a ferramenta no ecossistema de ferramentas do Magent
 (with-eval-after-load 'gptel
