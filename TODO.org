@@ -22,11 +22,11 @@ Histórico consolidado no [[file:roadmap.org][roadmap.org]].
 Ordem de implementação baseada em dependências, risco e alavanca.
 
 ** Fase A — Quick Wins (paralelos, independentes)
-  - [ ] F6-1: =toggle_checkbox= no =org_smart_edit= (Simple/Low)
-  - [ ] F6-6: Integrar =lint-native= no pipeline (Medium/Low)
+  - [X] F6-1: =toggle_checkbox= no =org_smart_edit= (Simple/Low) → commit 606c47c
+  - [X] F6-6: Integrar =lint-native= no pipeline (Medium/Low) → commit 606c47c
 
 ** Fase B — Fundação (sequencial, blocks downstream)
-  - [ ] F6-2: =+carlos/magent-project-root= utility (Simple/Medium — alto blast radius, ~40 call sites)
+  - [X] F6-2: =+carlos/magent-project-root= utility (Simple/Medium — alto blast radius, ~40 call sites) → commit bc763fd
   - [ ] F6-3/F6-5: Evoluir =bin/magent-cli= (Medium/Low — CLI já existe, evolui)
 
 ** Fase C — Infraestrutura Core (sequencial)
@@ -65,24 +65,26 @@ Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=
 
 * Fase 6: Melhorias UX Batch para Agentes
 
-** TODO 1. Implementar `toggle_checkbox` no `org_smart_edit`
+** DONE 1. Implementar `toggle_checkbox` no `org_smart_edit`
     :PROPERTIES:
     :CREATED: 2026-08-23
-    :STATUS: BACKLOG
+    :STATUS:   DONE
     :END:
-- [ ] Adicionar `toggle_checkbox` à função de orquestração do `org_smart_edit`.
-- [ ] O comando deve receber o texto/heading alvo e usar `org-toggle-checkbox` nativo do Org.
-- [ ] Escrever função auxiliar `+carlos/--org-toggle-checkbox-at-target`.
-- [ ] Adicionar teste na suíte de testes.
+- [X] Adicionar `toggle_checkbox` à função de orquestração do `org_smart_edit`.
+- [X] O comando deve receber o texto/heading alvo e usar `org-toggle-checkbox` nativo do Org.
+- [X] Escrever função auxiliar `+carlos/--org-toggle-checkbox-at-target`.
+- [X] Adicionar teste na suíte de testes.
+Commit: 606c47c. 3 ERTs em tests/smart-edit-test.el.
 
-** TODO 2. Corrigir Resolução de Contexto do Projeto no Batch Mode
+** DONE 2. Corrigir Resolução de Contexto do Projeto no Batch Mode
     :PROPERTIES:
     :CREATED: 2026-08-23
-    :STATUS: BACKLOG
+    :STATUS:   DONE
     :END:
-- [ ] Criar função utilitária `+carlos/magent-project-root`.
-- [ ] Lógica com fallback: `(or (project-root ...) (vc-root-dir) default-directory user-emacs-directory)`.
-- [ ] Substituir chamadas diretas de `project-root` no core Magent.
+- [X] Criar função utilitária `+carlos/magent-project-root`.
+- [X] Lógica com fallback: `(or (project-root ...) (vc-root-dir) default-directory)`.
+- [X] Substituir chamadas diretas de `project-root` no core Magent (31 call sites em 4 arquivos).
+Commit: bc763fd. 5 ERTs em tests/infra-test.el.
 
 ** TODO 3. Criar Wrapper CLI `bin/magent-cli`
     :PROPERTIES:
@@ -94,17 +96,17 @@ Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=
 - [ ] Receber comandos/argumentos Lisp na CLI e avaliar.
 - [ ] Ajustar documentação em `docs/magent-reference.org`.
 
-** TODO 6. Integrar linters nativos no pipeline de validação
+** DONE 6. Integrar linters nativos no pipeline de validação
     :PROPERTIES:
     :CREATED: 2026-08-25
-    :STATUS: BACKLOG
+    :STATUS:   DONE
     :END:
-Estado atual: `just lint-native` roda como comando standalone.
-- [ ] Adicionar `lint-native` ao recipe `lint` (Justfile: `lint: compile checkdoc org-lint lint-native`).
-- [ ] Adicionar `lint-native` ao recipe `test-all` para garantir que todo commit passe pelos linters nativos.
+- [X] Adicionar `lint-native` ao recipe `lint` (Justfile: `lint: compile checkdoc org-lint lint-native`).
+- [X] Adicionar `lint-native` ao recipe `test-all` para garantir que todo commit passe pelos linters nativos.
 - [ ] Integrar `+carlos/magent-lint-defun-parens` como gate extra no `elisp-smart-edit` (kind `'code`): rodar antes de `check-parens` para pegar off-by-one mais cedo.
-- [ ] Adicionar teste ERT que valida que `lint-native` passa no repo inteiro (=myemacs-lint-native-passes=).
+- [X] Adicionar teste ERT que valida que `lint-native` passa no repo inteiro (=myemacs-lint-native-passes=).
 - [ ] Atualizar `docs/dev-workflow.org` com a nova pipeline de validação.
+Commits: 606c47c (integrado), c759c1a (linters criados). 5 ERTs em tests/lint-test.el.
 
 ** DONE 4. Melhorias =org_smart_edit= — ações AST-aware seguras
     :PROPERTIES:
@@ -215,6 +217,8 @@ Mecanismo de Failover Pre-emptivo:
 * Concluído (referências ao roadmap)
 
 - O histórico completo de todas as tarefas concluídas (Suíte DevOps, NixOS, Submódulos, Rust, Polyglot, Forge, Introspecção RAG, Resiliência FSM, etc.) é mantido estritamente em [[file:roadmap.org][roadmap.org]] como Linha do Tempo oficial.
+- **2026-08-25:** Phase A — toggle_checkbox + lint-native no pipeline → commit 606c47c → [[file:roadmap.org][roadmap.org]] (Histórico).
+- **2026-08-25:** Phase B — +carlos/magent-project-root utility, 31 call sites consolidados → commit bc763fd → [[file:roadmap.org][roadmap.org]] (Histórico).
 - **2026-08-25:** P3 dry-run guards (branch-delete, docker-action, systemd-action) → [[file:roadmap.org][roadmap.org]] (Histórico).
 - **2026-08-25:** Linters nativos (defun-parens + arity) + helpers portáteis (trim, with-temp-file-buffer) → [[file:roadmap.org][roadmap.org]] (Histórico).
 
@@ -234,7 +238,7 @@ Plano detalhado inline na seção "Fase 7" acima (L131).
 * TODO Refatoração SOLID - Fase 6 - UX Batch
     :PROPERTIES:
     :CREATED: 2026-08-23
-    :STATUS: BACKLOG
+    :STATUS: EM ANDAMENTO
     :END:
 
 * TODO Refatoração SOLID - Fase 4 - Ponte Proxy HTTP e Monitoramento

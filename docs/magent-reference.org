@@ -10,6 +10,27 @@
 
 API Reference for Magent FSM and Tools
 
+* Infrastructure Utilities
+
+** +carlos/magent-project-root
+- *File:* lisp/custom-magent-infra.el
+- *Signature:* =(+carlos/magent-project-root) → string=
+- *Description:* Retorna a raiz do projeto atual com fallback seguro para batch mode.
+- *Fallback chain:* =(project-root (project-current))= → =(vc-root-dir)= → =default-directory=
+- *Batch-safe:* funciona em =emacs --batch -Q= sem pacotes carregados (project não disponível).
+- *Usage:* substitui 31 call sites inline =(or (and (fboundp 'project-root) ...) ...)=
+  em custom-magent-tool-git.el, custom-magent-tool-smart-edit.el, custom-magent-tools.el, custom-magent-tool-debug.el.
+
+** +carlos/magent--string-trim / string-trim-left / string-trim-right
+- *File:* lisp/custom-magent-infra.el
+- *Description:* Portáveis para batch -Q (string-trim-left é subr nativa no Emacs 30 com semântica diferente).
+- *Usage:* usado em custom-magent-tools.el, custom-magent-tool-smart-edit.el para parsing de output.
+
+** with-temp-file-buffer (macro)
+- *File:* lisp/custom-magent-infra.el
+- *Description:* Cria buffer temporário associado a arquivo, executa THUNK, salva e limpa.
+  Evita =save-buffer= em batch (bloqueia em stdin). Faz kill-buffer + set-buffer-modified-p nil no cleanup.
+
 * Símbolos Introspectados
 
 ** +carlos/magent-tool-ert-runner

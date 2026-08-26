@@ -1,7 +1,7 @@
 #+TITLE: Roadmap — MyEmacs Configuration
 #+AUTHOR: Carlos Filho
 #+DATE: 2026-08-05
-#+LAST_MODIFIED: 2026-08-22
+#+LAST_MODIFIED: 2026-08-25
 #+OPTIONS: toc:2 num:t
 
 * Visão Geral
@@ -36,7 +36,43 @@ entenderem o estado atual do projeto e decisões tomadas.
    - Fase 3: Estabilização de Contexto (leitura de `AGENTS.md` dinamicamente).
    - Antigas pendências de monitoramento de cotas, FSM preemptiva e bench local 14B arquivadas em favor do novo plano de infra.
 
-** 2026-08-22 — [SAVEPOINT v1.0] FSM Resilience & FinOps Free Tier Architecture (Commit 267645d / Tag savepoint)
+** 2026-08-25 — [CONCLUÍDO] Phase B — +carlos/magent-project-root utility
+   - Criada utility em `custom-magent-infra.el` com fallback chain:
+     `project-root` → `vc-root-dir` → `default-directory` (batch-safe).
+   - Substituídos 31 call sites inline `(or (and (fboundp 'project-root) ...) ...)` em 4 arquivos:
+     `custom-magent-tool-git.el` (18), `custom-magent-tool-smart-edit.el` (11),
+     `custom-magent-tools.el` (1), `custom-magent-tool-debug.el` (1).
+   - Fixados bugs de paren introduzidos pela substituição automática:
+     `debug.el` (or-form quebrada), `git.el` (let* binding malformado).
+   - Adicionado `declare-function` para `org-toggle-checkbox` (eliminou warning de compilação).
+   - 5 ERTs em `tests/infra-test.el` (project-root returns string/dir, string-trim-left/right/both).
+   - Suíte: 491 testes, 0 falhas. Compilação zero-warning.
+
+** 2026-08-25 — [CONCLUÍDO] Phase A — toggle_checkbox + lint-native no pipeline
+   - `org_smart_edit`: nova ação `toggle_checkbox` — encontra heading via AST
+     (`:raw-value`), chama `org-toggle-checkbox 'toggle` dentro do gate transacional.
+     3 ERTs: toggle OK, heading inexistente, args vazios.
+   - `lint-native` integrado ao recipe `lint` do Justfile (antes era standalone).
+   - Bug fix: `defun-parens` linter — loop infinito quando `forward-sexp` falhava
+     (point não avançava); fix com `forward-char 1` no `scan-error`.
+   - Bug fix: `arity` linter — `end-of-file` sinal era confundido com erro de arity;
+     fix com `(eq (car err) 'end-of-file)`.
+   - 5 ERTs em `tests/lint-test.el`.
+   - Commits: c759c1a (linters), 606c47c (Phase A completa).
+   - Suíte: 486 testes, 0 falhas. Compilação zero-warning.
+
+** 2026-08-25 — [CONCLUÍDO] Linters nativos (defun-parens + arity) + helpers portáteis
+   - Novo módulo `lisp/custom-magent-lint.el`: linter de parênteses de `defun`
+     (via `forward-sexp`, com fix de loop infinito) e linter de aridade
+     (via `read`/AST, distingue `end-of-file` de erro real).
+   - Helpers portáteis em `lisp/custom-magent-infra.el`:
+     `+carlos/magent--string-trim[-left/-right]` (batch-safe, sem `string-trim-left` nativo)
+     e macro `with-temp-file-buffer` (evita `save-buffer` em batch).
+   - Recipe `lint-native` no Justfile; 5 ERTs em `tests/lint-test.el`.
+   - SKILL.md atualizado com regras de portabilidade batch.
+   - Commits: c759c1a. Suíte: 486 testes, 0 falhas.
+
+** 2026-08-25 — [CONCLUÍDO] P3 dry-run guards em tools destrutivas
    - **Resiliência FSM:** 3 Pilares implementados (Circuit Breaker stateful, Sanitizador ANSI/XML `+carlos/magent-sanitize-string`, Dynamic GC 100MB e Auto-Resync de `buffer_conflict`).
    - **Roteamento FinOps $0.00:** Orquestrador `gemini-2.5-flash` (Google AI Studio Free Tier) e especialistas no `big-pickle` (OpenCode Zen Free Tier).
    - **Bateria de Delegação:** 12/12 Rounds executados e validados com 100% de sucesso.
