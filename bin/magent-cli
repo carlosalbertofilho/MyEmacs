@@ -1,28 +1,193 @@
 #!/usr/bin/env bash
-# bin/magent-cli - Wrapper to execute Magent Emacs tools from CLI
+# bin/magent-cli - Execute Magent Emacs tools from CLI
+# Usage: magent-cli [FLAGS] <tool_name> [args...]
 
-if [ "$#" -lt 1 ]; then
-    echo "Usage: magent-cli <tool_name> [args...]"
+set -euo pipefail
+
+# ── Defaults ──────────────────────────────────────────────────────────
+TIMEOUT=60
+INIT_DIR="${EMACSDIR:-$HOME/.config/emacs}"
+DRY_RUN=false
+JSON_OUTPUT=true
+TOOL_NAME=""
+TOOL_ARGS=()
+
+# ── Parse flags ───────────────────────────────────────────────────────
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -l|--list-tools)
+            TOOL_NAME="__list_tools__"
+            shift ;;
+        -d|--describe)
+            TOOL_NAME="__describe__"
+            TOOL_ARGS+=("${2:-}")
+            shift 2 ;;
+        --dry-run)
+            DRY_RUN=true
+            shift ;;
+        --timeout)
+            TIMEOUT="$2"
+            shift 2 ;;
+        --init-dir)
+            INIT_DIR="$2"
+            shift 2 ;;
+        --json)
+            JSON_OUTPUT=true
+            shift ;;
+        --plain)
+            JSON_OUTPUT=false
+            shift ;;
+        -h|--help)
+            TOOL_NAME="__help__"
+            shift ;;
+        -*)
+            echo "Unknown flag: $1" >&2
+            echo "Usage: magent-cli [FLAGS] <tool_name> [args...]" >&2
+            echo "Flags: -l/--list, -d/--describe <tool>, --dry-run, --timeout N, --init-dir PATH, --json/--plain, -h/--help" >&2
+            exit 1 ;;
+        *)
+            TOOL_NAME="$1"
+            shift
+            TOOL_ARGS=("$@")
+            break ;;
+    esac
+done
+
+# ── Internal commands ─────────────────────────────────────────────────
+if [[ "$TOOL_NAME" == "__help__" ]]; then
+    cat <<'EOF'
+magent-cli - Execute Magent Emacs tools from CLI
+
+Usage: magent-cli [FLAGS] <tool_name> [args...]
+
+Flags:
+  -l, --list-tools         List all available tools with docstrings
+  -d, --describe <tool>    Show tool details (args, docstring, category)
+      --dry-run            Print Elisp form without executing
+      --timeout <seconds>  Emacs batch timeout (default: 60)
+      --init-dir <path>    Emacs init directory (default: $EMACSDIR or ~/.config/emacs)
+      --json               Output as JSON (default)
+      --plain              Output as plain text
+  -h, --help               Show this help
+
+Examples:
+  magent-cli --list-tools
+  magent-cli --describe magit_status
+  magent-cli magit_status
+  magent-cli elisp_smart_edit insert "(defun foo () 42)"
+  magent-cli --dry-run --timeout 30 magit_log main 10
+EOF
+    exit 0
+fi
+
+if [[ -z "$TOOL_NAME" ]]; then
+    echo "Error: no tool specified" >&2
+    echo "Usage: magent-cli [FLAGS] <tool_name> [args...]" >&2
+    echo "Tip: magent-cli --list-tools" >&2
     exit 1
 fi
 
-TOOL_NAME="$1"
-shift
+# ── Serialize arguments for Elisp ─────────────────────────────────────
+serialize_args() {
+    local result=""
+    for arg in "$@"; do
+        local escaped
+        escaped=$(printf '%s' "$arg" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')
+        result="$result \"$escaped\""
+    done
+    echo "$result"
+}
 
-# Serialize arguments for Elisp
-# We convert all arguments to double-quoted strings and escape inner quotes
-ELISP_ARGS=""
-for arg in "$@"; do
-    # Escape backslashes and double quotes
-    ESCAPED_ARG=$(printf '%s' "$arg" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')
-    ELISP_ARGS="$ELISP_ARGS \"$ESCAPED_ARG\""
-done
+# ── Build Elisp forms ────────────────────────────────────────────────
+build_list_tools_elisp() {
+    cat <<'ELISP'
+(let ((tools (apropos-internal "^\\+carlos/magent-tool-" #'fboundp)))
+  (if (null tools)
+      (princ "No tools found.\n")
+    (let ((json-encoding-pretty-print t)
+          (entries '()))
+      (dolist (fn tools)
+        (let* ((name (symbol-name fn))
+               (doc (or (documentation fn t) "No docstring"))
+               (short (replace-regexp-in-string "\n.*" "" doc)))
+          (push (list :name name :docshort short) entries)))
+      (setq entries (nreverse entries))
+      (if (equal "1" (getenv "MAGENT_CLI_JSON"))
+          (princ (json-encode entries))
+        (dolist (e entries)
+          (princ (format "%-45s %s\n"
+                         (plist-get e :name)
+                         (plist-get e :docshort))))))))
+ELISP
+}
 
-# The Emacs Lisp form to evaluate
-ELISP_FORM="(let ((result (apply #'+carlos/magent-tool-${TOOL_NAME} (list ${ELISP_ARGS}))))
-              (if (stringp result)
-                  (princ result)
-                (princ (json-encode result))))"
+build_describe_elisp() {
+    local tool_name="$1"
+    # Convert underscores to hyphens for Lisp symbol lookup
+    local lisp_name="${tool_name//_/-}"
+    # Auto-prefix if not already prefixed
+    if [[ "$lisp_name" != +carlos/magent-tool-* ]]; then
+        lisp_name="+carlos/magent-tool-${lisp_name}"
+    fi
+    cat <<ELISP
+(let* ((fn (intern-soft "${lisp_name}"))
+       (doc (when fn (documentation fn t)))
+       (args (when fn (help-function-arglist fn t))))
+  (if (null fn)
+      (princ (format "Error: tool '%s' not found.\nTip: magent-cli --list-tools\n" "${tool_name}"))
+    (let ((json-encoding-pretty-print t))
+      (if (equal "1" (getenv "MAGENT_CLI_JSON"))
+          (princ (json-encode (list :name "${lisp_name}"
+                                    :docstring (or doc "No docstring")
+                                    :args (if args (format "%S" args) "()"))))
+        (princ (format "Tool: %s\n\nArguments: %s\n\n%s\n"
+                       "${lisp_name}"
+                       (if args (format "%S" args) "()")
+                       (or doc "No docstring")))))))
+ELISP
+}
 
-# Run emacs in batch mode
-emacs --batch -l init.el --eval "$ELISP_FORM" 2>/dev/null
+build_tool_elisp() {
+    local tool_name="$1"
+    shift
+    local args
+    args=$(serialize_args "$@")
+    cat <<ELISP
+(let ((result (apply #'+carlos/magent-tool-${tool_name} (list ${args}))))
+  (if (stringp result)
+      (princ result)
+    (let ((json-encoding-pretty-print t))
+      (princ (json-encode result)))))
+ELISP
+}
+
+# ── Dispatch ──────────────────────────────────────────────────────────
+ELISP_FORM=""
+
+case "$TOOL_NAME" in
+    __list_tools__)
+        ELISP_FORM=$(build_list_tools_elisp) ;;
+    __describe__)
+        if [[ -z "${TOOL_ARGS[0]:-}" ]]; then
+            echo "Error: --describe requires a tool name" >&2
+            exit 1
+        fi
+        ELISP_FORM=$(build_describe_elisp "${TOOL_ARGS[0]}") ;;
+    *)
+        ELISP_FORM=$(build_tool_elisp "$TOOL_NAME" "${TOOL_ARGS[@]}") ;;
+esac
+
+# Export JSON flag for Elisp
+export MAGENT_CLI_JSON=$(if $JSON_OUTPUT; then echo "1"; else echo "0"; fi)
+
+# ── Dry run ───────────────────────────────────────────────────────────
+if $DRY_RUN; then
+    echo "DRY RUN — Elisp form:"
+    echo "$ELISP_FORM"
+    echo ""
+    echo "Command: emacs --batch --init-directory $INIT_DIR -l init.el --eval <form>"
+    exit 0
+fi
+
+# ── Execute ───────────────────────────────────────────────────────────
+timeout "$TIMEOUT" emacs --batch --init-directory "$INIT_DIR" -l init.el --eval "$ELISP_FORM" 2>/dev/null
