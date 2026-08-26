@@ -13,12 +13,7 @@
 ;; Garantir fallback para projeto ao rodar em batch (solução parcial até a Fase 6)
 (defun +carlos/--magent-debug-ensure-project-root ()
   "Retorna a raiz do projeto atual. Se em batch, tenta fallbacks."
-  (or (and (fboundp 'project-root)
-           (when-let* ((p (project-current)))
-             (project-root p)))
-      (and (fboundp 'vc-root-dir) (vc-root-dir))
-      default-directory
-      user-emacs-directory))
+  (+carlos/magent-project-root))
 
 (defun +carlos/magent-tool-debug (action &optional arg1 arg2)
   "Orquestra o depurador dape para o Magent.

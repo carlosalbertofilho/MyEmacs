@@ -8,6 +8,7 @@
 
 (require 'cl-lib)
 (declare-function org-set-property "org")
+(declare-function org-toggle-checkbox "org")
 
 (provide 'custom-magent-tool-smart-edit)
 ;;; custom-magent-tool-smart-edit.el ends here
@@ -91,10 +92,7 @@ ACTION: `insert_snippet', `refactor_symbol', `extract_sexp'
 SNIPPET-NAME: Nome do snippet Tempel (ex: `defun', `deftest', `use-package').
 ARGS: Argumentos para o snippet ou substituição de símbolo.
 REASON: Motivo da alteração."
-  (let* ((abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
-                                                          (when-let* ((p (project-current)))
-                                                            (project-root p)))
-                                                     user-emacs-directory)))
+  (let* ((abs-file (expand-file-name target-file (+carlos/magent-project-root)))
          (buf (or (find-buffer-visiting abs-file)
                   (and (file-exists-p abs-file) (find-file-noselect abs-file))
                   (get-buffer-create (file-name-nondirectory abs-file)))))
@@ -151,7 +149,7 @@ REASON: Motivo da alteração."
                 (dest-file args))
            (if (or (null search-str) (null dest-file) (string-empty-p dest-file))
                "Erro: para extract_sexp, informe a string de busca em snippet-name e o arquivo destino em args."
-             (let ((dest-abs-file (expand-file-name dest-file (or (and (fboundp 'project-root) (when-let* ((p (project-current))) (project-root p))) user-emacs-directory))))
+             (let ((dest-abs-file (expand-file-name dest-file (+carlos/magent-project-root))))
                ;; s3e-extract-body.el — corpo novo do extract_sexp (substitui linhas 155-179)
 ;; Validoado por este arquivo ser parseável como elisp.
 ;; Estrutura: two-phase txn (source extract -> dest append), sem primitive-undo.
@@ -203,10 +201,7 @@ SNIPPET-NAME: Nome do snippet Tempel (ex: `flake', `module', `package',
 `overlay', `devshell', `option').
 ARGS: Argumentos para o snippet ou substituição de símbolo.
 REASON: Motivo da alteração."
-  (let* ((abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
-                                                          (when-let* ((p (project-current)))
-                                                            (project-root p)))
-                                                     user-emacs-directory)))
+  (let* ((abs-file (expand-file-name target-file (+carlos/magent-project-root)))
          (buf (or (find-buffer-visiting abs-file)
                   (and (file-exists-p abs-file) (find-file-noselect abs-file))
                   (get-buffer-create (file-name-nondirectory abs-file)))))
@@ -277,10 +272,7 @@ SNIPPET-NAME: Nome do snippet Tempel (ex: `def', `class', `async_def', `pytest',
 `dataclass', `main').
 ARGS: Argumentos para o snippet ou substituição de símbolo.
 REASON: Motivo da alteração."
-  (let* ((abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
-                                                          (when-let* ((p (project-current)))
-                                                            (project-root p)))
-                                                     user-emacs-directory)))
+  (let* ((abs-file (expand-file-name target-file (+carlos/magent-project-root)))
          (buf (or (find-buffer-visiting abs-file)
                   (and (file-exists-p abs-file) (find-file-noselect abs-file))
                   (get-buffer-create (file-name-nondirectory abs-file)))))
@@ -351,10 +343,7 @@ SNIPPET-NAME: Nome do snippet Tempel (ex: `interface', `type', `function',
 `export_const', `describe_it').
 ARGS: Argumentos para o snippet ou substituição de símbolo.
 REASON: Motivo da alteração."
-  (let* ((abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
-                                                          (when-let* ((p (project-current)))
-                                                            (project-root p)))
-                                                     user-emacs-directory)))
+  (let* ((abs-file (expand-file-name target-file (+carlos/magent-project-root)))
          (buf (or (find-buffer-visiting abs-file)
                   (and (file-exists-p abs-file) (find-file-noselect abs-file))
                   (get-buffer-create (file-name-nondirectory abs-file)))))
@@ -421,10 +410,7 @@ SNIPPET-NAME: Nome do snippet Tempel (ex: `function', `struct', `header_guard',
 `main').
 ARGS: Argumentos para o snippet ou substituição de símbolo.
 REASON: Motivo da alteração."
-  (let* ((abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
-                                                          (when-let* ((p (project-current)))
-                                                            (project-root p)))
-                                                     user-emacs-directory)))
+  (let* ((abs-file (expand-file-name target-file (+carlos/magent-project-root)))
          (buf (or (find-buffer-visiting abs-file)
                   (and (file-exists-p abs-file) (find-file-noselect abs-file))
                   (get-buffer-create (file-name-nondirectory abs-file)))))
@@ -492,10 +478,7 @@ SNIPPET-NAME: Nome do snippet Tempel (ex: `func', `struct', `interface',
 `goroutine', `table_test').
 ARGS: Argumentos para o snippet ou substituição de símbolo.
 REASON: Motivo da alteração."
-  (let* ((abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
-                                                          (when-let* ((p (project-current)))
-                                                            (project-root p)))
-                                                     user-emacs-directory)))
+  (let* ((abs-file (expand-file-name target-file (+carlos/magent-project-root)))
          (buf (or (find-buffer-visiting abs-file)
                   (and (file-exists-p abs-file) (find-file-noselect abs-file))
                   (get-buffer-create (file-name-nondirectory abs-file)))))
@@ -578,10 +561,7 @@ ARGS:
 Toda mutação passa pelo gate transacional compartilhado (snapshot +
 org-lint + restore byte-a-byte em falha).
 REASON: Motivo da alteração."
-  (let* ((abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
-                                                          (when-let* ((p (project-current)))
-                                                            (project-root p)))
-                                                     user-emacs-directory)))
+  (let* ((abs-file (expand-file-name target-file (+carlos/magent-project-root)))
          (buf (or (find-buffer-visiting abs-file)
                   (and (file-exists-p abs-file) (find-file-noselect abs-file))
                   (get-buffer-create (file-name-nondirectory abs-file)))))
@@ -736,10 +716,7 @@ SNIPPET-NAME: Nome do snippet Tempel (ex: `script_header', `function',
 `parse_args', `if_statement', `case_statement').
 ARGS: Argumentos para o snippet ou substituição de símbolo.
 REASON: Motivo da alteração."
-  (let* ((abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
-                                                          (when-let* ((p (project-current)))
-                                                            (project-root p)))
-                                                     user-emacs-directory)))
+  (let* ((abs-file (expand-file-name target-file (+carlos/magent-project-root)))
          (buf (or (find-buffer-visiting abs-file)
                   (and (file-exists-p abs-file) (find-file-noselect abs-file))
                   (get-buffer-create (file-name-nondirectory abs-file)))))
@@ -808,10 +785,7 @@ SNIPPET-NAME: Nome do snippet Tempel (ex: `frontmatter', `heading', `table',
 `codeblock').
 ARGS: Argumentos para o snippet ou substituição de símbolo.
 REASON: Motivo da alteração."
-  (let* ((abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
-                                                          (when-let* ((p (project-current)))
-                                                            (project-root p)))
-                                                     user-emacs-directory)))
+  (let* ((abs-file (expand-file-name target-file (+carlos/magent-project-root)))
          (buf (or (find-buffer-visiting abs-file)
                   (and (file-exists-p abs-file) (find-file-noselect abs-file))
                   (get-buffer-create (file-name-nondirectory abs-file)))))
@@ -867,10 +841,7 @@ SNIPPET-NAME: Nome do snippet Tempel (ex: `fn', `struct', `enum', `impl',
 `trait', `async_fn', `tokio_main', `test_case').
 ARGS: Argumentos para o snippet ou substituição de símbolo.
 REASON: Motivo da alteração."
-  (let* ((abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
-                                                          (when-let* ((p (project-current)))
-                                                            (project-root p)))
-                                                     user-emacs-directory)))
+  (let* ((abs-file (expand-file-name target-file (+carlos/magent-project-root)))
          (buf (or (find-buffer-visiting abs-file)
                   (and (file-exists-p abs-file) (find-file-noselect abs-file))
                   (get-buffer-create (file-name-nondirectory abs-file)))))

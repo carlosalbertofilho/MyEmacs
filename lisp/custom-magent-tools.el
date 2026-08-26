@@ -1330,10 +1330,7 @@ FILETAGS (default ':RAG:DOCS:') é a tag do arquivo."
                     (t nil)))
          (tag-str (or (and (stringp filetags) (not (string-empty-p filetags)) filetags) ":RAG:DOCS:"))
          (date-str (format-time-string "%Y-%m-%d"))
-         (abs-file (expand-file-name target-file (or (and (fboundp 'project-root)
-                                                          (when-let* ((p (project-current)))
-                                                            (project-root p)))
-                                                     user-emacs-directory)))
+         (abs-file (expand-file-name target-file (+carlos/magent-project-root)))
          (dir (file-name-directory abs-file))
          (header-lines (list (format "#+TITLE: %s" title)
                              "#+AUTHOR: Carlos Filho"

@@ -56,8 +56,23 @@ Evita memory leak em testes ERT em lote."
          (when (buffer-live-p ,temp-buf)
            (with-current-buffer ,temp-buf (set-buffer-modified-p nil))
            (kill-buffer ,temp-buf))
-         (when (file-exists-p ,temp-file)
-           (delete-file ,temp-file))))))
+          (when (file-exists-p ,temp-file)
+            (delete-file ,temp-file))))))
+
+;; ── Project Root Resolution (batch-safe) ────────────────────────────
+
+(defun +carlos/magent-project-root ()
+  "Retorna a raiz do projeto atual, com fallback seguro para batch.
+Cadeia: project-root → vc-root-dir → default-directory.
+Funciona em batch -Q sem pacotes carregados."
+  (cond
+   ((and (fboundp 'project-root)
+         (fboundp 'project-current)
+         (project-current))
+    (project-root (project-current)))
+   ((fboundp 'vc-root-dir)
+    (vc-root-dir))
+   (t default-directory)))
 
 ;; ── Infraestrutura, Diagnóstico e Sanitização ────────────────────────
 (defvar magent-enable-logging)
