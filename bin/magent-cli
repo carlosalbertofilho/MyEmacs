@@ -227,11 +227,12 @@ ELISP
 ELISP_FORM=""
 
 case "$TOOL_NAME" in
-    __list_tools__)
+    __list_tools__|list-tools)
         ELISP_FORM=$(build_list_tools_elisp) ;;
-    __describe__)
+    __describe__|describe)
         if [[ -z "${TOOL_ARGS[0]:-}" ]]; then
-            echo "Error: --describe requires a tool name" >&2
+            echo "Error: describe requires a tool name" >&2
+            echo "Usage: magent-cli describe <tool_name>" >&2
             exit 1
         fi
         ELISP_FORM=$(build_describe_elisp "${TOOL_ARGS[0]}") ;;
@@ -241,7 +242,6 @@ case "$TOOL_NAME" in
             echo "Usage: magent-cli run --prompt \"text\" [--model M] [--profile P]" >&2
             exit 1
         fi
-        # Generate status file path if not provided
         if [[ -z "$RUN_STATUS_FILE" ]]; then
             RUN_STATUS_FILE=$(mktemp -t "magent-run-status-XXXXXX").jsonl
         fi
