@@ -1,16 +1,23 @@
 #!/usr/bin/env bash
 # bin/magent-cli - Execute Magent Emacs tools from CLI
-# Usage: magent-cli [FLAGS] <tool_name> [args...]
+# Usage: magent-cli [FLAGS] <tool_name|run> [args...]
 
 set -euo pipefail
 
 # ── Defaults ──────────────────────────────────────────────────────────
 TIMEOUT=60
-INIT_DIR="${EMACSDIR:-$HOME/.config/emacs}"
+INIT_DIR="${EMACSDIR:-$(pwd)}"
 DRY_RUN=false
 JSON_OUTPUT=true
 TOOL_NAME=""
 TOOL_ARGS=()
+
+# ── Run-specific defaults ─────────────────────────────────────────────
+RUN_MODEL=""
+RUN_PROFILE="general"
+RUN_PROMPT=""
+RUN_STATUS_FILE=""
+RUN_TIMEOUT=120
 
 # ── Parse flags ───────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
@@ -30,6 +37,21 @@ while [[ $# -gt 0 ]]; do
             shift 2 ;;
         --init-dir)
             INIT_DIR="$2"
+            shift 2 ;;
+        --model)
+            RUN_MODEL="$2"
+            shift 2 ;;
+        --profile)
+            RUN_PROFILE="$2"
+            shift 2 ;;
+        --prompt)
+            RUN_PROMPT="$2"
+            shift 2 ;;
+        --status-file)
+            RUN_STATUS_FILE="$2"
+            shift 2 ;;
+        --run-timeout)
+            RUN_TIMEOUT="$2"
             shift 2 ;;
         --json)
             JSON_OUTPUT=true
@@ -58,16 +80,24 @@ if [[ "$TOOL_NAME" == "__help__" ]]; then
     cat <<'EOF'
 magent-cli - Execute Magent Emacs tools from CLI
 
-Usage: magent-cli [FLAGS] <tool_name> [args...]
+Usage: magent-cli [FLAGS] <tool_name|run> [args...]
 
 Flags:
   -l, --list-tools         List all available tools with docstrings
   -d, --describe <tool>    Show tool details (args, docstring, category)
       --dry-run            Print Elisp form without executing
       --timeout <seconds>  Emacs batch timeout (default: 60)
-      --init-dir <path>    Emacs init directory (default: $EMACSDIR or ~/.config/emacs)
+      --init-dir <path>    Emacs init directory (default: $EMACSDIR or $(pwd))
       --json               Output as JSON (default)
       --plain              Output as plain text
+
+Run-specific flags (used with 'run'):
+      --model <model>      Model spec: "backend/model" or "model" (e.g. "ollama/granite4.1:1b")
+      --profile <profile>  Agent profile: coder, explore, general, etc. (default: general)
+      --prompt <text>      Prompt to send to the agent
+      --status-file <path> JSONL status log file (auto-created if omitted)
+      --run-timeout <sec>  Agent execution timeout (default: 120)
+
   -h, --help               Show this help
 
 Examples:
@@ -77,14 +107,16 @@ Examples:
   magent-cli elisp_smart_edit elisp insert_snippet "defun"
   magent-cli --dry-run --timeout 30 magit_log main 10
   magent-cli --plain --dry-run select_model "write tests" general deep free gemini
+  magent-cli run --model "ollama/granite4.1:1b" --profile coder --prompt "Fix the bug"
+  magent-cli run --profile explore --prompt "Analyze this codebase"
 EOF
     exit 0
 fi
 
 if [[ -z "$TOOL_NAME" ]]; then
-    echo "Error: no tool specified" >&2
-    echo "Usage: magent-cli [FLAGS] <tool_name> [args...]" >&2
-    echo "Tip: magent-cli --list-tools" >&2
+    echo "Error: no tool or command specified" >&2
+    echo "Usage: magent-cli [FLAGS] <tool_name|run> [args...]" >&2
+    echo "Tip: magent-cli --list-tools  |  magent-cli run --prompt \"text\"" >&2
     exit 1
 fi
 
@@ -168,6 +200,25 @@ build_tool_elisp() {
 ELISP
 }
 
+build_run_elisp() {
+    local prompt="$1"
+    local model="$2"
+    local profile="$3"
+    local status_file="$4"
+    local run_timeout="$5"
+    local escaped_prompt
+    escaped_prompt=$(printf '%s' "$prompt" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')
+    cat <<ELISP
+(progn
+  (require 'custom-magent-run)
+  (+carlos/magent-run-execute "${escaped_prompt}"
+                              :model "${model}"
+                              :profile "${profile}"
+                              :status-file "${status_file}"
+                              :timeout ${run_timeout}))
+ELISP
+}
+
 # ── Dispatch ──────────────────────────────────────────────────────────
 ELISP_FORM=""
 
@@ -180,6 +231,18 @@ case "$TOOL_NAME" in
             exit 1
         fi
         ELISP_FORM=$(build_describe_elisp "${TOOL_ARGS[0]}") ;;
+    run)
+        if [[ -z "$RUN_PROMPT" ]]; then
+            echo "Error: 'run' requires --prompt" >&2
+            echo "Usage: magent-cli run --prompt \"text\" [--model M] [--profile P]" >&2
+            exit 1
+        fi
+        # Generate status file path if not provided
+        if [[ -z "$RUN_STATUS_FILE" ]]; then
+            RUN_STATUS_FILE=$(mktemp -t "magent-run-status-XXXXXX").jsonl
+        fi
+        ELISP_FORM=$(build_run_elisp "$RUN_PROMPT" "$RUN_MODEL" "$RUN_PROFILE" "$RUN_STATUS_FILE" "$RUN_TIMEOUT")
+        TIMEOUT="$RUN_TIMEOUT" ;;
     *)
         ELISP_FORM=$(build_tool_elisp "$TOOL_NAME" "${TOOL_ARGS[@]}") ;;
 esac

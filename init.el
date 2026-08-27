@@ -161,6 +161,7 @@
 (require 'custom-dev)
 (require 'custom-jinx)
 (require 'custom-magent)
+(require 'custom-magent-run)
 (require 'custom-knowledge)
 (require 'custom-git)
 (require 'custom-dashboard)
