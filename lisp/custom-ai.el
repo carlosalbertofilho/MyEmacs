@@ -177,6 +177,22 @@ roteamento para backends locais fica apenas como fallback final.")
               "mlx-community/Qwen3.5-Coder-7B-Instruct-4bit"
               "mlx-community/Qwen3.5-Coder-14B-Instruct-4bit"
               ))
+
+  ;; ── Backend: LM Studio Local (GGUF/MLX, 127.0.0.1:1234) ──────────
+  ;; Server headless via `lms server start`. OpenAI-compatível.
+  ;; Modelos de benchmark (F7-ben): Bonsai 27B ternary, Nemotron 3 Nano 4B,
+  ;; Granite 4.0 H Tiny Q8, GLM 4.6V Flash 4bit.
+  (gptel-make-openai "LM Studio Local"
+    :host "127.0.0.1:1234"
+    :protocol "http"
+    :stream t
+    :key "any"
+    :request-params '(:max_tokens 8192)
+    :models '("prism-ml/Ternary-Bonsai-27B-mlx-2bit"
+              "nvidia/NVIDIA-Nemotron-3-Nano-4B"
+              "lmstudio-community/granite-4.0-h-tiny-MLX-8bit"
+              "mlx-community/GLM-4.6V-Flash-4bit"))
+
   ;; ── Set default backend and model globally (host-based detection) ─
   ;; Chat padrão: Gemini free tier (gemini-3.5-flash) — o agente local
   ;; ficou impraticável em CPU; local agora é apenas fallback final do

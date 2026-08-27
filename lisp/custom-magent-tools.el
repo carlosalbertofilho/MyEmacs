@@ -652,7 +652,7 @@ tool `select_model' e consumido uma única vez (pop) pelo advice
 MODEL pode ser string ou símbolo.  Retorna rótulo curto de custo/quota."
   (let ((model-str (+carlos/magent-model-str model)))
     (cond
-     ((string-match-p "MLX\\|Ollama" backend-name) "grátis (local)")
+     ((string-match-p "MLX\\|Ollama\\|LM Studio" backend-name) "grátis (local)")
      ((equal backend-name "OpenCode Zen")
       (if (or (equal model-str "big-pickle") (string-match-p "-free$" model-str))
           "grátis (free tier)"
@@ -697,7 +697,7 @@ não registrado ou resposta inválida, retorna nil (nunca lança erro)."
            (protocol (or (gptel-backend-protocol bk) "http"))
            (url (format "%s://%s/%s"
                         protocol host
-                        (if (string-match-p "MLX" backend-name)
+                        (if (string-match-p "MLX\\|LM Studio" backend-name)
                             "v1/models" "api/tags"))))
       (condition-case nil
           (let ((buf (url-retrieve-synchronously url t nil 2)))
@@ -708,7 +708,7 @@ não registrado ou resposta inválida, retorna nil (nunca lança erro)."
                     (re-search-forward "^\r?$" nil t)
                     (let ((json (json-read-from-string
                                  (buffer-substring-no-properties (point) (point-max)))))
-                      (if (string-match-p "MLX" backend-name)
+                      (if (string-match-p "MLX\\|LM Studio" backend-name)
                           (mapcar (lambda (m) (cdr (assoc 'id m)))
                                   (alist-get 'data json))
                         (mapcar (lambda (m) (cdr (assoc 'name m)))

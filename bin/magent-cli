@@ -6,7 +6,11 @@ set -euo pipefail
 
 # ── Defaults ──────────────────────────────────────────────────────────
 TIMEOUT=60
-INIT_DIR="${EMACSDIR:-$(pwd)}"
+# INIT_DIR default: EMACSDIR ou o diretório deste script (repo), NÃO $(pwd).
+# Assim `-l init.el` resolve mesmo quando o comando é chamado de outro cwd
+# (ex.: benchmark via subprocess a partir de /tmp).
+MAGENT_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INIT_DIR="${EMACSDIR:-$(dirname "$MAGENT_CLI_DIR")}"
 DRY_RUN=false
 JSON_OUTPUT=true
 TOOL_NAME=""
@@ -91,7 +95,7 @@ Flags:
   -d, --describe <tool>    Show tool details (args, docstring, category)
       --dry-run            Print Elisp form without executing
       --timeout <seconds>  Emacs batch timeout (default: 60)
-      --init-dir <path>    Emacs init directory (default: $EMACSDIR or $(pwd))
+      --init-dir <path>    Emacs init directory (default: $EMACSDIR or this repo)
       --json               Output as JSON (default)
       --plain              Output as plain text
 
@@ -254,14 +258,17 @@ esac
 # Export JSON flag for Elisp
 export MAGENT_CLI_JSON=$(if $JSON_OUTPUT; then echo "1"; else echo "0"; fi)
 
+# Resolve init.el via INIT_DIR (absoluto) para funcionar de qualquer cwd.
+INIT_EL="$INIT_DIR/init.el"
+
 # ── Dry run ───────────────────────────────────────────────────────────
 if $DRY_RUN; then
     echo "DRY RUN — Elisp form:"
     echo "$ELISP_FORM"
     echo ""
-    echo "Command: emacs --batch --init-directory $INIT_DIR -l init.el --eval <form>"
+    echo "Command: emacs --batch --init-directory $INIT_DIR -l $INIT_EL --eval <form>"
     exit 0
 fi
 
 # ── Execute ───────────────────────────────────────────────────────────
-timeout "$TIMEOUT" emacs --batch --init-directory "$INIT_DIR" -l init.el --eval "$ELISP_FORM" 2>/dev/null
+timeout "$TIMEOUT" emacs --batch --init-directory "$INIT_DIR" -l "$INIT_EL" --eval "$ELISP_FORM" 2>/dev/null
