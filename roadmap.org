@@ -12,6 +12,28 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-27 — [CONCLUÍDO] F6-3b — magent-cli run (Agent Launcher Batch)
+   - Criado `lisp/custom-magent-run.el`: `+carlos/magent-run-execute` (runner
+     UI-neutral via `magent-runtime-submit`) + JSONL lifecycle sink.
+   - `bin/magent-cli`: novo subcomando `run` com flags `--model/--profile/
+     --prompt/--status-file/--run-timeout`; fix `INIT_DIR` default para `$(pwd)`.
+   - Fix dispatch: `list-tools` e `describe` como comandos posicionais.
+   - Bridge validado end-to-end: `magent-cli elisp_smart_edit ...`, `list-tools`,
+     `describe`, `run --dry-run` — todos funcionam via Emacs batch spawn.
+   - 9 ERTs em `tests/magent-run-test.el`; suíte 509 testes / 0 falhas;
+     compilação zero-warning. Prod sincronizado e recompilado (1d92db3).
+
+** 2026-08-27 — [PLANO APROVADO] F7-ben — Bateria de Benchmark Code-Repair (Modelos Locais × Profiles)
+   - Objetivo: avaliar como 7 modelos locais diagnosticam/corrigem código
+     quebrado em função do *profile* do agente e da linguagem (Go/React/Python).
+   - Modelos novos: Bonsai 27B ternary, Nemotron 3 Nano 4B (GGUF via LM Studio),
+     Granite 4.0 H Tiny Q8, GLM 4.6V Flash 4bit — backend `LM Studio Local`
+     (127.0.0.1:1234, GGUF) + baseline MLX (`MLX Local` 8081).
+   - Matrix: 7 modelos × 9 profiles × 3 linguagens = 189 runs.
+   - Ferramentas por profile catalogadas (de `+carlos/magent-expert-team`).
+   - Próximo: baixar modelos, criar `bin/bench-code-repair.py`, gerar código
+     quebrado, executar matriz, sumarizar acurácia/latência.
+
 ** 2026-08-23 — [CONCLUÍDO] Fases 1 a 3 e Ferramentas Nativas
    - Fase 1: Desacoplamento e Infraestrutura Base criados.
    - Fase 2: Fatiamento do God File e implementacao das ferramentas em modulos separados.

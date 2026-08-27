@@ -42,6 +42,57 @@ Ordem de implementação baseada em dependências, risco e alavanca.
 
 ** Fase E — Avaliação (paralelo)
   - [ ] F6-g: Testar Granite 4.1 locais (Medium/Medium — benchmark hardware)
+  - [ ] F7-ben: Bateria de benchmark Code-Repair — 7 modelos MLX/LM Studio locais × 9 profiles × 3 linguagens (Go/React/Python) (Complex/High)
+
+** TODO F7-ben: Bateria de Benchmark Code-Repair — Modelos Locais × Profiles
+   :PROPERTIES:
+   :CREATED: 2026-08-27
+   :STATUS:  BACKLOG
+   :END:
+
+   Avaliar como modelos locais diagnosticam e corrigem código quebrado em
+   função do *profile* do agente (system prompt) e da linguagem. Objetivo:
+   escolher o melhor modelo local por perfil e dimensionar o que manter no
+   roteamento Magent.
+
+   - *Modelos novos a baixar (via =lmstudio= / GGUF, backend =LM Studio Local= em 127.0.0.1:1234):*
+     - [ ] =prism-ml/Ternary-Bonsai-27B-mlx-2bit= — Bonsai 27B ternary (ou GGUF via LM Studio)
+     - [ ] =nvidia/NVIDIA-Nemotron-3-Nano-4B= (GGUF via LM Studio; sem MLX oficial)
+     - [ ] =lmstudio-community/granite-4.0-h-tiny-MLX-8bit= — Granite 4.0 H Tiny Q8 (MLX)
+     - [ ] =mlx-community/GLM-4.6V-Flash-4bit= — GLM 4.6V Flash 4bit (MLX)
+   - *Modelos baseline já disponíveis (backend =MLX Local= em 127.0.0.1:8081):*
+     - [X] =mlx-community/Qwen3.5-9B-MLX-4bit=
+     - [X] =mlx-community/gemma-4-e2b-it-4bit=
+     - [X] =mlx-community/DeepSeek-R1-Distill-Qwen-14B-4bit=
+     - [ ] + config: =Qwen3.5-Coder-7B/14B=, =gemma-4-9b=, =Qwen2.5-Coder-7B= (se instalados)
+   - *Total: 7 modelos × 9 profiles × 3 linguagens = 189 runs*
+
+   - *Linguagens e bugs de código quebrado:*
+     - [ ] Go (=go test= para validar): broker.go com data race, goroutine leak, nil deref
+     - [ ] React/TS (=npm test=/eslint): componente com useEffect infinite loop, stale closure, key warning
+     - [ ] Python (=pytest=): função O(n²)→O(n), resource leak, wrong exception type
+
+   - *Profiles × ferramentas-chave (de =+carlos/magent-expert-team= em =custom-magent-team.el=):*
+     - [ ] =coder=: read, buffer, flycheck_errors, lsp_navigation, 10× smart-edit, grep, glob, forge_read_issue, magit merge/rebase
+     - [ ] =qa=: flycheck_errors, emacs_eval, todas smart-edit, spawn_agent/wait_agent, magit diff/log
+     - [ ] =auditor=: read, flycheck_errors, lsp_navigation, magit diff/log, rfc, smart-edit c/go/rust/org/sh/markdown
+     - [ ] =explore=: read, grep, glob, buffer
+     - [ ] =sysadmin=: read/write/edit/bash, todos magit, todos forge, nix/sh smart-edit, docker/systemd, spawn_agent
+     - [ ] =planner=: read/write/edit/buffer, org/markdown smart-edit
+     - [ ] =tech-writer=: rag_create_doc, smart-edit docs, forge
+     - [ ] =sec-ops=: read/bash, sh smart-edit, rfc, docker/systemd
+     - [ ] =general=: permissões padrão
+
+   - *Como testar cada combinação (via =magent-cli run=):*
+     - [ ] Para cada (modelo, profile, linguagem): copiar =broken-X.ext= para dir temp, rodar
+           =magent-cli run --model "LM Studio Local/<model>" --profile <p> --prompt "Corrija este código"=
+     - [ ] Validar: rodar o teste da linguagem (=go test= / =npm test= / =pytest=) após a correção
+     - [ ] Medir: acurácia (teste passa?), tempo de resposta, número de tool calls, diff gerado vs esperado
+     - [ ] Gravar JSONL/JSON resultados em =/tmp/bench-results/=
+     - [ ] Script =bin/bench-code-repair.py= para orquestrar a matriz e sumarizar
+
+   - *Saída esperada:* tabela Modelo × Profile de acurácia/latência por linguagem →
+     recomendar retenção e atribuição de modelo no roteamento Magent
 
 * Contexto de Arquitetura Oficial do Magent (Referência RAG)
 
@@ -62,21 +113,22 @@ Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=
    - =ellama= / =llm.el=: Suporta =:response-format= usando a especificação do JSON Schema.
    - =GBNF Puro=: Extender requisição HTTP (url-retrieve/request.el) para o endpoint =/completion= injetando um payload com a gramática.
 
-** TODO F6-3b: =magent-cli run= — Agent Launcher Batch
+** DONE F6-3b: =magent-cli run= — Agent Launcher Batch
    :PROPERTIES:
    :CREATED: 2026-08-26
-   :STATUS:  EM ANDAMENTO
+   :STATUS:   DONE
    :END:
    Subcomando =run= no =bin/magent-cli= para spawar agentes Magent em batch.
    Útil para testar Granite local e orquestração externa.
    - [X] Decisões: JSON final + JSONL status file, tools do profile, sem benchmark
-   - [ ] Fix: =INIT_DIR= default de prod para =$(pwd)=
-   - [ ] Criar =lisp/custom-magent-run.el= com =+carlos/magent-run-execute= e =+carlos/magent-jsonl-sink=
-   - [ ] Adicionar =require= em =init.el=
-   - [ ] Adicionar subcomando =run= em =bin/magent-cli= (=--model=, =--profile=, =--prompt=, =--status-file=)
-   - [ ] Testes ERT em =tests/magent-run-test.el=
-   - [ ] Atualizar =tests/cli-test.el=
-   - [ ] Gate: =just compile= zero-warning + =just test-all= zero-failure
+   - [X] Fix: =INIT_DIR= default de prod para =$(pwd)=
+   - [X] Criar =lisp/custom-magent-run.el= com =+carlos/magent-run-execute= e =+carlos/magent-jsonl-sink=
+   - [X] Adicionar =require= em =init.el=
+   - [X] Adicionar subcomando =run= em =bin/magent-cli= (=--model=, =--profile=, =--prompt=, =--status-file=)
+   - [X] Testes ERT em =tests/magent-run-test.el=
+   - [X] Atualizar =tests/cli-test.el=
+   - [X] Gate: =just compile= zero-warning + =just test-all= zero-failure
+   - [X] Fix dispatch: =list-tools= e =describe= como comandos posicionais (commit =1d92db3=)
    Referências: =magent-runtime-submit= (UI-neutral), benchmark runner pattern, lifecycle event sinks.
 
 * Fase 5: Onisciência do Agente e RAG Sintático
