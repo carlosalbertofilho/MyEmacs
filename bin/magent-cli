@@ -70,6 +70,10 @@ while [[ $# -gt 0 ]]; do
         *)
             TOOL_NAME="$1"
             shift
+            # 'run' is a command with its own flags — don't break
+            if [[ "$TOOL_NAME" == "run" ]]; then
+                continue
+            fi
             TOOL_ARGS=("$@")
             break ;;
     esac
