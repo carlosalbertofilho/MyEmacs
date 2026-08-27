@@ -250,7 +250,7 @@ case "$TOOL_NAME" in
             RUN_STATUS_FILE=$(mktemp -t "magent-run-status-XXXXXX").jsonl
         fi
         ELISP_FORM=$(build_run_elisp "$RUN_PROMPT" "$RUN_MODEL" "$RUN_PROFILE" "$RUN_STATUS_FILE" "$RUN_TIMEOUT")
-        TIMEOUT="$RUN_TIMEOUT" ;;
+        TIMEOUT=$((RUN_TIMEOUT + 60)) ;;
     *)
         ELISP_FORM=$(build_tool_elisp "$TOOL_NAME" "${TOOL_ARGS[@]}") ;;
 esac
@@ -271,4 +271,4 @@ if $DRY_RUN; then
 fi
 
 # ── Execute ───────────────────────────────────────────────────────────
-timeout "$TIMEOUT" emacs --batch --init-directory "$INIT_DIR" -l "$INIT_EL" --eval "$ELISP_FORM" 2>/dev/null
+timeout "$TIMEOUT" emacs --batch --init-directory "$INIT_DIR" -l "$INIT_EL" --eval "$ELISP_FORM" 

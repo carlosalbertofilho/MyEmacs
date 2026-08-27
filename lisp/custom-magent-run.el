@@ -100,7 +100,7 @@ Retorna plist (:backend-obj :model-symbol :backend-name :model-name)."
                                (car parts)))
                (model-name (if (= 1 (length parts))
                                (car parts)
-                             (mapconcat #'identity (cdr parts) "/")))
+                             (string-join (cdr parts) "/")))
                (backend-obj (condition-case _err
                                 (when (fboundp 'gptel-get-backend)
                                   (gptel-get-backend backend-name))
@@ -226,7 +226,7 @@ Retorna JSON string com status, model, result, metrics, duration."
                  :observer observer
                  :approval-provider
                  (lambda (request)
-                   (magent-approval-resolve-request (plist-get request :request-id) 'allow))
+                   (magent-approval-resolve-request (plist-get request :request-id) 'allow-once))
                  :on-complete
                  (lambda (status result)
                    (setq final-status status
@@ -241,7 +241,9 @@ Retorna JSON string com status, model, result, metrics, duration."
 
                 (unless done
                   (setq final-status 'timeout
-                        final-error (format "Timeout after %ds" timeout))))
+                        final-result ""
+                        final-error (format "Timeout after %ss" timeout))
+                  (mapc #'delete-process (process-list))))
 
               ;; Reset FSM
               (when (fboundp '+carlos/magent-fsm-reset)
