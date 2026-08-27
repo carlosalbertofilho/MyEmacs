@@ -34,6 +34,26 @@ entenderem o estado atual do projeto e decisões tomadas.
    - Próximo: baixar modelos, criar `bin/bench-code-repair.py`, gerar código
      quebrado, executar matriz, sumarizar acurácia/latência.
 
+** 2026-08-27 — [CONCLUÍDO] F7-ben fix — Causa-raiz `Wrong type argument: gptel-tool` no benchmark batch
+   - *Sintoma:* `magent-cli run` em `emacs --batch` não completava (status JSONL
+     vazio, nenhum fixture editado). Investigação anterior atribuía a `gptel-request`
+     "travando" sem retorno — na verdade era erro fatal disfarçado de hang.
+   - *Causa-raiz:* 5 arquivos injetavam **plists cruas** em `gptel-tools`, mas o
+     gptel moderno exige **structs `gptel-tool`** (via `gptel-make-tool`,
+     `gptel-request.el:1597`). Todo request que carregava `gptel-tools` morria com
+     `Wrong type argument: gptel-tool` — qualquer backend.
+   - *Arquivos corrigidos:* `custom-magent-tool-{test,ast,lsp,pkg,debug}.el`
+     (`magent_ert_runner`, `magent_treesit_query`, `magent_tool_lsp`,
+     `magent_elpaca`, `magent_debug`). Cada tool agora: cria struct
+     `gptel-make-tool` (com `:args` no formato `(:name ... :type ...)`), registra
+     entry `(:name ... :tool <struct> :permission ...)` em `magent-tools-catalog`
+     e habilita a permissão em `magent-enable-tools`.
+   - *Validação:* `just compile` EXIT=0 (zero warnings das 5 tools); probe runtime
+     confirmou os 5 `+carlos/magent-tool-*` como `gptel-tool-p` e catálogo sem
+     plists; `just test-all` 509 testes / 0 unexpected / 7 skipped.
+   - Próximo: reabrir a F7-ben (re-testar `magent-cli run` batch e executar a
+     matriz). Granite/GLM ainda não baixados no LM Studio (IDs config são placeholders).
+
 ** 2026-08-23 — [CONCLUÍDO] Fases 1 a 3 e Ferramentas Nativas
    - Fase 1: Desacoplamento e Infraestrutura Base criados.
    - Fase 2: Fatiamento do God File e implementacao das ferramentas em modulos separados.

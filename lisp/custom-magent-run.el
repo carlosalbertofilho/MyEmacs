@@ -10,6 +10,7 @@
 
 ;;; Code:
 
+(declare-function magent-approval-resolve-request "magent-approval")
 (require 'cl-lib)
 (require 'json)
 (require 'custom-magent-infra)
@@ -223,6 +224,9 @@ Retorna JSON string com status, model, result, metrics, duration."
                  runtime-session
                  prompt
                  :observer observer
+                 :approval-provider
+                 (lambda (request)
+                   (magent-approval-resolve-request (plist-get request :request-id) 'allow))
                  :on-complete
                  (lambda (status result)
                    (setq final-status status

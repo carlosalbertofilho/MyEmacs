@@ -92,7 +92,32 @@ Ordem de implementação baseada em dependências, risco e alavanca.
      - [ ] Script =bin/bench-code-repair.py= para orquestrar a matriz e sumarizar
 
    - *Saída esperada:* tabela Modelo × Profile de acurácia/latência por linguagem →
-     recomendar retenção e atribuição de modelo no roteamento Magent
+      recomendar retenção e atribuição de modelo no roteamento Magent
+
+   - *Bloqueio atual: =Wrong type argument: gptel-tool= no =gptel-request= batch:*
+     - [X] Diagnóstico (CAUSA-RAIZ): 5 arquivos custom injetam **plists** cruas em
+           =gptel-tools= — =custom-magent-tool-{ast,debug,lsp,pkg,test}.el= — mas o
+           gptel moderno exige **structs** =gptel-tool= (via =gptel-make-tool=,
+           =gptel-request.el:1597=). Todo request que carrega =gptel-tools= global
+           morre com =Wrong type argument: gptel-tool=, independente do backend —
+           o que parecia "hang" no =emacs --batch= era esse erro fatal.
+           Ferramentas de =custom-magent-tools.el= e as 15 nativas do magent já
+           usam =gptel-make-tool= corretamente.
+      - [X] Plano de correção (por tool, em cada arquivo):
+        - [X] Criar struct =gptel-make-tool= (=:name=, =:function=, =:description=,
+              =:args= no formato =(:name X :type Y :description Z)=).
+        - [X] Registrar a plist =(:name ... :tool <struct> :permission ...)= em
+              =magent-tools-catalog= (roteamento por permissão do Magent).
+        - [X] Adicionar a permissão em =magent-enable-tools=.
+      - [X] Escopo (5 arquivos): =magent_ert_runner= (test), =magent_treesit_query=
+            (ast), =magent_tool_lsp= (lsp), =magent_elpaca= (pkg), =magent_debug=
+            (debug).
+      - [X] Validação: =check-parens= em cada arquivo + =just compile= zero-warning
+            + =just test-all= + repro =magent-cli run= concluindo sem
+            =Wrong type argument=.
+     - [ ] Pós-validado: synchronize prod (=just sync= + =rm -f
+           ~/.config/emacs/lisp/*.elc= + =just compile-prod=) e reabrir a
+           F7-ben.
 
 * Contexto de Arquitetura Oficial do Magent (Referência RAG)
 

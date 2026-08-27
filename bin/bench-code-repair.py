@@ -8,7 +8,7 @@ correção rodando o teste da linguagem (go test / npm test / pytest).
 
 Uso:
   python3 bin/bench-code-repair.py                 # toda a matriz
-  python3 bin/bench-code-repair.py --model "LM Studio Local|Bonsai-27B" --profile coder
+  python3 bin/bench-code-repair.py --model "LM Studio Local/nvidia/nemotron-3-nano-4b" --profile coder
   python3 bin/bench-code-repair.py --lang go --profiles coder qa auditor
   python3 bin/bench-code-repair.py --dry-run       # mostra o plano sem rodar
   python3 bin/bench-code-repair.py --results /tmp/bench-results
@@ -36,12 +36,12 @@ DEFAULT_RESULTS_DIR = "/tmp/bench-results"
 # Formato: "BACKEND/MODEL" — o mesmo aceito por `magent-cli run --model`.
 # O nome do modelo deve ser o ID exato servido pelo backend local
 # (checar `curl <host>/v1/models`). Ajuste os IDs após o download na GUI.
+# Modelos já baixados no LM Studio (checar `lms ls` / `/v1/models`):
+#   nvidia/nemotron-3-nano-4b (4B) e prism-ml/bonsai-27b (27B)
 MODELS = [
-    # LM Studio Local (127.0.0.1:1234 /v1/models) — novos (a baixar na GUI)
-    "LM Studio Local/prism-ml/Ternary-Bonsai-27B-mlx-2bit",
-    "LM Studio Local/nvidia/NVIDIA-Nemotron-3-Nano-4B",
-    "LM Studio Local/lmstudio-community/granite-4.0-h-tiny-MLX-8bit",
-    "LM Studio Local/mlx-community/GLM-4.6V-Flash-4bit",
+    # LM Studio Local (127.0.0.1:1234 /v1/models) — baixados
+    "LM Studio Local/nvidia/nemotron-3-nano-4b",
+    "LM Studio Local/prism-ml/bonsai-27b",
     # MLX Local (127.0.0.1:8081) — baseline já instalado
     "MLX Local/mlx-community/Qwen3.5-9B-MLX-4bit",
     "MLX Local/mlx-community/gemma-4-e2b-it-4bit",

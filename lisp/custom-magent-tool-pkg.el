@@ -56,21 +56,36 @@ ARGS pode conter :recipe (string Lisp como
                        pkg (if order (elpaca-status order) "desconhecido")))))))
       (_ (error "Ação '%s' desconhecida.  Use 'install' ou 'status'" action)))))
 
-;; Registra a ferramenta no ecossistema
+(defvar magent-tools-catalog)
+(defvar magent-enable-tools)
+(defvar +carlos/magent-tool-elpaca)
+
+;; Registra a ferramenta: cria o struct gptel-tool, o publica no catálogo
+;; do Magent (roteamento por :permission) e expõe via gptel-tools.
 (with-eval-after-load 'gptel
-  (when (fboundp '+carlos/magent-tool-elpaca)
-    (setq gptel-tools
-          (append gptel-tools
-                  `((:name "magent_elpaca"
-                     :tool ,#'+carlos/magent-tool-elpaca
-                     :permission magent_elpaca
-                     :description "Gerencia dependências e pacotes via Elpaca diretamente no Emacs ativo.
+  (setq +carlos/magent-tool-elpaca
+        (gptel-make-tool
+         :name "magent_elpaca"
+         :description "Gerencia dependências e pacotes via Elpaca diretamente no Emacs ativo.
 Ideal para instalar ferramentas ausentes sem precisar pedir para o usuário reiniciar.
 Ações: 'install' (baixa e instala), 'status' (verifica se existe).
 Para 'install', você pode fornecer um recipe Elpaca em string Lisp, ex: \"(nome :host github :repo \\\"user/repo\\\")\"."
-                     :args (("action" :type string :description "'install' ou 'status'")
-                            ("package-name" :type string :description "Nome do pacote")
-                            ("recipe" :type string :description "Opcional: Recipe Lisp em formato de string. Se vazio, instala pelo nome padrão."))))))))
+         :args '((:name "action" :type string :description "'install' ou 'status'")
+                 (:name "package-name" :type string :description "Nome do pacote")
+                 (:name "recipe" :type string :description "Opcional: Recipe Lisp em formato de string. Se vazio, instala pelo nome padrão."))
+         :function #'+carlos/magent-tool-elpaca
+         :category "magent")))
+
+(with-eval-after-load 'magent-tools
+  (when (and (boundp 'magent-tools-catalog)
+             +carlos/magent-tool-elpaca)
+    (add-to-list 'magent-tools-catalog
+                 `(:name "magent_elpaca" :tool ,+carlos/magent-tool-elpaca
+                         :permission magent_elpaca))))
+
+(with-eval-after-load 'magent-config
+  (when (boundp 'magent-enable-tools)
+    (add-to-list 'magent-enable-tools 'magent_elpaca)))
 
 (provide 'custom-magent-tool-pkg)
 ;;; custom-magent-tool-pkg.el ends here

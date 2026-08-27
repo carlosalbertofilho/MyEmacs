@@ -71,14 +71,30 @@ ACTION: `start', `stop', `breakpoint' (arg1=file, arg2=line), `eval'."
        
       (_ (error "Ação '%s' desconhecida em magent-tool-debug" action)))))
 
+(defvar magent-tools-catalog)
+(defvar magent-enable-tools)
+(defvar +carlos/magent-tool-debug)
+
+;; Registra a ferramenta: cria o struct gptel-tool, o publica no catálogo
+;; do Magent (roteamento por :permission) e expõe via gptel-tools.
 (with-eval-after-load 'gptel
-  (when (fboundp '+carlos/magent-tool-debug)
-    (setq gptel-tools
-          (append gptel-tools
-                  `((:name "magent_debug"
-                     :tool ,#'+carlos/magent-tool-debug
-                     :description "Orquestra o depurador nativo via dape. Use 'start' (arg1=config_name), 'stop', 'continue', 'pause', 'breakpoint' (arg1=filepath, arg2=line_number), ou 'eval' (arg1=expression)."
-                     :category "debugging"))))))
+  (setq +carlos/magent-tool-debug
+        (gptel-make-tool
+         :name "magent_debug"
+         :description "Orquestra o depurador nativo via dape. Use 'start' (arg1=config_name), 'stop', 'continue', 'pause', 'breakpoint' (arg1=filepath, arg2=line_number), ou 'eval' (arg1=expression)."
+         :function #'+carlos/magent-tool-debug
+         :category "debugging")))
+
+(with-eval-after-load 'magent-tools
+  (when (and (boundp 'magent-tools-catalog)
+             +carlos/magent-tool-debug)
+    (add-to-list 'magent-tools-catalog
+                 `(:name "magent_debug" :tool ,+carlos/magent-tool-debug
+                         :permission magent_debug))))
+
+(with-eval-after-load 'magent-config
+  (when (boundp 'magent-enable-tools)
+    (add-to-list 'magent-enable-tools 'magent_debug)))
 
 (provide 'custom-magent-tool-debug)
 ;;; custom-magent-tool-debug.el ends here

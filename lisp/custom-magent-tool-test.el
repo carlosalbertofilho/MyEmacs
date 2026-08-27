@@ -50,19 +50,35 @@ Retorna uma string formatada contendo resultados e stack traces."
       (ignore-errors (delete-file eval-file))
       (ignore-errors (delete-file output-file)))))
 
-;; Registra a ferramenta no ecossistema de ferramentas do Magent
+(defvar magent-tools-catalog)
+(defvar magent-enable-tools)
+(defvar +carlos/magent-tool-ert-runner)
+
+;; Registra a ferramenta: cria o struct gptel-tool, o publica no catálogo
+;; do Magent (roteamento por :permission) e expõe via gptel-tools.
 (with-eval-after-load 'gptel
-  (when (fboundp '+carlos/magent-tool-ert-runner)
-    (setq gptel-tools
-          (append gptel-tools
-                  `((:name "magent_ert_runner"
-                     :tool ,#'+carlos/magent-tool-ert-runner
-                     :permission magent_ert_runner
-                     :description "Executa testes ERT (Emacs Lisp) de forma isolada e captura stack traces.
+  (setq +carlos/magent-tool-ert-runner
+        (gptel-make-tool
+         :name "magent_ert_runner"
+         :description "Executa testes ERT (Emacs Lisp) de forma isolada e captura stack traces.
 Útil para rodar testes específicos ou suítes inteiras de dentro do editor.
 Argumentos:
 - SELECTOR-STR: Nome exato do teste (ex: 'myemacs-test-foo'), ou regex, ou vazio para rodar todos."
-                     :args (("selector-str" :type string :description "Seletor do teste ou regex. Deixe vazio para todos."))))))))
+         :args '((:name "selector-str" :type string
+                        :description "Seletor do teste ou regex. Deixe vazio para todos."))
+         :function #'+carlos/magent-tool-ert-runner
+         :category "magent")))
+
+(with-eval-after-load 'magent-tools
+  (when (and (boundp 'magent-tools-catalog)
+             +carlos/magent-tool-ert-runner)
+    (add-to-list 'magent-tools-catalog
+                 `(:name "magent_ert_runner" :tool ,+carlos/magent-tool-ert-runner
+                         :permission magent_ert_runner))))
+
+(with-eval-after-load 'magent-config
+  (when (boundp 'magent-enable-tools)
+    (add-to-list 'magent-enable-tools 'magent_ert_runner)))
 
 (provide 'custom-magent-tool-test)
 ;;; custom-magent-tool-test.el ends here

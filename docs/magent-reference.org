@@ -194,3 +194,42 @@ Exclui branches locais ou remotas via Magit API.
 
 *Nota:* esta tool requer =magit= carregado. Em batch sem magit, retorna erro informativo.
 
+
+* Criação e Registro de Ferramentas (Tool Registration)
+
+As ferramentas externas do ecossistema Magent devem, obrigatoriamente, ser estruturadas usando ~gptel-make-tool~. Versões antigas anexavam plists cruas diretamente à lista ~gptel-tools~, o que causava crash (~Wrong type argument: gptel-tool~) nas engines mais recentes do gptel/magent.
+
+**Padrão de Implementação (Fase D)**
+
+Para adicionar uma nova ferramenta (ex: ~lisp/custom-magent-tool-test.el~):
+
+1. *Struct Gptel:* Use ~gptel-make-tool~ com chaves estritas (~:name~, ~:description~, ~:function~, ~:category~).
+2. *Args Tipados:* O argumento ~:args~ deve ser uma plist de plists no formato
+   ~((:name "arg1" :type string :description "..."))~ (o ~:type~ é um *símbolo*:
+   ~string~, ~number~, ~integer~, ~boolean~, ~array~, ~object~, ~null~).
+3. *Roteamento Magent:* A struct gerada deve ser registrada em ~magent-tools-catalog~ contendo a permissão necessária, embrulhada num bloco ~with-eval-after-load 'magent-tools~.
+4. *Habilitação Default:* Assegure que a permissão da ferramenta seja ativada inserindo-a em ~magent-enable-tools~ (dentro de ~with-eval-after-load 'magent-config~).
+5. *Warnings do Byte-Compiler:* Forneça forward-declarations ~(defvar magent-tools-catalog)~ e ~(defvar magent-enable-tools)~ para evitar erros de /free-variable/.
+
+Exemplo:
+#+begin_src elisp
+(defvar magent-tools-catalog)
+(defvar magent-enable-tools)
+
+(defvar my-custom-tool
+  (gptel-make-tool
+   :name "my_tool"
+   :function #'my-custom-function
+   :description "Faz algo útil"
+   :args (list (list :name "arg" :type 'string :description "Exemplo"))
+   :category "custom"))
+
+(with-eval-after-load 'magent-tools
+  (add-to-list 'magent-tools-catalog
+               (list :name "my_tool"
+                     :tool my-custom-tool
+                     :permission 'my_tool_permission)))
+
+(with-eval-after-load 'magent-config
+  (add-to-list 'magent-enable-tools 'my_tool_permission))
+#+end_src

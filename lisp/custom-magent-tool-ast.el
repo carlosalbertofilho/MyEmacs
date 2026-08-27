@@ -76,24 +76,39 @@ Retorna uma string contendo os matches e suas posições."
           (mapconcat #'identity (nreverse results) "\n\n")
         "Nenhum match encontrado para a query."))))
 
-;; Registra a ferramenta no ecossistema
+(defvar magent-tools-catalog)
+(defvar magent-enable-tools)
+(defvar +carlos/magent-tool-treesit-query)
+
+;; Registra a ferramenta: cria o struct gptel-tool, o publica no catálogo
+;; do Magent (roteamento por :permission) e expõe via gptel-tools.
 (with-eval-after-load 'gptel
-  (when (fboundp '+carlos/magent-tool-treesit-query)
-    (setq gptel-tools
-          (append gptel-tools
-                  `((:name "magent_treesit_query"
-                     :tool ,#'+carlos/magent-tool-treesit-query
-                     :permission magent_treesit_query
-                     :description "Faz uma busca no código-fonte usando uma query Tree-Sitter estruturada (AST).
+  (setq +carlos/magent-tool-treesit-query
+        (gptel-make-tool
+         :name "magent_treesit_query"
+         :description "Faz uma busca no código-fonte usando uma query Tree-Sitter estruturada (AST).
 Ideal para encontrar callers, definições, classes e métodos com 100% de precisão sem depender de LSP.
 Argumentos:
 - LANGUAGE: Linguagem do código (ex: 'python', 'elisp', 'c', 'typescript', 'go').
 - QUERY-STR: String da query no formato Tree-Sitter s-expression.
 - PATH (opcional): Diretório ou arquivo específico para restringir a busca.
 Exemplo de query: (function_definition name: (identifier) @func_name)"
-                     :args (("language" :type string :description "Linguagem da árvore (ex: python, elisp)")
-                            ("query-str" :type string :description "A S-expression da query")
-                            ("path" :type string :description "Opcional: diretório ou arquivo alvo"))))))))
+         :args '((:name "language" :type string :description "Linguagem da árvore (ex: python, elisp)")
+                 (:name "query-str" :type string :description "A S-expression da query")
+                 (:name "path" :type string :description "Opcional: diretório ou arquivo alvo"))
+         :function #'+carlos/magent-tool-treesit-query
+         :category "magent")))
+
+(with-eval-after-load 'magent-tools
+  (when (and (boundp 'magent-tools-catalog)
+             +carlos/magent-tool-treesit-query)
+    (add-to-list 'magent-tools-catalog
+                 `(:name "magent_treesit_query" :tool ,+carlos/magent-tool-treesit-query
+                         :permission magent_treesit_query))))
+
+(with-eval-after-load 'magent-config
+  (when (boundp 'magent-enable-tools)
+    (add-to-list 'magent-enable-tools 'magent_treesit_query)))
 
 (provide 'custom-magent-tool-ast)
 ;;; custom-magent-tool-ast.el ends here

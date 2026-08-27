@@ -78,21 +78,37 @@ Retorna uma string sumarizada ou erro se o LSP não estiver disponível."
                      "Nenhuma referência encontrada pelo LSP.")))
                 (_ (error "Ação LSP desconhecida: %s" action))))))))))
 
+(defvar magent-tools-catalog)
+(defvar magent-enable-tools)
+(defvar +carlos/magent-tool-lsp)
+
+;; Registra a ferramenta: cria o struct gptel-tool, o publica no catálogo
+;; do Magent (roteamento por :permission) e expõe via gptel-tools.
 (with-eval-after-load 'gptel
-  (when (fboundp '+carlos/magent-tool-lsp)
-    (setq gptel-tools
-          (append gptel-tools
-                  `((:name "magent_tool_lsp"
-                     :tool ,#'+carlos/magent-tool-lsp
-                     :permission magent_tool_lsp
-                     :description "Aciona o servidor LSP (eglot) para inspeção profunda de código (hover, goto-definition, references).
+  (setq +carlos/magent-tool-lsp
+        (gptel-make-tool
+         :name "magent_tool_lsp"
+         :description "Aciona o servidor LSP (eglot) para inspeção profunda de código (hover, goto-definition, references).
 Argumentos:
 - action: Ação desejada (`hover', `definition', `references').
 - path: Caminho relativo do arquivo no projeto (ex: 'src/main.rs').
 - query_str: Texto exato (ou regex) para encontrar a linha do símbolo desejado no arquivo alvo."
-                     :args (("action" :type string :description "Ação: hover, definition, references")
-                            ("path" :type string :description "Caminho relativo do arquivo alvo")
-                            ("query_str" :type string :description "Símbolo ou texto exato onde aplicar a ação"))))))))
+         :args '((:name "action" :type string :description "Ação: hover, definition, references")
+                 (:name "path" :type string :description "Caminho relativo do arquivo alvo")
+                 (:name "query_str" :type string :description "Símbolo ou texto exato onde aplicar a ação"))
+         :function #'+carlos/magent-tool-lsp
+         :category "magent")))
+
+(with-eval-after-load 'magent-tools
+  (when (and (boundp 'magent-tools-catalog)
+             +carlos/magent-tool-lsp)
+    (add-to-list 'magent-tools-catalog
+                 `(:name "magent_tool_lsp" :tool ,+carlos/magent-tool-lsp
+                         :permission magent_tool_lsp))))
+
+(with-eval-after-load 'magent-config
+  (when (boundp 'magent-enable-tools)
+    (add-to-list 'magent-enable-tools 'magent_tool_lsp)))
 
 (provide 'custom-magent-tool-lsp)
 ;;; custom-magent-tool-lsp.el ends here
