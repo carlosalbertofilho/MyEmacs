@@ -131,6 +131,11 @@
 
 (use-package envrc
   :ensure t
+  :init
+  ;; Previne erro 'Invalid function: envrc--with-required-current-env'
+  ;; garantindo o carregamento ordenado das macros do envrc
+  (with-eval-after-load 'envrc
+    (load "envrc" nil t))
   :hook (after-init . envrc-global-mode))
 
 (defun +carlos/nixos-rebuild-switch (&optional flake-path)
