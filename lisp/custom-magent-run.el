@@ -216,14 +216,11 @@ Retorna JSON string com status, model, result, metrics, duration."
               ;; Configurar agente do profile com override de modelo
               (when (and runtime-session
                          (fboundp 'magent-runtime-session-set-agent))
-                (let ((agent-plist (if (fboundp 'magent-agent-get)
-                                       (copy-sequence (magent-agent-get profile))
-                                     nil)))
-                  (when (and agent-plist backend-name)
-                    (setq agent-plist (plist-put agent-plist :backend backend-name)))
-                  (when (and agent-plist model-name)
-                    (setq agent-plist (plist-put agent-plist :model model-name)))
-                  (magent-runtime-session-set-agent runtime-session (or agent-plist profile))))
+                (when (and backend-name model-name)
+                  (require 'custom-magent-subagent)
+                  (add-to-list '+carlos/magent-subagent-model-overrides
+                               (cons profile (cons backend-name model-name))))
+                (magent-runtime-session-set-agent runtime-session profile))
 
               ;; Submeter prompt
               (when (and runtime-session (fboundp 'magent-runtime-submit))
