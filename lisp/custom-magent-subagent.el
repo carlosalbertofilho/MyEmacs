@@ -28,6 +28,19 @@
 (defvar +carlos/magent-current-agent-is-orchestrator)
 (defvar +carlos/magent-fsm-subagent-jobs)
 (defvar magent-enable-tools)
+
+(defun +carlos/--magent-backend-name (backend)
+  "Retorna o nome de um backend heterogêneo, ou NIL se indeterminado.
+Backend: string, símbolo, plist (:name ...) ou struct gptel-backend.
+Função total (nunca lança) — usada pelo Coder Lite p/ backend local."
+  (cond
+   ((stringp backend) backend)
+   ((symbolp backend) (symbol-name backend))
+   ((and (fboundp 'gptel-backend-p) (gptel-backend-p backend))
+    (gptel-backend-name backend))
+   ((and (listp backend) (plist-get backend :name))
+    (plist-get backend :name))
+   (t nil)))
 (defvar magent-tools--request-context)
 (declare-function magent-agent-info-name "magent-agent-info")
 (declare-function magent-agent-process "magent-agent")
@@ -168,7 +181,7 @@ chamada a função vazia no .elc."
                                (not (+carlos/magent-subagent-profile agent-name))))
          (+carlos/magent-current-agent-is-orchestrator is-orchestrator)
          (backend-obj (and request-state (cl-struct-slot-value 'magent-request-context 'backend request-state)))
-         (backend-name (and backend-obj (if (stringp backend-obj) backend-obj (gptel-backend-name backend-obj))))
+         (backend-name (and backend-obj (if (stringp backend-obj) backend-obj (+carlos/--magent-backend-name backend-obj))))
          (is-local (and backend-name (or (string-match-p "MLX" backend-name)
                                          (string-match-p "Ollama" backend-name)
                                          (string-match-p "LM Studio" backend-name))))

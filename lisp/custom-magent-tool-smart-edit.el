@@ -184,6 +184,21 @@ REASON: Motivo da alteração."
                search-str dest-abs-file)))))
 
                ))))
+        ("replace_text"
+         (if (or (null args) (string-empty-p args))
+             "Erro: args deve ser 'old|new|FLAGS'."
+           (let* ((parts (split-string args "|" t))
+                  (old-txt (nth 0 parts))
+                  (new-txt (nth 1 parts))
+                  (flags (nth 2 parts)))
+             (if (and old-txt new-txt)
+                 (+carlos/magent--smart-edit-transaction buf 'code
+                   (lambda ()
+                     (let ((count (+carlos/magent--smart-edit-replace-core old-txt new-txt flags)))
+                       (format "Substituição '%s' -> '%s' concluída (%d ocorrência(s)%s). Buffer validado."
+                               old-txt new-txt count
+                               (if flags (format ", flags=%s" flags) "")))))
+               "Erro: forneça 'old|new' em args."))))
         ("validate_buffer"
          (condition-case err
              (progn

@@ -160,15 +160,72 @@ Ordem de implementação baseada em dependências, risco e alavanca.
    - [ ] Pendências de validação: confirmar em prod (=just sync= + =just
          rebuild-prod=) que o boot acelera e que =just compile-prod= escala
          em 8 cores sem warning.
-   - [ ] REGRESSÃO DETECTADA (outra sessão): 2 testes =magent-*=
-         (=myemacs-magent-subagent-override-consumed= e
-         =myemacs-magent-subagent-apply-profile-unknown-agent=) falham com
-         =wrong-type-argument gptel-backend= — introduzida pelo commit
-         =f893090= (coder-lite) que chama =gptel-backend-name= incondicional
-         em =+carlos/magent-subagent-apply-profile= quando o backend é plist
-         =(:name ...)= ou string =local= (não struct =gptel-backend=).
-         NÃO relacionada ao early-init; precisa correção no
-         =custom-magent-subagent.el= (guardar com =gptel-backend-p=).
+    - [ ] REGRESSÃO DETECTADA (outra sessão): 2 testes =magent-*=
+          (=myemacs-magent-subagent-override-consumed= e
+          =myemacs-magent-subagent-apply-profile-unknown-agent=) falham com
+          =wrong-type-argument gptel-backend= — introduzida pelo commit
+          =f893090= (coder-lite) que chama =gptel-backend-name= incondicional
+          em =+carlos/magent-subagent-apply-profile= quando o backend é plist
+          =(:name ...)= ou string =local= (não struct =gptel-backend=).
+          NÃO relacionada ao early-init; precisa correção no
+          =custom-magent-subagent.el= (guardar com =gptel-backend-p=).
+    - **Progresso da correção (sessão 2026-08-27/28, commit a aplicar):**
+      - Criei o helper funções-total =+carlos/--magent-backend-name= e
+        substituí a linha do backend em =+carlos/magent-subagent-apply-profile=
+        para usá-lo. Passei a usar a ferramenta nativa =replace_text=
+        (recém-adicionada ao =elisp-smart-edit= em
+        =custom-magent-tool-smart-edit.el=, multi-token =old|new|FLAGS=)
+        para aplicar a edição de forma transacional.
+      - *Diagnóstico feito:* em probe isolado (com =init.el=), o helper
+        retorna corretamente =t= para backend plist =(:name "OpenCode Zen")=,
+        símbolo =local= e string =Ollama/y=. O =gptel-backend-p= retorna
+        =nil= para plist (correto). O diff do =custom-magent-subagent.el=
+        e o bytecode do ==.elc= (via =strings=) confirmam a chamada ao
+        helper na linha 184. Removi o =custom-magent-subagent.elc= e rodei
+        =just clean= (limpa =.elc=/=.eln=/=eln-cache=) — o teste AINDA falha.
+      - *Ponto crítico da tese:* o backtrace do ERT persiste mostrando a
+        expansão inline antiga de =gptel-backend-name= (frames
+        =(&#x2e83;let* ((cl-x backend-obj))&#x2026;)= e =(&#x2e83;or (let*
+        ((cl-x cl-x))&#x2026;)=) e a condição
+        =wrong-type-argument gptel-backend (:name "OpenCode Zen")= /
+        =(gptel-backend local)= — mesmo sem =elc= e sem =eln-cache=. Isso
+        sugere que o código em execução no teste ainda é o antigo.
+      - **TESES ATIVAS (por ordem de probabilidade):**
+        1. Existe uma SEGUNDA definição de =+carlos/magent-subagent-apply-profile=
+           (ou um =advice= / re-definição em outro módulo =custom-magent-*.el=
+           carregado depois) que ainda contém o =gptel-backend-name= inline
+           antigo. O =load-tests.el= carrega toda a suíte; algum outro arquivo
+           pode redefinir a função. -> investigar definições duplicadas de
+           =apply-profile= / busca por =gptel-backend-name back-end-obj= em
+           TODO o load-path, não só no subagent.el.
+        2. O =load-tests.el= carrega o módulo de um caminho distinto (ex.:
+           =.elc= em outro diretório do =load-path=, prod =~/.config/emacs=,
+           ou pacote =magent= externo) cuja versão é a antiga. O teste roda
+           com =--init-directory "$(pwd)"= mas o =load-tests.el= pode
+           =require= de outra árvore.
+        3. (menos provável) Versionamento por host/condicional que gera
+           código diferente no ramo dos testes (ex.: =+carlos/--magent-backend-name=
+           definida mas um caminho alternativo não-editado).
+      - **Ação a tomar:** procurar TODAS as definições de
+        =+carlos/magent-subagent-apply-profile= e todas as referências a
+        =gptel-backend-name= com o símbolo =backend-obj= em todo o repo
+        (incluindo =tests/= e =site-lisp/=) e verificar qual é carregada
+        pelo ERT. Confirmar vazio de =defalias= concorrente =M-x
+        find-function-noselect= no batch.
+    - **Problema novo no PROD (após =just factory-reset=, 2026-08-27 à noite):**
+      - Erro de boot/uso: =envrc--direnv-export: Invalid function:
+        envrc--with-required-current-en= ao entrar em diretórios com
+        =direnv= (ex.: =~/Projects/42rio/CommonCore/Rank05/Exam/Level0/=).
+        Provável problema de =direnv.el= / =envrc= (versão ou hook nativo-
+        compilado stale) no ambiente oficial =~/.config/emacs=.
+      - Ao abrir arquivo =.py= carrega em modo =Fundamental= (Python
+        mode/treesit não ativando) no prod. Suspeita de =eglot=/
+        =python-mode= ou =treesit= quebrado após o factory-reset
+        (gramáticas ou autoloads não instalados).
+      - Ambos são do AMBIENTE PROD (pós factory-reset), independentes da
+        regressão do repo. Registrar e investigar à parte (possível
+        =just rebuild-prod= + =just install= para reinstalar dependências
+        nativas/gramáticas).
    Proto-plano validado pelo Gemini web; estabilizar os Timeouts do CLI
    (=magent-cli run= batch) antes de mexer nos ponteiros do early-init.
 
