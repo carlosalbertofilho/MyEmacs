@@ -109,6 +109,12 @@
 
 (with-eval-after-load 'corfu
   (add-hook 'minibuffer-setup-hook #'+carlos/corfu-enable-in-minibuffer 1))
+  ;; Suprime popup de erro do Corfu em timeouts de LSP/jsonrpc no completion
+  (advice-add 'corfu--compute :around
+              (lambda (orig-fun &rest args)
+                (condition-case nil
+                    (apply orig-fun args)
+                  (jsonrpc-error nil))))
 
 ;; ── nerd-icons-corfu ────────────────────────────────────────────────
 (use-package nerd-icons-corfu

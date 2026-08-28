@@ -47,9 +47,17 @@
 (use-package eglot
   :ensure nil
   :config
+  ;; Aumenta limite de memoria V8/Node para servidores LSP Node.js
+  (setenv "NODE_OPTIONS" "--max-old-space-size=8192")
   ;; Ignorar formatação do servidor para C/C++ (Norma 42 controla)
   (add-to-list 'eglot-ignored-server-capabilities :documentFormattingProvider)
   (add-to-list 'eglot-ignored-server-capabilities :documentRangeFormattingProvider))
+  ;; Suprime popup de erro do Corfu quando o servidor LSP sofre timeout no completion
+  (advice-add 'eglot-completion-at-point :around
+              (lambda (orig-fun &rest args)
+                (condition-case nil
+                    (apply orig-fun args)
+                  (jsonrpc-error nil))))
 
 ;; ── Go ──────────────────────────────────────────────────────────────
 (use-package go-ts-mode
@@ -84,7 +92,7 @@
 
 (with-eval-after-load 'eglot
   (add-to-list 'eglot-server-programs
-               `((python-ts-mode python-mode) . ,(eglot-alternatives '(("basedpyright-langserver" "--stdio") ("pyright-langserver" "--stdio") "pylsp" ("ruff" "server"))))))
+               `((python-ts-mode python-mode) . ,(eglot-alternatives (list '("ruff" "server") '("basedpyright-langserver" "--stdio") '("pyright-langserver" "--stdio") "pylsp")))))
 
 ;; ── C / C++ (42 School) ─────────────────────────────────────────────
 ;; clangd is detected automatically by eglot.
