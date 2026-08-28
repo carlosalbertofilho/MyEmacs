@@ -190,6 +190,19 @@
                         (buffer-string)
                       (user-error "Nix: %s" (string-trim (buffer-string)))))))))
 
+
+(defun +carlos/nix-flake-update (&optional flake-path)
+  "Executa `nix flake update` localmente ou remotamente via TRAMP."
+  (interactive
+   (list (read-directory-name "Nix Flake directory: " default-directory)))
+  (let* ((dir (or flake-path default-directory))
+         (remote (file-remote-p dir))
+         (local-path (if remote (file-remote-p dir 'localname) (expand-file-name dir)))
+         (default-directory (if remote (file-name-as-directory dir) (file-name-directory local-path)))
+         (cmd (format "nix flake update --flake %s --print-build-logs"
+                      (shell-quote-argument local-path))))
+    (compile cmd)))
+
 (defun +carlos/nixos-rebuild-switch (&optional flake-path)
   "Executa `sudo nixos-rebuild switch` localmente ou remotamente via TRAMP."
   (interactive
