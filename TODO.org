@@ -47,7 +47,7 @@ Ordem de implementação baseada em dependências, risco e alavanca.
 ** TODO F7-ben: Bateria de Benchmark Code-Repair — Modelos Locais × Profiles
    :PROPERTIES:
    :CREATED: 2026-08-27
-   :STATUS:  BACKLOG
+   :STATUS:  EM ANDAMENTO
    :END:
 
    Avaliar como modelos locais diagnosticam e corrigem código quebrado em
@@ -115,7 +115,7 @@ Ordem de implementação baseada em dependências, risco e alavanca.
       - [X] Validação: =check-parens= em cada arquivo + =just compile= zero-warning
             + =just test-all= + repro =magent-cli run= concluindo sem
             =Wrong type argument=.
-     - [ ] Pós-validado: synchronize prod (=just sync= + =rm -f
+     - [X] Pós-validado: synchronize prod (=just sync= + =rm -f
            ~/.config/emacs/lisp/*.elc= + =just compile-prod=) e reabrir a
            F7-ben.
 
@@ -316,6 +316,7 @@ Mecanismo de Failover Pre-emptivo:
 - **2026-08-25:** Phase B — +carlos/magent-project-root utility, 31 call sites consolidados → commit bc763fd → [[file:roadmap.org][roadmap.org]] (Histórico).
 - **2026-08-25:** P3 dry-run guards (branch-delete, docker-action, systemd-action) → [[file:roadmap.org][roadmap.org]] (Histórico).
 - **2026-08-25:** Linters nativos (defun-parens + arity) + helpers portáteis (trim, with-temp-file-buffer) → [[file:roadmap.org][roadmap.org]] (Histórico).
+- **2026-08-27:** Correção de Hangs Críticos e Timers no magent-cli (--batch) para pipeline F7-ben → [[file:roadmap.org][roadmap.org]] (Histórico).
 
 * TODO Refatoração SOLID - Fase 7 - Structured Outputs
     :PROPERTIES:

@@ -213,10 +213,17 @@ Retorna JSON string com status, model, result, metrics, duration."
                    (runtime-session (when (fboundp 'magent-runtime-session-new)
                                       (magent-runtime-session-new scope))))
 
-              ;; Configurar agente do profile
+              ;; Configurar agente do profile com override de modelo
               (when (and runtime-session
                          (fboundp 'magent-runtime-session-set-agent))
-                (magent-runtime-session-set-agent runtime-session profile))
+                (let ((agent-plist (if (fboundp 'magent-agent-get)
+                                       (copy-sequence (magent-agent-get profile))
+                                     nil)))
+                  (when (and agent-plist backend-name)
+                    (setq agent-plist (plist-put agent-plist :backend backend-name)))
+                  (when (and agent-plist model-name)
+                    (setq agent-plist (plist-put agent-plist :model model-name)))
+                  (magent-runtime-session-set-agent runtime-session (or agent-plist profile))))
 
               ;; Submeter prompt
               (when (and runtime-session (fboundp 'magent-runtime-submit))

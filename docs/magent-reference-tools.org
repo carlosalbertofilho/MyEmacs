@@ -1,7 +1,7 @@
 #+TITLE: Magent Native Tools API
 #+AUTHOR: Carlos Filho
 #+DATE: 2026-08-23
-#+LAST_MODIFIED: 2026-08-23
+#+LAST_MODIFIED: 2026-08-27
 #+DESCRIPTION: API das ferramentas
 #+FILETAGS: :RAG:DOCS:
 #+OPTIONS: toc:2 num:t
@@ -50,4 +50,44 @@ ARGS pode conter :recipe (string Lisp como
 "(package :host github :repo \"...\")").
 
 (fn ACTION PACKAGE-NAME &rest ARGS)
+#+end_src
+
+* Arquitetura e Registro de Custom Tools
+
+Todas as ferramentas fornecidas para os agentes através do ecosistema do =gptel= moderno e do =magent= precisam, obrigatoriamente, ser estruturadas usando a API =gptel-make-tool=. Tentar injetar =plists= cruas diretamente em =gptel-tools= acarreta falhas fatais no loop assíncrono (ex: =Wrong type argument: gptel-tool=) durante a invocação por parte da LLM (como visto no benchmark de =emacs --batch=).
+
+** Passos para Registro de Ferramenta
+
+Para adicionar uma ferramenta de forma segura e perfeitamente integrada ao roteamento de permissão do =magent=:
+
+1. *Criar a Struct:* Defina a ferramenta invocando =gptel-make-tool=. É necessário providenciar =:name= (string), =:description= (string), =:function=, =:category= e =:args=.
+   - O argumento =:args= deve ser formatado estritamente como =(:name X :type Y :description Z)= e não mais com arrays chave-valor mistos.
+2. *Roteamento no Catálogo:* Inclua a nova struct no catálogo nativo do magent (=magent-tools-catalog=), declarando qual permissão a regula:
+   - Formato da entry: =(:name "nome_da_tool" :tool <struct> :permission 'nome_da_permissao)=
+   - Insira dentro de um bloco =with-eval-after-load 'magent-tools=.
+3. *Habilitar a Permissão:* Garanta que a permissão da nova tool conste na flag =magent-enable-tools=.
+   - Adicione via =add-to-list= dentro de um bloco =with-eval-after-load 'magent-config=.
+4. *Escopo de Compilador (Byte-Compiler):* Adicione as =forward-declarations= (ex: =(defvar magent-tools-catalog)= e =(defvar magent-enable-tools)=) no topo do arquivo da ferramenta para evitar que o =just compile= acuse variáveis livres.
+
+#+begin_src elisp
+;; Exemplo Padrão de Configuração (Livre de Warnings)
+(defvar magent-tools-catalog)
+(defvar magent-enable-tools)
+
+(defvar my-custom-tool
+  (gptel-make-tool
+   :name "my_custom_tool"
+   :function #'+carlos/my-custom-tool-fn
+   :description "Executa tarefa customizada."
+   :args (list (list :name "arg1" :type "string" :description "Dado de entrada"))
+   :category "custom"))
+
+(with-eval-after-load 'magent-tools
+  (add-to-list 'magent-tools-catalog
+               (list :name "my_custom_tool"
+                     :tool my-custom-tool
+                     :permission 'my_custom_tool)))
+
+(with-eval-after-load 'magent-config
+  (add-to-list 'magent-enable-tools 'my_custom_tool))
 #+end_src

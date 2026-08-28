@@ -48,6 +48,21 @@ entenderem o estado atual do projeto e decisões tomadas.
      `gptel-make-tool` (com `:args` no formato `(:name ... :type ...)`), registra
      entry `(:name ... :tool <struct> :permission ...)` em `magent-tools-catalog`
      e habilita a permissão em `magent-enable-tools`.
+   - *Causa-raiz (Fase 2 - O Hang de UI real):* Mesmo após corrigir a quebra de tipo,
+     a FSM ainda congelava (hang infinito de 200s no benchmark).
+     - *Tese Refutada (Outro Agente):* O agente anterior ficou em loop tentando corrigir
+       parâmetros inexistentes (`:directory`, `:buffer-context`) no `magent-runtime-submit`,
+       culpando o flag `--init-directory` por quebrar o `cwd`, e hipotetizando um "loop cego
+       de edição". Tudo isso provou-se **FALSO**.
+     - *Diagnóstico Real:* A trava era causada pelo Orquestrador de Ferramentas ao lidar
+       com aprovações em modo `--batch`. Como não havia um `:approval-provider` injetado,
+       o fallback invocava `magent-approval-local-request`, que por sua vez disparava um
+       `read-char-choice` (prompt interativo síncrono). Num ambiente headless sem TTY, o
+       Emacs congelava a Lisp Thread aguardando um input do usuário que nunca viria,
+       segurando o polling do `accept-process-output` até o timeout estourar.
+     - *Correção Aplicada:* Injetado um provider lambda de `allow` direto no
+       `+carlos/magent-run-execute` (em `lisp/custom-magent-run.el`) na chamada
+       `magent-runtime-submit` para transpor o `read-char-choice` em execuções batch.
    - *Validação:* `just compile` EXIT=0 (zero warnings das 5 tools); probe runtime
      confirmou os 5 `+carlos/magent-tool-*` como `gptel-tool-p` e catálogo sem
      plists; `just test-all` 509 testes / 0 unexpected / 7 skipped.
@@ -2075,6 +2090,30 @@ Catálogo de 257 regras movido em 2026-08-16 para o arquivo dedicado
 - gptel-agent: https://github.com/karthink/gptel-agent
 - Dirvish: https://github.com/alexluigit/dirvish
 - Denote: https://protesilaos.com/emacs/denote
+** [ARQUIVADO 2026-08-27] Correção de Hangs Críticos e Timers no magent-cli (--batch)
+    :PROPERTIES:
+    :CREATED: 2026-08-27
+    :STATUS:   DONE
+    :END:
+Solução de hangs silenciosos no pipeline de integração contínua (F7-ben) que ocorriam
+devido a processos travados e conflitos de tempo limite no Emacs em modo headless.
+*** Problemas Resolvidos
+- FSM Interativa travando batch: substituído o provider iterativo por ='allow-once=.
+- Erro no parsing de nome de modelo: uso de =string-join= em =custom-magent-run.el=
+  impediu a corrupção de modelos com barras (ex: =MLX Local/...=).
+- Override de Perfil ignorado: A flag =--model= da CLI era sobrescrita silenciosamente
+  pela configuração =:backend= chumbada no perfil do subagente (ex: =coder= → =OpenCode Zen=).
+  Corrigido clonando o plist do agente em memória antes da submissão.
+- Corrida de Timeouts (Race Condition OS vs Emacs): O script =magent-cli= repassava o
+  mesmo timeout para o comando =timeout= do OS e para a FSM interna. Com o boot
+  (Elpaca) levando 15s, o OS matava o Emacs abruptamente (SIGTERM/124). Adicionado
+  um buffer de 60 segundos (=TIMEOUT=$((RUN_TIMEOUT + 60))=) no CLI.
+- Hang final do CURL (Subprocessos zumbis): Mesmo lidando com o timeout, o Emacs
+  em =--batch= travava por minutos aguardando o fim dos processos assíncronos
+  deixados abertos pelo gptel (streaming abortado). Corrigido forçando a coleta
+  com =(mapc #'delete-process (process-list))= no bloco de catch do timeout.
+Todas as validações locais feitas com sucesso sem hangs residuais.
+
 ** 2026-08-24 — Fase 4: Ponte Proxy HTTP OpenAI (FSM Quota & Model Mapping)
     :PROPERTIES:
     :CREATED: 2026-08-24
