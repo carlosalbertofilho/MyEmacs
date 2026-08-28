@@ -46,13 +46,15 @@ persiste a restauração e devolve a mensagem de erro sem sinalizar."
                     (buffer-substring-no-properties (point-min) (point-max)))))
     (with-current-buffer buf
       (condition-case err
-          (let ((msg (funcall thunk))
+          (let ((before-lint (when (and (eq kind 'org) (fboundp 'org-lint))
+                               (length (org-lint))))
+                (msg (funcall thunk))
                 (after-save-hook (remq 'apheleia-format-after-save after-save-hook)))
             (pcase kind
               ('org (when (fboundp 'org-lint)
-                      (let ((reports (org-lint)))
-                        (when reports
-                          (error "org-lint reportou %d problema(s)" (length reports))))))
+                      (let ((after-lint (length (org-lint))))
+                        (when (> after-lint (or before-lint 0))
+                          (error "org-lint reportou %d novo(s) problema(s)" (- after-lint (or before-lint 0)))))))
               ('raw nil)
               (_ (save-excursion (check-parens))))
             (save-buffer)

@@ -23,7 +23,7 @@ Ordem de implementação baseada em dependências, risco e alavanca.
 
 ** Fase A — Quick Wins (paralelos, independentes)
   - [X] F6-1: =toggle_checkbox= no =org_smart_edit= (Simple/Low) → commit 606c47c
-  - [X] F6-6: Integrar =lint-native= no pipeline (Medium/Low) → commit 606c47c
+  - [X] F6-6: Integrar =lint-native= no pipeline (Medium/Low) → commit 606c47c\n  - [X] F6-git: Modelo local em commit IA + Sanitização + Host-aware routing + Org-lint gate delta → commits d5963aa, ef8e4f4, 618bd2b
 
 ** Fase B — Fundação (sequencial, blocks downstream)
   - [X] F6-2: =+carlos/magent-project-root= utility (Simple/Medium — alto blast radius, ~40 call sites) → commit bc763fd
