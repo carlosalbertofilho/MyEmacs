@@ -98,9 +98,9 @@
   :demand t)
 
 ;; ── Elisp ───────────────────────────────────────────────────────────
+;; Elisp uses native ElDoc and completion-at-point (no LSP required)
 (use-package elisp-mode
-  :ensure nil
-  :hook (emacs-lisp-mode . eglot-ensure))
+  :ensure nil)
 
 ;; ── Shell / Bash ────────────────────────────────────────────────────
 (use-package sh-script
@@ -162,7 +162,7 @@
   (add-to-list 'eglot-server-programs
                '((rust-ts-mode rust-mode) . ("rust-analyzer")))
   (add-to-list 'eglot-server-programs
-               '(nix-mode . ("nixd"))))
+               '(nix-mode . ,(eglot-alternatives '("nixd" "nil" "rnix-lsp")))))
 
 (with-eval-after-load 'apheleia
   (add-to-list 'apheleia-mode-alist '(rust-ts-mode . rustfmt))
