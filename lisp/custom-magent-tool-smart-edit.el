@@ -915,11 +915,11 @@ REASON: Motivo da alteração."
           (gptel-make-tool
            :name "elisp_smart_edit"
            :description "Transactional native tool for intelligent Elisp (.el) code editing via Tempel Snippets, symbol refactoring, and in-memory validation (check-parens + byte-compiler + checkdoc)."
-           :args '((:name "target_file" :type string :description "Target .el file path")
-                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol' or 'validate_buffer'")
-                   (:name "snippet_name" :type string :description "Tempel snippet name (e.g. 'defun', 'deftest', 'use-package', 'defcustom', 'with-eval-after-load')")
-                   (:name "args" :type string :description "Positional or symbol replacement arguments")
-                   (:name "reason" :type string :description "Reason for edit"))
+           :args '((:name "target_file" :type string)
+                   (:name "action" :type string)
+                   (:name "snippet_name" :type string)
+                   (:name "args" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-elisp-smart-edit
            :category "magent"))
 
@@ -927,11 +927,11 @@ REASON: Motivo da alteração."
           (gptel-make-tool
            :name "nix_smart_edit"
            :description "Transactional native tool for intelligent Nix (.nix) code editing via Tempel Snippets, symbol refactoring, and in-memory validation (delimiters + nixfmt/statix)."
-           :args '((:name "target_file" :type string :description "Target .nix file path")
-                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol' or 'validate_buffer'")
-                   (:name "snippet_name" :type string :description "Tempel snippet name (e.g. 'flake', 'module', 'package', 'overlay', 'devshell', 'option')")
-                   (:name "args" :type string :description "Positional or symbol replacement arguments")
-                   (:name "reason" :type string :description "Reason for edit"))
+           :args '((:name "target_file" :type string)
+                   (:name "action" :type string)
+                   (:name "snippet_name" :type string)
+                   (:name "args" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-nix-smart-edit
            :category "magent"))
 
@@ -939,11 +939,11 @@ REASON: Motivo da alteração."
           (gptel-make-tool
            :name "python_smart_edit"
            :description "Transactional native tool for intelligent Python (.py) code editing via Tempel Snippets, symbol refactoring, and in-memory validation (ruff/black/py-compile)."
-           :args '((:name "target_file" :type string :description "Target .py file path")
-                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol' or 'validate_buffer'")
-                   (:name "snippet_name" :type string :description "Tempel snippet name (e.g. 'def', 'class', 'async_def', 'pytest', 'dataclass', 'main')")
-                   (:name "args" :type string :description "Positional or symbol replacement arguments")
-                   (:name "reason" :type string :description "Reason for edit"))
+           :args '((:name "target_file" :type string)
+                   (:name "action" :type string)
+                   (:name "snippet_name" :type string)
+                   (:name "args" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-python-smart-edit
            :category "magent"))
 
@@ -951,11 +951,11 @@ REASON: Motivo da alteração."
           (gptel-make-tool
            :name "ts_smart_edit"
            :description "Transactional native tool for intelligent TypeScript/JavaScript (.ts, .tsx, .js) code editing via Tempel Snippets, symbol refactoring, and in-memory validation (prettier/eslint)."
-           :args '((:name "target_file" :type string :description "Target TS/JS file path")
-                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol' or 'validate_buffer'")
-                   (:name "snippet_name" :type string :description "Tempel snippet name (e.g. 'interface', 'type', 'function', 'export_const', 'describe_it')")
-                   (:name "args" :type string :description "Positional or symbol replacement arguments")
-                   (:name "reason" :type string :description "Reason for edit"))
+           :args '((:name "target_file" :type string)
+                   (:name "action" :type string)
+                   (:name "snippet_name" :type string)
+                   (:name "args" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-ts-smart-edit
            :category "magent"))
 
@@ -963,11 +963,11 @@ REASON: Motivo da alteração."
           (gptel-make-tool
            :name "c_smart_edit"
            :description "Transactional native tool for intelligent C/C++ (.c, .h, .cpp) code editing enforcing School 42 Norminette (25-line limit) and Tempel Snippets."
-           :args '((:name "target_file" :type string :description "Target .c or .h file path")
-                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol' or 'validate_buffer'")
-                   (:name "snippet_name" :type string :description "Tempel snippet name (e.g. 'function', 'struct', 'header_guard', 'main')")
-                   (:name "args" :type string :description "Positional or symbol replacement arguments")
-                   (:name "reason" :type string :description "Reason for edit"))
+           :args '((:name "target_file" :type string)
+                   (:name "action" :type string)
+                   (:name "snippet_name" :type string)
+                   (:name "args" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-c-smart-edit
            :category "magent"))
 
@@ -975,11 +975,11 @@ REASON: Motivo da alteração."
           (gptel-make-tool
            :name "go_smart_edit"
            :description "Transactional native tool for intelligent Go (.go) code editing via Tempel Snippets, symbol refactoring, and in-memory validation (gofmt/gopls)."
-           :args '((:name "target_file" :type string :description "Target .go file path")
-                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol' or 'validate_buffer'")
-                   (:name "snippet_name" :type string :description "Tempel snippet name (e.g. 'func', 'struct', 'interface', 'goroutine', 'table_test')")
-                   (:name "args" :type string :description "Positional or symbol replacement arguments")
-                   (:name "reason" :type string :description "Reason for edit"))
+           :args '((:name "target_file" :type string)
+                   (:name "action" :type string)
+                   (:name "snippet_name" :type string)
+                   (:name "args" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-go-smart-edit
            :category "magent"))
 
@@ -987,11 +987,11 @@ REASON: Motivo da alteração."
           (gptel-make-tool
            :name "org_smart_edit"
            :description "Transactional native tool for Org-mode AST structural editing (headings, TODO/DONE keywords, drawers, tables, checkboxes) and org-lint validation."
-           :args '((:name "target_file" :type string :description "Target .org file path")
-                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol', 'toggle_checkbox' or 'validate_buffer'")
-                   (:name "snippet_name" :type string :description "Tempel snippet name (e.g. 'heading', 'properties_drawer', 'table', 'src_block')")
-                   (:name "args" :type string :description "Positional, symbol replacement, or heading target arguments")
-                   (:name "reason" :type string :description "Reason for edit"))
+           :args '((:name "target_file" :type string)
+                   (:name "action" :type string)
+                   (:name "snippet_name" :type string)
+                   (:name "args" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-org-smart-edit
            :category "magent"))
 
@@ -999,11 +999,11 @@ REASON: Motivo da alteração."
           (gptel-make-tool
            :name "sh_smart_edit"
            :description "Transactional native tool for intelligent Shell/Bash (.sh, .bash) script editing via Tempel Snippets, symbol refactoring, and shellcheck validation."
-           :args '((:name "target_file" :type string :description "Target .sh file path")
-                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol' or 'validate_buffer'")
-                   (:name "snippet_name" :type string :description "Tempel snippet name (e.g. 'script_header', 'function', 'parse_args', 'if_statement', 'case_statement')")
-                   (:name "args" :type string :description "Positional or symbol replacement arguments")
-                   (:name "reason" :type string :description "Reason for edit"))
+           :args '((:name "target_file" :type string)
+                   (:name "action" :type string)
+                   (:name "snippet_name" :type string)
+                   (:name "args" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-sh-smart-edit
            :category "magent"))
 
@@ -1011,11 +1011,11 @@ REASON: Motivo da alteração."
           (gptel-make-tool
            :name "markdown_smart_edit"
            :description "Transactional native tool for Markdown (.md) editing via Tempel Snippets, symbol refactoring, and markdownlint/markitdown validation."
-           :args '((:name "target_file" :type string :description "Target .md file path")
-                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol' or 'validate_buffer'")
-                   (:name "snippet_name" :type string :description "Tempel snippet name (e.g. 'frontmatter', 'heading', 'table', 'codeblock')")
-                   (:name "args" :type string :description "Positional or symbol replacement arguments")
-                   (:name "reason" :type string :description "Reason for edit"))
+           :args '((:name "target_file" :type string)
+                   (:name "action" :type string)
+                   (:name "snippet_name" :type string)
+                   (:name "args" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-markdown-smart-edit
            :category "magent"))
 
@@ -1023,11 +1023,11 @@ REASON: Motivo da alteração."
           (gptel-make-tool
            :name "rust_smart_edit"
            :description "Transactional native tool for intelligent Rust (.rs) code editing via Tempel Snippets, symbol refactoring, and in-memory validation (rustfmt/cargo)."
-           :args '((:name "target_file" :type string :description "Target .rs file path")
-                   (:name "action" :type string :description "Action: 'insert_snippet', 'refactor_symbol' or 'validate_buffer'")
-                   (:name "snippet_name" :type string :description "Tempel snippet name (e.g. 'fn', 'struct', 'enum', 'impl', 'trait', 'async_fn', 'tokio_main', 'test_case')")
-                   (:name "args" :type string :description "Positional or symbol replacement arguments")
-                   (:name "reason" :type string :description "Reason for edit"))
+           :args '((:name "target_file" :type string)
+                   (:name "action" :type string)
+                   (:name "snippet_name" :type string)
+                   (:name "args" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-rust-smart-edit
            :category "magent"))
 

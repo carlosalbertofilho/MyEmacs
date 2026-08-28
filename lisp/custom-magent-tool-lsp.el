@@ -93,9 +93,9 @@ Argumentos:
 - action: Ação desejada (`hover', `definition', `references').
 - path: Caminho relativo do arquivo no projeto (ex: 'src/main.rs').
 - query_str: Texto exato (ou regex) para encontrar a linha do símbolo desejado no arquivo alvo."
-         :args '((:name "action" :type string :description "Ação: hover, definition, references")
-                 (:name "path" :type string :description "Caminho relativo do arquivo alvo")
-                 (:name "query_str" :type string :description "Símbolo ou texto exato onde aplicar a ação"))
+         :args '((:name "action" :type string)
+                 (:name "path" :type string)
+                 (:name "query_str" :type string))
          :function #'+carlos/magent-tool-lsp
          :category "magent")))
 

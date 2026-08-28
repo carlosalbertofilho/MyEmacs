@@ -93,9 +93,9 @@ Argumentos:
 - QUERY-STR: String da query no formato Tree-Sitter s-expression.
 - PATH (opcional): Diretório ou arquivo específico para restringir a busca.
 Exemplo de query: (function_definition name: (identifier) @func_name)"
-         :args '((:name "language" :type string :description "Linguagem da árvore (ex: python, elisp)")
-                 (:name "query-str" :type string :description "A S-expression da query")
-                 (:name "path" :type string :description "Opcional: diretório ou arquivo alvo"))
+         :args '((:name "language" :type string)
+                 (:name "query-str" :type string)
+                 (:name "path" :type string))
          :function #'+carlos/magent-tool-treesit-query
          :category "magent")))
 

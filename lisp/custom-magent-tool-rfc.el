@@ -32,8 +32,8 @@ QUERY é case-insensitive; retorna número + snippet de cada entrada."
           (gptel-make-tool
            :name "rfc_search_topic"
            :description "Search the official IETF RFC index by topic keywords (case-insensitive). Returns RFC numbers plus snippets so you can pick the right document without hallucinating references."
-           :args '((:name "query" :type string :description "Topic keywords, e.g. 'QUIC loss recovery' or 'JWT'")
-                   (:name "reason" :type string :description "Why this search"))
+           :args '((:name "query" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-rfc-search-topic
            :category "magent"))))
 
@@ -71,9 +71,9 @@ NUMBER-STR aceita \"9000\"/\"RFC 9000\"; SECTION é o número da seção
           (gptel-make-tool
            :name "rfc_read_section"
            :description "Read ONE numbered section of an official RFC from ietf.org with local cache, partitioned by headings for token economy. Prefer this over reading whole documents."
-           :args '((:name "number" :type string :description "RFC number ('9000' or 'RFC 9000')")
-                   (:name "section" :type string :description "Section number to extract, e.g. '5' or '7.2' (includes subsections)")
-                   (:name "reason" :type string :description "Why reading this section"))
+           :args '((:name "number" :type string)
+                   (:name "section" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-rfc-read-section
            :category "magent"))))
 

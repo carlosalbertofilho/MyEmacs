@@ -36,10 +36,10 @@
           (gptel-make-tool
            :name "docker_ps"
            :description "List Docker containers (local or remote via TRAMP) with ID, image, status, ports and names in structured format."
-           :args '((:name "all" :type string :description "Optional: 'true' to include stopped containers (docker ps -a)")
-                   (:name "filter" :type string :description "Optional filter (e.g. 'name=web' or 'status=running')")
-                   (:name "remote_host" :type string :description "Optional TRAMP prefix (e.g. '/ssh:admin@192.168.1.100:')")
-                   (:name "reason" :type string :description "Reason for listing containers"))
+           :args '((:name "all" :type string)
+                   (:name "filter" :type string)
+                   (:name "remote_host" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-docker-ps
            :category "magent"))))
 
@@ -75,11 +75,11 @@
           (gptel-make-tool
            :name "docker_logs"
            :description "Inspect recent logs of a Docker container with tail limit and optional regex filter."
-           :args '((:name "container_id" :type string :description "Container name or ID")
-                   (:name "tail" :type string :description "Optional number of lines to tail (default '100')")
-                   (:name "grep_pattern" :type string :description "Optional regex filter for log lines")
-                   (:name "remote_host" :type string :description "Optional TRAMP prefix")
-                   (:name "reason" :type string :description "Reason for log inspection"))
+           :args '((:name "container_id" :type string)
+                   (:name "tail" :type string)
+                   (:name "grep_pattern" :type string)
+                   (:name "remote_host" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-docker-logs
            :category "magent"))))
 
@@ -126,11 +126,11 @@ When DRY-RUN is \"true\", returns the command without executing."
           (gptel-make-tool
            :name "docker_action"
            :description "Perform lifecycle action (start, stop, restart, remove) on a Docker container. Use dry_run='true' to preview without executing."
-           :args '((:name "container_id" :type string :description "Container name or ID")
-                   (:name "action" :type string :description "Action: 'start', 'stop', 'restart', 'remove'")
-                   (:name "remote_host" :type string :description "Optional TRAMP prefix")
-                   (:name "dry_run" :type string :description "Optional: 'true' to preview command without executing")
-                   (:name "reason" :type string :description "Reason for container action"))
+           :args '((:name "container_id" :type string)
+                   (:name "action" :type string)
+                   (:name "remote_host" :type string)
+                   (:name "dry_run" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-docker-action
            :category "magent"))))
 
@@ -161,9 +161,9 @@ When DRY-RUN is \"true\", returns the command without executing."
           (gptel-make-tool
            :name "systemd_status"
            :description "Inspect systemd unit status (active, inactive, failed, enabled) in structured JSON-safe format."
-           :args '((:name "unit" :type string :description "Systemd unit name (e.g. 'nginx.service' or 'docker')")
-                   (:name "remote_host" :type string :description "Optional TRAMP prefix")
-                   (:name "reason" :type string :description "Reason for status inspection"))
+           :args '((:name "unit" :type string)
+                   (:name "remote_host" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-systemd-status
            :category "magent"))))
 
@@ -209,11 +209,11 @@ When DRY-RUN is \"true\", returns the command without executing."
           (gptel-make-tool
            :name "systemd_action"
            :description "Execute systemctl management action (start, stop, restart, reload, enable, disable) on a unit. Use dry_run='true' to preview without executing."
-           :args '((:name "unit" :type string :description "Systemd unit name")
-                   (:name "action" :type string :description "Action: 'start', 'stop', 'restart', 'reload', 'enable', 'disable'")
-                   (:name "remote_host" :type string :description "Optional TRAMP prefix")
-                   (:name "dry_run" :type string :description "Optional: 'true' to preview command without executing")
-                   (:name "reason" :type string :description "Reason for unit action"))
+           :args '((:name "unit" :type string)
+                   (:name "action" :type string)
+                   (:name "remote_host" :type string)
+                   (:name "dry_run" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-systemd-action
            :category "magent"))))
 
@@ -250,11 +250,11 @@ When DRY-RUN is \"true\", returns the command without executing."
           (gptel-make-tool
            :name "systemd_journal"
            :description "Inspect journalctl logs for a systemd unit with tail limit and priority filter."
-           :args '((:name "unit" :type string :description "Systemd unit name")
-                   (:name "tail" :type string :description "Optional line count (default '50')")
-                   (:name "priority" :type string :description "Optional priority filter: 'err', 'warning', 'info', etc.")
-                   (:name "remote_host" :type string :description "Optional TRAMP prefix")
-                   (:name "reason" :type string :description "Reason for journal inspection"))
+           :args '((:name "unit" :type string)
+                   (:name "tail" :type string)
+                   (:name "priority" :type string)
+                   (:name "remote_host" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-systemd-journal
            :category "magent"))))
 

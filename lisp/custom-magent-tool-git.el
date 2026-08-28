@@ -42,8 +42,8 @@ viram payloads status info/error."
           (gptel-make-tool
            :name "forge_read_issue"
            :description "Read a GitHub/GitLab issue or pull request from the local Forge database with zero hallucination: returns structured state, author, truncated body and full comment history. Requires the repository to be synced (M-x forge-pull)."
-           :args '((:name "issue_number_or_url" :type string :description "Issue/PR reference: number ('123'), '#123', 'owner/repo#123' or the full URL")
-                   (:name "reason" :type string :description "Reason for reading this topic"))
+           :args '((:name "issue_number_or_url" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-forge-read-issue
            :category "magent"))))
 
@@ -126,8 +126,8 @@ por atualização descendente e limitados por
           (gptel-make-tool
            :name "forge_list_pull_requests"
            :description "List open pull requests and issues of the active repository from the local Forge database, newest first, in token-efficient structured format."
-           :args '((:name "state" :type string :description "Optional filter: 'open' (default), 'closed' or 'all'")
-                   (:name "reason" :type string :description "Reason for listing topics"))
+           :args '((:name "state" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-forge-list-pull-requests
            :category "magent"))))
 
@@ -150,8 +150,8 @@ por atualização descendente e limitados por
           (gptel-make-tool
            :name "magit_stage"
            :description "Stage modified or untracked files programmatically using Emacs Magit API (instead of raw bash git stage)."
-           :args '((:name "file" :type string :description "Specific file relative/absolute path to stage, or 'all' for all modified files")
-                   (:name "reason" :type string :description "Reason for staging"))
+           :args '((:name "file" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-magit-stage
            :category "magent"))))
 
@@ -177,8 +177,8 @@ por atualização descendente e limitados por
           (gptel-make-tool
            :name "magit_commit"
            :description "Create a Git commit with a structured message programmatically using Emacs Magit API."
-           :args '((:name "message" :type string :description "Commit message")
-                   (:name "reason" :type string :description "Reason for commit"))
+           :args '((:name "message" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-magit-commit
            :category "magent"))))
 
@@ -203,9 +203,9 @@ por atualização descendente e limitados por
           (gptel-make-tool
            :name "magit_push"
            :description "Push current branch to remote repository programmatically using Emacs Magit API."
-           :args '((:name "remote" :type string :description "Optional remote name (default 'origin')")
-                   (:name "branch" :type string :description "Optional branch name (default active branch)")
-                   (:name "reason" :type string :description "Reason for push"))
+           :args '((:name "remote" :type string)
+                   (:name "branch" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-magit-push
            :category "magent"))))
 
@@ -228,8 +228,8 @@ por atualização descendente e limitados por
           (gptel-make-tool
            :name "magit_status"
            :description "Get structured Git status summary for a repository using Emacs Magit API."
-           :args '((:name "directory" :type string :description "Target project directory")
-                   (:name "reason" :type string :description "Reason for status check"))
+           :args '((:name "directory" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-magit-status
            :category "magent"))))
 
@@ -255,9 +255,9 @@ por atualização descendente e limitados por
           (gptel-make-tool
            :name "magit_pull"
            :description "Pull updates from remote repository branch programmatically using Emacs Magit API."
-           :args '((:name "remote" :type string :description "Optional remote name (default 'origin')")
-                   (:name "branch" :type string :description "Optional branch name")
-                   (:name "reason" :type string :description "Reason for pull"))
+           :args '((:name "remote" :type string)
+                   (:name "branch" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-magit-pull
            :category "magent"))))
 
@@ -286,10 +286,10 @@ por atualização descendente e limitados por
           (gptel-make-tool
            :name "magit_checkout"
            :description "Checkout existing branch or create and checkout new branch programmatically using Emacs Magit API."
-           :args '((:name "branch" :type string :description "Target branch name")
-                   (:name "create" :type string :description "Optional: 'true' to create new branch")
-                   (:name "start_point" :type string :description "Optional starting point for new branch")
-                   (:name "reason" :type string :description "Reason for checkout"))
+           :args '((:name "branch" :type string)
+                   (:name "create" :type string)
+                   (:name "start_point" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-magit-checkout
            :category "magent"))))
 
@@ -318,9 +318,9 @@ por atualização descendente e limitados por
           (gptel-make-tool
            :name "magit_diff"
            :description "Get formatted Git diff of staged or unstaged changes programmatically using Emacs Magit API."
-           :args '((:name "staged" :type string :description "Optional: 'true' for staged changes, 'false' for unstaged")
-                   (:name "file" :type string :description "Optional file path filter")
-                   (:name "reason" :type string :description "Reason for diff check"))
+           :args '((:name "staged" :type string)
+                   (:name "file" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-magit-diff
            :category "magent"))))
 
@@ -356,9 +356,9 @@ por atualização descendente e limitados por
           (gptel-make-tool
            :name "magit_log"
            :description "Extract structured commit history log programmatically using Emacs Magit API."
-           :args '((:name "count" :type integer :description "Optional commit count (default 10)")
-                   (:name "branch" :type string :description "Optional branch name (default HEAD)")
-                   (:name "reason" :type string :description "Reason for log inspection"))
+           :args '((:name "count" :type integer)
+                   (:name "branch" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-magit-log
            :category "magent"))))
 
@@ -398,8 +398,8 @@ por atualização descendente e limitados por
           (gptel-make-tool
            :name "magit_submodule_list"
            :description "List Git submodules with status, path, commit and remote URL in structured JSON format."
-           :args '((:name "directory" :type string :description "Optional target project directory")
-                   (:name "reason" :type string :description "Reason for submodule listing"))
+           :args '((:name "directory" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-magit-submodule-list
            :category "magent"))))
 
@@ -424,9 +424,9 @@ por atualização descendente e limitados por
           (gptel-make-tool
            :name "magit_submodule_update"
            :description "Update and initialize Git submodules recursively programmatically using Emacs Magit API."
-           :args '((:name "init" :type string :description "Optional: 'true' (default) to initialize uninitialized submodules")
-                   (:name "recursive" :type string :description "Optional: 'true' (default) for recursive update")
-                   (:name "reason" :type string :description "Reason for submodule update"))
+           :args '((:name "init" :type string)
+                   (:name "recursive" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-magit-submodule-update
            :category "magent"))))
 
@@ -449,9 +449,9 @@ por atualização descendente e limitados por
           (gptel-make-tool
            :name "magit_submodule_add"
            :description "Add a new Git submodule pointing to URL at target_dir programmatically using Emacs Magit API."
-           :args '((:name "url" :type string :description "Git repository URL")
-                   (:name "target_dir" :type string :description "Target directory path for submodule")
-                   (:name "reason" :type string :description "Reason for adding submodule"))
+           :args '((:name "url" :type string)
+                   (:name "target_dir" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-magit-submodule-add
            :category "magent"))))
 
@@ -492,8 +492,8 @@ por atualização descendente e limitados por
           (gptel-make-tool
            :name "magit_branch_list"
            :description "List local and optional remote branches with upstream, ahead/behind counters and last commit in structured JSON format."
-           :args '((:name "remote" :type string :description "Optional: 'true' or 'all' to include remote branches")
-                   (:name "reason" :type string :description "Reason for branch listing"))
+           :args '((:name "remote" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-magit-branch-list
            :category "magent"))))
 
@@ -548,11 +548,11 @@ When DRY-RUN is \"true\", returns the command without executing."
           (gptel-make-tool
            :name "magit_branch_delete"
            :description "Delete local or remote branch programmatically using Emacs Magit API. Use dry_run='true' to preview without executing."
-           :args '((:name "branch" :type string :description "Target branch name to delete")
-                   (:name "remote" :type string :description "Optional: remote name ('origin' or 'true') for remote branch deletion")
-                   (:name "force" :type string :description "Optional: 'true' to force delete (-D)")
-                   (:name "dry_run" :type string :description "Optional: 'true' to preview command without executing")
-                   (:name "reason" :type string :description "Reason for branch deletion"))
+           :args '((:name "branch" :type string)
+                   (:name "remote" :type string)
+                   (:name "force" :type string)
+                   (:name "dry_run" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-magit-branch-delete
            :category "magent"))))
 
@@ -576,9 +576,9 @@ When DRY-RUN is \"true\", returns the command without executing."
           (gptel-make-tool
            :name "magit_merge"
            :description "Merge specified branch into active HEAD programmatically using Emacs Magit API."
-           :args '((:name "branch" :type string :description "Branch to merge into active HEAD")
-                   (:name "no_ff" :type string :description "Optional: 'true' to force a merge commit (--no-ff)")
-                   (:name "reason" :type string :description "Reason for merge"))
+           :args '((:name "branch" :type string)
+                   (:name "no_ff" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-magit-merge
            :category "magent"))))
 
@@ -600,8 +600,8 @@ When DRY-RUN is \"true\", returns the command without executing."
           (gptel-make-tool
            :name "magit_rebase"
            :description "Rebase active branch onto target base branch programmatically using Emacs Magit API."
-           :args '((:name "target" :type string :description "Target base branch for rebase")
-                   (:name "reason" :type string :description "Reason for rebase"))
+           :args '((:name "target" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-magit-rebase
            :category "magent"))))
 
@@ -637,9 +637,9 @@ SQL-FN and REPO-FN are optional overrides for offline unit testing."
           (gptel-make-tool
            :name "forge_create_issue"
            :description "Create a GitHub/GitLab Issue programmatically using Emacs Forge API."
-           :args '((:name "title" :type string :description "Issue title")
-                   (:name "body" :type string :description "Issue body markdown content")
-                   (:name "reason" :type string :description "Reason for issue creation"))
+           :args '((:name "title" :type string)
+                   (:name "body" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-forge-create-issue
            :category "magent"))))
 
@@ -675,11 +675,11 @@ SQL-FN and REPO-FN are optional overrides for offline unit testing."
           (gptel-make-tool
            :name "forge_create_pull_request"
            :description "Create a GitHub/GitLab Pull Request / Merge Request programmatically using Emacs Forge API."
-           :args '((:name "title" :type string :description "Pull Request title")
-                   (:name "body" :type string :description "Pull Request body description")
-                   (:name "base" :type string :description "Optional base target branch (default 'main')")
-                   (:name "head" :type string :description "Optional head source branch (default current)")
-                   (:name "reason" :type string :description "Reason for Pull Request creation"))
+           :args '((:name "title" :type string)
+                   (:name "body" :type string)
+                   (:name "base" :type string)
+                   (:name "head" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-forge-create-pull-request
            :category "magent"))))
 
@@ -710,9 +710,9 @@ SQL-FN and REPO-FN are optional overrides for offline unit testing."
           (gptel-make-tool
            :name "forge_post_comment"
            :description "Post a comment to a GitHub/GitLab Issue or Pull Request programmatically using Emacs Forge API."
-           :args '((:name "issue_number_or_url" :type string :description "Target Issue or PR number ('123') or URL")
-                   (:name "body" :type string :description "Comment body content")
-                   (:name "reason" :type string :description "Reason for comment"))
+           :args '((:name "issue_number_or_url" :type string)
+                   (:name "body" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-forge-post-comment
            :category "magent"))))
 

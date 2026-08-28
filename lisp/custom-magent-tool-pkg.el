@@ -70,9 +70,9 @@ ARGS pode conter :recipe (string Lisp como
 Ideal para instalar ferramentas ausentes sem precisar pedir para o usuário reiniciar.
 Ações: 'install' (baixa e instala), 'status' (verifica se existe).
 Para 'install', você pode fornecer um recipe Elpaca em string Lisp, ex: \"(nome :host github :repo \\\"user/repo\\\")\"."
-         :args '((:name "action" :type string :description "'install' ou 'status'")
-                 (:name "package-name" :type string :description "Nome do pacote")
-                 (:name "recipe" :type string :description "Opcional: Recipe Lisp em formato de string. Se vazio, instala pelo nome padrão."))
+         :args '((:name "action" :type string)
+                 (:name "package-name" :type string)
+                 (:name "recipe" :type string))
          :function #'+carlos/magent-tool-elpaca
          :category "magent")))
 

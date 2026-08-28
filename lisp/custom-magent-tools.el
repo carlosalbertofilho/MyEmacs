@@ -1562,8 +1562,8 @@ FILETAGS (default ':RAG:DOCS:') é a tag do arquivo."
           (gptel-make-tool
            :name "flycheck_errors"
            :description "Retrieve Flycheck errors and warnings for a file or live buffer in structured format (file, line, column, level, message, checker)."
-           :args '((:name "path" :type string :description "Optional file or buffer path")
-                   (:name "reason" :type string :description "Reason for checking errors"))
+           :args '((:name "path" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-flycheck-errors
            :category "magent"))
 
@@ -1571,9 +1571,9 @@ FILETAGS (default ':RAG:DOCS:') é a tag do arquivo."
           (gptel-make-tool
            :name "lsp_navigation"
            :description "Resolve definition or reference locations for a symbol using Xref/Eglot to eliminate hallucinated names."
-           :args '((:name "symbol" :type string :description "Symbol or function name to resolve")
-                   (:name "action" :type string :description "Either 'definition' or 'references'")
-                   (:name "reason" :type string :description "Reason for navigation"))
+           :args '((:name "symbol" :type string)
+                   (:name "action" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-lsp-navigation
            :category "magent"))
 
@@ -1581,10 +1581,10 @@ FILETAGS (default ':RAG:DOCS:') é a tag do arquivo."
           (gptel-make-tool
            :name "snippet_expand"
            :description "Inspect, list or physically insert a Tempel snippet template in the active buffer."
-           :args '((:name "name" :type string :description "Snippet name (e.g. 'deftest')")
-                   (:name "action" :type string :description "Either 'inspect' (to get structure), 'list' (to list names) or 'insert' (to physically expand it at point)")
-                   (:name "mode" :type string :description "Optional major-mode name filter")
-                   (:name "reason" :type string :description "Reason for snippet expansion"))
+           :args '((:name "name" :type string)
+                   (:name "action" :type string)
+                   (:name "mode" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-snippet-expand
            :category "magent"))
 
@@ -1592,12 +1592,12 @@ FILETAGS (default ':RAG:DOCS:') é a tag do arquivo."
           (gptel-make-tool
            :name "select_model"
            :description "Select and commit the model for a spawned subagent. Call BEFORE spawn_agent. Provide the task description and the target agent name ('explore' or 'general'); the runtime resolves the model by complexity and the user's tier cap and applies it to the subagent automatically. Use backend_preferred to force a specific backend (e.g. 'gemini' when user explicitly requests Google/Gemini)."
-           :args '((:name "task_description" :type string :description "The task the subagent will perform")
-                   (:name "agent" :type string :description "Target agent name (e.g. 'explore' or 'general')")
-                   (:name "complexity" :type string :description "Optional: 'simple', 'moderate' or 'deep'. Inferred from task_description when omitted.")
-                   (:name "min_tier" :type string :description "Optional minimum tier floor: 'local', 'free' or 'paid'. Forces escalation above this tier.")
-                   (:name "backend_preferred" :type string :description "Optional preferred backend name (e.g. 'gemini', 'mlx', 'ollama'). Desempates within the chosen tier when user explicitly requests a backend.")
-                   (:name "reason" :type string :description "Reason for this tool call"))
+           :args '((:name "task_description" :type string)
+                   (:name "agent" :type string)
+                   (:name "complexity" :type string)
+                   (:name "min_tier" :type string)
+                   (:name "backend_preferred" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-select-model
            :category "magent"))
 
@@ -1605,12 +1605,12 @@ FILETAGS (default ':RAG:DOCS:') é a tag do arquivo."
           (gptel-make-tool
            :name "rag_create_doc"
            :description "Generate or update a canonical Org-mode RAG reference document under docs/ by introspecting local Emacs function/variable symbols (zero network token cost)."
-           :args '((:name "symbols" :type string :description "List or space-separated symbols to introspect, e.g. 'forge-create-issue forge-list-pullreqs'")
-                   (:name "target_file" :type string :description "Relative or absolute target Org file, e.g. 'docs/forge-reference.org'")
-                   (:name "title" :type string :description "Document title (#+TITLE)")
-                   (:name "description" :type string :description "Document summary description (#+DESCRIPTION)")
-                   (:name "filetags" :type string :description "Optional Org filetags (default ':RAG:DOCS:')")
-                   (:name "reason" :type string :description "Reason for generating this RAG doc"))
+           :args '((:name "symbols" :type string)
+                   (:name "target_file" :type string)
+                   (:name "title" :type string)
+                   (:name "description" :type string)
+                   (:name "filetags" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-rag-create-doc
            :category "magent"))
 
@@ -1748,12 +1748,12 @@ FILETAGS (default ':RAG:DOCS:') é a tag do arquivo."
           (gptel-make-tool
            :name "log_inspect"
            :description "Inspect log files (local or via TRAMP) with combined regex and severity filtering."
-           :args '((:name "log_path" :type string :description "Path to log file")
-                   (:name "regex" :type string :description "Optional regex pattern filter")
-                   (:name "severity" :type string :description "Optional severity level: 'error', 'warn', 'info', 'debug'")
-                   (:name "tail" :type string :description "Optional line limit (default '100')")
-                   (:name "remote_host" :type string :description "Optional TRAMP prefix")
-                   (:name "reason" :type string :description "Reason for log inspection"))
+           :args '((:name "log_path" :type string)
+                   (:name "regex" :type string)
+                   (:name "severity" :type string)
+                   (:name "tail" :type string)
+                   (:name "remote_host" :type string)
+                   (:name "reason" :type string))
            :function #'+carlos/magent-tool-log-inspect
            :category "magent"))
 
