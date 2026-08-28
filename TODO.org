@@ -67,6 +67,16 @@ Ordem de implementação baseada em dependências, risco e alavanca.
      - [ ] + config: =Qwen3.5-Coder-7B/14B=, =gemma-4-9b=, =Qwen2.5-Coder-7B= (se instalados)
    - *Total: 7 modelos × 9 profiles × 3 linguagens = 189 runs*
 
+   - *Estado do benchmark (executado — resultado: Timeouts)*
+     - [X] Run baseline MLX executado (gemma-4-e2b, Qwen3.5-9B, DeepSeek-R1-14B)
+     - [X] Resultado: TODOS deram Timeout a 600s (TTFT >2min por contexto massivo)
+     - [X] Causa-raiz: contexto de tools+prompt gigante (payload das tools) → modelos locais demoram demais no 1º token de reasoning
+
+   - *Mitigação Diet Tooling (aplicada)*
+     - [X] Coder Lite: filtro dinâmico de =magent-enable-tools= → 14 tools vitais quando backend local (MLX/Ollama/LM Studio) — commit =f893090=
+     - [X] Diet Tooling nos schemas: remoção de =:description= dos =:args= de todas as tools (8 arquivos) — commit =6ac69ff=
+     - [ ] Smoke test: confirmar que turno de modelo local conclui em batch (=magent-cli run=) pós-fix
+
    - *Linguagens e bugs de código quebrado:*
      - [ ] Go (=go test= para validar): broker.go com data race, goroutine leak, nil deref
      - [ ] React/TS (=npm test=/eslint): componente com useEffect infinite loop, stale closure, key warning
@@ -115,9 +125,28 @@ Ordem de implementação baseada em dependências, risco e alavanca.
       - [X] Validação: =check-parens= em cada arquivo + =just compile= zero-warning
             + =just test-all= + repro =magent-cli run= concluindo sem
             =Wrong type argument=.
-     - [X] Pós-validado: synchronize prod (=just sync= + =rm -f
-           ~/.config/emacs/lisp/*.elc= + =just compile-prod=) e reabrir a
-           F7-ben.
+      - [X] Pós-validado: synchronize prod (=just sync= + =rm -f
+            ~/.config/emacs/lisp/*.elc= + =just compile-prod=) e reabrir a
+            F7-ben.
+
+** TODO Otimizações Nativas de Boot para Apple Silicon (M1/M2) + estação NixOS
+   :PROPERTIES:
+   :CREATED: 2026-08-27
+   :STATUS:  BACKLOG
+   :END:
+   Cirurgia no =early-init.el= para reduzir o time-to-first-token de boot,
+   que hoje concentra peso no carregamento dos =.eln= atrasados. O Emacs age
+   por padrão como se rodasse em Pentium 4; em arquiteturas unificadas
+   M1/M2 da Apple isso castiga fortemente.
+   - [ ] Destravar =-O3 -mcpu=apple-m2= via =native-comp-compiler-options=.
+   - [ ] Alargar o GC threshold no boot (=gc-cons-threshold=).
+   - [ ] Subir =native-comp-async-jobs-number= para 8 com base na contagem real
+         de cores via Lisp (não fixar arbitrariamente).
+   - [ ] Considerar a outra estação (NixOS, =~/Projects/Nixos/MyMachine=):
+         detecção de host para não aplicar apple-m2 cegamente em CPU Intel.
+   Proto-plano validado pelo Gemini web; estabilizar os Timeouts do CLI
+   (=magent-cli run= batch) antes de mexer nos ponteiros do early-init.
+
 
 * Contexto de Arquitetura Oficial do Magent (Referência RAG)
 

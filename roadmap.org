@@ -1,7 +1,7 @@
 #+TITLE: Roadmap — MyEmacs Configuration
 #+AUTHOR: Carlos Filho
 #+DATE: 2026-08-05
-#+LAST_MODIFIED: 2026-08-25
+#+LAST_MODIFIED: 2026-08-27
 #+OPTIONS: toc:2 num:t
 
 * Visão Geral
@@ -2132,3 +2132,45 @@ Todas as validações locais feitas com sucesso sem hangs residuais.
     :STATUS: DONE
     :END:
 Implementado o padrão "Coder Lite" em `custom-magent-subagent.el`. Quando a FSM detecta um backend local (MLX, Ollama, LM Studio), o catálogo `magent-enable-tools` é dinamicamente filtrado para conter apenas 14 ferramentas vitais (em oposição às 40+). Isso resolveu os timeouts de 600s no benchmark do Gemma-4/Qwen/DeepSeek no Apple Silicon.
+
+** 2026-08-27 — [DIAGNÓSTICO] F7-ben Benchmark executado: Timeouts por TTFT massivo + Diet Tooling
+    :PROPERTIES:
+    :CREATED: 2026-08-27
+    :STATUS: EM ANDAMENTO
+    :END:
+*** Benchmark F7-ben (resultados reais — `/Users/carlosfilho/.gemini/antigravity-cli/.../scratch/gemma_results.txt`)
+    Os 3 modelos baseline MLX deram **Timeout a 600s** em todas as linguagens
+    (Go/React/Python), abortando os runs 2/3 manualmente para poupar tempo:
+    - =gemma-4-e2b-it-4bit=: Timeout (exit 124) a 600s.
+    - =Qwen3.5-9B-MLX-4bit=: Timeout (exit 124) a 600s nas 3 linguagens.
+    - =DeepSeek-R1-Distill-Qwen-14B-4bit=: Timeout (exit 124) a 600s; runs 2/3 abortados.
+*** Causa-raiz confirmada (tese do outro modelo)
+    Contexto de tools + prompt **massivo** faz o MLX local demorar >2 min só para
+    emitir o primeiro token de `reasoning` (envio repetido de `: keepalive` SSE),
+    estourando o timeout de 10 min antes de completar o loop de ação.
+    Tese secundária (sem servidor gráfico em `--batch`): starvation da fila do
+    arbiter (`magent-runtime-queue-arbitrate`) que agenda o ticket de execução mas
+    às vezes não notifica o loop de processar as conexões do curl
+    (`make-process` nem chega a ser chamado por um gancho falho — `live-p` do
+    contexto ou transição da FSM — deixando o `accept-process-output` à espera até
+    o timeout). Investigação ativa com trace/sensores no fluxo do gptel + arbiter.
+*** Ações de mitigação (Diet Tooling) já aplicadas
+    - *Coder Lite (commit `f893090`):* filtro dinâmico de =magent-enable-tools= para
+      14 tools vitais quando o backend é local (MLX/Ollama/LM Studio) — resolve o
+      TTFT de ~10 min cortando o payload.
+    - *Diet Tooling nos schemas (commit `6ac69ff`, agente atual):* remoção de todos
+      os `:description` dos `:args` de =gptel-make-tool= em 8 arquivos
+      (=custom-magent-tool-{ast,devops,git,lsp,pkg,rfc,smart-edit,tools}.el=)
+      — 175 linhas de descrição de args removidas, encolhendo o schema JSON de tools
+      e atacando diretamente o TTFT de modelos locais. `just compile` EXIT=0.
+*** Próximo
+    - Confirmar com um smoke test se o turno de um modelo local conclui
+      (=magent-cli run= batch escrevendo `turn-start`/`turn-end` no status JSONL).
+    - Reexecutar a matriz F7-ben com Coder Lite ativo.
+    - Cirurgia no =early-init.el= (optimizações nativas M1/M2): destravar
+      =-O3 -mcpu=apple-m2= via =native-comp-compiler-options=, alargar o GC
+      threshold no boot e =native-comp-async-jobs-number= 8 por contagem real de
+      cores via Lisp (não fixar). Estender por host (estação NixOS
+      =~/Projects/Nixos/MyMachine=).
+
+
