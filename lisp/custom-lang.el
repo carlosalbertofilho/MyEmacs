@@ -167,6 +167,8 @@
   (with-eval-after-load 'envrc
     (load "envrc" nil t))
   :config
+  ;; Desativa envrc em buffers TRAMP para evitar erro code 127
+  (setq envrc-remote nil)
   ;; Reconecta o Eglot reativamente quando o direnv/devenv atualiza o $PATH no buffer
   (add-hook 'envrc-mode-hook
             (lambda ()
