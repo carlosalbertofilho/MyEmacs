@@ -230,10 +230,12 @@ Usa o backend local configurado para tarefas rápidas."
          (format "Escreva apenas a docstring padronizada (PEP 257 / Doxygen / Norm 4.1) para o código a seguir. Não inclua código extra:\n\n%s" code)
          +carlos/gptel-quick-local-backend
          +carlos/gptel-quick-local-model
+         :stream nil
          :callback (lambda (response info)
-                     (if response
+                     (if (stringp response)
                          (message "Docstring Gerada:\n%s" response)
-                       (message "Erro ao gerar docstring: %s" (plist-get info :error)))))))))
+                       (when (plist-get info :error)
+                         (message "Erro ao gerar docstring: %s" (plist-get info :error))))))))))
 
 (defun +carlos/generate-test-at-point ()
   "Gera esqueleto de teste unitário para a função sob o cursor.
@@ -247,10 +249,12 @@ Usa o backend local configurado para tarefas rápidas."
          (format "Escreva um teste unitário conciso para a função a seguir:\n\n%s" code)
          +carlos/gptel-quick-local-backend
          +carlos/gptel-quick-local-model
+         :stream nil
          :callback (lambda (response info)
-                     (if response
+                     (if (stringp response)
                          (message "Esqueleto de Teste Gerado:\n%s" response)
-                       (message "Erro ao gerar teste: %s" (plist-get info :error)))))))))
+                       (when (plist-get info :error)
+                         (message "Erro ao gerar teste: %s" (plist-get info :error))))))))))
 
 (global-set-key (kbd "C-c c d") #'+carlos/generate-docstring-at-point)
 (global-set-key (kbd "C-c c t") #'+carlos/generate-test-at-point)

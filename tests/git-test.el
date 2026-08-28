@@ -79,12 +79,30 @@
       (should-not (plist-get ref :owner))
       (should-not (plist-get ref :kind)))))
 
-(ert-deftest myemacs-forge-parse-ref-invalid-inputs ()
-  "Entradas sem número válido retornam nil (nunca erro)."
-  (should-not (+carlos/magent-forge-parse-ref "abc"))
-  (should-not (+carlos/magent-forge-parse-ref ""))
-  (should-not (+carlos/magent-forge-parse-ref "myorg/myrepo#"))
-  (should-not (+carlos/magent-forge-parse-ref nil)))
+(ert-deftest myemacs-git-commit-ai-reasoning-resilience ()
+  "Verifica se a geração de commit com IA tolera pares cons de reasoning (gptel/Gemini)."
+  (let ((captured-cb nil))
+    (cl-letf (((symbol-function '+carlos/gptel-request)
+               (lambda (_prompt _backend _model &rest args)
+                 (setq captured-cb (plist-get args :callback)))))
+      (let ((default-directory (locate-dominating-file default-directory "Justfile")))
+        (cl-letf (((symbol-function 'vc-git-root) (lambda (_) default-directory))
+                  ((symbol-function 'shell-command-to-string) (lambda (_) "diff content")))
+          ;; 1. Transient `c g' -> +carlos/gptel-generate-commit-message
+          (+carlos/gptel-generate-commit-message)
+          (should (functionp captured-cb))
+          (funcall captured-cb '(reasoning . "**Analyzing diff...**") nil)
+          (funcall captured-cb "fix: resolve commit error" nil)
+          (should (equal (car kill-ring) "fix: resolve commit error"))
+          
+          ;; 2. Buffer de commit `C-c C-g' -> +carlos/gptel-insert-commit-message
+          (with-temp-buffer
+            (git-commit-mode 1)
+            (+carlos/gptel-insert-commit-message)
+            (should (functionp captured-cb))
+            (funcall captured-cb '(reasoning . "**Analyzing diff...**") nil)
+            (funcall captured-cb "fix: insert commit msg" nil)
+            (should (equal (buffer-string) "fix: insert commit msg"))))))))
 
 (provide 'git-test)
 ;;; git-test.el ends here

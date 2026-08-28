@@ -598,8 +598,22 @@ full Magit package to be initialized.
 (setq magit-git-global-arguments
       '("--no-optional-locks"
         "--literal-pathspecs"
-        "--no-pager"))
+        "-c" "core.preloadindex=true"))
+#+end_src
 
+** Pitfall 9: GPTel reasoning cons cells in callbacks
+- Cause: Models with reasoning/thinking phases (such as Gemini 3.5 Flash or Claude Thinking) pass cons cells like ~(reasoning . "...")~ to ~gptel-request~ callbacks before or alongside the main string response. Calling ~(string-trim response)~ directly without a type guard causes ~Wrong type argument: stringp, (reasoning . "...")~.
+- Fix: Always guard with ~(stringp response)~ and pass ~:stream nil~ for atomic responses.
+#+begin_src elisp
+:callback
+(lambda (response _info)
+  (when (stringp response)
+    (let ((msg (string-trim response)))
+      (unless (string-empty-p msg)
+        (kill-new msg)))))
+#+end_src
+
+#+begin_src elisp
 ;; Limit initial log display
 (setq magit-log-auto-more nil)
 #+end_src

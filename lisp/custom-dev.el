@@ -82,20 +82,21 @@ avaliação ou salvamento."
       (user-error "Nenhum código Elisp selecionado para gerar testes"))
     (message "Gerando testes ERT via IA...")
     (when (require 'custom-ai nil t)
-      (+carlos/gptel-request
-       (format +carlos/elisp-ert-prompt text)
-       +carlos/gptel-quick-local-backend
-       +carlos/gptel-quick-local-model
-       :buffer "*gptel-tests*"
-       :callback (lambda (response _info)
-                   (when response
-                     (with-current-buffer (get-buffer-create "*gptel-tests*")
-                       (emacs-lisp-mode)
-                       (goto-char (point-max))
-                       (insert "\n;; ── Testes gerados via IA ──────────────────────────────\n"
-                               response "\n")
-                       (display-buffer (current-buffer)))
-                     (message "Testes ERT gerados no buffer *gptel-tests*")))))))
+       (+carlos/gptel-request
+        (format +carlos/elisp-ert-prompt text)
+        +carlos/gptel-quick-local-backend
+        +carlos/gptel-quick-local-model
+        :buffer "*gptel-tests*"
+        :stream nil
+        :callback (lambda (response _info)
+                    (when (stringp response)
+                      (with-current-buffer (get-buffer-create "*gptel-tests*")
+                        (emacs-lisp-mode)
+                        (goto-char (point-max))
+                        (insert "\n;; ── Testes gerados via IA ──────────────────────────────\n"
+                                response "\n")
+                        (display-buffer (current-buffer)))
+                      (message "Testes ERT gerados no buffer *gptel-tests*")))))))
 
 ;; ── REPL & Scratch Helpers ──────────────────────────────────────────
 (defun +carlos/ielm-open ()
@@ -136,16 +137,17 @@ correção, seguindo o fluxo de depuração pós-erro do REPL."
          (end (if (region-active-p) (region-end) (point-max)))
          (text (buffer-substring-no-properties beg end)))
     (when (require 'custom-ai nil t)
-      (+carlos/gptel-request
-       (format +carlos/elisp-debug-prompt text)
-       +carlos/gptel-quick-local-backend
-       +carlos/gptel-quick-local-model
-       :buffer "*gptel-debug*"
-       :callback (lambda (response _info)
-                   (when response
-                     (with-current-buffer (get-buffer-create "*debug-ai*")
-                       (goto-char (point-max))
-                       (insert response "\n"))))))))
+       (+carlos/gptel-request
+        (format +carlos/elisp-debug-prompt text)
+        +carlos/gptel-quick-local-backend
+        +carlos/gptel-quick-local-model
+        :buffer "*gptel-debug*"
+        :stream nil
+        :callback (lambda (response _info)
+                    (when (stringp response)
+                      (with-current-buffer (get-buffer-create "*debug-ai*")
+                        (goto-char (point-max))
+                        (insert response "\n"))))))))
 
 ;; ── Keybindings ─────────────────────────────────────────────────────
 (global-set-key (kbd "C-c D r") #'+carlos/ielm-open)            ; REPL dedicado

@@ -119,19 +119,22 @@ Copia a mensagem gerada para o `kill-ring'."
                  diff rules)
          (car pair) (intern (cdr pair))
          :system "You are an expert at writing conventional commits."
+         :stream nil
          :callback
          (lambda (response _info)
-           (when response
+           (when (stringp response)
              (let ((msg (string-trim response)))
-               (kill-new msg)
-               (message "Commit message copied to kill-ring: %s" msg)))))))))
+               (unless (string-empty-p msg)
+                 (kill-new msg)
+                 (message "Commit message copied to kill-ring: %s" msg))))))))))
 
 ;; ── +carlos/gptel-insert-commit-message ────────────────────────────
 (defun +carlos/gptel-insert-commit-message ()
   "Gera uma mensagem de commit e a insere no buffer de commit atual.
 Funciona em buffers `git-commit-mode' ou `magit-commit-mode'."
   (interactive)
-  (unless (derived-mode-p 'git-commit-mode 'magit-commit-mode)
+  (unless (or (derived-mode-p 'git-commit-mode 'magit-commit-mode)
+              (bound-and-true-p git-commit-mode))
     (user-error "Not in a git commit buffer"))
   (let ((diff (shell-command-to-string "git diff --cached")))
     (if (string-empty-p diff)
@@ -142,12 +145,15 @@ Funciona em buffers `git-commit-mode' ou `magit-commit-mode'."
          (format "Generate a concise, conventional commit message (type: scope: subject) for this diff:\n\n```\n%s\n```" diff)
          (car pair) (intern (cdr pair))
          :system "You are an expert at writing conventional commits."
+         :stream nil
          :callback
          (lambda (response _info)
-           (when response
-             (with-current-buffer commit-buf
-               (goto-char (point-min))
-               (insert (string-trim response))))))))))
+           (when (stringp response)
+             (let ((msg (string-trim response)))
+               (unless (string-empty-p msg)
+                 (with-current-buffer commit-buf
+                   (goto-char (point-min))
+                   (insert msg)))))))))))
 
 ;; Atalho dentro do buffer de commit (magit e git-commit).
 ;; Bind direto no mapa (não hook) para aplicar já no carregamento e ser
