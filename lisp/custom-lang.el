@@ -136,6 +136,15 @@
   ;; garantindo o carregamento ordenado das macros do envrc
   (with-eval-after-load 'envrc
     (load "envrc" nil t))
+  :config
+  ;; Reconecta o Eglot reativamente quando o direnv/devenv atualiza o $PATH no buffer
+  (add-hook 'envrc-mode-hook
+            (lambda ()
+              (when (and envrc-mode
+                         (fboundp 'eglot-reconnect))
+                (run-at-time 0.2 nil
+                             (lambda ()
+                               (ignore-errors (eglot-reconnect)))))))
   :hook (after-init . envrc-global-mode))
 
 (defun +carlos/nixos-rebuild-switch (&optional flake-path)
