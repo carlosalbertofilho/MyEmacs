@@ -12,7 +12,10 @@
 
 ;; ── Startup performance ─────────────────────────────────────────────
 (setq bedrock--initial-gc-threshold gc-cons-threshold)
-(setq gc-cons-threshold (* 50 1000 1000))  ; 50 MB during init
+;; GC threshold elevado durante o boot (100 MiB de fato, aritmética binária
+;; correta — o antigo (* 50 1000 1000) era ~47.7 MiB). Alinhado com a FSM do
+;; Magent (custom-magent-fsm.el eleva para (* 100 1024 1024) em transições).
+(setq gc-cons-threshold (* 100 1024 1024))  ; 100 MiB during init
 (setq byte-compile-warnings '(not obsolete))
 (setq warning-suppress-log-types '((comp) (bytecomp)))
 (setq native-comp-async-report-warnings-errors 'silent)
@@ -24,8 +27,24 @@
 ;; Parallel async compilation using all available cores
 (when (and (fboundp 'native-comp-available-p)
            (native-comp-available-p))
-  ;; Number of parallel compilation jobs (use all CPU cores)
-  (setq native-comp-async-jobs-number (num-processors))
+  ;; Flags do compilador nativo por arquitetura/host. O Emacs roda com
+  ;; native-comp em runtime (elisp → libgccjit), então estes flags são os que
+  ;; geram os .eln. Detalhe de portabilidade:
+  ;;   - aarch64-darwin (agnes, Apple Silicon): -mcpu=apple-m1 (não apple-m2,
+  ;;     flag mais conservadora presente no libgccjit do nix-darwin/Homebrew).
+  ;;   - x86_64-linux (aa102-006l/nanami, Intel Coffee Lake 8th gen): usa
+  ;;     x86-64-v2. NÃO usar -march=native (torna o .eln host-bloqueado) nem
+  ;;     x86-64-v3 (i7-8700 não suporta plenamente).
+  ;;   - fallback genérico: -O2 (default do bytecode, sweet spot do Emacs).
+  (setq native-comp-compiler-options
+        (pcase system-type
+          ('darwin   '("-O2" "-mcpu=apple-m1" "-mtune=apple-m1"))
+          ('gnu/linux '("-O2" "-march=x86-64-v2"))
+          (_         '("-O2"))))
+  ;; Number of parallel compilation jobs, dinâmico por contagem real de cores,
+  ;; com teto de 8 para não saturar a CPU durante uso interativo
+  ;; (i7-8700 tem 12 threads; 12 jobs simultâneos engasgariam o desktop).
+  (setq native-comp-async-jobs-number (min (num-processors) 8))
   ;; DESATIVAR load-time native-comp dos nossos lisp/custom-*.el (default é t
   ;; no Emacs 30). O subprocesso async compila a partir do SOURCE sem o macro
   ;; `elpaca`, gerando .eln com `(elpaca vertico)` como funcall →
