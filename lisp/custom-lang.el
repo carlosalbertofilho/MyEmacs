@@ -54,7 +54,7 @@
   (add-to-list 'eglot-ignored-server-capabilities :documentRangeFormattingProvider))
   ;; Suprime popup de erro do Corfu quando o servidor LSP sofre timeout no completion
   (advice-add 'eglot-completion-at-point :around
-              (lambda (orig-fun &rest args)
+              (lambda (_orig-fun &rest args)
                 (condition-case nil
                     (apply orig-fun args)
                   (jsonrpc-error nil))))
