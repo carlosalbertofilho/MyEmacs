@@ -129,21 +129,46 @@ Ordem de implementação baseada em dependências, risco e alavanca.
             ~/.config/emacs/lisp/*.elc= + =just compile-prod=) e reabrir a
             F7-ben.
 
-** TODO Otimizações Nativas de Boot para Apple Silicon (M1/M2) + estação NixOS
+** TODO Otimizações Nativas de Boot (early-init) — Apple Silicon + estação NixOS Intel
    :PROPERTIES:
    :CREATED: 2026-08-27
-   :STATUS:  BACKLOG
+   :STATUS:  EM ANDAMENTO
    :END:
    Cirurgia no =early-init.el= para reduzir o time-to-first-token de boot,
    que hoje concentra peso no carregamento dos =.eln= atrasados. O Emacs age
    por padrão como se rodasse em Pentium 4; em arquiteturas unificadas
    M1/M2 da Apple isso castiga fortemente.
-   - [ ] Destravar =-O3 -mcpu=apple-m2= via =native-comp-compiler-options=.
-   - [ ] Alargar o GC threshold no boot (=gc-cons-threshold=).
-   - [ ] Subir =native-comp-async-jobs-number= para 8 com base na contagem real
-         de cores via Lisp (não fixar arbitrariamente).
-   - [ ] Considerar a outra estação (NixOS, =~/Projects/Nixos/MyMachine=):
-         detecção de host para não aplicar apple-m2 cegamente em CPU Intel.
+   - [X] Adicionar =native-comp-compiler-options= por host (=system-type=):
+         - agnes (darwin/aarch64): =-O2 -mcpu=apple-m1 -mtune=apple-m1=
+           (NÃO =apple-m2= — flag mais conservadora, portável no libgccjit
+           do nix-darwin/Homebrew)
+         - aa102-006l/nanami (gnu/linux/x86_64, Intel Coffee Lake i7-8700):
+           =-O2 -march=x86-64-v2= (i7-8700 não suporta plenamente v3; NÃO
+           usar =native= — host-bloqueia o .eln)
+         - fallback: =-O2= (sweet spot do Emacs, default do bytecode)
+   - [X] Alargar o GC threshold no boot: =(* 100 1024 1024)= (100 MiB de
+         fato; corrigido bug de aritmética do antigo =(* 50 1000 1000)= que
+         era ~47.7 MiB). Alinhado com a FSM do Magent (100 MiB em transições).
+   - [X] =native-comp-async-jobs-number= = =(min (num-processors) 8)= —
+         dinâmico por contagem real, com teto de 8 (i7-8700 tem 12 threads;
+         12 jobs simultâneos engasgam o desktop).
+   - [X] Considerar a estação NixOS (=~/Projects/Nixos/MyMachine=,
+         =hosts/elitedesk/configuration.nix=): Intel i7-8700, não aplicar
+         apple-m2 cegamente — flags por =system-type=.
+   - Commit: =9a12d69= (perf boot). Validado: PARENS OK + =just check= boot
+     "Config loaded OK".
+   - [ ] Pendências de validação: confirmar em prod (=just sync= + =just
+         rebuild-prod=) que o boot acelera e que =just compile-prod= escala
+         em 8 cores sem warning.
+   - [ ] REGRESSÃO DETECTADA (outra sessão): 2 testes =magent-*=
+         (=myemacs-magent-subagent-override-consumed= e
+         =myemacs-magent-subagent-apply-profile-unknown-agent=) falham com
+         =wrong-type-argument gptel-backend= — introduzida pelo commit
+         =f893090= (coder-lite) que chama =gptel-backend-name= incondicional
+         em =+carlos/magent-subagent-apply-profile= quando o backend é plist
+         =(:name ...)= ou string =local= (não struct =gptel-backend=).
+         NÃO relacionada ao early-init; precisa correção no
+         =custom-magent-subagent.el= (guardar com =gptel-backend-p=).
    Proto-plano validado pelo Gemini web; estabilizar os Timeouts do CLI
    (=magent-cli run= batch) antes de mexer nos ponteiros do early-init.
 

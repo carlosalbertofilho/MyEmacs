@@ -2167,10 +2167,41 @@ Implementado o padrão "Coder Lite" em `custom-magent-subagent.el`. Quando a FSM
     - Confirmar com um smoke test se o turno de um modelo local conclui
       (=magent-cli run= batch escrevendo `turn-start`/`turn-end` no status JSONL).
     - Reexecutar a matriz F7-ben com Coder Lite ativo.
-    - Cirurgia no =early-init.el= (optimizações nativas M1/M2): destravar
-      =-O3 -mcpu=apple-m2= via =native-comp-compiler-options=, alargar o GC
-      threshold no boot e =native-comp-async-jobs-number= 8 por contagem real de
-      cores via Lisp (não fixar). Estender por host (estação NixOS
-      =~/Projects/Nixos/MyMachine=).
+    - Corrigir regressão de subagent (ver entrada 2026-08-27 — Otimização
+      early-init), introduzida em =f893090=.
+
+** 2026-08-27 — Otimização de Build Nativa do Emacs (early-init) — Apple Silicon + NixOS Intel
+    :PROPERTIES:
+    :CREATED: 2026-08-27
+    :STATUS: EM ANDAMENTO
+    :END:
+*** Contexto hardware (verificado no =~/Projects/Nixos/MyMachine=)
+    - =agnes= (darwin/aarch64, Apple Silicon M2) — host dos modelos MLX/GPU.
+    - =aa102-006l= (=hosts/elitedesk/configuration.nix=) — **Intel Core i7-8700**
+      (6 núcleos/12 threads, Coffee Lake, x86_64), Emacs =emacs-pgtk=, Ollama ROCm.
+    Ponto arquitetural: a proposta original (-mcpu=apple-m2) vale só para a agnes;
+    na aa102-006l é Intel → flags por =system-type= (portabilidade garantida).
+*** Mudanças aplicadas (commit =9a12d69=)
+    - *native-comp-compiler-options por host* (lacuna real — antes não existia):
+      - agnes (darwin): =-O2 -mcpu=apple-m1 -mtune=apple-m1= (não apple-m2 — flag
+        conservadora, portável no libgccjit).
+      - aa102-006l/nanami (gnu/linux/x86_64): =-O2 -march=x86-64-v2= (i7-8700 não
+        suporta v3 plenamente; sem =native= p/ portabilidade do .eln).
+      - fallback: =-O2=.
+    - *GC threshold no boot:* =(* 100 1024 1024)= (100 MiB de fato) — corrigido o
+      bug de aritmética do antigo =(* 50 1000 1000)= (~47.7 MiB). Alinhado com a FSM.
+    - *async-jobs-number:* =(min (num-processors) 8)= (dinâmico com teto de 8;
+      i7-8700 tem 12 threads → 12 jobs simultâneos engasgariam o desktop).
+*** Validação e pendências
+    - =check-parens= OK; =just check= boot "Config loaded OK" (warnings benignos de
+      pacotes de terceiros: jupyter-kernel-client/plist).
+    - Suíte ERT revelou **2 regressões pré-existentes** (=wrong-type-argument
+      gptel-backend=) introduzidas por =f893090= (coder-lite), NÃO ligadas ao
+      early-init: =myemacs-magent-subagent-override-consumed= e
+      =myemacs-magent-subagent-apply-profile-unknown-agent= — =gptel-backend-name=
+      chamado incondicionalmente em =+carlos/magent-subagent-apply-profile= quando
+      o backend é plist/string. Correção: guardar com =gptel-backend-p=.
+    - [ ] Validar em prod (=just sync= + =just rebuild-prod= + =just check-prod=)
+      que o boot acelera e =just compile-prod= escala em 8 cores zero-warning.
 
 
