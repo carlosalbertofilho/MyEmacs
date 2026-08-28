@@ -19,8 +19,10 @@
     (should (fboundp '+carlos/dashboard-open))
     (should (fboundp 'dashboard-open))))
 
-(ert-deftest myemacs-dashboard-buffer-name ()
-  (should (stringp dashboard-buffer-name)))
+(ert-deftest myemacs-dashboard-server-frame-hook-arity ()
+  "Verifica se +carlos/dashboard-open-on-server-frame aceita 0 argumentos (server-after-make-frame-hook)."
+  (should (fboundp '+carlos/dashboard-open-on-server-frame))
+  (should (progn (+carlos/dashboard-open-on-server-frame) t)))
 
 (provide 'dashboard-test)
 ;;; dashboard-test.el ends here
