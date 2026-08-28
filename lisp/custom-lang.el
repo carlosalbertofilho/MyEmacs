@@ -183,7 +183,7 @@
 (with-eval-after-load 'nix-flake
   ;; Habilita execução remota TRAMP e previne JSON readtable error se nix retornar erro de texto
   (advice-add 'nix--process-string :around
-              (lambda (orig-fun &rest args)
+              (lambda (_orig-fun &rest args)
                 (with-temp-buffer
                   (let ((exit-code (apply #'process-file "nix" nil t nil args)))
                     (if (eq exit-code 0)
