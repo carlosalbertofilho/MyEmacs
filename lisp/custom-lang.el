@@ -205,7 +205,8 @@
 
 
 (defun +carlos/nixos-rebuild-detached (&optional flake-path)
-  "Dispara `sudo nixos-rebuild switch` via systemd-run imune a desconexões SSH/Emacs."
+  "Dispara `sudo nixos-rebuild switch` via systemd-run em background.
+Imune a desconexões SSH/Emacs."
   (interactive
    (list (read-directory-name "NixOS Flake directory: "
                               (if (file-remote-p default-directory)
