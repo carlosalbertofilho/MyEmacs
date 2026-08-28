@@ -95,7 +95,7 @@
                `((python-ts-mode python-mode) . ,(eglot-alternatives (list '("basedpyright-langserver" "--stdio") '("pyright-langserver" "--stdio") '("ruff" "server") "pylsp")))))
 
 (defun +carlos/python-eval-to-minibuffer ()
-  "Executa o arquivo Python atual (ou região selecionada) e exibe a saída na minibuffer."
+  "Executa o arquivo Python atual (ou seleção) exibindo na minibuffer."
   (interactive)
   (when (and buffer-file-name (buffer-modified-p))
     (save-buffer))
