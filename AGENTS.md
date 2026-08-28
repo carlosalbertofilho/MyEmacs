@@ -284,7 +284,7 @@ Regras:
 | Missing `:ensure nil` for built-in packages | Unnecessary MELPA lookup | Always add `:ensure nil` |
 | Hardcoded paths | Not portable | Use `expand-file-name` with `~` or variables |
 | `magit-git-string` without magit loaded | Void function | Use `shell-command-to-string` or `vc-git-*` |
-| Generic Bash/Sed edits by External CLIs | Breaks AST and bypasses validations | **External agents (AGY, Aider, etc.) MUST ALWAYS prefer Emacs native tools** (like `elisp_smart_edit`, `org_smart_edit`) or call Emacs in `--batch` to mutate project files. Utilize the `bin/magent-cli` wrapper to easily bridge external CLIs to Emacs native FSM tools. |
+| Generic Bash/Sed edits by External CLIs | Breaks AST and bypasses validations | **External agents (AGY, Aider, etc.) MUST ALWAYS prefer Emacs native tools** (like `elisp_smart_edit`, `org_smart_edit`) or call Emacs in `--batch` to mutate project files. Utilize the `bin/magent-cli` wrapper to easily bridge external CLIs to Emacs native FSM tools. | Além disso, agentes rodando sob a engine Antigravity/AGY DEVEM habilitar a skill `myemacs-native-tools` e segui-la religiosamente.
 
 ### 6. SOLID Architecture & Domain Isolation (STRICT RULE)
 
@@ -629,3 +629,7 @@ just test-run     # prod (~/.config/emacs)
 # Boot batch no ambiente oficial (pós-sync)
 just check-prod
 ```
+
+### 7. Otimizações de FinOps e Performance
+
+**Coder Lite (Diet Tooling):** Modelos locais (MLX/Ollama) recebem um payload reduzido de ferramentas (apenas `read_file`, `replace_file_content`, `run_command`, `context_search` e `*_smart_edit`) para evitar hangs no *time-to-first-token* causados por prompts gigantes.

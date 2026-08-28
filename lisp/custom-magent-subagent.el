@@ -167,9 +167,24 @@ chamada a função vazia no .elc."
                                (not (equal agent-name "compaction"))
                                (not (+carlos/magent-subagent-profile agent-name))))
          (+carlos/magent-current-agent-is-orchestrator is-orchestrator)
-         (magent-enable-tools (if (and is-orchestrator (boundp 'magent-enable-tools))
-                                  (remq 'read (remq 'write (remq 'edit (remq 'snippet_expand (remq 'buffer magent-enable-tools)))))
-                                (when (boundp 'magent-enable-tools) magent-enable-tools))))
+         (backend-obj (and request-state (cl-struct-slot-value 'magent-request-context 'backend request-state)))
+         (backend-name (and backend-obj (if (stringp backend-obj) backend-obj (gptel-backend-name backend-obj))))
+         (is-local (and backend-name (or (string-match-p "MLX" backend-name)
+                                         (string-match-p "Ollama" backend-name)
+                                         (string-match-p "LM Studio" backend-name))))
+         (magent-enable-tools 
+          (if (boundp 'magent-enable-tools)
+              (let ((tools magent-enable-tools))
+                (when is-orchestrator
+                  (setq tools (remq 'read (remq 'write (remq 'edit (remq 'snippet_expand (remq 'buffer tools)))))))
+                (when is-local
+                  (let ((lite-tools '(read_file replace_file_content run_command context_search
+                                      elisp_smart_edit nix_smart_edit python_smart_edit
+                                      ts_smart_edit c_smart_edit go_smart_edit org_smart_edit
+                                      sh_smart_edit markdown_smart_edit rust_smart_edit)))
+                    (setq tools (seq-filter (lambda (t-name) (memq t-name lite-tools)) tools))))
+                tools)
+            nil)))
     (funcall orig-fn user-prompt callback agent-info skill-names event-context
              request-context capability-resolution text-callback request-live-p
              request-state)))

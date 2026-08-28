@@ -2125,3 +2125,10 @@ Todas as validações locais feitas com sucesso sem hangs residuais.
    - Roteamento inteligente FSM com fallback de cota preemptivo.
    - Definida a Matriz de Roteamento Híbrido sensível ao host (gemma4/agnes vs gemini-flash/aa102-006l).
 *** Status: DONE
+
+** 2026-08-27 — Otimização de TTFT para Modelos Locais (Coder Lite)
+    :PROPERTIES:
+    :CREATED: 2026-08-27
+    :STATUS: DONE
+    :END:
+Implementado o padrão "Coder Lite" em `custom-magent-subagent.el`. Quando a FSM detecta um backend local (MLX, Ollama, LM Studio), o catálogo `magent-enable-tools` é dinamicamente filtrado para conter apenas 14 ferramentas vitais (em oposição às 40+). Isso resolveu os timeouts de 600s no benchmark do Gemma-4/Qwen/DeepSeek no Apple Silicon.
