@@ -94,6 +94,28 @@
   (add-to-list 'eglot-server-programs
                `((python-ts-mode python-mode) . ,(eglot-alternatives (list '("basedpyright-langserver" "--stdio") '("pyright-langserver" "--stdio") '("ruff" "server") "pylsp")))))
 
+(defun +carlos/python-eval-to-minibuffer ()
+  "Executa o arquivo Python atual (ou região selecionada) e exibe a saída na minibuffer."
+  (interactive)
+  (when (and buffer-file-name (buffer-modified-p))
+    (save-buffer))
+  (let* ((use-reg (use-region-p))
+         (code (if use-reg
+                   (buffer-substring-no-properties (region-beginning) (region-end))
+                 (buffer-substring-no-properties (point-min) (point-max))))
+         (cmd (if (and buffer-file-name (not use-reg))
+                  (format "python %s" (shell-quote-argument buffer-file-name))
+                (format "python -c %s" (shell-quote-argument code))))
+         (output (string-trim (shell-command-to-string cmd))))
+    (message "🐍 [%s]\n%s"
+             (if buffer-file-name (file-name-nondirectory buffer-file-name) "Snippet")
+             (if (string-empty-p output) "(Executado com sucesso, sem saída de texto)" output))))
+
+(with-eval-after-load 'python
+  (define-key python-ts-mode-map (kbd "C-c c r") #'+carlos/python-eval-to-minibuffer)
+  (define-key python-mode-map (kbd "C-c c r") #'+carlos/python-eval-to-minibuffer))
+
+
 ;; ── C / C++ (42 School) ─────────────────────────────────────────────
 ;; clangd is detected automatically by eglot.
 ;; Formatting is ignored (see eglot-ignored-server-capabilities above).
