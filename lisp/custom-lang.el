@@ -203,7 +203,7 @@
   (add-to-list 'eglot-server-programs
                '((rust-ts-mode rust-mode) . ("rust-analyzer")))
   (add-to-list 'eglot-server-programs
-               '(nix-mode . ,(eglot-alternatives '("nixd" "nil" "rnix-lsp")))))
+               `((nix-mode) . ,(eglot-alternatives '("nixd" "nil" "rnix-lsp")))))
 
 (with-eval-after-load 'apheleia
   (add-to-list 'apheleia-mode-alist '(rust-ts-mode . rustfmt))
