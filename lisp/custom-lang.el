@@ -92,7 +92,7 @@
 
 (with-eval-after-load 'eglot
   (add-to-list 'eglot-server-programs
-               `((python-ts-mode python-mode) . ,(eglot-alternatives (list '("ruff" "server") '("basedpyright-langserver" "--stdio") '("pyright-langserver" "--stdio") "pylsp")))))
+               `((python-ts-mode python-mode) . ,(eglot-alternatives (list '("basedpyright-langserver" "--stdio") '("pyright-langserver" "--stdio") '("ruff" "server") "pylsp")))))
 
 ;; ── C / C++ (42 School) ─────────────────────────────────────────────
 ;; clangd is detected automatically by eglot.
