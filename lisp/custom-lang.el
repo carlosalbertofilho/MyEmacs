@@ -179,13 +179,31 @@
                                (ignore-errors (eglot-reconnect)))))))
   :hook (after-init . envrc-global-mode))
 
+
+(with-eval-after-load 'nix-flake
+  ;; Habilita execução de comandos nix-flake em servidores remotos via TRAMP
+  (advice-add 'nix--process-string :around
+              (lambda (orig-fun &rest args)
+                (with-temp-buffer
+                  (if (eq 0 (apply #'process-file "nix" nil t nil args))
+                      (buffer-string)
+                    (apply orig-fun args))))))
+
 (defun +carlos/nixos-rebuild-switch (&optional flake-path)
-  "Executes `sudo nixos-rebuild switch` asynchronously using compile mode."
+  "Executa `sudo nixos-rebuild switch` localmente ou remotamente via TRAMP."
   (interactive
-   (list (read-directory-name "NixOS Flake directory: " "/etc/nixos")))
-  (let* ((target (expand-file-name (or flake-path "/etc/nixos")))
-         (cmd (format "sudo nixos-rebuild switch --flake %s" (shell-quote-argument target))))
+   (list (read-directory-name "NixOS Flake directory: "
+                              (if (file-remote-p default-directory)
+                                  default-directory
+                                "/etc/nixos"))))
+  (let* ((dir (or flake-path default-directory))
+         (remote (file-remote-p dir))
+         (local-path (if remote (file-remote-p dir 'localname) dir))
+         (default-directory (if remote dir (file-name-directory local-path)))
+         (cmd (format "sudo nixos-rebuild switch --flake %s"
+                      (shell-quote-argument local-path))))
     (compile cmd)))
+
 
 ;; ── Rust ────────────────────────────────────────────────────────────
 (use-package rust-mode
