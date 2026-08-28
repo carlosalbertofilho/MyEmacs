@@ -22,6 +22,12 @@ Histórico consolidado no [[file:roadmap.org][roadmap.org]].
 Ordem de implementação baseada em dependências, risco e alavanca.
 
 ** Fase A — Quick Wins (paralelos, independentes)
+*** DONE F7-nix: Suporte remoto TRAMP para nix-flake, nixos-rebuild boot/switch/detached
+    :PROPERTIES:
+    :CREATED:  [2026-08-28]
+    :STATUS:   DONE
+    :END:
+    Adicionado tratamento de erro para JSON readtable em comandos nix, stripping de TRAMP path para CLI remoto, e comandos +carlos/nix-flake-update, +carlos/nixos-rebuild-boot, +carlos/nixos-rebuild-detached.
   - [X] F6-python: Suporte basepyright-langserver --stdio + ruff + resiliência corfu--compute jsonrpc + comando +carlos/python-eval-to-minibuffer (C-c c r) → commits b5ca05e, c63998e, f017a20
 
   - [X] F6-1: =toggle_checkbox= no =org_smart_edit= (Simple/Low) → commit 606c47c

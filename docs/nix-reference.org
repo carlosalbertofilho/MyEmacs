@@ -1,0 +1,65 @@
+#+TITLE: Nix & NixOS Toolchain Reference
+#+AUTHOR: Carlos Filho
+#+DATE: 2026-08-28
+#+LAST_MODIFIED: 2026-08-28
+#+DESCRIPTION: Guia de referência para a integração Nix, NixOS e TRAMP Remote Rebuild no MyEmacs.
+#+FILETAGS: :RAG:DOCS:
+#+OPTIONS: toc:2 num:t
+
+* Visão Geral
+
+Este documento descreve a integração nativa da stack Nix/NixOS no MyEmacs, abrangendo suporte a `nix-mode`, formatação assíncrona com `nixfmt` via `apheleia`, Eglot (LSP `nixd`/`nil`/`rnix-lsp`), resiliência em requisições JSON e execução remota sobre TRAMP.
+
+* Atalhos Padronizados sem Colisão (Prefixo =C-c N=)
+
+Todas as funcionalidades do ecossistema Nix estão agrupadas de forma mnemônica sob o prefixo =C-c N= (diferenciado de =C-c n= que pertence ao Denote):
+
+** NixOS & Rebuilds
+| Binding   | Função                           | Descrição                                                                      |
+|-----------+----------------------------------+--------------------------------------------------------------------------------|
+| =C-c N r= | =+carlos/nixos-rebuild-switch=   | Executa =sudo nixos-rebuild switch= ao vivo (local ou TRAMP)                 |
+| =C-c N b= | =+carlos/nixos-rebuild-boot=     | Registra nova build no bootloader sem troca ao vivo (evita travas D-Bus)       |
+| =C-c N d= | =+carlos/nixos-rebuild-detached= | Dispara o rebuild em background via =systemd-run= (imune a desconexão SSH)     |
+
+** Flakes
+| Binding   | Função                           | Descrição                                                                      |
+|-----------+----------------------------------+--------------------------------------------------------------------------------|
+| =C-c N f= | =nix-flake=                      | Interface interativa Transient principal para Flakes                           |
+| =C-c N u= | =+carlos/nix-flake-update=       | Executa =nix flake update= com logs ao vivo (local ou TRAMP)                  |
+| =C-c N c= | =nix-flake-check=                | Checa e valida a integridade do flake                                          |
+| =C-c N i= | =nix-flake-init=                 | Inicializa um novo flake a partir de templates                                 |
+
+** Shells & REPL
+| Binding   | Função                           | Descrição                                                                      |
+|-----------+----------------------------------+--------------------------------------------------------------------------------|
+| =C-c N s= | =nix-shell=                      | Abre uma shell com o ambiente virtual do `.nix`                                |
+| =C-c N e= | =nix-eshell=                     | Inicia um Eshell com as variáveis e dependências do Nix injetadas              |
+| =C-c N x= | =nix-repl=                       | Abre o REPL interativo do Nix para avaliar expressões                          |
+
+** Utilitários & Busca
+| Binding   | Função                           | Descrição                                                                      |
+|-----------+----------------------------------+--------------------------------------------------------------------------------|
+| =C-c N p= | =nix-prettify-mode=              | Oculta hashes da Nix Store (=/nix/store/1234...=) por símbolos curtos          |
+| =C-c N l= | =nix-store-show-log=             | Exibe logs de compilação de um pacote na store                                 |
+| =C-c N q= | =nix-search=                     | Busca interativa de pacotes no catálogo Nix                                    |
+
+* Execução Remota sobre TRAMP
+
+Ao trabalhar em buffers remotos via TRAMP (ex: =/ssh:forgejo:~/GitHUPE/= ou =/sudo:desit@forgejo:~/GitHUPE/=):
+
+1. **Stripping de Prefixo TRAMP:** O Emacs extrai o caminho local no servidor remoto (ex: =/home/desit/GitHUPE/=) via =(file-remote-p dir 'localname)=, impedindo que o CLI do Nix remoto tente acessar URLs com o protocolo =/sudo:...=.
+2. **Rebuild em Background (=systemd-run=):** O comando =+carlos/nixos-rebuild-detached= envelopa o rebuild em um serviço do =systemd= no servidor hospedeiro. Você pode deslogar e fechar o Emacs com segurança total.
+3. **Resiliência a Erros de Texto:** O wrapper =nix--process-string= intercepta erros em formato texto cru do Nix CLI, impedindo falhas de =JSON readtable error: 101=.
+
+* Solução de Problemas
+
+** Erro =switchInhibitors= (Ex: =dbus -> broker=)
+Quando a atualização altera componentes críticos do sistema como o D-Bus:
+- Use =C-c N b= (=+carlos/nixos-rebuild-boot=) para registrar a build no bootloader.
+- Em seguida, reinicie a máquina remota com =sudo reboot=.
+
+** Acompanhar Rebuild em Background
+Se disparou o rebuild via =C-c N d= e deslogou do servidor, reconecte e rode:
+#+begin_src sh
+journalctl -u nixos-rebuild-bg -f
+#+end_src

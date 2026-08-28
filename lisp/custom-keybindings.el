@@ -75,8 +75,28 @@
 (global-set-key (kbd "C-c j")   #'justl)
 (global-set-key (kbd "C-c J")   #'justl-compile)
 
-;; ── NixOS ───────────────────────────────────────────────────────────
+;; ── Nix & NixOS ───────────────────────────────────────────────────
+;; NixOS System Rebuild
 (global-set-key (kbd "C-c N r") #'+carlos/nixos-rebuild-switch)
+(global-set-key (kbd "C-c N b") #'+carlos/nixos-rebuild-boot)
+(global-set-key (kbd "C-c N d") #'+carlos/nixos-rebuild-detached)
+
+;; Flakes
+(global-set-key (kbd "C-c N f") #'nix-flake)
+(global-set-key (kbd "C-c N u") #'+carlos/nix-flake-update)
+(global-set-key (kbd "C-c N c") #'nix-flake-check)
+(global-set-key (kbd "C-c N i") #'nix-flake-init)
+
+;; Shell & REPL
+(global-set-key (kbd "C-c N s") #'nix-shell)
+(global-set-key (kbd "C-c N e") #'nix-eshell)
+(global-set-key (kbd "C-c N x") #'nix-repl)
+
+;; Utilities & Query
+(global-set-key (kbd "C-c N p") #'nix-prettify-mode)
+(global-set-key (kbd "C-c N l") #'nix-store-show-log)
+(global-set-key (kbd "C-c N q") #'nix-search)
+
 
 ;; ── Makefile ────────────────────────────────────────────────────────
 ;; C-c m e C-c M são associados via :bind do use-package makefile-executor (custom-git.el)

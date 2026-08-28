@@ -203,6 +203,39 @@
                       (shell-quote-argument local-path))))
     (compile cmd)))
 
+
+(defun +carlos/nixos-rebuild-detached (&optional flake-path)
+  "Dispara `sudo nixos-rebuild switch` via systemd-run imune a desconexões SSH/Emacs."
+  (interactive
+   (list (read-directory-name "NixOS Flake directory: "
+                              (if (file-remote-p default-directory)
+                                  default-directory
+                                "/etc/nixos"))))
+  (let* ((dir (or flake-path default-directory))
+         (remote (file-remote-p dir))
+         (local-path (if remote (file-remote-p dir 'localname) (expand-file-name dir)))
+         (default-directory (if remote (file-name-as-directory dir) (file-name-directory local-path)))
+         (cmd (format "sudo systemd-run --unit=nixos-rebuild-bg --description=\"NixOS Rebuild Background\" nixos-rebuild switch --flake %s"
+                      (shell-quote-argument local-path))))
+    (compile cmd)
+    (message "Rebuild disparado via systemd-run no servidor. Pode deslogar com segurança!")))
+
+
+(defun +carlos/nixos-rebuild-boot (&optional flake-path)
+  "Executa `sudo nixos-rebuild boot` localmente ou remotamente via TRAMP."
+  (interactive
+   (list (read-directory-name "NixOS Flake directory: "
+                              (if (file-remote-p default-directory)
+                                  default-directory
+                                "/etc/nixos"))))
+  (let* ((dir (or flake-path default-directory))
+         (remote (file-remote-p dir))
+         (local-path (if remote (file-remote-p dir 'localname) (expand-file-name dir)))
+         (default-directory (if remote (file-name-as-directory dir) (file-name-directory local-path)))
+         (cmd (format "sudo nixos-rebuild boot --flake %s"
+                      (shell-quote-argument local-path))))
+    (compile cmd)))
+
 (defun +carlos/nixos-rebuild-switch (&optional flake-path)
   "Executa `sudo nixos-rebuild switch` localmente ou remotamente via TRAMP."
   (interactive
