@@ -46,7 +46,8 @@ persiste a restauração e devolve a mensagem de erro sem sinalizar."
                     (buffer-substring-no-properties (point-min) (point-max)))))
     (with-current-buffer buf
       (condition-case err
-          (let ((msg (funcall thunk)))
+          (let ((msg (funcall thunk))
+                (after-save-hook (remq 'apheleia-format-after-save after-save-hook)))
             (pcase kind
               ('org (when (fboundp 'org-lint)
                       (let ((reports (org-lint)))
@@ -59,7 +60,8 @@ persiste a restauração e devolve a mensagem de erro sem sinalizar."
         (error
          (erase-buffer)
          (insert snapshot)
-         (save-buffer)
+         (let ((after-save-hook (remq 'apheleia-format-after-save after-save-hook)))
+           (save-buffer))
          (format "Erro: %s. Transação revertida." (error-message-string err)))))))
 
 (defun +carlos/magent--smart-edit-replace-core (old new &optional flags)

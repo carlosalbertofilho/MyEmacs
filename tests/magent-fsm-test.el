@@ -1016,25 +1016,30 @@ Garante que o filtro não bloqueia eventos legítimos do orquestrador."
     (cl-letf (((symbol-function 'magent-agent-job-add-observer)
                (lambda (_job fn)
                  ;; Chamar o fn diretamente para testar
-                 (let ((mock-job (list :id "obs-1" :agent-name "explore"
-                                       :status 'completed :result "ok")))
+                 (let ((mock-job (if (fboundp 'magent-agent-job-create)
+                                     (magent-agent-job-create :id "obs-1" :agent-name "explore"
+                                                            :status 'completed :result "ok")
+                                   (list :id "obs-1" :agent-name "explore"
+                                         :status 'completed :result "ok"))))
                    (funcall fn mock-job))
                  'token-1))
               ((symbol-function 'magent-agent-job-id)
-               (lambda (job) (plist-get job :id)))
+               (lambda (job) (if (listp job) (plist-get job :id) (magent-agent-job-id job))))
               ((symbol-function 'magent-agent-job-status)
-               (lambda (job) (plist-get job :status)))
+               (lambda (job) (if (listp job) (plist-get job :status) (magent-agent-job-status job))))
               ((symbol-function 'magent-agent-job-result)
-               (lambda (job) (plist-get job :result)))
+               (lambda (job) (if (listp job) (plist-get job :result) (magent-agent-job-result job))))
               ((symbol-function 'magent-agent-job-agent-name)
-               (lambda (job) (plist-get job :agent-name)))
+               (lambda (job) (if (listp job) (plist-get job :agent-name) (magent-agent-job-agent-name job))))
               ((symbol-function 'magent-agent-job-error) #'ignore)
               ((symbol-function '+carlos/magent-fsm-maybe-auto-resume)
                (lambda () (setq resume-called t)))
               ((symbol-function '+carlos/magent-fsm-subagent-session-jobs)
                (lambda () nil)))
       (+carlos/magent-fsm-register-observer
-       (list :id "obs-1" :status 'running))
+       (if (fboundp 'magent-agent-job-create)
+           (magent-agent-job-create :id "obs-1" :status 'running)
+         (list :id "obs-1" :status 'running)))
       (should resume-called))))
 
 (ert-deftest myemacs-magent-fsm-auto-resume-only-fires-in-subagent-waiting ()

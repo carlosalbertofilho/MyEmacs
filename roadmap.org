@@ -12,6 +12,15 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-28 — [CONCLUÍDO] Factory Reset Prod, Fix Symlinks Elpaca & Diagnóstico Daemon GUI
+   - Executado `FORCE=1 just factory-reset` no ambiente oficial (`~/.config/emacs`)
+     com backup de estado em `/tmp`, reinstalação de pacotes e boot verificado.
+   - Corrigidos symlinks obsoletos em `elpaca/builds` apontando para a pasta antiga (`emacsConfig`).
+   - Inibido `apheleia-format-after-save` em edições transacionais do `smart-edit` em `/tmp/`.
+   - Suíte ERT dev validada com 100% de sucesso (509 testes / 499 aprovados / 10 skipped / 0 falhas).
+   - Registrado diagnóstico do problema da GUI fechar no modo daemon (`emacs --daemon` / `emacsclient -c`):
+     limitação GTK3 PGTK Wayland e ausência de `with-demoted-errors` no hook do `custom-dashboard.el`.
+
 ** 2026-08-27 — [CONCLUÍDO] F6-3b — magent-cli run (Agent Launcher Batch)
    - Criado `lisp/custom-magent-run.el`: `+carlos/magent-run-execute` (runner
      UI-neutral via `magent-runtime-submit`) + JSONL lifecycle sink.

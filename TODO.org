@@ -212,12 +212,40 @@ Ordem de implementação baseada em dependências, risco e alavanca.
         (incluindo =tests/= e =site-lisp/=) e verificar qual é carregada
         pelo ERT. Confirmar vazio de =defalias= concorrente =M-x
         find-function-noselect= no batch.
-    - **Problema novo no PROD (após =just factory-reset=, 2026-08-27 à noite):**
-      - Erro de boot/uso: =envrc--direnv-export: Invalid function:
-        envrc--with-required-current-en= ao entrar em diretórios com
-        =direnv= (ex.: =~/Projects/42rio/CommonCore/Rank05/Exam/Level0/=).
-        Provável problema de =direnv.el= / =envrc= (versão ou hook nativo-
-        compilado stale) no ambiente oficial =~/.config/emacs=.
+     - **Problema novo no PROD (após =just factory-reset=, 2026-08-27 à noite):**
+       - Erro de boot/uso: =envrc--direnv-export: Invalid function:
+         envrc--with-required-current-en= ao entrar em diretórios com
+         =direnv= (ex.: =~/Projects/42rio/CommonCore/Rank05/Exam/Level0/=).
+         Provável problema de =direnv.el= / =envrc= (versão ou hook nativo-
+         compilado stale) no ambiente oficial =~/.config/emacs=.
+
+** TODO Diagnóstico e Correção — Fechamento Prematuro da GUI no Modo Daemon
+   :PROPERTIES:
+   :CREATED: 2026-08-28
+   :STATUS:  EM ANDAMENTO
+   :END:
+
+   No modo daemon (=emacs --daemon= ou serviço systemd), ao abrir cliente gráfico
+   com =emacsclient -c=, a janela GUI é iniciada e fecha imediatamente.
+
+   - *Diagnóstico do Log e Causa-Raiz:*
+     - *Limitação PGTK/GTK3 (Wayland):* Build do Emacs com =--with-pgtk= possui
+       limitação inerente no GTK3 onde desconexões de display ou inicialização
+       incompleta de frame resultam no encerramento imediato do processo daemon
+       (=Emacs built with PGTK will simply exit when a display connection is closed=).
+     - *Hook de Frame não protegido em custom-dashboard.el:* A função
+       =+carlos/dashboard-open-on-server-frame= é invocada em
+       =server-after-make-frame-hook= chamando =(dashboard-open)= diretamente sem
+       guarda de exceção (=with-demoted-errors= / =ignore-errors=).
+     - *Variáveis de ambiente de GUI no Systemd:* Daemons iniciados via
+       =systemd --user= podem ser criados antes da sessão gráfica, sem
+       =WAYLAND_DISPLAY= / =DISPLAY= / =XDG_RUNTIME_DIR=.
+
+   - *Plano de Correção:*
+     - [ ] Envolver =+carlos/dashboard-open-on-server-frame= em =with-demoted-errors= em =custom-dashboard.el=.
+     - [ ] Adicionar guarda =display-graphic-p= e checagem de frame de servidor antes de renderizar dashboard.
+     - [ ] Documentar comando =systemctl --user import-environment DISPLAY WAYLAND_DISPLAY XDG_RUNTIME_DIR= para inicialização via systemd.
+
       - Ao abrir arquivo =.py= carrega em modo =Fundamental= (Python
         mode/treesit não ativando) no prod. Suspeita de =eglot=/
         =python-mode= ou =treesit= quebrado após o factory-reset

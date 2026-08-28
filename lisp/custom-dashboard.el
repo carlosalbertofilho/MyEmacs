@@ -35,11 +35,14 @@
 
 ;; Ensure new server/daemon frames (emacsclient -c) open the dashboard when no file is passed
 (defun +carlos/dashboard-open-on-server-frame (frame)
-  "Ensure *dashboard* buffer is displayed on new server FRAME."
-  (with-selected-frame frame
-    (when (or (equal (buffer-name) "*scratch*")
-              (string-prefix-p "*scratch*" (buffer-name)))
-      (dashboard-open))))
+  "Ensure *dashboard* buffer is displayed on new server FRAME safely."
+  (when (and (frame-live-p frame)
+             (display-graphic-p frame))
+    (with-selected-frame frame
+      (with-demoted-errors "Dashboard server frame error: %S"
+        (when (or (equal (buffer-name) "*scratch*")
+                  (string-prefix-p "*scratch*" (buffer-name)))
+          (dashboard-open))))))
 
 (add-hook 'server-after-make-frame-hook #'+carlos/dashboard-open-on-server-frame)
 
