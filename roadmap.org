@@ -12,6 +12,12 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-28 — [CONCLUÍDO] Suporte Python LSP (Pyright/Ruff), Resiliência Corfu e Comando Eval Minibuffer
+   - Corrigida inicialização do Eglot em Python com `basedpyright-langserver --stdio` e `NODE_OPTIONS` (8GB V8 Heap) como prioridade 1 para suporte a `:completionProvider`.
+   - Implementada proteção reativa em `corfu--compute` para tratar exceções `jsonrpc-error` de servidores LSP durante o autocomplete sem exibir backtraces.
+   - Adicionado comando `+carlos/python-eval-to-minibuffer` atrelado a `C-c c r` para execução rápida de arquivos/regiões Python imprimindo saída na minibuffer.
+   - Suíte de 509 testes ERT validada com 100% de sucesso e compilação `compile-prod` com 0 avisos.
+
 ** 2026-08-28 — [CONCLUÍDO] Factory Reset Prod, Fix Symlinks Elpaca & Diagnóstico Daemon GUI
    - Executado `FORCE=1 just factory-reset` no ambiente oficial (`~/.config/emacs`)
      com backup de estado em `/tmp`, reinstalação de pacotes e boot verificado.

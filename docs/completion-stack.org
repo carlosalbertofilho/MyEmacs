@@ -167,3 +167,9 @@ command.
 
 (fn &optional INTERACTIVE)
 #+end_src
+
+** Resiliência Corfu x LSP Timeout
+- *Descrição:* Proteção aplicada em =corfu--compute= para tratar silenciosamente exceções =jsonrpc-error= de servidores LSP durante o cálculo de candidatos, evitando popups de erro/backtrace na tela em requisições de autocomplete.
+
+** Resiliência Corfu x LSP Timeout
+- *Descrição:* Proteção aplicada em =corfu--compute= para tratar silenciosamente exceções =jsonrpc-error= de servidores LSP durante o cálculo de candidatos, evitando popups de erro/backtrace na tela em requisições de autocomplete.
