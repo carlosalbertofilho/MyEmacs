@@ -181,13 +181,14 @@
 
 
 (with-eval-after-load 'nix-flake
-  ;; Habilita execução de comandos nix-flake em servidores remotos via TRAMP
+  ;; Habilita execução remota TRAMP e previne JSON readtable error se nix retornar erro de texto
   (advice-add 'nix--process-string :around
               (lambda (orig-fun &rest args)
                 (with-temp-buffer
-                  (if (eq 0 (apply #'process-file "nix" nil t nil args))
-                      (buffer-string)
-                    (apply orig-fun args))))))
+                  (let ((exit-code (apply #'process-file "nix" nil t nil args)))
+                    (if (eq exit-code 0)
+                        (buffer-string)
+                      (user-error "Nix: %s" (string-trim (buffer-string)))))))))
 
 (defun +carlos/nixos-rebuild-switch (&optional flake-path)
   "Executa `sudo nixos-rebuild switch` localmente ou remotamente via TRAMP."
