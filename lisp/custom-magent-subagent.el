@@ -92,7 +92,7 @@ Função total (nunca lança) — usada pelo Coder Lite p/ backend local."
                            "Gemini"          ;; EliteDesk: nuvem (poupa CPU)
                          "Colibre Local")))  ;; agnes (Mac M2): GPU Metal Colibre
     `(("explore"     :min-tier "free" :preferred-backend ,local-backend)
-      ("general"     :min-tier "free" :preferred-backend "OpenCode Zen")
+      ("general"     :min-tier "free" :preferred-backend ,local-backend)
       ("coder"       :min-tier "free" :preferred-backend "OpenCode Zen")
       ("sysadmin"    :min-tier "free" :preferred-backend ,local-backend)
       ("planner"     :min-tier "free" :preferred-backend "Gemini")
