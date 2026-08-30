@@ -176,6 +176,11 @@ Decisões de produto do usuário que sobrepõem diretrizes genéricas (2026-08-0
     - **aa102-006l (EliteDesk):** `gemini-2.5-flash` nuvem (Orquestrador, poupa CPU) / `agy` via Proxy Gemini (Planejamento/QA) / `big-pickle` local (Editor).
   - **Bateria de Delegação:** 12 Rounds executados e validados com 100% de sucesso (12/12 PASSED).
   - **Suíte de Testes ERT:** 422/422 testes passados (0 falhas) e compilação `compile-prod` com 0 Warnings.
+- **Savepoint v1.1 — Arquitetura Agêntica Híbrida & FinOps $0.00 (Commit `fdc85a9` / Tag `savepoint` / `savepoint-v1.1-hybrid-arch-finops`):**
+  - **Topologia Híbrida:** Modelo Cloud Pago (`AGY`/`OpenCode`/`Gemini`) como Estrategista/Planejador (mínimo de tokens pagos) + Modelo Local (`qwen3.6-colibri` na porta 8082 na GPU Metal com 9.68 GB RSS) como Driver de Execução via `magent-cli` ($0.00 API cost).
+  - **Bateria de Benchmark (9 Perfis × 3 Níveis):** 100% de taxa de sucesso (9/9 PASSED) em `coder`, `qa`, `auditor`, `explore`, `sysadmin`, `planner`, `tech-writer`, `sec-ops` e `general`.
+  - **Binds Nativos via `magent-cli`:** Introspecção (`--list-tools`, `--describe`) e chamadas diretas de `sh_smart_edit`, `magit_submodule_list`, `org_smart_edit` e `rag_create_doc` validadas.
+  - **Projeto do Mundo Real:** Orquestração do `CommonCore/Rank05/Inception` (42 School) estruturada e alinhada com o `CommonCore/AGENTS.md`.
 
 ### 1. File Structure
 
