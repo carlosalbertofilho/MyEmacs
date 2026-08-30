@@ -378,21 +378,32 @@ callback.  ARGS must NOT contain PROMPT: `plist-get' scans pairs from the
 first element and would miss every keyword otherwise."
   (let* ((backend (plist-get args :backend))
          (model (plist-get args :model))
+         (backend-name (if (and backend (fboundp 'gptel-backend-p) (gptel-backend-p backend))
+                           (gptel-backend-name backend)
+                         (format "%s" backend)))
          (model-key (if (and backend model)
-                        (format "%s:%s" backend model)
-                      (or backend model "unknown")))
+                        (format "%s:%s" backend-name model)
+                      (or backend-name model "unknown")))
          (callback (plist-get args :callback)))
-    (let ((wrapped-callback
-           (when callback
-             (lambda (response info)
-               (if (or (null response) (plist-get info :error))
-                   (+carlos/magent-cb-record-failure model-key)
-                 (+carlos/magent-cb-record-success model-key))
-               (funcall callback response info)))))
-      (apply orig-fn prompt
-             (if wrapped-callback
-                 (plist-put (copy-sequence args) :callback wrapped-callback)
-               args)))))
+    (if (+carlos/magent-cb-open-p model-key)
+        ;; Conecta o CB à FSM abortando o turno imediatamente via callback falso
+        (when callback
+          (funcall callback nil (list :error (format "Circuit Breaker OPEN for model %s: temporary cloud instability / backoff active" model-key))))
+      (let ((wrapped-callback
+             (when callback
+               (lambda (response info)
+                 (if (or (null response)
+                         (plist-get info :error)
+                         (and (stringp response)
+                              (let ((case-fold-search t))
+                                (string-match-p "insufficient balance\\|429 too many requests\\|quota exceeded\\|resource_exhausted\\|rate limit exceeded\\|billing" response))))
+                     (+carlos/magent-cb-record-failure model-key)
+                   (+carlos/magent-cb-record-success model-key))
+                 (funcall callback response info)))))
+        (apply orig-fn prompt
+               (if wrapped-callback
+                   (plist-put (copy-sequence args) :callback wrapped-callback)
+                 args))))))
 
 ;; Registra a advice — roda após a advice do router dinâmico, se presente.
 (advice-add 'gptel-request :around #'+carlos/magent-cb-gptel-request-advice)

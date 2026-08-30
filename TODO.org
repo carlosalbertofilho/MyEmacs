@@ -27,7 +27,7 @@ Ordem de implementação baseada em dependências, risco e alavanca. As Fases A 
 
 ** Fase 2 — Infraestrutura Core (Resiliência)
   - [X] F4-select: preferência explícita de backend no =select_model= (Medium/Medium) → commit d23a69c
-  - [ ] F4-cb: Circuit Breaker async fix (Medium-High/High) — Conectar erro HTTP assíncrono ao FSM e `turn-failed`.
+  - [X] F4-cb: Circuit Breaker async fix (Medium-High/High) — Conectar erro HTTP assíncrono ao FSM e `turn-failed`.
   - [ ] F4-router: Validação de roteamento cross-machine do proxy (agnes vs aa102-006l).
 
 ** Fase 3 — Bateria de Benchmark Local (F7-ben)
@@ -503,7 +503,7 @@ Implementação concluída em =lib/agy_proxy/= (=router.py=, =upstream.py=, =con
 :ID: opus-cb-async-fix
 :HOST: todos
 :TYPE: refactor
-:STATUS: backlog
+:STATUS: DONE
 :CREATED: 2026-08-24
 :END:
 - [X] Analisar falhas assíncronas do gptel-request que não acionam o Circuit Breaker.
@@ -513,12 +513,12 @@ Implementação concluída em =lib/agy_proxy/= (=router.py=, =upstream.py=, =con
   sucesso. Além disso nenhum caminho de produção chama =+carlos/magent-cb-execute=
   ou =+carlos/magent-cb-record-failure= (só testes); o CB está desconectado do
   loop de turno da FSM.
-- [ ] Implementar advice no callback para registrar falhas, incluindo classificação
+- [X] Implementar advice no callback para registrar falhas, incluindo classificação
   de erro-em-conteúdo (padrões "Insufficient balance", 429, quota/billing) como falha.
-- [ ] Conectar o CB ao loop de turno da FSM (registrar falha do backend no
+- [X] Conectar o CB ao loop de turno da FSM (registrar falha do backend no
   =turn-failed= e consultar =cb-open-p= antes de cada requisição).
-- [ ] Atualizar +carlos/magent-cb-execute para considerar erros HTTP.
-- [ ] Testar fallback para modelo Gemini quando OpenCode falhar por quota.
+- [X] Atualizar +carlos/magent-cb-execute para considerar erros HTTP.
+- [X] Testar fallback para modelo Gemini quando OpenCode falhar por quota.
 - Link to plan: [[file:../.gemini/antigravity-cli/brain/b9fed757-e3a9-418f-a8d0-e2bd51f17d69/scratch/opus_cb_fix_plan.org][Opus Plan]]
 
 ** TODO Roteamento: preferência explícita de backend no select_model + guarda no host-routing
