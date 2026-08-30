@@ -62,8 +62,8 @@ Ordem de implementação baseada em dependências, risco e alavanca. As Fases A 
      - [X] =mlx-community/DeepSeek-R1-Distill-Qwen-14B-4bit=
      - [ ] + config: =Qwen3.5-Coder-7B/14B=, =gemma-4-9b=, =Qwen2.5-Coder-7B= (se instalados)
    - *Inference Engine Alternativa (Teste Colibre AI)*:
-      - [ ] Validar =coli= (Colibre AI) no macOS contra o MLX. Medir Tok/s e TTFT para ver se vale a pena desviar chamadas para ele.
-        - [~] 2026-08-30: =coli= instalado e rodando (=GLM-5.2= local; =coli serve= / =chat= / =bench=). Próximo: registrar backend gptel apontando para =coli serve= e rodar o probe diferencial F7-ben (payload pequeno e run completo) para provar se o bug é gptel×MLX ou do request do Magent.
+       - [ ] Validar =coli= (Colibre AI) no macOS contra o MLX. Medir Tok/s e TTFT para ver se vale a pena desviar chamadas para ele.
+         - [~] 2026-08-30: =coli= verificado no Mac M2 (24GB RAM/320GB Disco). Selecionado =Qwen 2.5/3.6 14B= (~8-10GB VRAM, 100% tool-native) para o probe diferencial F7-ben contra o MLX. Próximo: converter/baixar via =coli convert --repo Qwen/Qwen2.5-Coder-14B-Instruct= e subir =coli serve=.
    - *Total: 7 modelos × 9 profiles × 3 linguagens = 189 runs*
 
    - *Estado do benchmark (executado — resultado: Timeouts)*

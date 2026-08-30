@@ -189,6 +189,16 @@ roteamento para backends locais fica apenas como fallback final.")
               "mlx-community/Qwen3.5-Coder-14B-Instruct-4bit"
               ))
 
+  ;; ── Backend: Colibre Local (Qwen 3.6 MoE, 127.0.0.1:8082) ──────────
+  ;; Servidor roda via `coli serve --model ... --port 8082`
+  (gptel-make-openai "Colibre Local"
+    :host "127.0.0.1:8082"
+    :protocol "http"
+    :stream t
+    :key "any"
+    :request-params '(:max_tokens 4096)
+    :models '("qwen3.6-colibri"))
+
   ;; ── Backend: LM Studio Local (GGUF/MLX, 127.0.0.1:1234) ──────────
   ;; Server headless via `lms server start`. OpenAI-compatível.
   ;; Modelos de benchmark (F7-ben): Bonsai 27B, Nemotron 3 Nano 4B,
