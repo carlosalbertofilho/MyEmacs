@@ -25,7 +25,7 @@
 
 (ert-deftest myemacs-ai-backends-registered ()
   :tags '(ai)
-  (dolist (name '("MLX Local" "Ollama Local" "Gemini" "Zen Claude"
+  (dolist (name '("Colibre Local" "MLX Local" "Ollama Local" "Gemini" "Zen Claude"
                   "OpenCode Zen"))
     (should (gptel-get-backend name))))
 
@@ -40,6 +40,13 @@ consome todo o orçamento e o `content' fica vazio (`empty-completion' =
   (let ((params (gptel-backend-request-params (gptel-get-backend "MLX Local"))))
     (should (plist-get params :max_tokens))
     (should (>= (plist-get params :max_tokens) 2048))))
+
+(ert-deftest myemacs-ai-colibre-local-max-tokens ()
+  :tags '(ai)
+  "O backend Colibre Local precisa enviar max_tokens alto (4096)."
+  (let ((params (gptel-backend-request-params (gptel-get-backend "Colibre Local"))))
+    (should (plist-get params :max_tokens))
+    (should (>= (plist-get params :max_tokens) 4096))))
 
 (ert-deftest myemacs-ai-zen-openai-url ()
   :tags '(ai)
