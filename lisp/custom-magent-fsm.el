@@ -347,8 +347,8 @@ restaura `gc-cons-threshold' ao valor padrão e executa `(garbage-collect)'."
 ;; ── ETAPA 1b: Detecção de Perfil por Host ───────────────────────────────────
 
 (defcustom +carlos/magent-host-profiles
-  '(("agnes"      :orchestrator-backend "MLX Local"
-                  :orchestrator-model   "mlx-community/gemma-4-e2b-it-4bit"
+  '(("agnes"      :orchestrator-backend "Colibre Local"
+                  :orchestrator-model   "qwen3.6-colibri"
                   :dev-backend          "OpenCode Zen"
                   :dev-model            "big-pickle"
                   :reasoning-backend    "AGY Proxy"
