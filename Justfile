@@ -126,6 +126,16 @@ compile: compile-modules
       | rg -v 'Optimization failure|Unknown type: plist|epa-file|Unknown type jupyter|Unknown type magent-request-context' || true; \
     exit "$status"
 
+# Baixa dicionários Hunspell (pt_BR e en_US) para o diretório de spelling do macOS/Linux
+download-dicts:
+    @echo "📥 Baixando dicionários pt_BR e en_US para Jinx..."
+    @mkdir -p ~/Library/Spelling
+    @curl -sL https://raw.githubusercontent.com/LibreOffice/dictionaries/master/pt_BR/pt_BR.aff -o ~/Library/Spelling/pt_BR.aff
+    @curl -sL https://raw.githubusercontent.com/LibreOffice/dictionaries/master/pt_BR/pt_BR.dic -o ~/Library/Spelling/pt_BR.dic
+    @curl -sL https://raw.githubusercontent.com/LibreOffice/dictionaries/master/en/en_US.aff -o ~/Library/Spelling/en_US.aff
+    @curl -sL https://raw.githubusercontent.com/LibreOffice/dictionaries/master/en/en_US.dic -o ~/Library/Spelling/en_US.dic
+    @echo "✅ Dicionários instalados em ~/Library/Spelling"
+
 # Build native C/C++ modules in {{prod_dir}}
 compile-modules-prod:
     emacs --init-directory "{{prod_dir}}" --batch -l init.el \
@@ -213,6 +223,7 @@ check-all: check test-all
 factory-reset:
     @bash bin/factory-reset.sh
     just install-prod
+    just download-dicts
     just compile-prod
     just check-prod
 
