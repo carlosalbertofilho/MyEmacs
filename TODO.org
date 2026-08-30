@@ -544,3 +544,13 @@ OpenCode Zen (o gptel direto funciona normalmente com Gemini).
 - [ ] Pesquisar e prototipar propostas baseadas na filosofia do Protesilaos (Prot) para o Minibuffer. Avaliar o pacote =mct= (Minibuffer Confines Navigation) ou integrações visuais específicas do =ef-themes= / =standard-themes=.
 - [ ] Resolver os problemas de alinhamento e legibilidade do minibuffer atual (que hoje combina =vertico= + =marginalia= + =corfu= + =orderless=). Criar uma UI limpa e não obstrutiva para aprovações de ferramentas da FSM e inserção de prompts.
 - [ ] Corrigir Roteamento de Aprovação de Subagentes: Atualmente, quando um subagente pede permissão para rodar uma ferramenta, a FSM não encontra a interface ativa dele (pois roda em headless) e faz o *fallback* para o minibuffer (=y-or-n-p=). Precisamos alterar =+carlos/magent-ui--approval-route= para rastrear a sessão "pai" (orquestrador) e injetar o botão estilizado de /Allow/Deny/ direto no buffer principal do chat.
+** TODO Cross-Streaming UI (Pensamentos do Subagente no Orquestrador)
+- [ ] Implementar leitura dinâmica no =custom-magent-ui.el=. Quando a FSM do Orquestrador estiver no estado =subagent-waiting=, o spinner não deve ficar estático ("aguardando coder...").
+- [ ] O spinner deve ler as últimas linhas do arquivo =session.json= correspondente ao subagente rodando em background e transmitir o texto de raciocínio dele (=content= / =thought=) em tempo real no buffer do orquestrador.
+
+** TODO Blindar Orquestrador contra Alucinação de Ferramentas
+- [ ] Ocultar (un-register) nativamente ferramentas de mutação (=*_smart_edit=, =write_to_file=) do contexto do perfil =orchestrator=.
+- [ ] Reforçar a validação do parâmetro =prompt= na tool =spawn_agent= para rejeitar strings literais como =[Insert Synthesis Here]=.
+
+** TODO Conscientização de Contexto Espacial em Submódulos
+- [ ] Criar regra estrita nos perfis de RAG (ou no =context_search=) para injetar avisos quando a pasta de trabalho for um git submodule (ex: =core/=), definindo a árvore de avaliação de forma explícita para não gerar arquivos fora da raiz real.
