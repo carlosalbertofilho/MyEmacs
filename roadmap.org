@@ -1959,12 +1959,12 @@ histórico completo nos registros da Linha do Tempo:
 ** [ARQUIVADO 2026-08-25] 3. Criar Wrapper CLI `bin/magent-cli`
     :PROPERTIES:
     :CREATED: 2026-08-23
-    :STATUS: BACKLOG
+    :STATUS: DONE
     :END:
-- [ ] Criar script executável `bin/magent-cli` (`set -euo pipefail`).
-- [ ] Injetar flags `--init-directory "$EMACSDIR" --batch -l init.el` transparentemente.
-- [ ] Receber comandos/argumentos Lisp na CLI e avaliar.
-- [ ] Ajustar documentação em `docs/magent-reference.org`.
+- [X] Criar script executável `bin/magent-cli` (`set -euo pipefail`).
+- [X] Injetar flags `--init-directory "$EMACSDIR" --batch -l init.el` transparentemente.
+- [X] Receber comandos/argumentos Lisp na CLI e avaliar.
+- [X] Ajustar documentação em `docs/magent-reference.org`.
 
 ** [ARQUIVADO 2026-08-24] P0: Corrigir corrupção do Circuit Breaker em custom-magent-tools.el
     :PROPERTIES:
