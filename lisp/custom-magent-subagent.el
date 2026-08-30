@@ -29,6 +29,21 @@
 (defvar +carlos/magent-fsm-subagent-jobs)
 (defvar magent-enable-tools)
 
+(defcustom +carlos/magent-subagent-lite-tools
+  '(read write edit bash
+    context_search
+    elisp_smart_edit nix_smart_edit python_smart_edit
+    ts_smart_edit c_smart_edit go_smart_edit org_smart_edit
+    sh_smart_edit markdown_smart_edit rust_smart_edit)
+  "Permission keys mantidos para backends locais (Coder Lite).
+`magent-enable-tools' guarda *permission keys* (`read'→read_file,
+`write'→write_file, `edit'→edit_file, `bash'→run_command, ...), não
+os nomes de tool (`read_file', `run_command', `replace_file_content').
+Filtrar por nomes com underscore zerava o toolset local, deixando o
+modelo sem ler arquivos/escrever/executar comando."
+  :type '(repeat symbol)
+  :group 'magent)
+
 (defun +carlos/--magent-backend-name (backend)
   "Retorna o nome de um backend heterogêneo, ou NIL se indeterminado.
 Backend: string, símbolo, plist (:name ...) ou struct gptel-backend.
@@ -191,11 +206,9 @@ chamada a função vazia no .elc."
                 (when is-orchestrator
                   (setq tools (remq 'read (remq 'write (remq 'edit (remq 'snippet_expand (remq 'buffer tools)))))))
                 (when is-local
-                  (let ((lite-tools '(read_file replace_file_content run_command context_search
-                                      elisp_smart_edit nix_smart_edit python_smart_edit
-                                      ts_smart_edit c_smart_edit go_smart_edit org_smart_edit
-                                      sh_smart_edit markdown_smart_edit rust_smart_edit)))
-                    (setq tools (seq-filter (lambda (t-name) (memq t-name lite-tools)) tools))))
+                  (setq tools (seq-filter
+                                (lambda (t-name) (memq t-name +carlos/magent-subagent-lite-tools))
+                                tools)))
                 tools)
             nil)))
     (funcall orig-fn user-prompt callback agent-info skill-names event-context

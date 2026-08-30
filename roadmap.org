@@ -2192,6 +2192,7 @@ Implementado o padrão "Coder Lite" em `custom-magent-subagent.el`. Quando a FSM
       (2) =.elc= stale prevalece em batch (necessário =just clean= antes de
       re-testar). A tese de starvation do arbiter (anotada acima) está
       DESCARTADA — o streaming gptel→MLX funciona; o problema era o launcher batch.
+        - BLOCKER 2026-08-30: mesmo com tools expostas (n=12: read_file, read_buffer, *_smart_edit), =gemma-4-e2b-it-4bit= não emite tool-call no streaming MLX. Permissões do profile =coder= negam =bash= (sem run_command). Code-repair batch precisa de emissão de tool-call do backend local antes de reexecutar a matriz.
     - Reexecutar a matriz F7-ben com Coder Lite ativo.
     - Corrigir regressão de subagent (ver entrada 2026-08-27 — Otimização
       early-init), introduzida em =f893090=.

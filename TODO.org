@@ -74,6 +74,8 @@ Ordem de implementação baseada em dependências, risco e alavanca. As Fases A 
      - [X] Coder Lite: filtro dinâmico de =magent-enable-tools= → 14 tools vitais quando backend local (MLX/Ollama/LM Studio) — commit =f893090=
      - [X] Diet Tooling nos schemas: remoção de =:description= dos =:args= de todas as tools (8 arquivos) — commit =6ac69ff=
      - [X] Smoke test: confirmar que turno de modelo local conclui em batch (=magent-cli run=) pós-fix — VALIDADO 2026-08-30: =gemma-4-e2b-it-4bit= via =MLX Local= com profile =coder= → =completed=, =turns:1=, =result="OK"=, =24s=. Causa-raiz do timeout anterior (dupla): (1) =magent= deferido + batch sem =early-init.el= → =+carlos/magent-run-execute= pulava silenciosamente o submit (fix =+carlos/magent-run-ensure-runtime=); (2) =.elc= stale prevalecendo em batch (necessário =just clean= antes de re-testar).
+     - [X] Fix 2026-08-30 (Coder Lite): filtro local agora usa permission keys (=read=/=write=/=edit=/=bash=) — antes comparava nomes (=read_file=/=run_command=) contra chaves, zerando o toolset local; +2 ERTs (myemacs-magent-subagent-lite-*)
+     - [ ] BLOCKER F7-ben 2026-08-30: mesmo com tools expostas (n=12: =read_file=/=read_buffer=/*_smart_edit/context_search), o =gemma-4-e2b-it-4bit= NÃO emite tool-call no streaming MLX (resposta template pedindo caminho absoluto); permissões do profile =coder= negam =bash= (sem run_command) → code-repair batch inviável até o backend local emitir tool-call
 
    - *Linguagens e bugs de código quebrado:*
      - [ ] Go (=go test= para validar): broker.go com data race, goroutine leak, nil deref

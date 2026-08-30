@@ -252,5 +252,30 @@
   (should (advice-member-p #'+carlos/magent-inject-child-parent-context
                            'magent-agent--compose-system-message)))
 
+;; ── Coder Lite: filtro por permission keys (regressão 2026-08-30) ───────────
+
+(ert-deftest myemacs-magent-subagent-lite-tools-native-permission-keys ()
+  "lite-tools usa *permission keys* de `magent-enable-tools', não nomes
+de tool com underscore. Regressão: filtro por `read_file'/
+`run_command'/'replace_file_content' deixava o modelo local sem
+read/write/bash (interseção vazia) — code-repair batch falhava."
+  (skip-unless myemacs-subagent-available)
+  (should (boundp '+carlos/magent-subagent-lite-tools))
+  (let ((lite +carlos/magent-subagent-lite-tools))
+    (dolist (key '(read write edit bash context_search))
+      (should (memq key lite)))
+    (dolist (stale '(read_file run_command replace_file_content))
+      (should-not (memq stale lite)))))
+
+(ert-deftest myemacs-magent-subagent-lite-filter-keeps-native ()
+  "O filtro lite preserva as chaves nativas já presentes em
+`magent-enable-tools' (ex.: o default do pacote)."
+  (skip-unless myemacs-subagent-available)
+  (let ((enable '(read write edit grep glob bash emacs_eval agent web_search)))
+    (should (equal (seq-filter (lambda (t-name)
+                                  (memq t-name +carlos/magent-subagent-lite-tools))
+                                enable)
+                   '(read write edit bash)))))
+
 (provide 'magent-subagent-test)
 ;;; magent-subagent-test.el ends here
