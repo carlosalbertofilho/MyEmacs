@@ -62,7 +62,8 @@ Ordem de implementação baseada em dependências, risco e alavanca. As Fases A 
      - [X] =mlx-community/DeepSeek-R1-Distill-Qwen-14B-4bit=
      - [ ] + config: =Qwen3.5-Coder-7B/14B=, =gemma-4-9b=, =Qwen2.5-Coder-7B= (se instalados)
    - *Inference Engine Alternativa (Teste Colibre AI)*:
-     - [ ] Validar =coli= (Colibre AI) no macOS contra o MLX. Medir Tok/s e TTFT para ver se vale a pena desviar chamadas para ele.
+      - [ ] Validar =coli= (Colibre AI) no macOS contra o MLX. Medir Tok/s e TTFT para ver se vale a pena desviar chamadas para ele.
+        - [~] 2026-08-30: =coli= instalado e rodando (=GLM-5.2= local; =coli serve= / =chat= / =bench=). Próximo: registrar backend gptel apontando para =coli serve= e rodar o probe diferencial F7-ben (payload pequeno e run completo) para provar se o bug é gptel×MLX ou do request do Magent.
    - *Total: 7 modelos × 9 profiles × 3 linguagens = 189 runs*
 
    - *Estado do benchmark (executado — resultado: Timeouts)*
@@ -75,7 +76,7 @@ Ordem de implementação baseada em dependências, risco e alavanca. As Fases A 
      - [X] Diet Tooling nos schemas: remoção de =:description= dos =:args= de todas as tools (8 arquivos) — commit =6ac69ff=
      - [X] Smoke test: confirmar que turno de modelo local conclui em batch (=magent-cli run=) pós-fix — VALIDADO 2026-08-30: =gemma-4-e2b-it-4bit= via =MLX Local= com profile =coder= → =completed=, =turns:1=, =result="OK"=, =24s=. Causa-raiz do timeout anterior (dupla): (1) =magent= deferido + batch sem =early-init.el= → =+carlos/magent-run-execute= pulava silenciosamente o submit (fix =+carlos/magent-run-ensure-runtime=); (2) =.elc= stale prevalecendo em batch (necessário =just clean= antes de re-testar).
      - [X] Fix 2026-08-30 (Coder Lite): filtro local agora usa permission keys (=read=/=write=/=edit=/=bash=) — antes comparava nomes (=read_file=/=run_command=) contra chaves, zerando o toolset local; +2 ERTs (myemacs-magent-subagent-lite-*)
-     - [ ] BLOCKER F7-ben 2026-08-30: mesmo com tools expostas (n=12: =read_file=/=read_buffer=/*_smart_edit/context_search), o =gemma-4-e2b-it-4bit= NÃO emite tool-call no streaming MLX (resposta template pedindo caminho absoluto); permissões do profile =coder= negam =bash= (sem run_command) → code-repair batch inviável até o backend local emitir tool-call
+     - [ ] BLOCKER F7-ben 2026-08-30 (diagnóstico refinado por probe): o bridge gptel/Magent ESTÁ SAUDÁVEL — =gemma-4-e2b-it-4bit= E =Qwen3.5-9B-MLX-4bit= EMITEM =tool-call= → =tool-call-batch-end= via =magent-llm-gptel-sample= com payload pequeno (probe direto). O que quebra é o run completo: request Magent grande (system prompt DSML + tools n=12 + contexto) → MLX mal emite dados no stream (4 chunks/320 bytes em 60s) → watchdog =magent-request-timeout= aborta antes de qualquer evento normalizado chegar ao loop (=FSM-LOG=(abort)=, =emit "error"=). Novo dado 2026-08-30 (teste watchdog 240s + run 300s): NENHUM evento mesmo assim, e erro NOVO =Wrong type argument: sequencep, t= no process filter (=gptel-curl--stream-filter=) ao abortar — TTFT/payload NÃO é mais a única hipótese. DECISÃO (tese E eleita): instrumentar o stream para desvendar a causa-raiz de forma determinística (dump de bytes crus dos chunks: headers HTTP? linhas =data:= SSE? body de erro JSON?) SEM reescrever o system prompt. Teste diferencial planejado: trocar MLX por Colibre AI (=coli serve=, GLM-5.2 — instalado e rodando) para provar se o bug é gptel×MLX ou do request do Magent. Permissões do profile =coder= negam =bash= (sem run_command)
 
    - *Linguagens e bugs de código quebrado:*
      - [ ] Go (=go test= para validar): broker.go com data race, goroutine leak, nil deref

@@ -12,6 +12,24 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-08-30 — [CONCLUÍDO] F7-ben: Probe conclusivo (bridge gptel/Magent saudável) + decisão tese E
+   - Probe direto `magent-llm-gptel-sample` com payload pequeno: `gemma-4-e2b-it-4bit`
+     E `Qwen3.5-9B-MLX-4bit` emitem `tool-call` → `tool-call-batch-end` (reasoning-delta
+     primeiro). O bridge gptel×Magent e o parser **funcionam**; a tese
+     "integração gptel×MLX perde tool_calls" foi FALSIFICADA.
+   - Run completo (`+carlos/magent-run-execute`, profile coder): 0 eventos normalizados
+     chegam ao loop → watchdog `magent-request-timeout` (120s) aborta.
+   - Teste adicional (watchdog 240s + run 300s): mesmo assim 0 eventos, e erro novo
+     `Wrong type argument: sequencep, t` no process filter (`gptel-curl--stream-filter`)
+     ao abortar — TTFT/payload deixou de ser a hipótese única.
+   - Medido o custo do system prompt: `system.org` ~6.4KB (~1.4k tokens), coder prompt
+     ~1.4KB, `runtime-policy.org` ~1.3KB, project-context+instructions ~700B.
+   - DECISÃO: tese E eleita — instrumentar o stream (dump de bytes crus dos chunks:
+     headers HTTP / linhas `data:` SSE / body de erro JSON) para desvendar a causa-raiz
+     de forma determinística, SEM reescrever o system prompt.
+   - Teste diferencial planejado: `coli` (Colibre AI, GLM-5.2) instalado e rodando —
+     trocar MLX por Colibre para provar se o bug é gptel×MLX ou do request do Magent.
+
 ** 2026-08-30 — [CONCLUÍDO] Reorganização do TODO.org e Inclusão do Colibre AI
    - Atualizado `TODO.org` para refletir as próximas fases lógicas (estabilização PROD, correção assíncrona do Circuit Breaker, benchmarks locais e monitoramento de cotas).
    - Adicionada a engine de inferência `coli` (Colibre AI) à matriz de benchmark Code-Repair local, para avaliação de Tok/s e TTFT contra o MLX no ecossistema macOS.
@@ -2192,7 +2210,15 @@ Implementado o padrão "Coder Lite" em `custom-magent-subagent.el`. Quando a FSM
       (2) =.elc= stale prevalece em batch (necessário =just clean= antes de
       re-testar). A tese de starvation do arbiter (anotada acima) está
       DESCARTADA — o streaming gptel→MLX funciona; o problema era o launcher batch.
-        - BLOCKER 2026-08-30: mesmo com tools expostas (n=12: read_file, read_buffer, *_smart_edit), =gemma-4-e2b-it-4bit= não emite tool-call no streaming MLX. Permissões do profile =coder= negam =bash= (sem run_command). Code-repair batch precisa de emissão de tool-call do backend local antes de reexecutar a matriz.
+        - BLOCKER 2026-08-30 (atualizado por probe): =gemma-4-e2b-it-4bit= E
+          =Qwen3.5-9B-MLX-4bit= EMITEM =tool-call= via =magent-llm-gptel-sample=
+          com payload pequeno — modelo NÃO é o problema. O run completo (request
+          grande) mal emite dados no stream (4 chunks/320B em 60s) → watchdog
+          aborta antes de qualquer evento; com watchdog 240s + run 300s ainda
+          0 eventos e erro NOVO =sequencep, t= no process filter. DECISÃO: tese E
+          (instrumentar stream, ver entrada do dia 2026-08-30). Permissões do
+          profile =coder= negam =bash= (sem run_command). Code-repair batch
+          precisa de emissão de tool-call do backend local antes de reexecutar a matriz.
     - Reexecutar a matriz F7-ben com Coder Lite ativo.
     - Corrigir regressão de subagent (ver entrada 2026-08-27 — Otimização
       early-init), introduzida em =f893090=.
