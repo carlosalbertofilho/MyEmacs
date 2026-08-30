@@ -104,7 +104,7 @@ check-prod: check-daemon
 
 # Byte-compile lisp directory in {{prod_dir}} (zero-warning gate, filtered output)
 # Guaranteed: real emacs exit code is propagated (not masked by the filter pipe).
-compile-prod:
+compile-prod: compile-modules-prod
     @output="$(emacs --init-directory "{{prod_dir}}" --batch -l init.el \
       --eval '(setq byte-compile-error-on-warn t)' \
       --eval '(byte-recompile-directory (expand-file-name "lisp" user-emacs-directory) 0)' 2>&1)"; \
@@ -126,7 +126,15 @@ compile: compile-modules
       | rg -v 'Optimization failure|Unknown type: plist|epa-file|Unknown type jupyter|Unknown type magent-request-context' || true; \
     exit "$status"
 
+# Build native C/C++ modules in {{prod_dir}}
+compile-modules-prod:
+    emacs --init-directory "{{prod_dir}}" --batch -l init.el \
+      --eval '(setq vterm-always-compile-module t)' \
+      --eval '(require '\''vterm nil t)' \
+      --eval '(when (require '\''treesit-auto nil t) (let ((treesit-auto-install t)) (ignore-errors (treesit-auto-install-all))))'
+
 # Build native C/C++ modules (vterm-module, tree-sitter grammars)
+
 compile-modules:
     emacs --init-directory "$(pwd)" --batch -l init.el \
       --eval '(setq vterm-always-compile-module t)' \
