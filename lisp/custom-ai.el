@@ -420,9 +420,9 @@ Sem advice: chama `+carlos/gptel-agent-add-project-dirs' diretamente."
 ;; ── Host-aware local backend (single source of truth) ───────────────
 (defun +carlos/ai-local-backend ()
   "Retorna cons (NOME-BACKEND . MODELO) do backend local para o host atual.
-MLX Local em hosts contendo \"agnes\", Ollama Local nos demais."
+Colibre Local (qwen3.6-colibri) em hosts contendo \"agnes\", Ollama Local nos demais."
   (if (string-match-p "agnes" (system-name))
-      (cons "MLX Local" 'mlx-community/gemma-4-e2b-it-4bit)
+      (cons "Colibre Local" 'qwen3.6-colibri)
     (cons "Ollama Local" 'qwen2.5-coder:3b)))
 
 ;; ── Network Timeouts for Local LLMs ─────────────────────────────────

@@ -89,8 +89,8 @@ Função total (nunca lança) — usada pelo Coder Lite p/ backend local."
 
 (defcustom +carlos/magent-subagent-profiles
   (let ((local-backend (if (string-match-p "aa102-006l" (system-name))
-                           "Gemini"     ;; EliteDesk: nuvem (poupa CPU)
-                         "MLX Local"))) ;; agnes: GPU Metal
+                           "Gemini"          ;; EliteDesk: nuvem (poupa CPU)
+                         "Colibre Local")))  ;; agnes (Mac M2): GPU Metal Colibre
     `(("explore"     :min-tier "free" :preferred-backend ,local-backend)
       ("general"     :min-tier "free" :preferred-backend "OpenCode Zen")
       ("coder"       :min-tier "free" :preferred-backend "OpenCode Zen")
@@ -198,6 +198,7 @@ chamada a função vazia no .elc."
          (backend-obj (and request-state (cl-struct-slot-value 'magent-request-context 'backend request-state)))
          (backend-name (and backend-obj (if (stringp backend-obj) backend-obj (+carlos/--magent-backend-name backend-obj))))
          (is-local (and backend-name (or (string-match-p "MLX" backend-name)
+                                         (string-match-p "Colibre" backend-name)
                                          (string-match-p "Ollama" backend-name)
                                          (string-match-p "LM Studio" backend-name))))
          (magent-enable-tools 
