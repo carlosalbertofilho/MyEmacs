@@ -92,14 +92,17 @@ excede este valor, novos results são truncados."
 (defun +carlos/magent-suppress-long-messages-a (orig-fn format-string &rest args)
   "Advice de `message' que suprime dumps longos não-erro do *Messages*.
 ORIG-FN é `message'; FORMAT-STRING e ARGS são o texto a exibir."
-  (let* ((text (condition-case nil
-                   (apply #'format format-string args)
-                 (error format-string)))
-         (is-error (string-match-p "\\(?:Error\\|Warning\\|error\\|timeout\\|Stopped\\|Wrong type\\|DEBUG\\)" text)))
-    (if (and (not is-error)
-             (> (length text) +carlos/magent-message-max-len))
-        text  ;; retorna o texto mas não chama message (suprimido do *Messages*)
-      (apply orig-fn format-string args))))
+  (if (not format-string)
+      (apply orig-fn format-string args)
+    (let* ((text (condition-case nil
+                     (apply #'format format-string args)
+                   (error format-string)))
+           (is-error (and (stringp text) (string-match-p "\\(?:Error\\|Warning\\|error\\|timeout\\|Stopped\\|Wrong type\\|DEBUG\\)" text))))
+      (if (and (not is-error)
+               (stringp text)
+               (> (length text) +carlos/magent-message-max-len))
+          text  ;; retorna o texto mas não chama message (suprimido do *Messages*)
+        (apply orig-fn format-string args)))))
 
 (advice-add 'message :around #'+carlos/magent-suppress-long-messages-a)
 
