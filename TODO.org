@@ -17,40 +17,28 @@ Histórico consolidado no [[file:roadmap.org][roadmap.org]].
 - *Últimos marcos:* Resiliência FSM (3 Pilares) ✅, Limpeza & Benchmark CPU aa102-006l ✅, Integ. RFC Mode ✅, Factory Reset 12 Cores ✅, P3 dry-run guards ✅, Linters nativos + helpers portáteis ✅.
 - *Suíte:* Testes ERT em `tests/` com compilação zero-warning (`compile-prod`).
 
-* Plano de Execução — Fases 6 e 4 (2026-08-25)
+* Plano de Execução — Fases 6 e 4 (Atualizado 2026-08-30)
 
-Ordem de implementação baseada em dependências, risco e alavanca.
+Ordem de implementação baseada em dependências, risco e alavanca. As Fases A e B foram majoritariamente concluídas.
 
-** Fase A — Quick Wins (paralelos, independentes)
-*** DONE F7-nix: Suporte remoto TRAMP para nix-flake, nixos-rebuild boot/switch/detached
-    :PROPERTIES:
-    :CREATED:  [2026-08-28]
-    :STATUS:   DONE
-    :END:
-    Adicionado tratamento de erro para JSON readtable em comandos nix, stripping de TRAMP path para CLI remoto, e comandos +carlos/nix-flake-update, +carlos/nixos-rebuild-boot, +carlos/nixos-rebuild-detached.
-  - [X] F6-python: Suporte basepyright-langserver --stdio + ruff + resiliência corfu--compute jsonrpc + comando +carlos/python-eval-to-minibuffer (C-c c r) → commits b5ca05e, c63998e, f017a20
+** Fase 1 — Estabilização do Ambiente Prod (Imediato)
+  - [ ] Validar correção do erro `envrc--direnv-export: Invalid function` que apareceu no prod após factory-reset.
+  - [X] Validar crash do boot no daemon (resolvido via `compile-modules-prod`).
 
-  - [X] F6-1: =toggle_checkbox= no =org_smart_edit= (Simple/Low) → commit 606c47c
-  - [X] F6-6: Integrar =lint-native= no pipeline (Medium/Low) → commit 606c47c\n  - [X] F6-git: Modelo local em commit IA + Sanitização + Host-aware routing + Org-lint gate delta → commits d5963aa, ef8e4f4, 618bd2b
-
-** Fase B — Fundação (sequencial, blocks downstream)
-  - [X] F6-2: =+carlos/magent-project-root= utility (Simple/Medium — alto blast radius, ~40 call sites) → commit bc763fd
-  - [X] F6-3/F6-5: Evoluir =bin/magent-cli= (Medium/Low — CLI já existe, evolui) → commits c95438b, 5fcc39d
-  - [ ] F6-3b: =magent-cli run= — agent launcher batch para Granite e orquestração (Medium/Medium)
-
-** Fase C — Infraestrutura Core (sequencial)
+** Fase 2 — Infraestrutura Core (Resiliência)
   - [X] F4-select: preferência explícita de backend no =select_model= (Medium/Medium) → commit d23a69c
-  - [ ] F4-cb: Circuit Breaker async fix (Medium-High/High — advice chain + FSM loop)
-  - [ ] F4-router: validação proxy cross-machine (Simple/Low — agendado 26/08)
+  - [ ] F4-cb: Circuit Breaker async fix (Medium-High/High) — Conectar erro HTTP assíncrono ao FSM e `turn-failed`.
+  - [ ] F4-router: Validação de roteamento cross-machine do proxy (agnes vs aa102-006l).
 
-** Fase D — Integração (sequencial, alta coordenação)
-  - [ ] F4-proxy: AGY Proxy gptel bridge (Medium/Medium)
-  - [ ] F4-quota: monitoramento de cotas (Complex/High — módulo novo, 6+ coletores)
-  - [ ] F4-toolserver: Tool Server Bridge capstone (Complex/High — depende de tudo)
+** Fase 3 — Bateria de Benchmark Local (F7-ben)
+  - [ ] Executar smoke test com "Diet Tooling" para validar se LLM local não dá mais timeout no 1º token.
+  - [ ] **Integração Colibre AI:** Validar executável `coli` no Mac M2 para testar se a inferência/latência bate a do MLX.
+  - [ ] Executar script de benchmark de code-repair local.
 
-** Fase E — Avaliação (paralelo)
-  - [ ] F6-g: Testar Granite 4.1 locais (Medium/Medium — benchmark hardware)
-  - [ ] F7-ben: Bateria de benchmark Code-Repair — 7 modelos MLX/LM Studio locais × 9 profiles × 3 linguagens (Go/React/Python) (Complex/High)
+** Fase 4 — Integração Magent & Quotas (Complex/High)
+  - [ ] F4-quota: Monitoramento assíncrono de cotas (OpenCode, Gemini) + injeção no Transient e failover pre-emptivo.
+  - [ ] F4-proxy: AGY Proxy gptel bridge.
+  - [ ] F4-toolserver: Tool Server Bridge capstone.
 
 ** TODO F7-ben: Bateria de Benchmark Code-Repair — Modelos Locais × Profiles
    :PROPERTIES:
@@ -73,6 +61,8 @@ Ordem de implementação baseada em dependências, risco e alavanca.
      - [X] =mlx-community/gemma-4-e2b-it-4bit=
      - [X] =mlx-community/DeepSeek-R1-Distill-Qwen-14B-4bit=
      - [ ] + config: =Qwen3.5-Coder-7B/14B=, =gemma-4-9b=, =Qwen2.5-Coder-7B= (se instalados)
+   - *Inference Engine Alternativa (Teste Colibre AI)*:
+     - [ ] Validar =coli= (Colibre AI) no macOS contra o MLX. Medir Tok/s e TTFT para ver se vale a pena desviar chamadas para ele.
    - *Total: 7 modelos × 9 profiles × 3 linguagens = 189 runs*
 
    - *Estado do benchmark (executado — resultado: Timeouts)*
