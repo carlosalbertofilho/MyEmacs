@@ -373,3 +373,8 @@ Usa o backend local configurado para tarefas rápidas."
 
 (provide 'custom-lang)
 ;;; custom-lang.el ends here
+
+;; ── Docker ──────────────────────────────────────────────────────────
+(use-package dockerfile-mode
+  :ensure t
+  :mode ("Dockerfile\\(?:\\..*\\)?\\'" . dockerfile-mode))
