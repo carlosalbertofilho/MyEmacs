@@ -109,4 +109,23 @@ When backend is unknown, backend-obj is nil but names are extracted."
   "+carlos/magent-run-execute is defined and callable."
   (should (fboundp '+carlos/magent-run-execute)))
 
+;; ── Runtime em batch (regressão 2026-08-30) ─────────────────────────
+
+(ert-deftest myemacs-run-ensure-runtime-batch ()
+  "Em batch, o launcher garante (require 'magent) antes de submeter.
+Regressão: `magent' é deferido e `--init-directory' em `--batch' não
+carrega `early-init.el'; sem o require explícito, `magent-runtime-api'
+não é carregado, os guards `fboundp' pulavam silenciosamente o submit
+e o run virava timeout com `turns:0'."
+  (skip-unless (fboundp '+carlos/magent-run-ensure-runtime))
+  (should (+carlos/magent-run-ensure-runtime))
+  (should (featurep 'magent)))
+
+(ert-deftest myemacs-run-ensure-runtime-idempotent ()
+  "+carlos/magent-run-ensure-runtime é idempotente (não quebra quando
+o runtime já está carregado)."
+  (skip-unless (fboundp '+carlos/magent-run-ensure-runtime))
+  (should (+carlos/magent-run-ensure-runtime))
+  (should (+carlos/magent-run-ensure-runtime)))
+
 ;;; magent-run-test.el ends here

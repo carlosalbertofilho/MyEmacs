@@ -145,6 +145,17 @@ Tools listadas são as ÚNICAS disponíveis. Nil herda o default do magent."
 
 ;; ── Execução principal ──────────────────────────────────────────────
 
+(defun +carlos/magent-run-ensure-runtime ()
+  "Garante o runtime do Magent carregado (batch-safe).
+O pacote `magent' é deferido (só carregado em comandos interativos);
+em batch, sem `require' explícito, `magent-runtime-api' não é
+carregado e a execução via `bin/magent-cli run' fica sem submit,
+virando timeout com `turns:0'."
+  (unless (require 'magent nil t)
+    (user-error "Magent runtime indisponível: (require 'magent) falhou"))
+  (when (fboundp 'magent-runtime-ensure-initialized)
+    (magent-runtime-ensure-initialized)))
+
 (cl-defun +carlos/magent-run-execute (prompt &key model profile status-file
                                               output-file timeout)
   "Executa um agente Magent em batch com PROMPT.
@@ -171,9 +182,8 @@ Retorna JSON string com status, model, result, metrics, duration."
     ;; Configurar variáveis de sessão
     (setq +carlos/magent-run--status-file status-file)
 
-    ;; Garantir que magent está inicializado
-    (when (fboundp 'magent-runtime-ensure-initialized)
-      (magent-runtime-ensure-initialized))
+    ;; Garantir que o runtime do Magent está carregado em batch
+    (+carlos/magent-run-ensure-runtime)
 
     ;; Resolver modelo
     (let* ((model-info (+carlos/magent-run--resolve-model profile model))

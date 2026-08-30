@@ -2183,8 +2183,15 @@ Implementado o padrão "Coder Lite" em `custom-magent-subagent.el`. Quando a FSM
       — 175 linhas de descrição de args removidas, encolhendo o schema JSON de tools
       e atacando diretamente o TTFT de modelos locais. `just compile` EXIT=0.
 *** Próximo
-    - Confirmar com um smoke test se o turno de um modelo local conclui
-      (=magent-cli run= batch escrevendo `turn-start`/`turn-end` no status JSONL).
+    - [X] Smoke test: confirmar que turno de modelo local conclui em batch
+      (=magent-cli run=) — **VALIDADO 2026-08-30** (=gemma-4-e2b-it-4bit= via
+      =MLX Local=, profile =coder=, =completed= / =turns:1= / =24s=). Causa-raiz
+      do stall (dupla): (1) =magent= é deferido e `--batch --init-directory` não
+      carrega `early-init.el` → `+carlos/magent-run-execute` pulava
+      silenciosamente o submit (fix =+carlos/magent-run-ensure-runtime=);
+      (2) =.elc= stale prevalece em batch (necessário =just clean= antes de
+      re-testar). A tese de starvation do arbiter (anotada acima) está
+      DESCARTADA — o streaming gptel→MLX funciona; o problema era o launcher batch.
     - Reexecutar a matriz F7-ben com Coder Lite ativo.
     - Corrigir regressão de subagent (ver entrada 2026-08-27 — Otimização
       early-init), introduzida em =f893090=.

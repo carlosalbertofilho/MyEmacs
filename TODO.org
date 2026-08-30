@@ -31,7 +31,7 @@ Ordem de implementação baseada em dependências, risco e alavanca. As Fases A 
   - [X] F4-router: Validação de roteamento cross-machine do proxy (agnes vs aa102-006l).
 
 ** Fase 3 — Bateria de Benchmark Local (F7-ben)
-  - [ ] Executar smoke test com "Diet Tooling" para validar se LLM local não dá mais timeout no 1º token.
+  - [X] Executar smoke test com "Diet Tooling" para validar se LLM local não dá mais timeout no 1º token.
   - [ ] **Integração Colibre AI:** Validar executável `coli` no Mac M2 para testar se a inferência/latência bate a do MLX.
   - [ ] Executar script de benchmark de code-repair local.
 
@@ -73,7 +73,7 @@ Ordem de implementação baseada em dependências, risco e alavanca. As Fases A 
    - *Mitigação Diet Tooling (aplicada)*
      - [X] Coder Lite: filtro dinâmico de =magent-enable-tools= → 14 tools vitais quando backend local (MLX/Ollama/LM Studio) — commit =f893090=
      - [X] Diet Tooling nos schemas: remoção de =:description= dos =:args= de todas as tools (8 arquivos) — commit =6ac69ff=
-     - [ ] Smoke test: confirmar que turno de modelo local conclui em batch (=magent-cli run=) pós-fix
+     - [X] Smoke test: confirmar que turno de modelo local conclui em batch (=magent-cli run=) pós-fix — VALIDADO 2026-08-30: =gemma-4-e2b-it-4bit= via =MLX Local= com profile =coder= → =completed=, =turns:1=, =result="OK"=, =24s=. Causa-raiz do timeout anterior (dupla): (1) =magent= deferido + batch sem =early-init.el= → =+carlos/magent-run-execute= pulava silenciosamente o submit (fix =+carlos/magent-run-ensure-runtime=); (2) =.elc= stale prevalecendo em batch (necessário =just clean= antes de re-testar).
 
    - *Linguagens e bugs de código quebrado:*
      - [ ] Go (=go test= para validar): broker.go com data race, goroutine leak, nil deref
@@ -158,9 +158,9 @@ Ordem de implementação baseada em dependências, risco e alavanca. As Fases A 
    - [ ] Pendências de validação: confirmar em prod (=just sync= + =just
          rebuild-prod=) que o boot acelera e que =just compile-prod= escala
          em 8 cores sem warning.
-    - [ ] REGRESSÃO DETECTADA (outra sessão): 2 testes =magent-*=
-          (=myemacs-magent-subagent-override-consumed= e
-          =myemacs-magent-subagent-apply-profile-unknown-agent=) falham com
+- [X] REGRESSÃO RESOLVIDA (outra sessão): 2 testes =magent-*=
+           (=myemacs-magent-subagent-override-consumed= e
+           =myemacs-magent-subagent-apply-profile-unknown-agent=) falham com
           =wrong-type-argument gptel-backend= — introduzida pelo commit
           =f893090= (coder-lite) que chama =gptel-backend-name= incondicional
           em =+carlos/magent-subagent-apply-profile= quando o backend é plist
@@ -203,8 +203,14 @@ Ordem de implementação baseada em dependências, risco e alavanca. As Fases A 
         =+carlos/magent-subagent-apply-profile= e todas as referências a
         =gptel-backend-name= com o símbolo =backend-obj= em todo o repo
         (incluindo =tests/= e =site-lisp/=) e verificar qual é carregada
-        pelo ERT. Confirmar vazio de =defalias= concorrente =M-x
-        find-function-noselect= no batch.
+pelo ERT. Confirmar vazio de =defalias= concorrente =M-x
+     find-function-noselect= no batch.
+     - **Resolução (verificado 2026-08-30 no =a0bea74=):** os 2 testes passaram
+       (2/2, 0 unexpected). O helper =+carlos/--magent-backend-name=
+       (=custom-magent-subagent.el:32=, função-total com guard
+       =gptel-backend-p=) eliminou o =wrong-type-argument gptel-backend=; a
+       tese de definição duplicada no load-path não se confirmou — o estado
+       commitado já roda verde.
      - **Problema novo no PROD (após =just factory-reset=, 2026-08-27 à noite):**
        - Erro de boot/uso: =envrc--direnv-export: Invalid function:
          envrc--with-required-current-en= ao entrar em diretórios com
