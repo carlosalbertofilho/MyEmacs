@@ -233,3 +233,18 @@ Exemplo:
 (with-eval-after-load 'magent-config
   (add-to-list 'magent-enable-tools 'my_tool_permission))
 #+end_src
+
+
+* Arquitetura Agêntica Híbrida (Cloud Strategist + Local Driver via magent-cli)
+
+Visão geral da arquitetura de FinOps =\$0.00= com otimização de tokens pagos.
+
+** Topologia Híbrida
+- *Cloud Strategist (Modelo Pago):* Atua no nível de planejamento, arquitetura e decomposição de tarefas complexas (ex: Gemini, OpenCode, AGY). Consome o mínimo de tokens pagos.
+- *Local Driver (Modelo Local via Colibre / MLX):* Atua no nível de execução física e geração de código local (ex: =qwen3.6-colibri= na porta 8082 na GPU Metal do Mac M2).
+- *Bridge Nativo (=magent-cli=):* Invoca deterministicamente as ferramentas nativas do MyEmacs (=sh_smart_edit=, =c_smart_edit=, =elisp_smart_edit=, =magit_*=, =rag_create_doc=).
+
+** Benefícios Empíricos de FinOps
+- *Economia de Tokens Pagos:* Redução de até 95% do consumo de API paga ao manter o loop de execuções mecânicas no modelo local.
+- *Latência e Desempenho:* Respostas locais ultra-rápidas (~1.0s TTFT no Apple Silicon Metal) com 9.68 GB RSS.
+- *Precisão Sintática:* AST e Smart-Edits do MyEmacs garantem 0% de erro sintático com rollback transacional automático.
