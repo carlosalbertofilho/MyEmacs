@@ -621,6 +621,13 @@ Este projeto adota uma arquitetura de trabalho assistido entre agentes com difer
 2. **Portão de Documentação:** Todo novo recurso ou mudança estrutural deve estar documentado em `docs/` ou no changelog antes da conclusão da tarefa.
 3. **Portão de Regras:** Verificar se o Executor não introduziu anti-padrões como `setq` em opções de customização globais, requires sem guardas (`nil t`), ou funções duplicadas.
 
+### 3. Arquitetura Agêntica Híbrida & FinOps $0.00 (Cloud Strategist + Local Driver via magent-cli)
+
+Para otimização de custo ($0.00 em API) e máxima precisão sintática em CLIs externos (AGY, OpenCode, Aider, Claude Code):
+- **Cloud Strategist (Modelos Pagos / Cloud):** Atuam exclusivamente no nível de **Planejamento, Arquitetura e Decomposição de Tarefas** (mínimo de consumo de tokens de API).
+- **Local Driver (Modelos Locais via Colibre / MLX):** Atuam como **Drivers de Execução Física Local** (ex: `qwen3.6-colibri` na porta 8082 na GPU Metal com 9.68 GB RSS, ~1.0s TTFT).
+- **Bridge Nativo (`magent-cli`):** Os modelos locais e CLIs externos DEVEM invocar deterministicamente as ferramentas nativas do MyEmacs via `bin/magent-cli` (`sh_smart_edit`, `c_smart_edit`, `elisp_smart_edit`, `python_smart_edit`, `magit_*`, `rag_create_doc`) para mutações em buffers e validação sintática AST com custo $0.00.
+
 ---
 
 ## Module Loading Order
