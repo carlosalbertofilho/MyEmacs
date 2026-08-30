@@ -32,8 +32,11 @@ Ordem de implementação baseada em dependências, risco e alavanca. As Fases A 
 
 ** Fase 3 — Bateria de Benchmark Local (F7-ben)
   - [X] Executar smoke test com "Diet Tooling" para validar se LLM local não dá mais timeout no 1º token.
-  - [ ] **Integração Colibre AI:** Validar executável `coli` no Mac M2 para testar se a inferência/latência bate a do MLX.
-  - [ ] Executar script de benchmark de code-repair local.
+  - [X] **Integração Colibre AI:** Validar executável `coli` no Mac M2 com `qwen3.6-colibri` (9.68 GB RSS, ~1.0s TTFT).
+  - [X] Executar bateria de benchmark dos 9 perfis agênticos com 100% de taxa de sucesso (9/9 PASSED).
+  - [X] Testar binding das ferramentas nativas via `bin/magent-cli` (`sh_smart_edit`, `magit_submodule_list`, `org_smart_edit`, `rag_create_doc`).
+  - [X] Orquestrar projeto do mundo real (`CommonCore/Rank05/Inception`) alinhado às diretrizes do `CommonCore/AGENTS.md`.
+  - [X] Documentar a Arquitetura Agêntica Híbrida (Cloud Strategist + Local Driver) e publicar o Savepoint v1.1.
 
 ** Fase 4 — Integração Magent & Quotas (Complex/High)
   - [ ] F4-quota: Monitoramento assíncrono de cotas (OpenCode, Gemini) + injeção no Transient e failover pre-emptivo.
