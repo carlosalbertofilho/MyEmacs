@@ -382,20 +382,20 @@ Veredito da análise (2026-08-24):
     - [ ] Subagente =explore=/=qa=: testar Granite 4.1 3B substituindo Qwen2.5-Coder.
     - [ ] Capabilities novas a avaliar: Vision 4B (extração de PDFs/tabelas), Guardian 8B (safety), Embedding 278M (RAG local).
 
-** TODO 5. Evoluir =bin/magent-cli= — CLI auto-descritiva
+** DONE 5. Evoluir =bin/magent-cli= — CLI auto-descritiva
     :PROPERTIES:
     :CREATED: 2026-08-24
-    :STATUS: BACKLOG
+    :STATUS: DONE
     :END:
 Estado atual: wrapper mínimo (28 linhas) sem =--help=, sem listagem de ferramentas,
 sem validação de argumentos, output bruto (JSON inconsistente), sem =--dry-run= e
 sem =--init-directory=. Interface alvo: =bin/magent-cli [FLAGS] <tool_name> [args...]=.
-- [ ] Flag =--list-tools= / =-l=: listar todas as funções =+carlos/magent-tool-*= com docstring resumida, via =(apropos-internal "\\+carlos/magent-tool-" #'fboundp)= + =(documentation fn)= (~30 min). Prioridade Alta.
-- [ ] Flag =--describe <tool>=: docstring + argumentos via =(help-function-arglist fn)= + =(documentation fn)=, com ações e exemplos por convenção de nome (~30 min). Prioridade Média.
-- [ ] Flag =--dry-run=: imprimir o Elisp que seria executado sem executar — útil para agentes verificarem antes de commitar (~10 min). Prioridade Baixa.
-- [ ] Output JSON estruturado (=status=, =tool=, =action=, =output=, =elapsed_ms=) e validação de argumentos com mensagem de erro apontando =--describe <tool>= (~20 min). Prioridade Média.
-- [ ] Flag =--timeout <seconds>= (default: 60, evita travamento indefinido do Emacs batch) e flag =--init-dir <path>= para override do EMACSDIR (default: =~/.config/emacs=). Prioridade Média.
-- [ ] Testes ERT das novas capacidades da CLI (~45 min junto com os demais itens do plano). Prioridade Alta.
+- [X] Flag =--list-tools= / =-l=: listar todas as funções =+carlos/magent-tool-*= com docstring resumida, via =(apropos-internal "\\+carlos/magent-tool-" #'fboundp)= + =(documentation fn)= (~30 min). Prioridade Alta.
+- [X] Flag =--describe <tool>=: docstring + argumentos via =(help-function-arglist fn)= + =(documentation fn)=, com ações e exemplos por convenção de nome (~30 min). Prioridade Média.
+- [X] Flag =--dry-run=: imprimir o Elisp que seria executado sem executar — útil para agentes verificarem antes de commitar (~10 min). Prioridade Baixa.
+- [X] Output JSON estruturado (=status=, =tool=, =action=, =output=, =elapsed_ms=) e validação de argumentos com mensagem de erro apontando =--describe <tool>= (~20 min). Prioridade Média.
+- [X] Flag =--timeout <seconds>= (default: 60, evita travamento indefinido do Emacs batch) e flag =--init-dir <path>= para override do EMACSDIR (default: =~/.config/emacs=). Prioridade Média.
+- [X] Testes ERT das novas capacidades da CLI (~45 min junto com os demais itens do plano). Prioridade Alta.
 - Link to plan: [[file:../.gemini/antigravity-cli/brain/6939fb0d-b068-4595-850d-99e9321fe46f/plan_consolidated.md][Plano Consolidado §3]]
 
 * Fase 4: Recursos Avançados (Pós-Refatoração)
