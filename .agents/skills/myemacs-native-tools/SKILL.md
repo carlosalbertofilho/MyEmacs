@@ -144,6 +144,13 @@ rfc-search-topic QUERY / rfc-read-section NUMBER SECTION
 (+carlos/magent-tool-select-model ...) ; tier-aware model selection used by subagents
 ```
 
+## 8. Hybrid Agentic Architecture (Cloud Strategist + Local Driver via magent-cli)
+
+To achieve maximum precision with zero API cost ($0.00) across all AI platforms (AGY, OpenCode, Aider, Claude Code, MyEmacs):
+- **Cloud Strategist (Paid Models / Cloud):** Act strictly as High-Level Planners/Architects. Decompose tasks and specify AST transformations in `TODO.org` (minimizing paid API token usage).
+- **Local Driver (Local Models via Colibre / MLX):** Act as physical Execution Drivers (e.g. `qwen3.6-colibri` on port 8082, 9.68 GB RSS, ~1.0s TTFT).
+- **Native Tool Bridge (`bin/magent-cli`):** MUST execute all physical buffer mutations and AST validations via `bin/magent-cli <tool> <args>` (e.g. `bin/magent-cli sh_smart_edit`, `c_smart_edit`, `elisp_smart_edit`, `org_smart_edit`, `magit_submodule_list`, `rag_create_doc`).
+
 ---
 
 ## Lessons learned (encode these habits)
