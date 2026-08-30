@@ -186,11 +186,6 @@ Ordem de implementação baseada em dependências, risco e alavanca. As Fases A 
         =(&#x2e83;let* ((cl-x backend-obj))&#x2026;)= e =(&#x2e83;or (let*
         ((cl-x cl-x))&#x2026;)=) e a condição
         =wrong-type-argument gptel-backend (:name "OpenCode Zen")= /
-        =(gptel-backend local)= — mesmo sem =elc= e sem =eln-cache=. Isso
-        sugere que o código em execução no teste ainda é o antigo.
-      - **TESES ATIVAS (por ordem de probabilidade):**
-        1. Existe uma SEGUNDA definição de =+carlos/magent-subagent-apply-profile=
-           (ou um =advice= / re-definição em outro módulo =custom-magent-*.el=
            carregado depois) que ainda contém o =gptel-backend-name= inline
            antigo. O =load-tests.el= carrega toda a suíte; algum outro arquivo
            pode redefinir a função. -> investigar definições duplicadas de
@@ -538,4 +533,10 @@ OpenCode Zen (o gptel direto funciona normalmente com Gemini).
   suspeito de ter enviado os turnos de 10:12–10:25 ao OpenCode Zen em vez do gemma
   local do perfil agnes.
 - [ ] Testes ERT dos dois comportamentos.
+** TODO Resiliência do Sentinel e Interação com Orquestrador (UX)
+- [ ] Implementar um =condition-case= global no wrapper de execução de tools (=magent-tool-result-require= e =+carlos/magent-execute-tool=) para capturar exceções Lisp nativas (como =wrong-type-argument=). Em vez de crashar o Sentinel (o que mata o processo silenciosamente), a FSM deve interceptar o erro e gerar um =tool-call-end= com o status de erro e a stacktrace, devolvendo o controle ao modelo para que ele mesmo corrija o argumento (ex: trocar =write= por =insert_snippet=).
+- [ ] Desenvolver uma interface (Prompt de Interrupção/Side-band) que permita ao usuário enviar mensagens diretas ao Orquestrador (Magent) mesmo quando ele estiver bloqueado no estado =waiting= aguardando um subagente. Isso evitará a sensação de "travamento" e permitirá correções de rota em tempo real.
 
+** TODO Estilização e Alinhamento do Minibuffer (Padrões Protesilaos)
+- [ ] Pesquisar e prototipar propostas baseadas na filosofia do Protesilaos (Prot) para o Minibuffer. Avaliar o pacote =mct= (Minibuffer Confines Navigation) ou integrações visuais específicas do =ef-themes= / =standard-themes=.
+- [ ] Resolver os problemas de alinhamento e legibilidade do minibuffer atual (que hoje combina =vertico= + =marginalia= + =corfu= + =orderless=). Criar uma UI limpa e não obstrutiva para aprovações de ferramentas da FSM e inserção de prompts.
