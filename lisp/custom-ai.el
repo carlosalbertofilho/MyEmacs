@@ -144,6 +144,17 @@ roteamento para backends locais fica apenas como fallback final.")
               "gemma-4-31b-it"
               "antigravity-preview-05-2026"))
 
+  ;; ── Backend: AGY Proxy (Planejamento/QA) ──────────────────────────
+  (let ((proxy-host (if (string-match-p "agnes" (system-name))
+                        "127.0.0.1:8080"
+                      "agnes.local:8080")))
+    (gptel-make-openai "AGY Proxy"
+      :host proxy-host
+      :protocol "http"
+      :stream t
+      :key "proxy-key"
+      :models '("agy")))
+
   ;; ── Backend: Ollama Local (endpoint nativo /api/chat) ─────────────
   ;; NOTA: usar gptel-make-ollama (não gptel-make-openai) — o endpoint
   ;; OpenAI-compat /v1/chat/completions IGNORA options.num_ctx (sempre

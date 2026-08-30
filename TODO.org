@@ -28,7 +28,7 @@ Ordem de implementação baseada em dependências, risco e alavanca. As Fases A 
 ** Fase 2 — Infraestrutura Core (Resiliência)
   - [X] F4-select: preferência explícita de backend no =select_model= (Medium/Medium) → commit d23a69c
   - [X] F4-cb: Circuit Breaker async fix (Medium-High/High) — Conectar erro HTTP assíncrono ao FSM e `turn-failed`.
-  - [ ] F4-router: Validação de roteamento cross-machine do proxy (agnes vs aa102-006l).
+  - [X] F4-router: Validação de roteamento cross-machine do proxy (agnes vs aa102-006l).
 
 ** Fase 3 — Bateria de Benchmark Local (F7-ben)
   - [ ] Executar smoke test com "Diet Tooling" para validar se LLM local não dá mais timeout no 1º token.

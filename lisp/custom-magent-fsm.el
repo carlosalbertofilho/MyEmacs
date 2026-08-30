@@ -349,17 +349,17 @@ restaura `gc-cons-threshold' ao valor padrão e executa `(garbage-collect)'."
 (defcustom +carlos/magent-host-profiles
   '(("agnes"      :orchestrator-backend "MLX Local"
                   :orchestrator-model   "mlx-community/gemma-4-e2b-it-4bit"
-                  :dev-backend          "MLX Local"
-                  :dev-model            "mlx-community/Qwen3.5-Coder-7B-Instruct-4bit"
-                  :reasoning-backend    "MLX Local"
-                  :reasoning-model      "mlx-community/DeepSeek-R1-Distill-Qwen-14B-4bit"
+                  :dev-backend          "OpenCode Zen"
+                  :dev-model            "big-pickle"
+                  :reasoning-backend    "AGY Proxy"
+                  :reasoning-model      "agy"
                   :watchdog-timeout     8)
     ("aa102-006l" :orchestrator-backend "Gemini"
                   :orchestrator-model   "gemini-2.5-flash"
                   :dev-backend          "OpenCode Zen"
                   :dev-model            "big-pickle"
-                  :reasoning-backend    "Ollama Local"
-                  :reasoning-model      "deepseek-r1:1.5b"
+                  :reasoning-backend    "AGY Proxy"
+                  :reasoning-model      "agy"
                   :watchdog-timeout     15))
   "Perfis de backend/modelo por hostname para a FSM do Magent.
 Cada entrada é (HOSTNAME-FRAGMENT &rest PLIST-OF-KEYS)."
