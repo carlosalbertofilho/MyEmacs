@@ -65,6 +65,16 @@ rebuild: clean compile
 rebuild-prod: clean-prod compile-prod
     @echo "✅ Rebuilt (prod)"
 
+# Full clean including Elpaca packages (dev)
+clean-all: clean
+    rm -rf "$(pwd)/elpaca/builds"
+    @echo "✅ Cleaned repo Elpaca builds"
+
+# Full clean including Elpaca packages (prod)
+clean-all-prod: clean-prod
+    rm -rf "{{prod_dir}}/elpaca/builds"
+    @echo "✅ Cleaned prod Elpaca builds"
+
 # ── Checks (boot + lint) ─────────────────────────────────────────────
 
 # Quick config load test (dev, no linting)

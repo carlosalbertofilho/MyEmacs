@@ -75,6 +75,12 @@ if [ -d "$PROD_DIR/magent/sessions" ]; then
     cp -r "$PROD_DIR/magent/sessions" "$BACKUP_DIR/magent/"
 fi
 
+if [ -d "$PROD_DIR/elpaca/repos" ]; then
+    echo "   Salvando elpaca/repos/ (para acelerar rebuild)..."
+    mkdir -p "$BACKUP_DIR/elpaca"
+    cp -r "$PROD_DIR/elpaca/repos" "$BACKUP_DIR/elpaca/"
+fi
+
 echo "🔥 Apagando completamente $PROD_DIR..."
 rm -rf "$PROD_DIR"
 NUKED=1
@@ -92,6 +98,11 @@ done
 if [ -d "$BACKUP_DIR/magent/sessions" ]; then
     mkdir -p "$PROD_DIR/magent"
     cp -r "$BACKUP_DIR/magent/sessions" "$PROD_DIR/magent/"
+fi
+
+if [ -d "$BACKUP_DIR/elpaca/repos" ]; then
+    mkdir -p "$PROD_DIR/elpaca"
+    cp -r "$BACKUP_DIR/elpaca/repos" "$PROD_DIR/elpaca/"
 fi
 
 NUKED=0
