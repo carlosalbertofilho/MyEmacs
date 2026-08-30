@@ -35,6 +35,12 @@
 
 ;; ── Infraestrutura transacional compartilhada ─────────────────────────
 
+(defun +carlos/magent--smart-edit-format-result (payload &optional err)
+  "Retorna resultado formatado via `+carlos/magent-tool-result' quando disponível."
+  (if (fboundp '+carlos/magent-tool-result)
+      (+carlos/magent-tool-result payload err)
+    (if err (format "Erro: %s" err) (format "%s" payload))))
+
 (defun +carlos/magent--smart-edit-transaction (buf kind thunk)
   "Executa THUNK em BUF como uma transação validada por KIND.
 KIND é `code' (check-parens), `raw' (sem gate de
@@ -588,8 +594,8 @@ REASON: Motivo da alteração."
     (with-current-buffer buf
       (unless (derived-mode-p 'org-mode)
         (when (fboundp 'org-mode) (org-mode)))
-      (pcase action
-        ("insert_snippet"
+      (pcase (and (stringp action) (downcase (replace-regexp-in-string "-" "_" action)))
+        ((or "insert_snippet" "insert_text" "insert" "create_file" "insert_code")
          (let* ((name (or snippet-name "heading"))
                 (arg-str (or args ""))
                 (code (cond
@@ -600,6 +606,10 @@ REASON: Motivo da alteração."
                         (format "| ID | Title | Status |\n|----+-------+--------|\n| 1  | %s | TODO   |\n" arg-str))
                        ((equal name "src_block")
                         (format "#+BEGIN_SRC %s\n\n#+END_SRC\n" (if (string-empty-p arg-str) "elisp" arg-str)))
+                       ((or (string-prefix-p "#+" arg-str)
+                            (string-prefix-p "*" arg-str)
+                            (string-match-p "\n" arg-str))
+                        (concat arg-str "\n"))
                        (t
                         (format "* TODO %s\n    :PROPERTIES:\n    :CREATED: %s\n    :STATUS: pendente\n    :END:\n\n"
                                 arg-str (format-time-string "%Y-%m-%d"))))))
@@ -609,9 +619,9 @@ REASON: Motivo da alteração."
                (unless (bolp) (insert "\n"))
                (insert code)
                (format "Snippet Org '%s' inserido com sucesso em '%s'." name abs-file)))))
-        ("refactor_symbol"
+        ((or "refactor_symbol" "refactor" "replace_symbol")
          (if (or (null args) (string-empty-p args))
-             "Erro: informe \"antigo novo [FLAGS]\" em args para refatorar."
+             (+carlos/magent--smart-edit-format-result nil "Informe \"antigo novo [FLAGS]\" em args para refatorar.")
            (let* ((parts (split-string args "[ \t]+" t))
                   (old-sym (nth 0 parts))
                   (new-sym (nth 1 parts))
@@ -623,10 +633,10 @@ REASON: Motivo da alteração."
                        (format "Refatoração Org '%s' -> '%s' concluída em '%s' (%d substituições%s)."
                                old-sym new-sym abs-file count
                                (if flags (format ", flags=%s" flags) "")))))
-               "Erro: forneça 'velho novo' em args."))))
-        ("replace_heading"
+               (+carlos/magent--smart-edit-format-result nil "Forneça 'velho novo' em args.")))))
+        ((or "replace_heading" "rename_heading")
          (if (or (null args) (string-empty-p args))
-             "Erro: args deve ser 'heading-exato|novo-titulo'."
+             (+carlos/magent--smart-edit-format-result nil "args deve ser 'heading-exato|novo-titulo'.")
            (let* ((parts (split-string args "|" t))
                   (heading-text (nth 0 parts))
                   (new-title (nth 1 parts)))
@@ -656,10 +666,10 @@ REASON: Motivo da alteração."
                                 "\n"))
                        (format "Heading '%s' renomeado para '%s' (nível, keyword e tags preservados)."
                                heading-text new-title))))
-               "Erro: formato de args deve ser 'heading-exato|novo-titulo'."))))
-        ("replace_text"
+               (+carlos/magent--smart-edit-format-result nil "formato de args deve ser 'heading-exato|novo-titulo'.")))))
+        ((or "replace_text" "replace")
          (if (or (null args) (string-empty-p args))
-             "Erro: args deve ser 'old|new|L1|L2'."
+             (+carlos/magent--smart-edit-format-result nil "args deve ser 'old|new|L1|L2'.")
            (let* ((parts (split-string args "|" t))
                   (old-txt (nth 0 parts))
                   (new-txt (nth 1 parts))
@@ -667,10 +677,11 @@ REASON: Motivo da alteração."
                   (l2 (and (nth 3 parts) (string-to-number (nth 3 parts)))))
              (cond
               ((or (not old-txt) (not new-txt) (not l1) (not l2))
-               "Erro: formato de args deve ser 'old|new|L1|L2'.")
+               (+carlos/magent--smart-edit-format-result nil "formato de args deve ser 'old|new|L1|L2'."))
               ((or (< l1 1) (< l2 l1) (> l2 (line-number-at-pos (point-max))))
-               (format "Erro: intervalo L%d-L%d inválido (arquivo tem %d linhas)."
-                       l1 l2 (line-number-at-pos (point-max))))
+               (+carlos/magent--smart-edit-format-result nil
+                 (format "intervalo L%d-L%d inválido (arquivo tem %d linhas)."
+                         l1 l2 (line-number-at-pos (point-max)))))
               (t
                (+carlos/magent--smart-edit-transaction buf 'org
                  (lambda ()
@@ -682,9 +693,9 @@ REASON: Motivo da alteração."
                        (let ((count (+carlos/magent--smart-edit-replace-core old-txt new-txt)))
                          (format "Substituição em L%d-L%d concluída (%d ocorrência(s))."
                                  l1 l2 count)))))))))))
-        ("set_property"
+        ((or "set_property" "property")
          (if (or (null args) (string-empty-p args))
-             "Erro: args deve ser 'Heading|PROP|VALOR'."
+             (+carlos/magent--smart-edit-format-result nil "args deve ser 'Heading|PROP|VALOR'.")
            (let* ((parts (split-string args "|" t))
                   (heading (nth 0 parts))
                   (prop (nth 1 parts))
@@ -702,17 +713,18 @@ REASON: Motivo da alteração."
                        (goto-char (org-element-property :begin node))
                        (org-set-property prop val)
                        (format "Propriedade '%s' definida como '%s' no nó '%s'." prop val heading))))
-               "Erro: formato de args deve ser 'Heading|PROP|VALOR'."))))
-        ("validate_buffer"
-         (if (fboundp 'org-lint)
-             (let ((reports (org-lint)))
-               (if reports
-                   (format "Avisos do org-lint no buffer '%s': %d" abs-file (length reports))
-                 (format "Buffer Org '%s' validado e sintaticamente limpo." abs-file)))
-           (format "Buffer Org '%s' carregado com sucesso." abs-file)))
-        ("toggle_checkbox"
+               (+carlos/magent--smart-edit-format-result nil "formato de args deve ser 'Heading|PROP|VALOR'.")))))
+        ((or "validate_buffer" "validate" "check")
+         (+carlos/magent--smart-edit-format-result
+          (if (fboundp 'org-lint)
+              (let ((reports (org-lint)))
+                (if reports
+                    (format "Avisos do org-lint no buffer '%s': %d" abs-file (length reports))
+                  (format "Buffer Org '%s' validado e sintaticamente limpo." abs-file)))
+            (format "Buffer Org '%s' carregado com sucesso." abs-file))))
+        ((or "toggle_checkbox" "checkbox")
          (if (or (null args) (string-empty-p args))
-             "Erro: informe o texto do heading alvo em args para toggle_checkbox."
+             (+carlos/magent--smart-edit-format-result nil "informe o texto do heading alvo em args para toggle_checkbox.")
            (let ((heading args))
              (+carlos/magent--smart-edit-transaction buf 'org
                (lambda ()
@@ -726,7 +738,8 @@ REASON: Motivo da alteração."
                    (goto-char (org-element-property :begin node))
                    (org-toggle-checkbox 'toggle)
                    (format "Checkbox toggled no heading '%s' em '%s'." heading abs-file)))))))
-        (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol', 'set_property', 'replace_heading', 'replace_text', 'toggle_checkbox' ou 'validate_buffer'." action))))))
+        (_ (+carlos/magent--smart-edit-format-result nil
+             (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol', 'set_property', 'replace_heading', 'replace_text', 'toggle_checkbox' ou 'validate_buffer'." action)))))))
 
 (defun +carlos/magent-tool-sh-smart-edit (target-file action &optional snippet-name args _reason)
   "Ferramenta transacional para edição de scripts Shell/Bash (.sh, .bash).
