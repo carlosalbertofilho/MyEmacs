@@ -67,8 +67,8 @@
 
 ;; ── Server mode (emacsclient) ───────────────────────────────────────
 (require 'server)
-(unless (server-running-p)
-  (server-start))
+(unless (or noninteractive (server-running-p))
+  (ignore-errors (server-start)))
 
 ;; ── exec-path-from-shell (macOS environment inherit) ────────────────
 (use-package exec-path-from-shell
