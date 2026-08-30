@@ -1,7 +1,7 @@
 #+TITLE: Roadmap — MyEmacs Configuration
 #+AUTHOR: Carlos Filho
 #+DATE: 2026-08-05
-#+LAST_MODIFIED: 2026-08-27
+#+LAST_MODIFIED: 2026-08-30
 #+OPTIONS: toc:2 num:t
 
 * Visão Geral
@@ -11,6 +11,10 @@ Este documento registra o histórico de ações realizadas no projeto MyEmacs
 entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
+
+** 2026-08-30 — [CONCLUÍDO] Reorganização do TODO.org e Inclusão do Colibre AI
+   - Atualizado `TODO.org` para refletir as próximas fases lógicas (estabilização PROD, correção assíncrona do Circuit Breaker, benchmarks locais e monitoramento de cotas).
+   - Adicionada a engine de inferência `coli` (Colibre AI) à matriz de benchmark Code-Repair local, para avaliação de Tok/s e TTFT contra o MLX no ecossistema macOS.
 
 ** 2026-08-28 — [CONCLUÍDO] Suporte Python LSP (Pyright/Ruff), Resiliência Corfu e Comando Eval Minibuffer
    - Corrigida inicialização do Eglot em Python com `basedpyright-langserver --stdio` e `NODE_OPTIONS` (8GB V8 Heap) como prioridade 1 para suporte a `:completionProvider`.
