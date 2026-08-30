@@ -572,7 +572,7 @@ Se um subagente ainda estiver ativo (turno de retomada), entra em
 Retorna \\='timeout, \\='model-unavailable, \\='context-length, ou nil."
   (let ((detail (or (plist-get event-data :detail) "")))
     (cond
-     ((string-match-p "timeout" detail) 'timeout)
+     ((string-match-p "timeout\\|timed.*out\\|time-out\\|read.*timeout\\|connection.*timeout" detail) 'timeout)
      ((string-match-p "model.*unavailable\\|429\\|503\\|rate.limit\\|high.*demand\\|spikes.*in.*demand\\|overloaded" detail) 'model-unavailable)
      ((string-match-p "context.*length\\|too.*long\\|maximum.*context" detail) 'context-length)
      (t nil))))
