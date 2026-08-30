@@ -535,7 +535,10 @@ OpenCode Zen (o gptel direto funciona normalmente com Gemini).
 - [ ] Testes ERT dos dois comportamentos.
 ** TODO Resiliência do Sentinel e Interação com Orquestrador (UX)
 - [ ] Implementar um =condition-case= global no wrapper de execução de tools (=magent-tool-result-require= e =+carlos/magent-execute-tool=) para capturar exceções Lisp nativas (como =wrong-type-argument=). Em vez de crashar o Sentinel (o que mata o processo silenciosamente), a FSM deve interceptar o erro e gerar um =tool-call-end= com o status de erro e a stacktrace, devolvendo o controle ao modelo para que ele mesmo corrija o argumento (ex: trocar =write= por =insert_snippet=).
-- [ ] Desenvolver uma interface (Prompt de Interrupção/Side-band) que permita ao usuário enviar mensagens diretas ao Orquestrador (Magent) mesmo quando ele estiver bloqueado no estado =waiting= aguardando um subagente. Isso evitará a sensação de "travamento" e permitirá correções de rota em tempo real.
+- [ ] Desenvolver Injeção de Contexto (Prompt Side-band) no =shell-maker=:
+  - [ ] Aplicar um /advice/ no =shell-maker-submit= (ou mapeamento de tecla =RET=) para que, quando a FSM estiver no estado =waiting_agent= ou gerando, o prompt não fique travado lançando erro.
+  - [ ] A interceptação deve capturar o texto do usuário, salvar no =session.json= e emitir um sinal de *wake-up* ou interrupção suave para o loop da FSM do Orquestrador.
+  - [ ] Como fallback, expor um atalho global (ex: =C-c A i=) e uma opção no menu Transient (=C-c A m= -> =[I] Interromper Sessão=) para forçar o destravamento e submeter novas instruções por cima da fila de background.
 
 ** TODO Estilização e Alinhamento do Minibuffer (Padrões Protesilaos)
 - [ ] Pesquisar e prototipar propostas baseadas na filosofia do Protesilaos (Prot) para o Minibuffer. Avaliar o pacote =mct= (Minibuffer Confines Navigation) ou integrações visuais específicas do =ef-themes= / =standard-themes=.
