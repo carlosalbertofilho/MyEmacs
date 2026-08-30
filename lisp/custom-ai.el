@@ -419,8 +419,9 @@ Sem advice: chama `+carlos/gptel-agent-add-project-dirs' diretamente."
 
 ;; ── Host-aware local backend (single source of truth) ───────────────
 (defun +carlos/ai-local-backend ()
-  "Retorna cons (NOME-BACKEND . MODELO) do backend local para o host atual.
-Colibre Local (qwen3.6-colibri) em hosts contendo \"agnes\", Ollama Local nos demais."
+  "Retorna cons (NOME-BACKEND . MODELO) do backend local para o host.
+Colibre Local (qwen3.6-colibri) em hosts contendo \"agnes\",
+Ollama Local nos demais."
   (if (string-match-p "agnes" (system-name))
       (cons "Colibre Local" 'qwen3.6-colibri)
     (cons "Ollama Local" 'qwen2.5-coder:3b)))
