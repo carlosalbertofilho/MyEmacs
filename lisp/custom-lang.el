@@ -112,6 +112,19 @@
              (if (string-empty-p output) "(Executado com sucesso, sem saída de texto)" output))))
 
 (with-eval-after-load 'python
+  (setq python-shell-eval-file-setup-code
+        "def __PYTHON_EL_eval_file(filename, tempname, delete):
+    import os, re
+    pattern = r'^[ \t\f]*#.*?coding[:=][ \t]*([-_.a-zA-Z0-9]+)'
+    with open(tempname or filename, encoding='latin-1') as file:
+        match = re.match(pattern, file.readline())
+        match = match or re.match(pattern, file.readline())
+        encoding = match.group(1) if match else 'utf-8'
+    with open(tempname or filename, encoding=encoding) as file:
+        source = file.read().encode(encoding)
+    if delete and tempname:
+        os.remove(tempname)
+    return __PYTHON_EL_eval(source, filename)\n")
   (define-key python-ts-mode-map (kbd "C-c c r") #'+carlos/python-eval-to-minibuffer)
   (define-key python-mode-map (kbd "C-c c r") #'+carlos/python-eval-to-minibuffer))
 
