@@ -28,7 +28,7 @@
 (elpaca corfu)
 (elpaca cape)
 (elpaca tempel)
-(elpaca tempel-collection)
+(elpaca (tempel-collection :ref "4ea6f92"))
 (elpaca eglot-tempel)
 (elpaca-wait)
 
