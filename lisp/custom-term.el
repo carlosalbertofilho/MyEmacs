@@ -20,6 +20,8 @@
 ;; Forward declarations peladas: vterm/eshell definem esses maps com
 ;; keymap NÃO-nil — `(defvar X nil)' clobberaria o default (gotcha Emacs 30).
 ;; Os define-key abaixo rodam após o pacote dono carregar (map já bound).
+(declare-function eshell/pwd "em-dirs")
+(defvar eshell-last-command-status)
 (defvar vterm-mode-map)
 (defvar eshell-mode-map)
 (defvar eshell-visual-commands)
@@ -117,13 +119,48 @@ ORIG-FUN and ARGS are passed to the original function."
   :config
   (setq capf-autosuggest-look-back 1000)) ;; Search back in history
 
-;; ── eshell-git-prompt (Starship/Oh My Zsh style) ───────────────────
-;; Replaces eshell-prompt-extras with modern Git-aware prompt.
-(use-package eshell-git-prompt
-  :ensure t
-  :after eshell
-  :config
-  (eshell-git-prompt-use-theme 'powerline))
+;; ── Eshell Starship-style Prompt ────────────────────────────────────
+(defun +carlos/eshell-starship-prompt ()
+  "Prompt multilinha para Eshell inspirado no Starship com Host, SSH, Docker e Git."
+  (let* ((last-status (or (bound-and-true-p eshell-last-command-status) 0))
+         (status-color (if (= last-status 0) "#a3be8c" "#bf616a"))
+         (remote-info (file-remote-p default-directory))
+         (is-ssh (or (getenv "SSH_CLIENT") (getenv "SSH_TTY")
+                     (and remote-info (string-match-p "ssh" remote-info))))
+         (is-docker (or (file-exists-p "/.dockerenv")
+                        (getenv "CONTAINER_ID")
+                        (and remote-info (string-match-p "docker\\|container" remote-info))))
+         (user-host (concat (user-login-name) "@" (car (split-string (system-name) "\\."))))
+
+         ;; Contexto do Host (Docker, SSH ou Local)
+         (host-str (cond
+                    (is-docker
+                     (propertize (concat "🐳 " user-host " (docker)") 'face '(:foreground "#81a1c1" :weight bold)))
+                    (is-ssh
+                     (propertize (concat "🌐 " user-host " (ssh)") 'face '(:foreground "#ebcb8b" :weight bold)))
+                    (t
+                     (propertize (concat "💻 " user-host) 'face '(:foreground "#d8dee9" :weight bold)))))
+
+         ;; Diretório
+         (dir (abbreviate-file-name (if (fboundp 'eshell/pwd) (eshell/pwd) default-directory)))
+         (dir-str (propertize (concat " 📁 " dir) 'face '(:foreground "#88c0d0" :weight bold)))
+
+         ;; Ambientes (Python Virtualenv e Nix Shell)
+         (venv (when-let* ((v (getenv "VIRTUAL_ENV"))) (file-name-nondirectory v)))
+         (venv-str (if venv (propertize (concat " 🐍 " venv) 'face '(:foreground "#a3be8c")) ""))
+         (nix-str (if (getenv "IN_NIX_SHELL") (propertize " ❄️ nix" 'face '(:foreground "#7dcfff")) ""))
+
+         ;; Git Branch
+         (git-branch (when (and (fboundp 'vc-backend) (vc-backend default-directory))
+                       (ignore-errors (substring (vc-working-revision default-directory) 0 7))))
+         (git-str (if git-branch
+                      (propertize (concat " 🌿 " git-branch) 'face '(:foreground "#b48ead" :weight bold))
+                    ""))
+
+         ;; Seta do Prompt (Verde se 0 / Vermelho se Erro)
+         (arrow (propertize "❯" 'face `(:foreground ,status-color :weight bold))))
+
+    (concat "\n" host-str dir-str git-str venv-str nix-str "\n" arrow " ")))
 
 ;; ── eshell (built-in) ───────────────────────────────────────────────
 (use-package eshell
@@ -135,7 +172,9 @@ ORIG-FUN and ARGS are passed to the original function."
         eshell-scroll-to-bottom-on-input 'all
         eshell-error-if-no-glob t
         eshell-hist-file-size 10000
-        eshell-cmpl-cycle-completions nil)
+        eshell-cmpl-cycle-completions nil
+        eshell-prompt-function #'+carlos/eshell-starship-prompt
+        eshell-prompt-regexp "^❯ ")
   (with-eval-after-load 'em-term
     (dolist (cmd '("ssh" "top" "htop" "devenv" "nix" "tmux" "mosh"))
       (add-to-list 'eshell-visual-commands cmd))))
