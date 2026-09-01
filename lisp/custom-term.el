@@ -24,6 +24,8 @@
 (declare-function nerd-icons-icon-for-file "nerd-icons")
 (declare-function nerd-icons-icon-for-dir "nerd-icons")
 (declare-function eshell-ls-decorated-name "em-ls")
+(declare-function eshell-plain-command "esh-ext")
+(declare-function magit-log-head "magit-log")
 (defvar eshell-last-command-status)
 (defvar vterm-mode-map)
 (defvar eshell-mode-map)
@@ -201,6 +203,20 @@ ORIG-FUN and ARGS are passed to the original function."
     (eshell/alias "gemini" "agy $*")
     ;; ll como atalho para ls -la (usa o eshell/ls nativo em Elisp)
     (eshell/alias "ll" "ls -la $*")))
+
+(defun eshell/git (&rest args)
+  "Delegate `git' calls in Eshell, mapping `log' to the Magit buffer.
+
+When the first ARGS is `log' (or a log sub-command like `lg'), open the
+graphical Magit commit log `--graph --oneline -20' instead of running
+plain `git log'.  All other git invocations fall back to the real git
+binary, preserving normal Eshell CLI behavior."
+  (if (or (null args)
+          (and (stringp (car args)) (member (car args) '("log" "lg"))))
+      (progn
+        (magit-log-head '("-20" "--graph" "--oneline"))
+        nil)
+    (eshell-plain-command "git" args)))
 
 (add-hook 'eshell-mode-hook #'+carlos/eshell-ai-aliases)
 

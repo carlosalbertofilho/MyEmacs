@@ -461,6 +461,7 @@ Mecanismo de Failover Pre-emptivo:
 - **2026-08-25:** P3 dry-run guards (branch-delete, docker-action, systemd-action) → [[file:roadmap.org][roadmap.org]] (Histórico).
 - **2026-08-25:** Linters nativos (defun-parens + arity) + helpers portáteis (trim, with-temp-file-buffer) → [[file:roadmap.org][roadmap.org]] (Histórico).
 - **2026-08-27:** Correção de Hangs Críticos e Timers no magent-cli (--batch) para pipeline F7-ben → [[file:roadmap.org][roadmap.org]] (Histórico).
+- **2026-09-01:** Eshell override =git log= → buffer Magit (=magit-log-head= com =--graph --oneline -20=); demais comandos =git= delegam ao binário real via =eshell-plain-command= → custom-term.el + docs/term-stack.org.
 
 * TODO Refatoração SOLID - Fase 7 - Structured Outputs
     :PROPERTIES:

@@ -763,9 +763,11 @@ entenderem o estado atual do projeto e decisões tomadas.
        =denote-silo-extras=.
      - gptel-reference.org: nova seção "Backends e Keybindings do MyEmacs"
        (OpenCode Zen/Zen Claude/Gemini/Ollama + =C-c i=/=C-c I=).
-     - AGENTS.md: árvore de arquitetura e ordem de carregamento atualizadas
-       (18 módulos, sub-módulos magent-*), =eshell-prompt-extras= →
-       =eshell-git-prompt=.
+      - AGENTS.md: árvore de arquitetura e ordem de carregamento atualizadas
+        (18 módulos, sub-módulos magent-*); prompt eshell customizado
+        (=+carlos/eshell-starship-prompt=) substitui =eshell-prompt-extras=.
+    - **2026-09-01:** Pacote órfão =eshell-git-prompt= removido (nunca era
+      usado — a config usa =+carlos/eshell-starship-prompt= do custom-term.el).
    - **org-lint:** meta-referências em código inline (=TODO.md=) agora são
      ignoradas (documentam a própria regra) — +2 testes ERT de regressão
      (prose ref sinalizada; inline meta ok).

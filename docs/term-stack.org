@@ -1,7 +1,7 @@
 #+TITLE: Terminal Stack Reference Guide
 #+AUTHOR: Carlos Filho
 #+DATE: 2026-08-22
-#+LAST_MODIFIED: 2026-08-22
+#+LAST_MODIFIED: 2026-09-01
 #+DESCRIPTION: Guia de Referência RAG para os terminais integrados no Emacs (Vterm e Eshell).
 #+FILETAGS: :RAG:DOCS:
 #+OPTIONS: toc:2 num:t
@@ -82,7 +82,27 @@ information on Eshell, see Info node `(eshell)Top'.
 (fn &optional ARG)
 #+end_src
 
-** eshell-git-prompt
-- *Tipo:* Símbolo
+** eshell/git (override custom)
+- *Local:* =lisp/custom-term.el=
+- *Função:* =eshell/git=
 
-_Sem documentação registrada._
+Handler nativo do Eshell que redireciona o comando =git log= para o
+buffer gráfico do Magit em vez do stdout em texto puro.
+
+- =git log= ou =git lg= → abre =magit-log-head= com os argumentos
+  =("-20" "--graph" "--oneline")=, mostrando árvore e texto coloridos.
+- Qualquer outro comando =git= (=git status=, =git pull=, etc.) delega
+  para o binário real via =eshell-plain-command=, preservando o
+  comportamento CLI normal.
+
+```elisp
+(defun eshell/git (&rest args)
+  (if (or (null args)
+          (and (stringp (car args)) (member (car args) '("log" "lg"))))
+      (progn (magit-log-head '("-20" "--graph" "--oneline")) nil)
+    (eshell-plain-command "git" args)))
+```
+
+O mecanismo de dispatch do Eshell resolve automaticamente =git= para
+=eshell/git= (mesmo padrão de =eshell/ls=, =eshell/pwd=, etc.), sem
+precisar de alias.
