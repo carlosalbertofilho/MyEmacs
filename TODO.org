@@ -30,6 +30,22 @@ Ordem de implementação baseada em dependências, risco e alavanca. As Fases A 
   - [X] F4-cb: Circuit Breaker async fix (Medium-High/High) — Conectar erro HTTP assíncrono ao FSM e `turn-failed`.
   - [X] F4-router: Validação de roteamento cross-machine do proxy (agnes vs aa102-006l).
 
+** TODO Resiliência de Subagentes — Cleanup de Timeout, Watchdog e Resiliência LLM (Magent)
+:PROPERTIES:
+:CREATED:  2026-09-01
+:STATUS:   PLANO APROVADO
+:END:
+
+Diagnóstico da cadeia causal: chamadas LLM que penduram no child loop do =spawn_agent= deixam o job em estado =running= indefinidamente quando o =wait_agent= atinge o timeout de 120s.
+
+- *Objetivo:* Eliminar vazamento de jobs em memória/runtime tornando a máquina de estados do Magent totalmente resiliente a timeouts e requisições penduradas.
+
+- *Ações de Correção:*
+  - [ ] *Correção 1 (wait_agent timeout cleanup):* Em =wait_agent= (=magent-tools.el=), quando =finish= for chamado com status ="timeout"=, abortar child loops não-terminais com =magent-agent-loop-abort=, definir jobs como =cancelled= (erro ="Wait timed out"=) e limpar o runtime.
+  - [ ] *Correção 2 (Watchdog por job/turno):* Criar timer por job disparado no =spawn_agent= que cancela automaticamente após =magent-request-timeout=, independente de haver observer ativo (protege casos sem =wait_agent=).
+  - [ ] *Correção 3 (Propagação de Timeout do LLM):* Garantir que o =magent-agent-loop= e a camada de transporte gptel falhem e propaguem erro após um teto de tempo, evitando pendurar silenciosamente.
+  - [ ] *Validação & ERT:* Criar testes em =tests/= e validar compilação zero-warning (=compile-prod=) e suíte de regressão.
+
 ** Fase 3 — Bateria de Benchmark Local (F7-ben)
   - [X] Executar smoke test com "Diet Tooling" para validar se LLM local não dá mais timeout no 1º token.
   - [X] **Integração Colibre AI:** Validar executável `coli` no Mac M2 com `qwen3.6-colibri` (9.68 GB RSS, ~1.0s TTFT).
