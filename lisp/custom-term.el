@@ -284,6 +284,24 @@ preserving normal Eshell CLI behavior."
 
 ;; ── popper (Intelligent popup window management) ───────────────────
 ;; Classifies terminal buffers as popups — toggle/hide without messing layout.
+;; Popups are shown as a wide left aside (dirvish-aside stays on the right).
+(defun +carlos/popper-display-popup-at-left (buffer &optional alist)
+  "Display popup-buffer BUFFER at the left side of the screen.
+ALIST is an association list of action symbols and values.  See
+Info node `(elisp) Buffer Display Action Alists' for details."
+  (display-buffer-in-side-window
+   buffer
+   (append alist
+           `((window-width . 0.45)
+             (side . left)
+             (slot . 0)))))
+
+(defun +carlos/popper-select-popup-at-left (buffer &optional alist)
+  "Display and switch to popup-buffer BUFFER at the left side.
+ALIST is an association list of action symbols and values."
+  (let ((window (+carlos/popper-display-popup-at-left buffer alist)))
+    (select-window window)))
+
 (use-package popper
   :ensure t
   :bind
@@ -300,6 +318,7 @@ preserving normal Eshell CLI behavior."
           output-mode
           help-mode))
   :config
+  (setq popper-display-function #'+carlos/popper-select-popup-at-left)
   (popper-mode 1)
   (popper-echo-mode 1))  ;; Show popup info in echo area
 

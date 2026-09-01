@@ -130,3 +130,21 @@ Exemplo de prompt com o devenv ativo:
 
 Fora do devenv (sem =DEVENV_ROOT=), a exibição é uma no-op.
 
+** Popper como aside esquerdo (custom)
+
+- *Local:* =lisp/custom-term.el=
+- *Funções:* =+carlos/popper-display-popup-at-left=,
+  =+carlos/popper-select-popup-at-left=
+
+O =popper= continua gerenciando os popups (=C-`= toggle,
+=M-`= cycle, =C-M-`= toggle-type), mas exibe-os como um *aside*
+lateral esquerdo em vez do fundo da tela:
+
+- =popper-display-function= aponta para
+  =+carlos/popper-select-popup-at-left=.
+- A função usa =display-buffer-in-side-window= com
+  =(side . left)= e =(window-width . 0.45)= (≈45% da frame).
+- Deixar o eshell/vterm à *esquerda* evita colisão com o
+  =dirvish-aside=, que ocupa a *direita* — permitindo usar ambos
+  simultaneamente.
+
