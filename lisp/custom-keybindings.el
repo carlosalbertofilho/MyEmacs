@@ -46,6 +46,7 @@
 (declare-function nix-prettify-mode "nix-prettify-mode")
 (declare-function nix-store-show-log "nix-store")
 (declare-function nix-search "nix-search")
+(declare-function journalctl "journalctl-mode")
 (declare-function +carlos/nix-flake-update "custom-lang")
 (declare-function +carlos/nixos-rebuild-boot "custom-lang")
 (declare-function +carlos/nixos-rebuild-detached "custom-lang")
@@ -104,6 +105,7 @@
 (global-set-key (kbd "C-c N r") #'+carlos/nixos-rebuild-switch)
 (global-set-key (kbd "C-c N b") #'+carlos/nixos-rebuild-boot)
 (global-set-key (kbd "C-c N d") #'+carlos/nixos-rebuild-detached)
+(global-set-key (kbd "C-c N j") #'journalctl)
 
 ;; Flakes
 (global-set-key (kbd "C-c N f") #'nix-flake)

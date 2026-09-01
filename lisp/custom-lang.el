@@ -167,6 +167,15 @@
   :mode ("\\.md\\'" . markdown-mode))
 
 ;; ── Nix & NixOS ──────────────────────────────────────────────────────
+;; ── Systemd & Journalctl ───────────────────────────────────────────
+(use-package systemd
+  :ensure t
+  :defer t)
+
+(use-package journalctl-mode
+  :ensure t
+  :defer t)
+
 (use-package nix-mode
   :ensure t
   :mode ("\\.nix\\'" . nix-mode)

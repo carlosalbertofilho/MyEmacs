@@ -8,11 +8,11 @@
 
 * Visão Geral
 
-Este documento descreve a integração nativa da stack Nix/NixOS no MyEmacs, abrangendo suporte a `nix-mode`, formatação assíncrona com `nixfmt` via `apheleia`, Eglot (LSP `nixd`/`nil`/`rnix-lsp`), resiliência em requisições JSON e execução remota sobre TRAMP.
+Este documento descreve a integração nativa da stack Nix/NixOS no MyEmacs, abrangendo suporte a `nix-mode`, `systemd-mode`, `journalctl-mode`, formatação assíncrona com `nixfmt` via `apheleia`, Eglot (LSP `nixd`/`nil`/`rnix-lsp`), resiliência em requisições JSON e execução remota sobre TRAMP.
 
 * Atalhos Padronizados sem Colisão (Prefixo =C-c N=)
 
-Todas as funcionalidades do ecossistema Nix estão agrupadas de forma mnemônica sob o prefixo =C-c N= (diferenciado de =C-c n= que pertence ao Denote):
+Todas as funcionalidades do ecossistema Nix e gerenciamento do NixOS estão agrupadas sob o prefixo =C-c N= (diferenciado de =C-c n= que pertence ao Denote):
 
 ** NixOS & Rebuilds
 | Binding   | Função                           | Descrição                                                                      |
@@ -20,6 +20,7 @@ Todas as funcionalidades do ecossistema Nix estão agrupadas de forma mnemônica
 | =C-c N r= | =+carlos/nixos-rebuild-switch=   | Executa =sudo nixos-rebuild switch= ao vivo (local ou TRAMP)                 |
 | =C-c N b= | =+carlos/nixos-rebuild-boot=     | Registra nova build no bootloader sem troca ao vivo (evita travas D-Bus)       |
 | =C-c N d= | =+carlos/nixos-rebuild-detached= | Dispara o rebuild em background via =systemd-run= (imune a desconexão SSH)     |
+| =C-c N j= | =journalctl=                     | Visualizador interativo de logs do systemd (=journalctl-mode=)                 |
 
 ** Flakes
 | Binding   | Função                           | Descrição                                                                      |
@@ -43,6 +44,15 @@ Todas as funcionalidades do ecossistema Nix estão agrupadas de forma mnemônica
 | =C-c N l= | =nix-store-show-log=             | Exibe logs de compilação de um pacote na store                                 |
 | =C-c N q= | =nix-search=                     | Busca interativa de pacotes no catálogo Nix                                    |
 
+* Leitura de Logs do Systemd com =journalctl-mode=
+
+O pacote =journalctl-mode= (=C-c N j=) fornece visualização interativa e colorida dos logs do systemd:
+- Funciona transparente em servidores remotos via TRAMP (ex: =/sudo:desit@forgejo:=).
+- =g=: Atualiza os logs do buffer.
+- =f=: Alterna o acompanhamento em tempo real (=journalctl -f=).
+- =u=: Filtra por unidade systemd especificamente (ex: =forgejo.service=, =atticd.service=).
+- =p=: Filtra por nível de prioridade (=err=, =warning=, =info=, =debug=).
+
 * Execução Remota sobre TRAMP
 
 Ao trabalhar em buffers remotos via TRAMP (ex: =/ssh:forgejo:~/GitHUPE/= ou =/sudo:desit@forgejo:~/GitHUPE/=):
@@ -63,3 +73,4 @@ Se disparou o rebuild via =C-c N d= e deslogou do servidor, reconecte e rode:
 #+begin_src sh
 journalctl -u nixos-rebuild-bg -f
 #+end_src
+ou pressione =C-c N j= no Emacs e filtre pela unit =nixos-rebuild-bg=.
