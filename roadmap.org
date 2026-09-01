@@ -12,6 +12,45 @@ entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
 
+** 2026-09-01 — [CONCLUÍDO] Reorganização TODO.org — Tarefas concluídas migradas
+   Consolidação de tarefas DONE do TODO.org para o roadmap.org.
+
+*** DONE F6-3b: =magent-cli run= — Agent Launcher Batch
+    Subcomando =run= no =bin/magent-cli= para spawar agentes Magent em batch.
+    Commit =1d92db3=. Testes ERT em =tests/magent-run-test.el= e =tests/cli-test.el=.
+
+*** DONE toggle_checkbox no org_smart_edit
+    Commit 606c47c. 3 ERTs em tests/smart-edit-test.el.
+
+*** DONE Corrigir Resolução de Contexto do Projeto no Batch Mode
+    =+carlos/magent-project-root= com fallback. 31 call sites consolidados.
+    Commit bc763fd. 5 ERTs em tests/infra-test.el.
+
+*** DONE Integrar linters nativos no pipeline de validação
+    =lint-native= ao recipe =lint= (Justfile). Commits 606c47c, c759c1a.
+    5 ERTs em tests/lint-test.el.
+
+*** DONE Melhorias =org_smart_edit= — ações AST-aware seguras
+    Helper transacional, =replace_heading= AST-aware, =replace_text= com range,
+    P1-P3 (wiring transacional, markdown gate, dry-run guards).
+    Incidente corrigido: =refactor_symbol= com asteriscos destruía arquivo.
+
+*** DONE Evoluir =bin/magent-cli= — CLI auto-descritiva
+    =--list-tools=, =--describe=, =--dry-run=, =--timeout=, =--init-dir=, JSON output.
+
+*** DONE Refatoração SOLID - Fase 5 - Depurador Vivo
+    Implementado =custom-magent-tool-debug.el= com integração dape.
+
+*** DONE Refatorar Circuit Breaker para lidar com falhas assíncronas (gptel-request)
+    Advice no callback para classificar erro-em-conteúdo. CB conectado ao loop FSM
+    (=turn-failed= + =cb-open-p=). Fallback Gemini quando OpenCode falha por quota.
+    Commit =a0bea74=.
+
+*** DONE Regressão =wrong-type-argument gptel-backend= resolvida
+    Helper =+carlos/--magent-backend-name= em =custom-magent-subagent.el:32=.
+    Commit =a0bea74=. 2/2 testes passaram.
+
+
 ** 2026-08-30 — [CONCLUÍDO] F7-ben: Probe conclusivo (bridge gptel/Magent saudável) + decisão tese E
    - Probe direto `magent-llm-gptel-sample` com payload pequeno: `gemma-4-e2b-it-4bit`
      E `Qwen3.5-9B-MLX-4bit` emitem `tool-call` → `tool-call-batch-end` (reasoning-delta
