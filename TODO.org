@@ -46,6 +46,21 @@ Diagnóstico da cadeia causal: chamadas LLM que penduram no child loop do =spawn
   - [ ] *Correção 3 (Propagação de Timeout do LLM):* Garantir que o =magent-agent-loop= e a camada de transporte gptel falhem e propaguem erro após um teto de tempo, evitando pendurar silenciosamente.
   - [ ] *Validação & ERT:* Criar testes em =tests/= e validar compilação zero-warning (=compile-prod=) e suíte de regressão.
 
+** TODO Bug: =magit_stage= via =bin/magent-cli= não persiste staging no git index
+:PROPERTIES:
+:CREATED:  2026-09-01
+:STATUS:   BACKLOG
+:END:
+
+Sintoma: =magit_stage TODO.org= via =bin/magent-cli= retorna "Staged file via Magit" (sucesso), mas o staging não persiste para o próximo processo =emacs --batch= (=magit_commit=). O commit seguinte vê "Nothing staged" e entra em prompt interativo que trava no batch (exit 124).
+
+- *Diagnóstico:* Cada chamada =bin/magent-cli= roda em processo =emacs --batch= separado. A tool =+carlos/magent-tool-magit-stage= pode estar fazendo o stage apenas no buffer do Magit (via API Magit) sem persistir no index do git (=git add=), ou o Magit em batch não efetiva o =git update-index=.
+- *Evidência:* =git status --short= após =magit_stage= mostra =" M TODO.org"= (modified, unstaged). Workaround: =git add= direto funciona.
+- *Correção provável:* Investigar se =+carlos/magent-tool-magit-stage= (=custom-magent-tools.el=) chama =magit-stage-file= ou =magit-run-git "add"= e se o batch mode do Magit precisa de =magit-refresh= ou flush explícito do index.
+- [ ] Reproduzir em ambiente controlado (=emacs --batch= isolado).
+- [ ] Corrigir a tool para garantir persistência do staging.
+- [ ] Adicionar teste ERT de round-trip: stage + verificar index.
+
 ** Fase 3 — Bateria de Benchmark Local (F7-ben)
   - [X] Executar smoke test com "Diet Tooling" para validar se LLM local não dá mais timeout no 1º token.
   - [X] **Integração Colibre AI:** Validar executável `coli` no Mac M2 com `qwen3.6-colibri` (9.68 GB RSS, ~1.0s TTFT).
