@@ -106,3 +106,27 @@ buffer gráfico do Magit em vez do stdout em texto puro.
 O mecanismo de dispatch do Eshell resolve automaticamente =git= para
 =eshell/git= (mesmo padrão de =eshell/ls=, =eshell/pwd=, etc.), sem
 precisar de alias.
+
+** Devenv no prompt (custom)
+
+- *Local:* =lisp/custom-term.el=
+- *Funções:* =+carlos/eshell-devenv-env-p=, =+carlos/eshell-devenv-toolchain=
+
+O prompt =+carlos/eshell-starship-prompt= exibe também a presença do
+=devenv= quando ativo (via =.envrc=/direnv ou =devenv shell=):
+
+- Detecta o devenv pela variável de ambiente =DEVENV_ROOT= (só existe
+  com o devenv ativo) e mostra =🔗 nome-do-projeto= (o basename do
+  diretório do devenv).
+- Coleta a *toolchain ativa* a partir dos env traps exportados pelo
+  devenv, exibindo-os entre parênteses:
+  - =GOROOT=/=GOPATH= → =go=
+  - =NIX_PYTHONPATH=/=PYTHONPATH= → =python=
+  - =RUSTFLAGS=/=RUSTDOCFLAGS= → =rust=
+  - =CC= → =c=
+
+Exemplo de prompt com o devenv ativo:
+=🔗 CommonCore (go python c)=
+
+Fora do devenv (sem =DEVENV_ROOT=), a exibição é uma no-op.
+

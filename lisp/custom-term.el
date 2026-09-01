@@ -125,6 +125,23 @@ ORIG-FUN and ARGS are passed to the original function."
   (setq capf-autosuggest-look-back 1000)) ;; Search back in history
 
 ;; ── Eshell Starship-style Prompt ────────────────────────────────────
+(defun +carlos/eshell-devenv-env-p (&rest names)
+  "Return non-nil if any of the NAMES env vars is set to a non-empty value."
+  (seq-some (lambda (n) (and (getenv n) (not (string-empty-p (getenv n))))) names))
+
+(defun +carlos/eshell-devenv-toolchain ()
+  "Return the active toolchain labels exported by the devenv, or \"\".
+Detects which languages the devenv has exported based on its env traps:
+GOROOT/GOPATH, NIX_PYTHONPATH/PYTHONPATH, RUSTFLAGS and CC.  Runs only
+when `DEVENV_ROOT' is set, so it is a no-op outside a devenv shell."
+  (when (getenv "DEVENV_ROOT")
+    (let ((chain '()))
+      (when (+carlos/eshell-devenv-env-p "GOROOT" "GOPATH") (push "go" chain))
+      (when (+carlos/eshell-devenv-env-p "NIX_PYTHONPATH" "PYTHONPATH") (push "python" chain))
+      (when (+carlos/eshell-devenv-env-p "RUSTFLAGS" "RUSTDOCFLAGS") (push "rust" chain))
+      (when (+carlos/eshell-devenv-env-p "CC") (push "c" chain))
+      (when chain (concat " (" (mapconcat #'identity chain " ") ")")))))
+
 (defun +carlos/eshell-starship-prompt ()
   "Prompt multilinha para Eshell inspirado no Starship com Host, SSH, Docker e Git."
   (let* ((last-status (or (bound-and-true-p eshell-last-command-status) 0))
@@ -150,10 +167,16 @@ ORIG-FUN and ARGS are passed to the original function."
          (dir (abbreviate-file-name (if (fboundp 'eshell/pwd) (eshell/pwd) default-directory)))
          (dir-str (propertize (concat " 📁 " dir) 'face '(:foreground "#88c0d0" :weight bold)))
 
-         ;; Ambientes (Python Virtualenv e Nix Shell)
+         ;; Ambientes (Python Virtualenv, Nix Shell e Devenv)
          (venv (when-let* ((v (getenv "VIRTUAL_ENV"))) (file-name-nondirectory v)))
          (venv-str (if venv (propertize (concat " 🐍 " venv) 'face '(:foreground "#a3be8c")) ""))
          (nix-str (if (getenv "IN_NIX_SHELL") (propertize " ❄️ nix" 'face '(:foreground "#7dcfff")) ""))
+         (devenv-root (getenv "DEVENV_ROOT"))
+         (devenv-str (when devenv-root
+                       (propertize
+                        (concat " 🔗 " (file-name-nondirectory devenv-root)
+                                (+carlos/eshell-devenv-toolchain))
+                        'face '(:foreground "#81a1c1"))))
 
          ;; Git Branch
          (git-branch (when (and (fboundp 'vc-backend) (vc-backend default-directory))
@@ -165,7 +188,7 @@ ORIG-FUN and ARGS are passed to the original function."
          ;; Seta do Prompt (Verde se 0 / Vermelho se Erro)
          (arrow (propertize "❯" 'face `(:foreground ,status-color :weight bold))))
 
-    (concat "\n" host-str dir-str git-str venv-str nix-str "\n" arrow " ")))
+    (concat "\n" host-str dir-str git-str venv-str nix-str devenv-str "\n" arrow " ")))
 
 ;; ── eshell (built-in) ───────────────────────────────────────────────
 (use-package eshell
@@ -203,14 +226,13 @@ ORIG-FUN and ARGS are passed to the original function."
     (eshell/alias "gemini" "agy $*")
     ;; ll como atalho para ls -la (usa o eshell/ls nativo em Elisp)
     (eshell/alias "ll" "ls -la $*")))
-
 (defun eshell/git (&rest args)
-  "Delegate `git' calls in Eshell, mapping `log' to the Magit buffer.
+  "Map `git log' in Eshell to the graphical Magit buffer.
 
 When the first ARGS is `log' (or a log sub-command like `lg'), open the
-graphical Magit commit log `--graph --oneline -20' instead of running
-plain `git log'.  All other git invocations fall back to the real git
-binary, preserving normal Eshell CLI behavior."
+Magit commit log `--graph --oneline -20' instead of running plain
+`git log'.  All other git invocations fall back to the real git binary,
+preserving normal Eshell CLI behavior."
   (if (or (null args)
           (and (stringp (car args)) (member (car args) '("log" "lg"))))
       (progn
