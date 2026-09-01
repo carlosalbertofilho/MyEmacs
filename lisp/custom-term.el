@@ -2,8 +2,8 @@
 
 ;;; Commentary:
 ;; eat (ANSI/TUI in Eshell), vterm + vterm-toggle, capf-autosuggest,
-;; eshell-git-prompt (Starship-style), popper (window management),
-;; AI tool integration (opencode, agy/gemini-cli).
+;; Starship-style prompt (native Elisp), nerd-icons ls decoration,
+;; popper (window management), AI tool integration (opencode, agy/gemini-cli).
 
 ;;; Code:
 
@@ -21,6 +21,9 @@
 ;; keymap NÃO-nil — `(defvar X nil)' clobberaria o default (gotcha Emacs 30).
 ;; Os define-key abaixo rodam após o pacote dono carregar (map já bound).
 (declare-function eshell/pwd "em-dirs")
+(declare-function nerd-icons-icon-for-file "nerd-icons")
+(declare-function nerd-icons-icon-for-dir "nerd-icons")
+(declare-function eshell-ls-decorated-name "em-ls")
 (defvar eshell-last-command-status)
 (defvar vterm-mode-map)
 (defvar eshell-mode-map)
@@ -188,7 +191,7 @@ ORIG-FUN and ARGS are passed to the original function."
 
 ;; AI tool aliases for Eshell
 (defun +carlos/eshell-ai-aliases ()
-  "Add aliases for opencode and agy (Gemini CLI) in Eshell."
+  "Add aliases for opencode, agy (Gemini CLI) and ll in Eshell."
   (when (fboundp 'eshell/alias)
     (eshell/alias "oc" "opencode $*")
     (eshell/alias "ai" "opencode $*")
@@ -196,16 +199,31 @@ ORIG-FUN and ARGS are passed to the original function."
     (eshell/alias "aireview" "opencode review $*")
     (eshell/alias "agy" "agy $*")
     (eshell/alias "gemini" "agy $*")
-    ;; Aliases coloridos com ícones para listagem de diretórios
-    (if (executable-find "eza")
-        (progn
-          (eshell/alias "ls" "eza --icons --color=always --group-directories-first $*")
-          (eshell/alias "ll" "eza --icons --color=always --group-directories-first -la $*"))
-      (progn
-        (eshell/alias "ls" "ls --color=always $*")
-        (eshell/alias "ll" "ls --color=always -la $*")))))
+    ;; ll como atalho para ls -la (usa o eshell/ls nativo em Elisp)
+    (eshell/alias "ll" "ls -la $*")))
 
 (add-hook 'eshell-mode-hook #'+carlos/eshell-ai-aliases)
+
+;; ── Nerd Icons para eshell/ls nativo ───────────────────────────────
+;; Decora cada entrada do `ls` com ícone Nerd Fonts por tipo de arquivo.
+;; Funciona em local, SSH e Docker (100% Elisp, sem binários externos).
+(defun +carlos/eshell-ls-nerd-icon (name)
+  "Prefixo o NAME com um ícone nerd-icons baseado no tipo do arquivo."
+  (when (require 'nerd-icons nil t)
+    (let* ((file (if (stringp name) name (car name)))
+           (icon (if (file-directory-p file)
+                     (nerd-icons-icon-for-dir file)
+                   (nerd-icons-icon-for-file file))))
+      (when (and icon (not (string-empty-p icon)))
+        (concat icon " "))))  )
+
+(with-eval-after-load 'em-ls
+  (advice-add 'eshell-ls-decorated-name :around
+              (lambda (orig-fun file)
+                "Adiciona ícone nerd-icons antes do nome decorado pelo Eshell."
+                (let ((decorated (funcall orig-fun file))
+                      (icon (ignore-errors (+carlos/eshell-ls-nerd-icon file))))
+                  (if icon (concat icon decorated) decorated)))))
 
 ;; Interactive dispatchers for AI tools (Let Eat handle char-mode automatically)
 (defun +carlos/eshell-run-in-buffer (cmd)
