@@ -288,7 +288,9 @@ Imune a desconexões SSH/Emacs."
   (add-to-list 'apheleia-mode-alist '(rust-ts-mode . rustfmt))
   (add-to-list 'apheleia-mode-alist '(rust-mode . rustfmt))
   (add-to-list 'apheleia-mode-alist '(nix-mode . nixfmt))
-  (setf (alist-get 'nixfmt apheleia-formatters) '("nixfmt")))
+  (setf (alist-get 'nixfmt apheleia-formatters) '("nixfmt"))
+  (setf (alist-get 'python-mode apheleia-mode-alist) '(ruff-isort ruff))
+  (setf (alist-get 'python-ts-mode apheleia-mode-alist) '(ruff-isort ruff)))
 
 ;; ── Editorconfig ────────────────────────────────────────────────────
 (use-package editorconfig
