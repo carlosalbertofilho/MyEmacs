@@ -45,6 +45,24 @@ O teste massivo com 50 tool calls no Magent revelou exaustão da cota upstream d
     - Criar cache com TTL de 3600s para o bloco estático (schemas de tools + system instructions + documentação do projeto).
     - As requisições subsequentes do turno passam a enviar apenas o handle =cachedContent: "cachedContents/..."= e as novas mensagens do usuário, reduzindo os payloads de 20k tokens para menos de 500 tokens por chamada de ferramenta.
 
+*** TODO Matriz de Tiers e Fallback Dinâmico Anti-429 (Gemini 2.5 Flash → 2.0 Flash → 2.5 Pro)
+:PROPERTIES:
+:CREATED: 2026-09-03
+:STATUS:  PLANO APROVADO
+:END:
+
+Estratégia de revezamento de camadas operacionais com comutação de resiliência e FinOps:
+
+- *Camada 1 (Absorção e Plantão — $0.00):*
+  - Servidor corporativo Colibri no trabalho (=10.0.100.242:8000=) com =olmoe-colibri= e novos modelos locais em download.
+  - Zero custo de API, TPM ilimitado para linters, subagentes robóticos e geração de testes.
+- *Camada 2 (Orquestrador Cloud Principal):*
+  - =gemini-2.5-flash= para orquestração com as 65 ferramentas nativas do Magent.
+- *Camada 3 (Fallback Instantâneo de TPM):*
+  - Se =gemini-2.5-flash= receber HTTP 429 (=RESOURCE_EXHAUSTED= / 1M TPM), o Circuit Breaker não encerra a sessão: comuta transparentemente para =gemini-2.0-flash= (que possui folga de 4M TPM).
+- *Camada 4 (Supervisor Pro Cirúrgico):*
+  - Modelos Pro (=gemini-2.5-pro= / =3.1-pro=) possuem cotas diárias severas (250 a 1K RPD). Acionar via FSM apenas se =just compile= ou =just test= falhar 2 vezes seguidas na mesma alteração.
+
 ** Fase 3 — Bateria de Benchmark Local (F7-ben)
 
 *** TODO F7-ben: Bateria de Benchmark Code-Repair — Modelos Locais × Profiles
@@ -57,6 +75,12 @@ Avaliar como modelos locais diagnosticam e corrigem código quebrado em
 função do *profile* do agente (system prompt) e da linguagem. Objetivo:
 escolher o melhor modelo local por perfil e dimensionar o que manter no
 roteamento Magent.
+
+- *Servidor Remoto Colibri de Plantão (10.0.100.242:8000) — Novo:*
+  - Endpoint operacional com API key corporativa, validado via curl em GET =/v1/models= e POST =/v1/chat/completions=.
+  - Modelo inicial disponível: =olmoe-colibri=; novos modelos sendo baixados no servidor.
+  - Agendada bateria de testes comparativos de throughput, TTFT e assertividade no próximo plantão.
+
 
 - *Modelos novos a baixar (via =lmstudio= / GGUF, backend =LM Studio Local= em 127.0.0.1:1234):*
   - [ ] =prism-ml/Ternary-Bonsai-27B-mlx-2bit= — Bonsai 27B ternary (ou GGUF via LM Studio)

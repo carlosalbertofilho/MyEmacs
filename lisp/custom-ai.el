@@ -200,6 +200,18 @@ roteamento para backends locais fica apenas como fallback final.")
     :request-params '(:max_tokens 4096)
     :models '("qwen3.6-colibri"))
 
+  ;; ── Backend: Colibri Trabalho (Colibre AI, 10.0.100.242:8000) ──────
+  ;; Servidor corporativo no trabalho para plantão e benchmark.
+  ;; Chave gerenciada via segredos do NixOS (COLIBRI_API_KEY).
+  (gptel-make-openai "Colibri Trabalho"
+    :host "10.0.100.242:8000"
+    :protocol "http"
+    :stream t
+    :key (lambda () (getenv "COLIBRI_API_KEY"))
+    :request-params '(:max_tokens 4096)
+    :models '("olmoe-colibri"))
+
+
   ;; ── Backend: LM Studio Local (GGUF/MLX, 127.0.0.1:1234) ──────────
   ;; Server headless via `lms server start`. OpenAI-compatível.
   ;; Modelos de benchmark (F7-ben): Bonsai 27B, Nemotron 3 Nano 4B,

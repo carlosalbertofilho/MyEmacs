@@ -25,7 +25,7 @@
 
 (ert-deftest myemacs-ai-backends-registered ()
   :tags '(ai)
-  (dolist (name '("Colibre Local" "MLX Local" "Ollama Local" "Gemini" "Zen Claude"
+  (dolist (name '("Colibre Local" "Colibri Trabalho" "MLX Local" "Ollama Local" "Gemini" "Zen Claude"
                   "OpenCode Zen"))
     (should (gptel-get-backend name))))
 
