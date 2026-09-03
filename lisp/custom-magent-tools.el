@@ -394,31 +394,43 @@ first element and would miss every keyword otherwise."
                                (> magent-request-timeout 0)
                                magent-request-timeout)
                           300))
+             (stream (plist-get args :stream))
              (timer nil)
-             (done nil)
+             (timed-out nil)
+             (timer-fn
+              (lambda ()
+                (unless timed-out
+                  (setq timed-out t)
+                  (+carlos/magent-cb-record-failure model-key)
+                  (when callback
+                    (funcall callback nil (list :error (format "LLM request timeout after %ds for %s" timeout model-key)))))))
              (wrapped-callback
               (when callback
                 (lambda (response info)
-                  (unless done
-                    (setq done t)
-                    (when (timerp timer) (cancel-timer timer))
-                    (if (or (null response)
-                            (plist-get info :error)
-                            (and (stringp response)
-                                 (let ((case-fold-search t))
-                                   (string-match-p "insufficient balance" response))))
-                        (+carlos/magent-cb-record-failure model-key)
+                  (unless timed-out
+                    ;; Reseta ou cancela o timer dependendo do estado da resposta
+                    (cond
+                     ;; Erro ou resposta nula: falha terminal
+                     ((or (null response)
+                          (plist-get info :error)
+                          (and (stringp response)
+                               (let ((case-fold-search t))
+                                 (string-match-p "insufficient balance" response))))
+                      (when (timerp timer) (cancel-timer timer))
+                      (+carlos/magent-cb-record-failure model-key))
+                     ;; Sucesso terminal: fim de stream ou resposta não-stream completa
+                     ((or (eq response t)
+                          (and (not stream) (stringp response)))
+                      (when (timerp timer) (cancel-timer timer))
                       (+carlos/magent-cb-record-success model-key))
+                     ;; Chunks intermediários de stream ou tool-calls: renova o timeout
+                     (t
+                      (when (timerp timer)
+                        (cancel-timer timer)
+                        (setq timer (run-at-time timeout nil timer-fn)))))
                     (funcall callback response info))))))
         (when callback
-          (setq timer
-                (run-at-time
-                 timeout nil
-                 (lambda ()
-                   (unless done
-                     (setq done t)
-                     (+carlos/magent-cb-record-failure model-key)
-                     (funcall callback nil (list :error (format "LLM request timeout after %ds for %s" timeout model-key))))))))
+          (setq timer (run-at-time timeout nil timer-fn)))
         (apply orig-fn prompt
                (if wrapped-callback
                    (plist-put (copy-sequence args) :callback wrapped-callback)
