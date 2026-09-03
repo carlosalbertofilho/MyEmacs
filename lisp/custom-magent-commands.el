@@ -144,8 +144,9 @@
 
 (defun +carlos/magent-shell-maker-submit-around (orig-fn &rest args)
   "Intercepta submissões no `shell-maker' enquanto ocupado.
-Se `shell-maker--busy' estiver ativo, captura o input do usuário sem lançar erro,
-enfileira em `+carlos/magent-sideband-queue' e notifica o usuário no buffer."
+Se `shell-maker--busy' estiver ativo, captura o input do usuário
+sem lançar erro, enfileira em `+carlos/magent-sideband-queue' e
+notifica o usuário no buffer."
   (if (and (bound-and-true-p shell-maker--busy)
            (not (plist-get args :input)))
       (let* ((input (buffer-substring-no-properties

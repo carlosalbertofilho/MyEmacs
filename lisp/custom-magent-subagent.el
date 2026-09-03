@@ -255,7 +255,7 @@ chamada a função vazia no .elc."
 
 (defun +carlos/magent-tools-wait-agent-around (orig-fn callback &optional job-id job-ids timeout)
   "Garante que se `wait_agent' atingir timeout, todos os jobs não-terminais
-sejam abortados via `magent-agent-loop-abort', marcados como 'cancelled
+sejam abortados via `magent-agent-loop-abort', marcados como \='cancelled
 com erro \"Wait timed out\" e limpos do runtime."
   (let* ((wrapped-callback
           (lambda (result)
