@@ -121,12 +121,27 @@ ORIG é `magent-log'; FORMAT-STRING e ARGS são o texto do log."
 
 (setq magent-enable-logging nil)
 
+(defun +carlos/magent-normalize-gemini-tool-use-in-info (info)
+  "Normaliza :tool-use do Gemini de (:functionCall (:name ... :args ...))
+para (:name ... :args ...) no nível do item em INFO."
+  (when-let* ((tool-use (and (listp info) (plist-get info :tool-use))))
+    (let ((normalized
+           (mapcar (lambda (tc)
+                     (if-let* ((fc (and (listp tc) (plist-get tc :functionCall))))
+                         (append (list :name (plist-get fc :name)
+                                       :args (plist-get fc :args)
+                                       :id (or (plist-get fc :id) (plist-get tc :id) (format "call_%s" (random 100000))))
+                                 (cl-remove-if (lambda (k) (memq k '(:functionCall :name :args :id))) tc))
+                       tc))
+                   tool-use)))
+      (plist-put info :tool-use normalized))))
+
 (defun +carlos/magent-sanitize-tool-use-name-a (orig-fn state fsm &rest args)
-  "Garante que os nomes em `:tool-use' sejam strings.
+  "Garante que os nomes em `:tool-use' sejam strings e unwrap do Gemini.
 ORIG-FN é o handler nativo de tool-use; STATE e FSM são o estado e a FSM
-do gptel; ARGS são repassados intactos.  Evita falha em `equal' com
-símbolos e previne o timeout de 120s no Gemini."
+do gptel; ARGS são repassados intactos."
   (when-let* ((info (and (fboundp 'gptel-fsm-info) (gptel-fsm-info fsm))))
+    (+carlos/magent-normalize-gemini-tool-use-in-info info)
     (when (fboundp 'magent-llm-gptel--sanitize-info)
       (magent-llm-gptel--sanitize-info info)))
   (apply orig-fn state fsm args))
@@ -138,6 +153,7 @@ Accept &rest ARGS for Gemini streaming 5th argument."
   (prog1 (apply orig-fn backend response info args)
     (when (and (fboundp 'magent-llm-gptel--managed-info-p)
                (magent-llm-gptel--managed-info-p info))
+      (+carlos/magent-normalize-gemini-tool-use-in-info info)
       (magent-llm-gptel--sanitize-info info))))
 
 (with-eval-after-load 'magent-llm-gptel
@@ -148,6 +164,7 @@ Accept &rest ARGS for Gemini streaming 5th argument."
       (prog1 (apply orig-fn backend response info args)
         (when (and (fboundp 'magent-llm-gptel--managed-info-p)
                    (magent-llm-gptel--managed-info-p info))
+          (+carlos/magent-normalize-gemini-tool-use-in-info info)
           (magent-llm-gptel--sanitize-info info)))))
   (when (fboundp 'magent-llm-gptel--handle-tool-use)
     (advice-add 'magent-llm-gptel--handle-tool-use
