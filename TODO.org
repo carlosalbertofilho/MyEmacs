@@ -321,3 +321,9 @@ Síntese da documentação oficial do repositório Magent (=docs/AGENT_JOBS.org=
 - *2026-08-27:* Correção de Hangs Críticos e Timers no magent-cli (--batch) → [[file:roadmap.org][roadmap.org]].
 - *2026-09-01:* Eshell override =git log= → buffer Magit; prompt devenv ativo; popper aside lateral esquerdo → custom-term.el + docs/term-stack.org.
 - *2026-09-01:* Migração de 8 tarefas DONE para [[file:roadmap.org][roadmap.org]] (F6-3b, toggle_checkbox, project-root, linters, org_smart_edit AST, magent-cli auto-descritiva, SOLID Fase 5, CB async fix, regressão gptel-backend).
+* TODO after
+    :PROPERTIES:
+    :CREATED: 2026-09-03
+    :STATUS: pendente
+    :END:
+
