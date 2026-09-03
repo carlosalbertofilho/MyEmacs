@@ -21,6 +21,30 @@ Histórico consolidado no [[file:roadmap.org][roadmap.org]].
 
 Ordem de implementação baseada em dependências, risco e alavanca.
 
+** Fase 1 — Otimização de FinOps, Caching de Contexto e Compactação de Sessão (Prioridade Imediata)
+
+*** TODO Estratégia Universal de Context Caching e Compactação de Sessão (FinOps $0.00)
+:PROPERTIES:
+:CREATED: 2026-09-03
+:STATUS:  PLANO APROVADO
+:END:
+
+O teste massivo com 50 tool calls no Magent revelou exaustão da cota upstream de 1.000.000 TPM (tokens/minuto) no Gemini devido ao reenvio sistemático do histórico completo, system prompt e schemas de 65 ferramentas a cada iteração.
+
+- *Objetivo:* Reduzir em até 80% o volume de tokens de input por requisição e mitigar o erro 429 (Rate Limit / Quota Exceeded) através de caching de contexto estruturado e compactação do histórico de ferramentas.
+
+- *Arquitetura em 3 Níveis:*
+  - *Nível 1 (Compactação de Histórico de Ferramentas — Imediato):*
+    - Em =custom-magent-context.el=, podar outputs volumosos de ferramentas antigas já concluídas (ex.: =read_file= de 200 linhas ou =ls -R= de 14KB) após N turnos da sessão.
+    - Manter apenas sumários estruturados no histórico conversacional, preservando a fidelidade da decisão sem poluir a janela de tokens.
+  - *Nível 2 (Estabilidade Estrita de Prefixo — Universal):*
+    - Isolar o payload estático do Magent (=system.org= + schemas das 65 tools + políticas de código) em um prefixo byte-a-byte idêntico.
+    - Permite ativação automática de caching por prefixo no OpenAI, DeepSeek, Anthropic e modelos locais (MLX / vLLM / llama.cpp) sem necessidade de APIs específicas.
+  - *Nível 3 (Context Caching Explícito para Google Gemini):*
+    - Implementar gerenciamento do recurso =cachedContents= da API Gemini no =lib/agy_proxy/= ou no adaptador =gptel-gemini=.
+    - Criar cache com TTL de 3600s para o bloco estático (schemas de tools + system instructions + documentação do projeto).
+    - As requisições subsequentes do turno passam a enviar apenas o handle =cachedContent: "cachedContents/..."= e as novas mensagens do usuário, reduzindo os payloads de 20k tokens para menos de 500 tokens por chamada de ferramenta.
+
 ** Fase 3 — Bateria de Benchmark Local (F7-ben)
 
 *** TODO F7-ben: Bateria de Benchmark Code-Repair — Modelos Locais × Profiles
