@@ -747,5 +747,47 @@
       (should (equal (magent-tool-result-name res) "test-tool"))
       (should (equal (magent-tool-result-call-id res) "c-123")))))
 
+(ert-deftest myemacs-magent-tool-elisp-macroexpand-test ()
+  "Valida elisp_macroexpand com macroexpand-all e macroexpand-1."
+  (require 'custom-magent-tool-debug nil t)
+  (should (fboundp '+carlos/magent-tool-elisp-macroexpand))
+  (let ((res-all (+carlos/magent-tool-elisp-macroexpand "(when-let* ((x 1)) (1+ x))" nil "test"))
+        (res-one (+carlos/magent-tool-elisp-macroexpand "(when-let* ((x 1)) (1+ x))" t "test")))
+    (should (string-match-p "Expansão de macro (macroexpand-all)" res-all))
+    (should (string-match-p "Expansão de macro (macroexpand-1)" res-one))))
+
+(ert-deftest myemacs-magent-tool-elisp-trace-test ()
+  "Valida ciclo de trace/untrace em elisp_trace."
+  (require 'custom-magent-tool-debug nil t)
+  (should (fboundp '+carlos/magent-tool-elisp-trace))
+  (defun +test/sample-trace-target (x) (1+ x))
+  (unwind-protect
+      (progn
+        (let ((res-trace (+carlos/magent-tool-elisp-trace "trace" "+test/sample-trace-target")))
+          (should (string-match-p "Rastreamento ativado" res-trace)))
+        (+test/sample-trace-target 5)
+        (let ((res-untrace (+carlos/magent-tool-elisp-trace "untrace" "+test/sample-trace-target")))
+          (should (string-match-p "Rastreamento desativado" res-untrace))))
+    (+carlos/magent-tool-elisp-trace "untrace_all")))
+
+(ert-deftest myemacs-magent-tool-git-diff-summary-test ()
+  "Valida retorno de magit_diff_summary."
+  (require 'custom-magent-tool-git nil t)
+  (should (fboundp '+carlos/magent-tool-magit-diff-summary))
+  (let ((res (+carlos/magent-tool-magit-diff-summary nil "test"))
+        (res-staged (+carlos/magent-tool-magit-diff-summary t "test")))
+    (should (string-match-p "Git Status Resumido" res))
+    (should (stringp res-staged))))
+
+(ert-deftest myemacs-magent-tool-just-run-test ()
+  "Valida execucao estruturada de recipe em just_run."
+  (require 'custom-magent-tool-devops nil t)
+  (should (fboundp '+carlos/magent-tool-just-run))
+  (let* ((res (+carlos/magent-tool-just-run "lint-native" nil "test"))
+         (out (if (and (fboundp 'magent-tool-result-p) (magent-tool-result-p res))
+                  (magent-tool-result-output res) (or res ""))))
+    (should (string-match-p "\"status\":\"success\"" out))
+    (should (string-match-p "\"recipe\":\"lint-native\"" out))))
+
 (provide 'magent-tools-test)
 ;;; magent-tools-test.el ends here

@@ -132,9 +132,14 @@ fi
 serialize_args() {
     local result=""
     for arg in "$@"; do
-        local escaped
-        escaped=$(printf '%s' "$arg" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')
-        result="$result \"$escaped\""
+        if [[ "$arg" == @* && -f "${arg#@}" ]]; then
+            local filepath="${arg#@}"
+            result="$result (with-temp-buffer (insert-file-contents \"$filepath\") (buffer-string))"
+        else
+            local escaped
+            escaped=$(printf '%s' "$arg" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')
+            result="$result \"$escaped\""
+        fi
     done
     echo "$result"
 }

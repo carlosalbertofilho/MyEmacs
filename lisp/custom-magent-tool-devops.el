@@ -258,5 +258,54 @@ When DRY-RUN is \"true\", returns the command without executing."
            :function #'+carlos/magent-tool-systemd-journal
            :category "magent"))))
 
+;; ── Justfile Recipe Runner ───────────────────────────────────────────
+
+(defvar +carlos/magent-tool-just-run nil "Gptel tool for running Justfile recipes.")
+
+(defun +carlos/magent-tool-just-run (recipe &optional args _reason)
+  "Executa uma RECIPE do Justfile com ARGS opcionais no projeto atual.
+Retorna a saída sanitizada e o código de término estruturado."
+  (if (or (null recipe) (string-empty-p recipe))
+      (+carlos/magent-tool-result (list (cons "status" "error") (cons "message" "recipe is required")))
+    (let* ((root (+carlos/magent-project-root))
+           (default-directory root)
+           (clean-recipe (string-trim recipe))
+           (clean-args (if (and args (not (string-empty-p args))) (string-trim args) ""))
+           (cmd (if (string-empty-p clean-args)
+                    (format "just %s" (shell-quote-argument clean-recipe))
+                  (format "just %s %s" (shell-quote-argument clean-recipe) clean-args)))
+           (output-buf (generate-new-buffer " *magent-just-run*"))
+           (exit-code (call-process-shell-command cmd nil output-buf nil))
+           (raw-output (with-current-buffer output-buf (buffer-string))))
+      (kill-buffer output-buf)
+      (+carlos/magent-tool-result
+       (list (cons "status" (if (zerop exit-code) "success" "failed"))
+             (cons "exit_code" exit-code)
+             (cons "recipe" clean-recipe)
+             (cons "output" (+carlos/magent-sanitize-string raw-output)))))))
+
+(with-eval-after-load 'gptel
+  (when (fboundp 'gptel-make-tool)
+    (setq +carlos/magent-tool-just-run
+          (gptel-make-tool
+           :name "just_run"
+           :description "Executa receitas (recipes) do Justfile do projeto atual (ex: 'lint-native', 'checkdoc', 'org-lint', 'check') e retorna a saída sanitizada."
+           :args '((:name "recipe" :type string)
+                   (:name "args" :type string)
+                   (:name "reason" :type string))
+           :function #'+carlos/magent-tool-just-run
+           :category "magent"))))
+
+(with-eval-after-load 'magent-tools
+  (when (and (boundp 'magent-tools-catalog)
+             +carlos/magent-tool-just-run)
+    (add-to-list 'magent-tools-catalog
+                 `(:name "just_run" :tool ,+carlos/magent-tool-just-run
+                         :permission just_run))))
+
+(with-eval-after-load 'magent-config
+  (when (boundp 'magent-enable-tools)
+    (add-to-list 'magent-enable-tools 'just_run)))
+
 (provide 'custom-magent-tool-devops)
 ;;; custom-magent-tool-devops.el ends here

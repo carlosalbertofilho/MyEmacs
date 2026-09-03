@@ -98,23 +98,33 @@ símbolo; \"REGEX\" = trata OLD como expressão regular."
 (defun +carlos/magent-tool-elisp-smart-edit (target-file action &optional snippet-name args _reason)
   "Ferramenta transacional para edição inteligente de arquivos Elisp (.el).
 TARGET-FILE: Caminho do arquivo .el.
-ACTION: `insert_snippet', `refactor_symbol', `replace_text',
-        `extract_sexp'
-        ou `validate_buffer'.
-SNIPPET-NAME: Nome do snippet Tempel (ex: `defun', `deftest', `use-package').
-ARGS: Argumentos para o snippet ou substituição de símbolo.
+ACTION: `insert_snippet', `refactor_symbol', `replace_text', `replace_defun',
+        `extract_sexp' ou `validate_buffer'.
+SNIPPET-NAME: Nome do snippet Tempel ou símbolo para `replace_defun'.
+ARGS: Argumentos para o snippet, substituição ou caminho de arquivo (@caminho).
 REASON: Motivo da alteração."
   (let* ((abs-file (expand-file-name target-file (+carlos/magent-project-root)))
          (buf (or (find-buffer-visiting abs-file)
                   (and (file-exists-p abs-file) (find-file-noselect abs-file))
-                  (get-buffer-create (file-name-nondirectory abs-file)))))
+                  (get-buffer-create (file-name-nondirectory abs-file))))
+         (resolved-args
+          (cond
+           ((and args (string-prefix-p "@" args) (file-readable-p (substring args 1)))
+            (with-temp-buffer
+              (insert-file-contents (substring args 1))
+              (buffer-string)))
+           ((and (equal snippet-name "from_file") args (file-readable-p args))
+            (with-temp-buffer
+              (insert-file-contents args)
+              (buffer-string)))
+           (t args))))
     (with-current-buffer buf
       (unless (derived-mode-p 'emacs-lisp-mode)
         (emacs-lisp-mode))
       (pcase action
         ("insert_snippet"
          (let* ((name (or snippet-name "defun"))
-                (arg-str (or args ""))
+                (arg-str (or resolved-args ""))
                 (code (cond
                        ((equal name "use-package")
                         (format "(use-package %s\n  :ensure t\n  :config\n  )\n" arg-str))
@@ -196,10 +206,10 @@ REASON: Motivo da alteração."
 
                ))))
         ("replace_text"
-         (if (or (null args) (string-empty-p args))
-             "Erro: args deve ser 'old|new|FLAGS'."
-           (let* ((sep (if (string-match-p "@@@" args) "@@@" "|"))
-                  (parts (split-string args sep t))
+         (if (or (null resolved-args) (string-empty-p resolved-args))
+             "Erro: args deve ser 'old|new|FLAGS' ou 'old@@@new@@@FLAGS'."
+           (let* ((sep (if (string-match-p "@@@" resolved-args) "@@@" "|"))
+                  (parts (split-string resolved-args sep t))
                   (old-txt (nth 0 parts))
                   (new-txt (nth 1 parts))
                   (flags (nth 2 parts)))
@@ -211,6 +221,31 @@ REASON: Motivo da alteração."
                                old-txt new-txt count
                                (if flags (format ", flags=%s" flags) "")))))
                "Erro: forneça 'old|new' em args."))))
+        ("replace_defun"
+         (if (or (null resolved-args) (string-empty-p resolved-args))
+             "Erro: informe 'symbol-name@@@new-code' ou passe symbol-name em snippet-name e code em args."
+           (let* ((sep (if (string-match-p "@@@" resolved-args) "@@@" "|"))
+                  (parts (if (string-match-p sep resolved-args)
+                             (split-string resolved-args sep t)
+                           (list snippet-name resolved-args)))
+                  (sym-name (string-trim (or (nth 0 parts) snippet-name "")))
+                  (new-code (string-trim (or (nth 1 parts) ""))))
+             (if (or (string-empty-p sym-name) (string-empty-p new-code))
+                 "Erro: informe o nome do símbolo e o novo código para replace_defun."
+               (+carlos/magent--smart-edit-transaction buf 'code
+                 (lambda ()
+                   (goto-char (point-min))
+                   (let ((pattern (format "^\\s-*(\\(?:cl-\\)?\\(?:defun\\|defmacro\\|defvar\\|defcustom\\|deftest\\|ert-deftest\\|defsubst\\|transient-define-prefix\\)\\s-+%s\\_>"
+                                          (regexp-quote sym-name))))
+                     (if (re-search-forward pattern nil t)
+                         (let* ((p-beg (match-beginning 0))
+                                (_ (goto-char p-beg))
+                                (p-end (progn (forward-sexp 1) (point))))
+                           (delete-region p-beg p-end)
+                           (goto-char p-beg)
+                           (insert new-code)
+                           (format "Definição de '%s' substituída com sucesso em '%s'. Buffer validado." sym-name abs-file))
+                       (error "Definição de '%s' não encontrada em '%s'." sym-name abs-file)))))))))
         ("validate_buffer"
          (condition-case err
              (progn
@@ -219,7 +254,7 @@ REASON: Motivo da alteração."
                (format "Buffer '%s' validado com sucesso (zero erros de sintaxe e parênteses equilibrados)." abs-file))
            (error
             (format "Erro de validação no buffer '%s': %s" abs-file (error-message-string err)))))
-        (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol', 'replace_text', 'extract_sexp' ou 'validate_buffer'." action))))))
+        (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol', 'replace_text', 'replace_defun', 'extract_sexp' ou 'validate_buffer'." action))))))
 
 (defun +carlos/magent-tool-nix-smart-edit (target-file action &optional snippet-name args _reason)
   "Ferramenta transacional para edição inteligente de arquivos Nix (.nix).

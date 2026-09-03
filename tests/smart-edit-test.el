@@ -149,5 +149,44 @@ Garante cleanup automático e desfaz modificações no arquivo."
                 (format "%s" res))))
     (should (string-match-p "Erro\\|Error" str))))
 
+(ert-deftest myemacs-smart-edit-replace-defun-test ()
+  "Valida a acao replace_defun no elisp_smart_edit."
+  (let ((tmp (make-temp-file "smart-edit-defun-" nil ".el")))
+    (unwind-protect
+        (progn
+          (with-temp-file tmp
+            (insert "(defun sample-orig (x)\n  \"Doc.\"\n  (+ x 1))\n\n(defun other-fn ()\n  t)\n"))
+          (let ((res (+carlos/magent-tool-elisp-smart-edit
+                      tmp "replace_defun" "sample-orig"
+                      "(defun sample-orig (x y)\n  \"New doc.\"\n  (+ x y 100))"
+                      "test replace_defun")))
+            (should (string-match-p "substituída com sucesso" res))
+            (with-temp-buffer
+              (insert-file-contents tmp)
+              (should (string-match-p "New doc" (buffer-string)))
+              (should (string-match-p "other-fn" (buffer-string))))))
+      (when (file-exists-p tmp) (delete-file tmp)))))
+
+(ert-deftest myemacs-smart-edit-file-payload-test ()
+  "Valida suporte a @filepath e from_file no elisp_smart_edit."
+  (let ((tmp-target (make-temp-file "target-" nil ".el"))
+        (tmp-payload (make-temp-file "payload-" nil ".txt")))
+    (unwind-protect
+        (progn
+          (with-temp-file tmp-target
+            (insert "(defun target-fn ()\n  1)\n"))
+          (with-temp-file tmp-payload
+            (insert "(defun target-fn ()\n  42)\n"))
+          (let ((res (+carlos/magent-tool-elisp-smart-edit
+                      tmp-target "replace_defun" "target-fn"
+                      (format "@%s" tmp-payload)
+                      "test @file payload")))
+            (should (string-match-p "substituída com sucesso" res))
+            (with-temp-buffer
+              (insert-file-contents tmp-target)
+              (should (string-match-p "42" (buffer-string))))))
+      (when (file-exists-p tmp-target) (delete-file tmp-target))
+      (when (file-exists-p tmp-payload) (delete-file tmp-payload)))))
+
 (provide 'smart-edit-test)
 ;;; smart-edit-test.el ends here

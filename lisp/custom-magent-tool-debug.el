@@ -146,5 +146,125 @@ forma usando `macroexpand' sem executá-la."
   (when (boundp 'magent-enable-tools)
     (add-to-list 'magent-enable-tools 'elisp_eval)))
 
+;; ── Introspecção de Macros e AST ──────────────────────────────────────
+
+(defvar +carlos/magent-tool-elisp-macroexpand nil)
+
+(defun +carlos/magent-tool-elisp-macroexpand (form-str &optional step-only-p _reason)
+  "Expande a macro Elisp contida em FORM-STR e a formata com `pp-to-string'.
+Se STEP-ONLY-P for não-nil e não-\"false\", usa `macroexpand-1' (um único passo).
+Caso contrário, usa `macroexpand-all' para expansão completa da forma.
+Retorna o código Elisp expandido ou mensagem de erro."
+  (if (or (null form-str) (string-empty-p form-str))
+      "Erro: form-str não pode ser vazia."
+    (condition-case err
+        (let* ((parsed (read-from-string form-str))
+               (form (car parsed))
+               (one-step (and step-only-p (not (member step-only-p '("0" "false" "nil" nil)))))
+               (expanded (if one-step
+                             (macroexpand-1 form)
+                           (macroexpand-all form))))
+          (format "Expansão de macro (%s):\n%s"
+                  (if one-step "macroexpand-1" "macroexpand-all")
+                  (pp-to-string expanded)))
+      (error
+       (format "Erro ao expandir macro Elisp: %s" (error-message-string err))))))
+
+(with-eval-after-load 'gptel
+  (setq +carlos/magent-tool-elisp-macroexpand
+        (gptel-make-tool
+         :name "elisp_macroexpand"
+         :description "Expande uma macro Elisp FORM-STR (usando macroexpand-all ou macroexpand-1 se STEP-ONLY-P for verdadeiro). Retorna o código resultante formatado."
+         :args '((:name "form-str" :type string)
+                 (:name "step-only-p" :type boolean)
+                 (:name "reason" :type string))
+         :function #'+carlos/magent-tool-elisp-macroexpand
+         :category "debugging")))
+
+(with-eval-after-load 'magent-tools
+  (when (and (boundp 'magent-tools-catalog)
+             +carlos/magent-tool-elisp-macroexpand)
+    (add-to-list 'magent-tools-catalog
+                 `(:name "elisp_macroexpand" :tool ,+carlos/magent-tool-elisp-macroexpand
+                         :permission elisp_macroexpand))))
+
+(with-eval-after-load 'magent-config
+  (when (boundp 'magent-enable-tools)
+    (add-to-list 'magent-enable-tools 'elisp_macroexpand)))
+
+;; ── Instrumentação e Rastreamento em Tempo de Execução ────────────────
+
+(defvar +carlos/magent-tool-elisp-trace nil)
+
+(defun +carlos/magent-tool-elisp-trace (action &optional symbol-str _reason)
+  "Controla rastreamento nativo de execução Elisp via `trace-function'.
+ACTION pode ser `trace' (inicia rastreamento de SYMBOL-STR),
+`untrace' (cessa rastreamento de SYMBOL-STR),
+`untrace_all' (remove todos os rastreamentos ativos),
+`show_trace' (retorna o conteúdo recente do buffer de trace), ou
+`clear_trace' (limpa o buffer de trace)."
+  (require 'trace)
+  (pcase (and action (downcase (string-trim action)))
+    ("trace"
+     (if (or (null symbol-str) (string-empty-p symbol-str))
+         "Erro: informe o símbolo da função a rastrear em symbol-str."
+       (let ((sym (intern-soft symbol-str)))
+         (if (and sym (fboundp sym))
+             (progn
+               (trace-function sym)
+               (format "Rastreamento ativado para a função `%s'. As chamadas serão gravadas no buffer de trace." sym))
+           (format "Erro: função `%s' não encontrada ou não vinculada." symbol-str)))))
+    ("untrace"
+     (if (or (null symbol-str) (string-empty-p symbol-str))
+         "Erro: informe o símbolo da função em symbol-str para desativar rastreamento."
+       (let ((sym (intern-soft symbol-str)))
+         (if sym
+             (progn
+               (untrace-function sym)
+               (format "Rastreamento desativado para `%s'." sym))
+           (format "Erro: símbolo `%s' inválido." symbol-str)))))
+    ("untrace_all"
+     (untrace-all)
+     "Todos os rastreamentos de funções foram desativados.")
+    ("show_trace"
+     (let ((buf (get-buffer "*trace-output*")))
+       (if (and buf (buffer-live-p buf))
+           (with-current-buffer buf
+             (let ((content (buffer-string)))
+               (if (string-empty-p (string-trim content))
+                   "Buffer de trace (*trace-output*) está vazio."
+                 (format "Trace recente:\n%s" content))))
+         "Nenhum buffer de trace (*trace-output*) ativo no momento.")))
+    ("clear_trace"
+     (let ((buf (get-buffer "*trace-output*")))
+       (when (and buf (buffer-live-p buf))
+         (with-current-buffer buf (erase-buffer)))
+       "Buffer de trace limpo."))
+    (_
+     "Ação inválida. Use 'trace', 'untrace', 'untrace_all', 'show_trace' ou 'clear_trace'.")))
+
+(with-eval-after-load 'gptel
+  (setq +carlos/magent-tool-elisp-trace
+        (gptel-make-tool
+         :name "elisp_trace"
+         :description "Controla o rastreamento em tempo de execução de funções Elisp via trace-function. Ações: 'trace' (com symbol-str), 'untrace', 'untrace_all', 'show_trace', 'clear_trace'."
+         :args '((:name "action" :type string)
+                 (:name "symbol-str" :type string)
+                 (:name "reason" :type string))
+         :function #'+carlos/magent-tool-elisp-trace
+         :category "debugging")))
+
+(with-eval-after-load 'magent-tools
+  (when (and (boundp 'magent-tools-catalog)
+             +carlos/magent-tool-elisp-trace)
+    (add-to-list 'magent-tools-catalog
+                 `(:name "elisp_trace" :tool ,+carlos/magent-tool-elisp-trace
+                         :permission elisp_trace))))
+
+(with-eval-after-load 'magent-config
+  (when (boundp 'magent-enable-tools)
+    (add-to-list 'magent-enable-tools 'elisp_trace)))
+
+
 (provide 'custom-magent-tool-debug)
 ;;; custom-magent-tool-debug.el ends here

@@ -720,5 +720,55 @@ SQL-FN and REPO-FN are optional overrides for offline unit testing."
            :function #'+carlos/magent-tool-forge-post-comment
            :category "magent"))))
 
+;; ── Magit Diff & Status Summary ──────────────────────────────────────
+
+(defvar +carlos/magent-tool-magit-diff-summary nil)
+
+(defun +carlos/magent-tool-magit-diff-summary (&optional staged-only _reason)
+  "Retorna um resumo conciso das alterações Git (arquivos staged e unstaged).
+Se STAGED-ONLY for não-nil e não-\"false\", exibe apenas o diff staged.
+Caso contrário, exibe o status resumido e o stat de ambos."
+  (let* ((default-directory (+carlos/magent-project-root))
+         (staged-p (and staged-only (not (member staged-only '("0" "false" "nil" nil)))))
+         (status-items (condition-case nil
+                           (process-lines "git" "status" "--short")
+                         (error nil)))
+         (staged-stat (condition-case nil
+                          (string-trim (shell-command-to-string "git diff --cached --stat"))
+                        (error "")))
+         (unstaged-stat (condition-case nil
+                            (string-trim (shell-command-to-string "git diff --stat"))
+                          (error ""))))
+    (if staged-p
+        (if (string-empty-p staged-stat)
+            "Nenhuma alteração staged no momento."
+          (format "Alterações Staged:\n%s" staged-stat))
+      (format "Git Status Resumido:\n%s\n\nStaged Stat:\n%s\n\nUnstaged Stat:\n%s"
+              (if status-items (mapconcat #'identity status-items "\n") "Repositório limpo.")
+              (if (string-empty-p staged-stat) "(nenhum)" staged-stat)
+              (if (string-empty-p unstaged-stat) "(nenhum)" unstaged-stat)))))
+
+(with-eval-after-load 'gptel
+  (when (fboundp 'gptel-make-tool)
+    (setq +carlos/magent-tool-magit-diff-summary
+          (gptel-make-tool
+           :name "magit_diff_summary"
+           :description "Retorna um resumo estruturado e conciso do estado Git (status, staged stat e unstaged stat) sem gerar diffs gigantescos."
+           :args '((:name "staged-only" :type boolean)
+                   (:name "reason" :type string))
+           :function #'+carlos/magent-tool-magit-diff-summary
+           :category "magent"))))
+
+(with-eval-after-load 'magent-tools
+  (when (and (boundp 'magent-tools-catalog)
+             +carlos/magent-tool-magit-diff-summary)
+    (add-to-list 'magent-tools-catalog
+                 `(:name "magit_diff_summary" :tool ,+carlos/magent-tool-magit-diff-summary
+                         :permission magit_diff_summary))))
+
+(with-eval-after-load 'magent-config
+  (when (boundp 'magent-enable-tools)
+    (add-to-list 'magent-enable-tools 'magit_diff_summary)))
+
 (provide 'custom-magent-tool-git)
 ;;; custom-magent-tool-git.el ends here

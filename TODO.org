@@ -64,6 +64,22 @@ Diagnóstico da cadeia causal: chamadas LLM que penduram no child loop do =spawn
 - [X] Ocultar (un-register) nativamente ferramentas de mutação (=*_smart_edit=, =write_to_file=, =replace_file=) do contexto do perfil =orchestrator= (implementado em =custom-magent-subagent.el= e testado via ERT).
 - [X] Reforçar a validação do parâmetro =prompt= na tool =spawn_agent= para rejeitar strings literais como =[Insert Synthesis Here]= ou strings vazias.
 
+** Ferramental Nativo de Diagnóstico, Mutação e Automação (MyEmacs Native Tools v2.0)
+
+*** DONE Implementação do Kit de 6 Ferramentas Nativas para o Magent
+:PROPERTIES:
+:CREATED: 2026-09-03
+:STATUS:  DONE
+:END:
+
+- [X] *Ferramenta 1 (elisp_macroexpand):* Introspecção de macros Elisp complexas (=macroexpand= e =macroexpand-1=) com saída formatada via =pp-to-string= (em =custom-magent-tool-debug.el=).
+- [X] *Ferramenta 2 (elisp_trace):* Ativação e desativação de =trace-function= em símbolos em runtime com captura em buffer (em =custom-magent-tool-debug.el=).
+- [X] *Ferramenta 3 (replace_defun no elisp_smart_edit):* Substituição atômica de definições completas (=defun=, =ert-deftest=, etc.) por nome do símbolo sem exigir match do corpo antigo.
+- [X] *Ferramenta 4 (suporte a payload-file / from_file):* Eliminação de escape de shell permitindo leitura de código diretamente de arquivos temporários em =elisp_smart_edit= e =bin/magent-cli=.
+- [X] *Ferramenta 5 (magit_diff_summary):* Inspeção estruturada e concisa do Git index/staging e unstaged diffs para os agentes (em =custom-magent-tool-git.el=).
+- [X] *Ferramenta 6 (just_run):* Execução programática de recipes do Justfile com captura e normalização de erros (em =custom-magent-tool-devops.el=).
+- [X] *Validação & ERT:* Criar testes de unidade correspondentes em =tests/= e validar nos gates =just lint= e =just test-prod=.
+
 ** Fase 3 — Bateria de Benchmark Local (F7-ben)
 
 *** TODO F7-ben: Bateria de Benchmark Code-Repair — Modelos Locais × Profiles
