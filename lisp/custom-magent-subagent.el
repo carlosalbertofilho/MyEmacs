@@ -204,7 +204,7 @@ chamada a função vazia no .elc."
          (magent-enable-tools 
           (if (boundp 'magent-enable-tools)
               (let ((tools magent-enable-tools))
-                (when is-orchestrator
+                (when (and is-orchestrator is-local)
                   (setq tools (seq-filter
                                (lambda (sym)
                                  (let ((s (symbol-name sym)))
