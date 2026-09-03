@@ -141,6 +141,14 @@ Accept &rest ARGS for Gemini streaming 5th argument."
       (magent-llm-gptel--sanitize-info info))))
 
 (with-eval-after-load 'magent-llm-gptel
+  (defalias 'magent-llm-gptel--sanitize-after-parse-response-a
+    (lambda (orig-fn backend response info &rest args)
+      "Sanitize Magent-managed INFO after gptel parses a response.
+Accept &rest ARGS for Gemini streaming 5th argument."
+      (prog1 (apply orig-fn backend response info args)
+        (when (and (fboundp 'magent-llm-gptel--managed-info-p)
+                   (magent-llm-gptel--managed-info-p info))
+          (magent-llm-gptel--sanitize-info info)))))
   (when (fboundp 'magent-llm-gptel--handle-tool-use)
     (advice-add 'magent-llm-gptel--handle-tool-use
                 :around #'+carlos/magent-sanitize-tool-use-name-a))
