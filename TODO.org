@@ -1,7 +1,7 @@
 #+TITLE: TODO — Planejamento Ativo e Backlog (MyEmacs)
 #+AUTHOR: Carlos Filho
 #+DATE: 2026-08-05
-#+LAST_MODIFIED: 2026-09-01
+#+LAST_MODIFIED: 2026-09-03
 #+FILETAGS: :PLANNING:
 #+OPTIONS: toc:2 num:t
 #+STARTUP: content
@@ -14,71 +14,12 @@ Histórico consolidado no [[file:roadmap.org][roadmap.org]].
 
 - *North Star:* Magent/gptel como driver do Emacs com resiliência e FinOps $0.00.
 - *Etapas:* A (Fundação) ✅ → B (Motor) ✅ → C (Ambição) ✅.
-- *Últimos marcos:* Resiliência FSM (3 Pilares) ✅, Limpeza & Benchmark CPU aa102-006l ✅, Integ. RFC Mode ✅, Factory Reset 12 Cores ✅, P3 dry-run guards ✅, Linters nativos + helpers portáteis ✅, Savepoint v1.1 Hybrid Arch ✅.
+- *Últimos marcos:* Resiliência FSM (3 Pilares) ✅, Limpeza & Benchmark CPU aa102-006l ✅, Integ. RFC Mode ✅, Factory Reset 12 Cores ✅, P3 dry-run guards ✅, Linters nativos + helpers portáteis ✅, Savepoint v1.1 Hybrid Arch ✅, Resiliência Subagentes & CB Streaming ✅.
 - *Suíte:* Testes ERT em =tests/= com compilação zero-warning (=compile-prod=).
 
-* Plano de Execução (Atualizado 2026-09-01)
+* Plano de Execução (Atualizado 2026-09-03)
 
 Ordem de implementação baseada em dependências, risco e alavanca.
-
-** Fase 1 — Estabilização do Ambiente Prod (Imediato)
-
-- [X] Validar correção do erro =envrc--direnv-export: Invalid function= (eliminado loop recursivo infinito de =with-eval-after-load= no =custom-lang.el=; validado via =elisp_eval= e =just check=).
-
-** Fase 2 — Resiliência de Subagentes (Prioridade Alta)
-
-*** TODO Resiliência de Subagentes — Cleanup de Timeout, Watchdog e Resiliência LLM (Magent)
-:PROPERTIES:
-:CREATED:  2026-09-01
-:STATUS:   PLANO APROVADO
-:END:
-
-Diagnóstico da cadeia causal: chamadas LLM que penduram no child loop do =spawn_agent= deixam o job em estado =running= indefinidamente quando o =wait_agent= atinge o timeout de 120s.
-
-- *Objetivo:* Eliminar vazamento de jobs em memória/runtime tornando a máquina de estados do Magent totalmente resiliente a timeouts e requisições penduradas.
-
-- *Ações de Correção:*
-  - [X] *Correção 1 (wait_agent timeout cleanup):* Em =wait_agent= (=magent-tools.el=), quando =finish= for chamado com status ="timeout"=, abortar child loops não-terminais com =magent-agent-loop-abort=, definir jobs como =cancelled= (erro ="Wait timed out"=) e limpar o runtime (implementado e validado em =custom-magent-subagent.el=).
-  - [X] *Correção 2 (Watchdog por job/turno):* Criar timer por job disparado no =spawn_agent= que cancela automaticamente após =magent-request-timeout=, independente de haver observer ativo (implementado com hash-table de timers e observer de cancelamento prévio).
-  - [X] *Correção 3 (Propagação de Timeout do LLM):* Garantir que o =magent-agent-loop= e a camada de transporte gptel falhem e propaguem erro após um teto de tempo (implementado no advice =+carlos/magent-cb-gptel-request-advice= em =custom-magent-tools.el= com cancelamento e disparo de callback de erro).
-  - [X] *Validação & ERT:* Criar testes em =tests/= e validar suíte de regressão (testes em =magent-cb-gptel-request-test.el= e =magent-ui-test.el= aprovados).
-
-*** DONE Resiliência do Sentinel e Interação com Orquestrador (UX)
-:PROPERTIES:
-:CREATED: 2026-09-01
-:STATUS:  DONE
-:END:
-
-- [X] Implementar um =condition-case= global no wrapper de execução de tools (=magent-tool-result-require=): intercepta retornos primitivos ou exceções nativas (como =wrong-type-argument=) e encapsula em =magent-tool-result= com status failed/completed sem derrubar o Sentinel (validado via teste ERT =myemacs-magent-tool-result-require-resilience-test=).
-- [X] Desenvolver Injeção de Contexto (Prompt Side-band) no =shell-maker=:
-  - [X] Aplicar um /advice/ no =shell-maker-submit= para que, quando a FSM estiver no estado =waiting_agent= ou gerando, o prompt não fique travado lançando erro (enfileira em =+carlos/magent-sideband-queue= e limpa buffer).
-  - [X] A interceptação captura o texto do usuário e aciona interrupção se o input for comando de stop/abort/cancel.
-  - [X] Expor menu Transient =+carlos/magent-menu= (=C-c A m=) com comando =[i] Interromper Sessão Ativa= e atalho direto =C-c A i=.
-
-*** DONE Blindar Orquestrador contra Alucinação de Ferramentas
-:PROPERTIES:
-:CREATED: 2026-09-01
-:STATUS:  DONE
-:END:
-
-- [X] Ocultar (un-register) nativamente ferramentas de mutação (=*_smart_edit=, =write_to_file=, =replace_file=) do contexto do perfil =orchestrator= (implementado em =custom-magent-subagent.el= e testado via ERT).
-- [X] Reforçar a validação do parâmetro =prompt= na tool =spawn_agent= para rejeitar strings literais como =[Insert Synthesis Here]= ou strings vazias.
-
-** Ferramental Nativo de Diagnóstico, Mutação e Automação (MyEmacs Native Tools v2.0)
-
-*** DONE Implementação do Kit de 6 Ferramentas Nativas para o Magent
-:PROPERTIES:
-:CREATED: 2026-09-03
-:STATUS:  DONE
-:END:
-
-- [X] *Ferramenta 1 (elisp_macroexpand):* Introspecção de macros Elisp complexas (=macroexpand= e =macroexpand-1=) com saída formatada via =pp-to-string= (em =custom-magent-tool-debug.el=).
-- [X] *Ferramenta 2 (elisp_trace):* Ativação e desativação de =trace-function= em símbolos em runtime com captura em buffer (em =custom-magent-tool-debug.el=).
-- [X] *Ferramenta 3 (replace_defun no elisp_smart_edit):* Substituição atômica de definições completas (=defun=, =ert-deftest=, etc.) por nome do símbolo sem exigir match do corpo antigo.
-- [X] *Ferramenta 4 (suporte a payload-file / from_file):* Eliminação de escape de shell permitindo leitura de código diretamente de arquivos temporários em =elisp_smart_edit= e =bin/magent-cli=.
-- [X] *Ferramenta 5 (magit_diff_summary):* Inspeção estruturada e concisa do Git index/staging e unstaged diffs para os agentes (em =custom-magent-tool-git.el=).
-- [X] *Ferramenta 6 (just_run):* Execução programática de recipes do Justfile com captura e normalização de erros (em =custom-magent-tool-devops.el=).
-- [X] *Validação & ERT:* Criar testes de unidade correspondentes em =tests/= e validar nos gates =just lint= e =just test-prod=.
 
 ** Fase 3 — Bateria de Benchmark Local (F7-ben)
 

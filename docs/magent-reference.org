@@ -1,7 +1,7 @@
 #+TITLE: Magent Reference
 #+AUTHOR: Carlos Filho
 #+DATE: 2026-08-23
-#+LAST_MODIFIED: 2026-08-25
+#+LAST_MODIFIED: 2026-09-03
 #+DESCRIPTION: API Reference for Magent FSM and Tools
 #+FILETAGS: :RAG:DOCS:
 #+OPTIONS: toc:2 num:t
@@ -248,3 +248,65 @@ Visão geral da arquitetura de FinOps =\$0.00= com otimização de tokens pagos.
 - *Economia de Tokens Pagos:* Redução de até 95% do consumo de API paga ao manter o loop de execuções mecânicas no modelo local.
 - *Latência e Desempenho:* Respostas locais ultra-rápidas (~1.0s TTFT no Apple Silicon Metal) com 9.68 GB RSS.
 - *Precisão Sintática:* AST e Smart-Edits do MyEmacs garantem 0% de erro sintático com rollback transacional automático.
+
+
+* Resiliência de FSM, Sentinel e Subagentes
+
+** Resiliência de Subagentes e Cleanup de Timeout
+- *Arquivo:* =lisp/custom-magent-subagent.el=
+- *Problema:* Subagentes invocados via =spawn_agent= cujas requisições LLM penduravam deixavam jobs orfãos em estado =running= após o expirar do =wait_agent= (120s).
+- *Solução Arquitetural:*
+  1. *Cleanup no =wait_agent=:* Quando =finish= recebe o status ="timeout"=, aciona =magent-agent-loop-abort= para abortar ativamente o loop filho e transiciona o job para =cancelled= com erro ="Wait timed out"=.
+  2. *Watchdog por Job:* Timer configurado no momento do =spawn_agent= que cancela automaticamente após =magent-request-timeout=, garantindo coleta mesmo sem observer ativo.
+  3. *Propagação em Cascata:* A FSM do subagente limpa timers e desregistra observadores, evitando vazamento em memória e concorrência no runtime do Emacs.
+
+** Resiliência do Sentinel e Interação com Orquestrador
+- *Arquivo:* =lisp/custom-magent-tools.el= e =lisp/custom-magent-commands.el=
+- *Sentinel Shield:* Wrapper =condition-case= em =magent-tool-result-require= intercepta exceções primitivas (ex.: =wrong-type-argument=) e encapsula em =magent-tool-result= com status de falha, impedindo a queda do Sentinel do Emacs.
+- *Sideband Queue:* Prompts submetidos pelo usuário enquanto o agente gera ou aguarda subagente são enfileirados em =+carlos/magent-sideband-queue= em vez de disparar erros de buffer ocupado.
+- *Interrupção Imediata:* Atalho =C-c A i= e menu Transient =+carlos/magent-menu= (=C-c A m=) para aborto determinístico da sessão ativa.
+
+
+* Ciclo de Vida do Circuit Breaker em Streaming e Tool Use
+
+- *Arquivo:* =lisp/custom-magent-tools.el= (=+carlos/magent-cb-gptel-request-advice=)
+- *Natureza Multi-Chamada:* O gptel invoca o callback registrado repetidas vezes:
+  1. Chunks parciais de streaming de texto (=stringp response=).
+  2. Blocos parciais de raciocínio/pensamento (=reasoning=).
+  3. Término do stream de transporte com =(eq response t)=.
+  4. Lote de chamadas de ferramenta =(cons 'tool-call pending-calls)= disparado pela FSM do gptel/Magent.
+- *Renovação Dinâmica do Watchdog:*
+  - A cada chunk intermediário ou emissão de evento válido, o timer de timeout é cancelado e reprogramado, prevenindo abortos indevidos em gerações longas.
+  - O Circuit Breaker computa falha estritamente em respostas nulas, status de erro ou detecção de saldo insuficiente.
+  - Sucesso é registrado exclusivamente no fim de resposta conclusiva sem ferramentas pendentes.
+  - Garante repasse irrestrito de todos os deltas e tool calls para o loop do Magent.
+
+
+* Kit de Ferramentas Nativas v2.0 (MyEmacs Native Tools)
+
+Ferramentas nativas do ecossistema MyEmacs projetadas para evitar corrupção por manipulação de texto cru e permitir automação soberana do Emacs pelos agentes.
+
+** elisp_macroexpand
+- *Arquivo:* =lisp/custom-magent-tool-debug.el=
+- *Descrição:* Expande macros Elisp complexas (=macroexpand= ou =macroexpand-1=) com saída formatada via =pp-to-string=.
+
+** elisp_trace
+- *Arquivo:* =lisp/custom-magent-tool-debug.el=
+- *Descrição:* Ativa ou desativa =trace-function= em símbolos em runtime com redirecionamento de logs de chamada e retorno para o buffer =*trace-output*=.
+
+** replace_defun no elisp_smart_edit
+- *Arquivo:* =lisp/custom-magent-tool-smart-edit.el=
+- *Descrição:* Substitui atomicamente uma definição inteira (=defun=, =defcustom=, =ert-deftest=, etc.) correspondente ao nome do símbolo passado, sem exigir casamento do corpo original.
+
+** Suporte a payload-file / from_file
+- *Arquivo:* =lisp/custom-magent-tool-smart-edit.el= e =bin/magent-cli=
+- *Descrição:* Permite injetar payloads de código a partir de arquivos temporários, eliminando completamente erros de escape e corrupção de aspas no shell.
+
+** magit_diff_summary
+- *Arquivo:* =lisp/custom-magent-tool-git.el=
+- *Descrição:* Fornece sumário conciso do status e diff do Git (arquivos modificados, unstaged, staged) otimizado para consumo eficiente por LLMs.
+
+** just_run
+- *Arquivo:* =lisp/custom-magent-tool-devops.el=
+- *Descrição:* Executa programaticamente recipes do Justfile com retorno estruturado de código de saída, stdout e stderr.
+

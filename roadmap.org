@@ -1,7 +1,7 @@
 #+TITLE: Roadmap — MyEmacs Configuration
 #+AUTHOR: Carlos Filho
 #+DATE: 2026-08-05
-#+LAST_MODIFIED: 2026-08-30
+#+LAST_MODIFIED: 2026-09-03
 #+OPTIONS: toc:2 num:t
 
 * Visão Geral
@@ -11,6 +11,40 @@ Este documento registra o histórico de ações realizadas no projeto MyEmacs
 entenderem o estado atual do projeto e decisões tomadas.
 
 * Linha do Tempo
+
+** 2026-09-03 — [CONCLUÍDO] Resiliência de Subagentes, Streaming no Circuit Breaker e MyEmacs Native Tools v2.0
+   Consolidação e migração de tarefas concluídas do TODO.org para o histórico.
+
+*** DONE Resiliência de Subagentes — Cleanup de Timeout, Watchdog e Resiliência LLM
+    - Eliminação de vazamento de jobs em memória quando subagentes atingem timeout no wait_agent.
+    - Abort explícito de child loops com =magent-agent-loop-abort= e cancelamento de jobs em cascata.
+    - Watchdog timer por job/turno cancelando após =magent-request-timeout=.
+    - Propagação de timeout e erro pela camada gptel/magent. Testes em =tests/magent-cb-gptel-request-test.el=.
+
+*** DONE Resiliência do Sentinel e Interação com Orquestrador (UX)
+    - Condition-case global em =magent-tool-result-require= para blindar Sentinel contra crashes.
+    - Interceptação e enfileiramento de prompts sideband no shell-maker durante estados ocupados.
+    - Menu Transient =+carlos/magent-menu= (=C-c A m=) com comando de interrupção imediata (=C-c A i=).
+
+*** DONE Blindar Orquestrador contra Alucinação de Ferramentas
+    - Ocultação (un-register) de ferramentas de mutação física (=*_smart_edit=, =write_file=, =replace_file=) do contexto do orquestrador.
+    - Rejeição de prompts literais vazios ou alucinados na tool =spawn_agent=.
+
+*** DONE Implementação do Kit de 6 Ferramentas Nativas para o Magent (v2.0)
+    - =elisp_macroexpand=: Introspecção de macros Elisp complexas formatadas via =pp-to-string= (=custom-magent-tool-debug.el=).
+    - =elisp_trace=: Ativação/desativação de =trace-function= em runtime com captura de buffer.
+    - =replace_defun= no =elisp_smart_edit=: Substituição atômica de definições por nome do símbolo.
+    - Suporte a =payload-file= / =from_file=: Eliminação de problemas de quoting shell no =magent-cli=.
+    - =magit_diff_summary=: Inspeção estruturada e enxuta do status e diff do Git para LLMs (=custom-magent-tool-git.el=).
+    - =just_run=: Execução de recipes do Justfile com captura estruturada de saída e status (=custom-magent-tool-devops.el=).
+
+*** DONE Suporte a Streaming e Tool Calls no Circuit Breaker & Aridade Gemini
+    - Correção do Circuit Breaker (=+carlos/magent-cb-gptel-request-advice= em =custom-magent-tools.el=):
+      eliminada guarda de chamada única que suprimia streaming chunks e batches de tool-calls.
+    - Reseta dinamicamente o watchdog a cada chunk/evento de progresso, suportando respostas e streams longos.
+    - Sucesso terminal registrado apenas em =(eq response t)= ou fim de requisição sem ferramentas.
+    - Aridade corrigida em =custom-ai-schema.el= para assinatura variádica no stream filter do Gemini.
+    - Validado em produção com orquestrador =gemini-2.5-flash= convertendo em lote múltiplos arquivos em =docs/= com paginação =read_file= automática.
 
 ** 2026-09-01 — [CONCLUÍDO] Reorganização TODO.org — Tarefas concluídas migradas
    Consolidação de tarefas DONE do TODO.org para o roadmap.org.
