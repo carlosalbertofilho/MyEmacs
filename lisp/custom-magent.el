@@ -96,7 +96,8 @@
   (magent-default-agent "build")
   (magent-enable-audit-log t)
   (magent-project-instruction-file-names '("AGENTS.md"))
-  (magent-include-reasoning nil)  ;; nil = sem thinkingConfig no Gemini (evita thoughtSignature que causa timeout)
+  (magent-include-reasoning nil)
+  (magent-request-timeout 300)  ;; nil = sem thinkingConfig no Gemini (evita thoughtSignature que causa timeout)
   (magent-skill-directories
    (append (let ((new-dir (expand-file-name "magent/skills" user-emacs-directory))
                  (old-dir (expand-file-name "magent-skills" user-emacs-directory)))
