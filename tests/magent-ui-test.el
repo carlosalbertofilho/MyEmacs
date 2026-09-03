@@ -25,6 +25,9 @@
   (file-readable-p myemacs-ui-file)
   "Non-nil quando custom-magent-ui.el está acessível no ambiente de teste.")
 
+(defvar +carlos/magent-sideband-queue nil
+  "Forward declaration para rebinding dinâmico nos testes.")
+
 (when myemacs-ui-available
   (condition-case err
       (load myemacs-ui-file nil :nomessage)
@@ -352,3 +355,32 @@
                                +carlos/magent-ui--pending-approvals))
           (should (string-match-p "descartada" (buffer-string))))
       (remhash "drop1234" +carlos/magent-ui--pending-approvals))))
+
+(ert-deftest myemacs-magent-commands-transient-menu-defined ()
+  "Garante que o menu Transient +carlos/magent-menu está definido."
+  (load (expand-file-name "lisp/custom-magent-commands.el") nil t)
+  (should (fboundp '+carlos/magent-menu)))
+
+(ert-deftest myemacs-magent-commands-sideband-queue-test ()
+  "Garante que input durante busy é enfileirado na sideband queue sem erro."
+  (require 'shell-maker nil t)
+  (load (expand-file-name "lisp/custom-magent-commands.el") nil t)
+  (let ((+carlos/magent-sideband-queue nil)
+        (interrupted nil))
+    (with-temp-buffer
+      (setq-local shell-maker--busy t)
+      (insert "user side note")
+      (cl-letf (((symbol-function '+carlos/magent-agent-shell-interrupt)
+                 (lambda () (setq interrupted t))))
+        (+carlos/magent-shell-maker-submit-around #'ignore))
+      (should (equal +carlos/magent-sideband-queue '("user side note")))
+      (should-not interrupted))
+    (with-temp-buffer
+      (setq-local shell-maker--busy t)
+      (insert "abort")
+      (cl-letf (((symbol-function '+carlos/magent-agent-shell-interrupt)
+                 (lambda () (setq interrupted t))))
+        (+carlos/magent-shell-maker-submit-around #'ignore))
+      (should interrupted))))
+
+(provide 'magent-ui-test)

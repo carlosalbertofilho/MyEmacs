@@ -118,5 +118,54 @@
 (global-set-key (kbd "C-c M a") #'+carlos/magent-add-dir)
 (global-set-key (kbd "C-c M L") #'+carlos/magent-list-dirs)
 
+;; ── Transient Menu & Prompt Side-band (Fase 2) ──────────────────────
+
+(require 'transient nil t)
+
+(declare-function +carlos/magent-start "custom-magent")
+(declare-function +carlos/magent-agent-shell-interrupt "custom-magent")
+(declare-function +carlos/magent-agent-shell-prompt-region "custom-magent")
+
+(when (fboundp 'transient-define-prefix)
+  (transient-define-prefix +carlos/magent-menu ()
+    "Menu de Controle e Operações do Magent."
+    ["Magent Agent & Sessões"
+     ("m" "Iniciar / Focar Magent" +carlos/magent-start)
+     ("i" "Interromper Sessão Ativa" +carlos/magent-agent-shell-interrupt)
+     ("r" "Enviar Região ao Magent" +carlos/magent-agent-shell-prompt-region)
+     ("u" "Relatório FinOps / Consumo" +carlos/magent-render-usage-chat)]
+    ["Gerenciamento de Diretórios & Contexto"
+     ("w" "Definir Workdir Base" +carlos/magent-set-workdir)
+     ("a" "Adicionar Diretório Extra" +carlos/magent-add-dir)
+     ("l" "Listar Diretórios Ativos" +carlos/magent-list-dirs)]))
+
+(defvar +carlos/magent-sideband-queue nil
+  "Fila de mensagens do usuário recebidas enquanto o agente estava ocupado.")
+
+(defun +carlos/magent-shell-maker-submit-around (orig-fn &rest args)
+  "Intercepta submissões no `shell-maker' enquanto ocupado.
+Se `shell-maker--busy' estiver ativo, captura o input do usuário sem lançar erro,
+enfileira em `+carlos/magent-sideband-queue' e notifica o usuário no buffer."
+  (if (and (bound-and-true-p shell-maker--busy)
+           (not (plist-get args :input)))
+      (let* ((input (buffer-substring-no-properties
+                     (or (and (boundp 'comint-last-input-end) comint-last-input-end) (point-min))
+                     (point-max)))
+             (trimmed (and input (string-trim input))))
+        (if (or (null trimmed) (string-empty-p trimmed))
+            nil
+          (setq +carlos/magent-sideband-queue (append +carlos/magent-sideband-queue (list trimmed)))
+          (message "Magent: Mensagem lateral enfileirada: %s" trimmed)
+          (when (member (downcase trimmed) '("abort" "stop" "/abort" "/stop" "cancel"))
+            (when (fboundp '+carlos/magent-agent-shell-interrupt)
+              (+carlos/magent-agent-shell-interrupt)))
+          (delete-region (or (and (boundp 'comint-last-input-end) comint-last-input-end) (point-min))
+                         (point-max))))
+    (apply orig-fn args)))
+
+(with-eval-after-load 'shell-maker
+  (advice-add 'shell-maker-submit :around #'+carlos/magent-shell-maker-submit-around))
+
 (provide 'custom-magent-commands)
+
 ;;; custom-magent-commands.el ends here

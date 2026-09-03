@@ -84,7 +84,7 @@
 (global-set-key (kbd "C-c C-g") #'+carlos/gptel-generate-commit-message)
 
 ;; ── Magent (AI coding agent nativo) ─────────────────────────────────
-(global-set-key (kbd "C-c A m") #'+carlos/magent-start)
+(global-set-key (kbd "C-c A m") (if (fboundp '+carlos/magent-menu) #'+carlos/magent-menu #'+carlos/magent-start))
 (global-set-key (kbd "C-c A i") #'+carlos/magent-agent-shell-interrupt)
 (global-set-key (kbd "C-c A r") #'+carlos/magent-agent-shell-prompt-region)
 

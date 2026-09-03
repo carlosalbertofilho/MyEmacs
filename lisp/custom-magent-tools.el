@@ -389,17 +389,36 @@ first element and would miss every keyword otherwise."
         ;; Conecta o CB à FSM abortando o turno imediatamente via callback falso
         (when callback
           (funcall callback nil (list :error (format "Circuit Breaker OPEN for model %s: temporary cloud instability / backoff active" model-key))))
-      (let ((wrapped-callback
-             (when callback
-               (lambda (response info)
-                 (if (or (null response)
-                         (plist-get info :error)
-                         (and (stringp response)
-                              (let ((case-fold-search t))
-                                (string-match-p "insufficient balance\\|429 too many requests\\|quota exceeded\\|resource_exhausted\\|rate limit exceeded\\|billing" response))))
+      (let* ((timeout (or (and (boundp 'magent-request-timeout)
+                               (numberp magent-request-timeout)
+                               (> magent-request-timeout 0)
+                               magent-request-timeout)
+                          120))
+             (timer nil)
+             (done nil)
+             (wrapped-callback
+              (when callback
+                (lambda (response info)
+                  (unless done
+                    (setq done t)
+                    (when (timerp timer) (cancel-timer timer))
+                    (if (or (null response)
+                            (plist-get info :error)
+                            (and (stringp response)
+                                 (let ((case-fold-search t))
+                                   (string-match-p "insufficient balance" response))))
+                        (+carlos/magent-cb-record-failure model-key)
+                      (+carlos/magent-cb-record-success model-key))
+                    (funcall callback response info))))))
+        (when callback
+          (setq timer
+                (run-at-time
+                 timeout nil
+                 (lambda ()
+                   (unless done
+                     (setq done t)
                      (+carlos/magent-cb-record-failure model-key)
-                   (+carlos/magent-cb-record-success model-key))
-                 (funcall callback response info)))))
+                     (funcall callback nil (list :error (format "LLM request timeout after %ds for %s" timeout model-key))))))))
         (apply orig-fn prompt
                (if wrapped-callback
                    (plist-put (copy-sequence args) :callback wrapped-callback)

@@ -198,7 +198,8 @@ REASON: Motivo da alteração."
         ("replace_text"
          (if (or (null args) (string-empty-p args))
              "Erro: args deve ser 'old|new|FLAGS'."
-           (let* ((parts (split-string args "|" t))
+           (let* ((sep (if (string-match-p "@@@" args) "@@@" "|"))
+                  (parts (split-string args sep t))
                   (old-txt (nth 0 parts))
                   (new-txt (nth 1 parts))
                   (flags (nth 2 parts)))

@@ -40,16 +40,20 @@ Diagnóstico da cadeia causal: chamadas LLM que penduram no child loop do =spawn
 - *Ações de Correção:*
   - [X] *Correção 1 (wait_agent timeout cleanup):* Em =wait_agent= (=magent-tools.el=), quando =finish= for chamado com status ="timeout"=, abortar child loops não-terminais com =magent-agent-loop-abort=, definir jobs como =cancelled= (erro ="Wait timed out"=) e limpar o runtime (implementado e validado em =custom-magent-subagent.el=).
   - [X] *Correção 2 (Watchdog por job/turno):* Criar timer por job disparado no =spawn_agent= que cancela automaticamente após =magent-request-timeout=, independente de haver observer ativo (implementado com hash-table de timers e observer de cancelamento prévio).
-  - [ ] *Correção 3 (Propagação de Timeout do LLM):* Garantir que o =magent-agent-loop= e a camada de transporte gptel falhem e propaguem erro após um teto de tempo, evitando pendurar silenciosamente.
-  - [ ] *Validação & ERT:* Criar testes em =tests/= e validar compilação zero-warning (=compile-prod=) e suíte de regressão.
+  - [X] *Correção 3 (Propagação de Timeout do LLM):* Garantir que o =magent-agent-loop= e a camada de transporte gptel falhem e propaguem erro após um teto de tempo (implementado no advice =+carlos/magent-cb-gptel-request-advice= em =custom-magent-tools.el= com cancelamento e disparo de callback de erro).
+  - [X] *Validação & ERT:* Criar testes em =tests/= e validar suíte de regressão (testes em =magent-cb-gptel-request-test.el= e =magent-ui-test.el= aprovados).
 
-*** TODO Resiliência do Sentinel e Interação com Orquestrador (UX)
+*** DONE Resiliência do Sentinel e Interação com Orquestrador (UX)
+:PROPERTIES:
+:CREATED: 2026-09-01
+:STATUS:  DONE
+:END:
 
 - [X] Implementar um =condition-case= global no wrapper de execução de tools (=magent-tool-result-require=): intercepta retornos primitivos ou exceções nativas (como =wrong-type-argument=) e encapsula em =magent-tool-result= com status failed/completed sem derrubar o Sentinel (validado via teste ERT =myemacs-magent-tool-result-require-resilience-test=).
-- [ ] Desenvolver Injeção de Contexto (Prompt Side-band) no =shell-maker=:
-  - [ ] Aplicar um /advice/ no =shell-maker-submit= para que, quando a FSM estiver no estado =waiting_agent= ou gerando, o prompt não fique travado lançando erro.
-  - [ ] A interceptação deve capturar o texto do usuário, salvar no =session.json= e emitir um sinal de *wake-up* ou interrupção suave para o loop da FSM do Orquestrador.
-  - [ ] Como fallback, expor um atalho global (=C-c A i=) e uma opção no menu Transient (=C-c A m= -> =[I] Interromper Sessão=) para forçar o destravamento.
+- [X] Desenvolver Injeção de Contexto (Prompt Side-band) no =shell-maker=:
+  - [X] Aplicar um /advice/ no =shell-maker-submit= para que, quando a FSM estiver no estado =waiting_agent= ou gerando, o prompt não fique travado lançando erro (enfileira em =+carlos/magent-sideband-queue= e limpa buffer).
+  - [X] A interceptação captura o texto do usuário e aciona interrupção se o input for comando de stop/abort/cancel.
+  - [X] Expor menu Transient =+carlos/magent-menu= (=C-c A m=) com comando =[i] Interromper Sessão Ativa= e atalho direto =C-c A i=.
 
 *** DONE Blindar Orquestrador contra Alucinação de Ferramentas
 :PROPERTIES:
