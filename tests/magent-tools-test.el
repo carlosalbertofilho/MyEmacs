@@ -737,5 +737,15 @@
                   (magent-tool-result-output res) (or res ""))))
     (should (string-match-p "Log file not found" out))))
 
+(ert-deftest myemacs-magent-tool-result-require-resilience-test ()
+  "Valida se magent-tool-result-require normaliza valores simples sem sinalizar erro."
+  (when (require 'magent-protocol nil t)
+    (let ((res (magent-tool-result-require "raw string output" "test-tool" "c-123")))
+      (should (magent-tool-result-p res))
+      (should (eq (magent-tool-result-status res) 'completed))
+      (should (equal (magent-tool-result-output res) "raw string output"))
+      (should (equal (magent-tool-result-name res) "test-tool"))
+      (should (equal (magent-tool-result-call-id res) "c-123")))))
+
 (provide 'magent-tools-test)
 ;;; magent-tools-test.el ends here

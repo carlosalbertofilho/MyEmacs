@@ -104,5 +104,19 @@
             (funcall captured-cb "fix: insert commit msg" nil)
             (should (equal (buffer-string) "fix: insert commit msg"))))))))
 
+(ert-deftest myemacs-magit-tool-stage-persistence ()
+  "Verifica se +carlos/magent-tool-magit-stage persiste os arquivos no git index."
+  (let* ((root (locate-dominating-file default-directory "Justfile"))
+         (test-file (expand-file-name "test-stage-ert.tmp" root)))
+    (unwind-protect
+        (progn
+          (with-temp-file test-file (insert "test content\n"))
+          (+carlos/magent-tool-magit-stage "test-stage-ert.tmp")
+          (let ((staged-p (string-match-p "^[AM]  test-stage-ert.tmp"
+                                         (shell-command-to-string "git status --porcelain test-stage-ert.tmp"))))
+            (should staged-p)))
+      (shell-command-to-string (format "git reset HEAD %s 2>/dev/null" (shell-quote-argument test-file)))
+      (when (file-exists-p test-file) (delete-file test-file)))))
+
 (provide 'git-test)
 ;;; git-test.el ends here

@@ -138,10 +138,14 @@ por atualização descendente e limitados por
   (let ((default-directory (+carlos/magent-project-root)))
     (if (and (stringp file) (not (string-empty-p file)) (not (equal file "all")))
         (progn
-          (when (fboundp 'magit-stage-file) (magit-stage-file file))
+          (if (fboundp 'magit-run-git)
+              (magit-run-git "add" "--" file)
+            (shell-command-to-string (format "git add -- %s" (shell-quote-argument file))))
           (format "Staged file '%s' via Magit." file))
       (progn
-        (when (fboundp 'magit-stage-all) (magit-stage-all))
+        (if (fboundp 'magit-run-git)
+            (magit-run-git "add" "-A")
+          (shell-command-to-string "git add -A"))
         (format "Staged all modified files via Magit in '%s'." default-directory)))))
 
 (with-eval-after-load 'gptel
@@ -163,12 +167,12 @@ por atualização descendente e limitados por
       "Error: commit message cannot be empty."
     (let ((default-directory (+carlos/magent-project-root)))
       (cond
+       ((fboundp 'magit-run-git)
+        (magit-run-git "commit" "-m" message)
+        (format "Created commit with message '%s' via Magit in '%s'." message default-directory))
        ((fboundp 'magit-commit-create)
         (magit-commit-create (list "-m" message))
         (format "Created commit with message '%s' via Magit in '%s'." message default-directory))
-       ((fboundp 'magit-run-git)
-        (magit-run-git "commit" "-m" message)
-        (format "Created commit with message '%s' via Magit run-git." message))
        (t "Error: Magit commit functions not available.")))))
 
 (with-eval-after-load 'gptel

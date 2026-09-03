@@ -98,7 +98,8 @@ símbolo; \"REGEX\" = trata OLD como expressão regular."
 (defun +carlos/magent-tool-elisp-smart-edit (target-file action &optional snippet-name args _reason)
   "Ferramenta transacional para edição inteligente de arquivos Elisp (.el).
 TARGET-FILE: Caminho do arquivo .el.
-ACTION: `insert_snippet', `refactor_symbol', `extract_sexp'
+ACTION: `insert_snippet', `refactor_symbol', `replace_text',
+        `extract_sexp'
         ou `validate_buffer'.
 SNIPPET-NAME: Nome do snippet Tempel (ex: `defun', `deftest', `use-package').
 ARGS: Argumentos para o snippet ou substituição de símbolo.
@@ -217,7 +218,7 @@ REASON: Motivo da alteração."
                (format "Buffer '%s' validado com sucesso (zero erros de sintaxe e parênteses equilibrados)." abs-file))
            (error
             (format "Erro de validação no buffer '%s': %s" abs-file (error-message-string err)))))
-        (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol', 'extract_sexp' ou 'validate_buffer'." action))))))
+        (_ (format "Ação '%s' desconhecida. Use 'insert_snippet', 'refactor_symbol', 'replace_text', 'extract_sexp' ou 'validate_buffer'." action))))))
 
 (defun +carlos/magent-tool-nix-smart-edit (target-file action &optional snippet-name args _reason)
   "Ferramenta transacional para edição inteligente de arquivos Nix (.nix).

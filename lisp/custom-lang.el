@@ -183,11 +183,6 @@
 
 (use-package envrc
   :ensure t
-  :init
-  ;; Previne erro 'Invalid function: envrc--with-required-current-env'
-  ;; garantindo o carregamento ordenado das macros do envrc
-  (with-eval-after-load 'envrc
-    (load "envrc" nil t))
   :config
   ;; Desativa envrc em buffers TRAMP para evitar erro code 127
   (setq envrc-remote nil)

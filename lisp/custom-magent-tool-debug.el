@@ -96,5 +96,55 @@ ACTION: `start', `stop', `breakpoint' (arg1=file, arg2=line), `eval'."
   (when (boundp 'magent-enable-tools)
     (add-to-list 'magent-enable-tools 'magent_debug)))
 
+;; ── Introspecção e Avaliação Dinâmica Elisp ───────────────────────────
+
+(defvar +carlos/magent-tool-elisp-eval nil)
+
+(defun +carlos/magent-tool-elisp-eval (form-str &optional macroexpand-p _reason)
+  "Avalia FORM-STR de forma segura e retorna o resultado ou erro.
+Se MACROEXPAND-P for não-nil e diferente de \"false\"/\"0\", expande a
+forma usando `macroexpand' sem executá-la."
+  (if (or (null form-str) (string-empty-p form-str))
+      "Erro: form-str não pode ser vazia."
+    (condition-case err
+        (let* ((parsed (read-from-string form-str))
+               (form (car parsed))
+               (expand (and macroexpand-p
+                            (not (member macroexpand-p '("0" "false" "nil" nil))))))
+          (if expand
+              (format "Expansão da macro:\n%S" (macroexpand form))
+            (let* ((out-buf (generate-new-buffer " *elisp-eval-out*"))
+                   (standard-output out-buf)
+                   (res (eval form t))
+                   (out-str (with-current-buffer out-buf (buffer-string))))
+              (kill-buffer out-buf)
+              (if (string-empty-p out-str)
+                  (format "%S" res)
+                (format "Stdout:\n%s\nRetorno:\n%S" out-str res)))))
+      (error
+       (format "Erro de avaliação Elisp: %s" (error-message-string err))))))
+
+(with-eval-after-load 'gptel
+  (setq +carlos/magent-tool-elisp-eval
+        (gptel-make-tool
+         :name "elisp_eval"
+         :description "Avalia uma expressão Elisp FORM-STR de forma segura ou a expande se MACROEXPAND-P for verdadeiro. Retorna stdout, valor e erros."
+         :args '((:name "form-str" :type string)
+                 (:name "macroexpand-p" :type boolean)
+                 (:name "reason" :type string))
+         :function #'+carlos/magent-tool-elisp-eval
+         :category "debugging")))
+
+(with-eval-after-load 'magent-tools
+  (when (and (boundp 'magent-tools-catalog)
+             +carlos/magent-tool-elisp-eval)
+    (add-to-list 'magent-tools-catalog
+                 `(:name "elisp_eval" :tool ,+carlos/magent-tool-elisp-eval
+                         :permission elisp_eval))))
+
+(with-eval-after-load 'magent-config
+  (when (boundp 'magent-enable-tools)
+    (add-to-list 'magent-enable-tools 'elisp_eval)))
+
 (provide 'custom-magent-tool-debug)
 ;;; custom-magent-tool-debug.el ends here

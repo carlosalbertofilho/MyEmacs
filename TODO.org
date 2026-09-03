@@ -23,7 +23,7 @@ Ordem de implementação baseada em dependências, risco e alavanca.
 
 ** Fase 1 — Estabilização do Ambiente Prod (Imediato)
 
-- [ ] Validar correção do erro =envrc--direnv-export: Invalid function= que apareceu no prod após factory-reset.
+- [X] Validar correção do erro =envrc--direnv-export: Invalid function= (eliminado loop recursivo infinito de =with-eval-after-load= no =custom-lang.el=; validado via =elisp_eval= e =just check=).
 
 ** Fase 2 — Resiliência de Subagentes (Prioridade Alta)
 
@@ -38,23 +38,27 @@ Diagnóstico da cadeia causal: chamadas LLM que penduram no child loop do =spawn
 - *Objetivo:* Eliminar vazamento de jobs em memória/runtime tornando a máquina de estados do Magent totalmente resiliente a timeouts e requisições penduradas.
 
 - *Ações de Correção:*
-  - [ ] *Correção 1 (wait_agent timeout cleanup):* Em =wait_agent= (=magent-tools.el=), quando =finish= for chamado com status ="timeout"=, abortar child loops não-terminais com =magent-agent-loop-abort=, definir jobs como =cancelled= (erro ="Wait timed out"=) e limpar o runtime.
-  - [ ] *Correção 2 (Watchdog por job/turno):* Criar timer por job disparado no =spawn_agent= que cancela automaticamente após =magent-request-timeout=, independente de haver observer ativo (protege casos sem =wait_agent=).
+  - [X] *Correção 1 (wait_agent timeout cleanup):* Em =wait_agent= (=magent-tools.el=), quando =finish= for chamado com status ="timeout"=, abortar child loops não-terminais com =magent-agent-loop-abort=, definir jobs como =cancelled= (erro ="Wait timed out"=) e limpar o runtime (implementado e validado em =custom-magent-subagent.el=).
+  - [X] *Correção 2 (Watchdog por job/turno):* Criar timer por job disparado no =spawn_agent= que cancela automaticamente após =magent-request-timeout=, independente de haver observer ativo (implementado com hash-table de timers e observer de cancelamento prévio).
   - [ ] *Correção 3 (Propagação de Timeout do LLM):* Garantir que o =magent-agent-loop= e a camada de transporte gptel falhem e propaguem erro após um teto de tempo, evitando pendurar silenciosamente.
   - [ ] *Validação & ERT:* Criar testes em =tests/= e validar compilação zero-warning (=compile-prod=) e suíte de regressão.
 
 *** TODO Resiliência do Sentinel e Interação com Orquestrador (UX)
 
-- [ ] Implementar um =condition-case= global no wrapper de execução de tools (=magent-tool-result-require= e =+carlos/magent-execute-tool=) para capturar exceções Lisp nativas (como =wrong-type-argument=). Em vez de crashar o Sentinel (o que mata o processo silenciosamente), a FSM deve interceptar o erro e gerar um =tool-call-end= com o status de erro e a stacktrace, devolvendo o controle ao modelo para que ele mesmo corrija o argumento.
+- [X] Implementar um =condition-case= global no wrapper de execução de tools (=magent-tool-result-require=): intercepta retornos primitivos ou exceções nativas (como =wrong-type-argument=) e encapsula em =magent-tool-result= com status failed/completed sem derrubar o Sentinel (validado via teste ERT =myemacs-magent-tool-result-require-resilience-test=).
 - [ ] Desenvolver Injeção de Contexto (Prompt Side-band) no =shell-maker=:
   - [ ] Aplicar um /advice/ no =shell-maker-submit= para que, quando a FSM estiver no estado =waiting_agent= ou gerando, o prompt não fique travado lançando erro.
   - [ ] A interceptação deve capturar o texto do usuário, salvar no =session.json= e emitir um sinal de *wake-up* ou interrupção suave para o loop da FSM do Orquestrador.
   - [ ] Como fallback, expor um atalho global (=C-c A i=) e uma opção no menu Transient (=C-c A m= -> =[I] Interromper Sessão=) para forçar o destravamento.
 
-*** TODO Blindar Orquestrador contra Alucinação de Ferramentas
+*** DONE Blindar Orquestrador contra Alucinação de Ferramentas
+:PROPERTIES:
+:CREATED: 2026-09-01
+:STATUS:  DONE
+:END:
 
-- [ ] Ocultar (un-register) nativamente ferramentas de mutação (=*_smart_edit=, =write_to_file=) do contexto do perfil =orchestrator=.
-- [ ] Reforçar a validação do parâmetro =prompt= na tool =spawn_agent= para rejeitar strings literais como =[Insert Synthesis Here]=.
+- [X] Ocultar (un-register) nativamente ferramentas de mutação (=*_smart_edit=, =write_to_file=, =replace_file=) do contexto do perfil =orchestrator= (implementado em =custom-magent-subagent.el= e testado via ERT).
+- [X] Reforçar a validação do parâmetro =prompt= na tool =spawn_agent= para rejeitar strings literais como =[Insert Synthesis Here]= ou strings vazias.
 
 ** Fase 3 — Bateria de Benchmark Local (F7-ben)
 
@@ -175,27 +179,26 @@ Sintoma: usuário pediu explicitamente Google API/Gemini flash e o Magent mantev
 
 * Bugs Ativos
 
-** TODO Bug: =magit_stage= via =bin/magent-cli= não persiste staging no git index
+** DONE Bug: =magit_stage= via =bin/magent-cli= não persiste staging no git index
 :PROPERTIES:
 :CREATED:  2026-09-01
-:STATUS:   BACKLOG
+:STATUS:   DONE
 :END:
 
-Sintoma: =magit_stage TODO.org= via =bin/magent-cli= retorna "Staged file via Magit" (sucesso), mas o staging não persiste para o próximo processo =emacs --batch= (=magit_commit=). O commit seguinte vê "Nothing staged" e entra em prompt interativo que trava no batch (exit 124).
+Sintoma: =magit_stage TODO.org= via =bin/magent-cli= retornava "Staged file via Magit" (sucesso), mas o staging não persistia para o próximo processo =emacs --batch=.
 
-- *Diagnóstico:* Cada chamada =bin/magent-cli= roda em processo =emacs --batch= separado. A tool =+carlos/magent-tool-magit-stage= pode estar fazendo o stage apenas no buffer do Magit (via API Magit) sem persistir no index do git (=git add=), ou o Magit em batch não efetiva o =git update-index=.
-- *Evidência:* =git status --short= após =magit_stage= mostra =" M TODO.org"= (modified, unstaged). Workaround: =git add= direto funciona.
-- *Correção provável:* Investigar se =+carlos/magent-tool-magit-stage= (=custom-magent-tools.el=) chama =magit-stage-file= ou =magit-run-git "add"= e se o batch mode do Magit precisa de =magit-refresh= ou flush explícito do index.
-- [ ] Reproduzir em ambiente controlado (=emacs --batch= isolado).
-- [ ] Corrigir a tool para garantir persistência do staging.
-- [ ] Adicionar teste ERT de round-trip: stage + verificar index.
+- *Causa-Raiz Descoberta:* As funções =magit-stage-file= e =magit-stage-all= não existem na API do Magit (retornavam =void-function= / =fboundp nil=). O código executava um bloco silencioso que nada fazia e retornava a string formatada.
+- *Correção Aplicada:* Atualizado para =magit-run-git "add" "--" file= e ="-A"= com fallback. No commit, =magit-run-git "commit" -m= foi priorizado para evitar buffers interativos no batch.
+- [X] Reproduzir em ambiente controlado (=emacs --batch= isolado).
+- [X] Corrigir a tool para garantir persistência do staging.
+- [X] Adicionar teste ERT de round-trip: stage + verificar index (=myemacs-magit-tool-stage-persistence=).
 
 * Melhorias UX & UI
 
-** TODO Diagnóstico e Correção — Fechamento Prematuro da GUI no Modo Daemon
+** DONE Diagnóstico e Correção — Fechamento Prematuro da GUI no Modo Daemon
 :PROPERTIES:
 :CREATED: 2026-08-28
-:STATUS:  EM ANDAMENTO
+:STATUS:  DONE
 :END:
 
 No modo daemon (=emacs --daemon= ou serviço systemd), ao abrir cliente gráfico
@@ -207,9 +210,9 @@ com =emacsclient -c=, a janela GUI é iniciada e fecha imediatamente.
   - *Variáveis de ambiente de GUI no Systemd:* Daemons iniciados via =systemd --user= podem ser criados antes da sessão gráfica.
 
 - *Plano de Correção:*
-  - [ ] Envolver =+carlos/dashboard-open-on-server-frame= em =with-demoted-errors= em =custom-dashboard.el=.
-  - [ ] Adicionar guarda =display-graphic-p= e checagem de frame de servidor antes de renderizar dashboard.
-  - [ ] Documentar comando =systemctl --user import-environment DISPLAY WAYLAND_DISPLAY XDG_RUNTIME_DIR= para inicialização via systemd.
+  - [X] Envolver =+carlos/dashboard-open-on-server-frame= em =with-demoted-errors= em =custom-dashboard.el=.
+  - [X] Adicionar guarda =display-graphic-p= e checagem de frame de servidor antes de renderizar dashboard.
+  - [X] Documentar comando =systemctl --user import-environment DISPLAY WAYLAND_DISPLAY XDG_RUNTIME_DIR= para inicialização via systemd.
 
 ** TODO Otimizações Nativas de Boot (early-init) — Pendência de Validação Prod
 :PROPERTIES:
@@ -265,6 +268,20 @@ Cirurgia no =early-init.el= concluída (commit =9a12d69=): =native-comp-compiler
 ** TODO Atualizar =docs/dev-workflow.org= com a nova pipeline de validação
 
 - [ ] Documentar =just lint= completo (compile + checkdoc + org-lint + lint-native).
+
+** TODO Ferramental de Diagnóstico & Introspecção Nativa (Magent CLI)
+:PROPERTIES:
+:CREATED: 2026-09-03
+:STATUS:  EM ANDAMENTO
+:END:
+
+Identificado durante resolução de bugs em modo batch. Ferramentas nativas de diagnóstico para acelerar a depuração de agentes e CLIs externas:
+- [X] *Fase 1 (Imediato — Force Multiplier para Bug 2 e 4):*
+  - [X] Implementar =elisp_eval= (com macroexpand e captura de stdout/erro) em =custom-magent-tools.el=.
+  - [X] Atualizar docstring de =elisp_smart_edit= oficializando a ação =replace_text=.
+- [ ] *Fase 2 (Backlog):*
+  - [ ] =elisp_trace=: Ativar =trace-function= em funções-alvo e retornar o buffer =*trace-output*= como string/JSON.
+  - [ ] =git_status_porcelain=: Tool leve de Git para obter o estado do index e worktree sem instanciar os buffers pesados do Magit.
 
 * Contexto de Arquitetura Oficial do Magent (Referência RAG)
 

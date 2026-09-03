@@ -205,7 +205,14 @@ chamada a função vazia no .elc."
           (if (boundp 'magent-enable-tools)
               (let ((tools magent-enable-tools))
                 (when is-orchestrator
-                  (setq tools (remq 'read (remq 'write (remq 'edit (remq 'snippet_expand (remq 'buffer tools)))))))
+                  (setq tools (seq-filter
+                               (lambda (sym)
+                                 (let ((s (symbol-name sym)))
+                                   (not (or (memq sym '(read write edit snippet_expand buffer))
+                                            (string-match-p "smart_edit" s)
+                                            (string-match-p "write_to_file" s)
+                                            (string-match-p "replace_file" s)))))
+                               tools)))
                 (when is-local
                   (setq tools (seq-filter
                                 (lambda (t-name) (memq t-name +carlos/magent-subagent-lite-tools))
@@ -220,5 +227,113 @@ chamada a função vazia no .elc."
   (advice-add 'magent-agent-process
               :around #'+carlos/magent-subagent-apply-profile))
 
+;; ── Subagent Watchdog & Timeout Cleanup (Fase 2) ─────────────────────
+
+(defvar +carlos/magent-job-watchdog-timers (make-hash-table :test 'equal)
+  "Hash-table de timers de watchdog ativos mapeados por job-id.")
+
+(defun +carlos/magent-cancel-job-watchdog (job-id)
+  "Cancela e remove o timer de watchdog associado a JOB-ID."
+  (when-let* ((timer (gethash job-id +carlos/magent-job-watchdog-timers)))
+    (when (timerp timer) (cancel-timer timer))
+    (remhash job-id +carlos/magent-job-watchdog-timers)))
+
+(defun +carlos/magent-abort-and-cancel-job (job reason)
+  "Aborta o child loop e cancela o JOB com REASON."
+  (let* ((jid (and (fboundp 'magent-agent-job-id) (magent-agent-job-id job)))
+         (runtime (and jid (fboundp 'magent-agent-job-runtime) (magent-agent-job-runtime jid)))
+         (loop (and runtime (plist-get runtime :loop))))
+    (when jid (+carlos/magent-cancel-job-watchdog jid))
+    (when (and loop (fboundp 'magent-agent-loop-p) (magent-agent-loop-p loop))
+      (require 'magent-agent-loop nil t)
+      (when (fboundp 'magent-agent-loop-abort)
+        (magent-agent-loop-abort loop)))
+    (when (fboundp 'magent-agent-job-set-status)
+      (magent-agent-job-set-status job 'cancelled nil (or reason "Timeout")))
+    (when (and jid (fboundp 'magent-agent-job-clear-runtime))
+      (magent-agent-job-clear-runtime jid))))
+
+(defun +carlos/magent-tools-wait-agent-around (orig-fn callback &optional job-id job-ids timeout)
+  "Garante que se `wait_agent' atingir timeout, todos os jobs não-terminais
+sejam abortados via `magent-agent-loop-abort', marcados como 'cancelled
+com erro \"Wait timed out\" e limpos do runtime."
+  (let* ((wrapped-callback
+          (lambda (result)
+            (when (and (fboundp 'magent-tool-result-p)
+                       (magent-tool-result-p result))
+              (let* ((out-str (magent-tool-result-output-string result)))
+                (when (and (stringp out-str)
+                           (string-match-p "\"status\":[ \t]*\"timeout\"" out-str))
+                  (when (fboundp 'magent-tools--parent-session)
+                    (let* ((session (magent-tools--parent-session))
+                           (ids (if (fboundp 'magent-tools--agent-job-ids)
+                                    (magent-tools--agent-job-ids job-id job-ids)
+                                  (or (and job-id (list job-id)) job-ids)))
+                           (jobs (when (and session (fboundp 'magent-tools--agent-jobs-for-ids))
+                                   (magent-tools--agent-jobs-for-ids session ids))))
+                      (dolist (job jobs)
+                        (unless (and (fboundp 'magent-tools--agent-job-terminal-p)
+                                     (magent-tools--agent-job-terminal-p job))
+                          (+carlos/magent-abort-and-cancel-job job "Wait timed out"))))))))
+            (funcall callback result))))
+    (funcall orig-fn wrapped-callback job-id job-ids timeout)))
+
+(defun +carlos/magent-tools-spawn-agent-around (orig-fn callback agent-name prompt &optional task-name)
+  "Valida PROMPT rejeitando placeholders e anexa Watchdog Timer autônomo ao job."
+  (let* ((trimmed (and (stringp prompt) (+carlos/magent--string-trim prompt)))
+         (low (and trimmed (downcase trimmed))))
+    (cond
+     ((or (null trimmed) (string-empty-p trimmed))
+      (if (fboundp 'magent-tools--fail)
+          (magent-tools--fail callback "Error: prompt is required and cannot be empty")
+        (funcall callback "Error: prompt is required and cannot be empty")))
+     ((or (string-prefix-p "[insert" low)
+          (string-prefix-p "[todo" low)
+          (string-prefix-p "[placeholder" low)
+          (string-match-p "\\[synthesis" low))
+      (if (fboundp 'magent-tools--fail)
+          (magent-tools--fail callback (format "Error: prompt '%s' is an invalid placeholder" prompt))
+        (funcall callback (format "Error: prompt '%s' is an invalid placeholder" prompt))))
+     (t
+      (let* ((wrapped-callback
+              (lambda (result)
+                (when (and (fboundp 'magent-tool-result-p) (magent-tool-result-p result))
+                  (let* ((out-str (magent-tool-result-output-string result)))
+                    (when (and (stringp out-str)
+                               (string-match "\"job_id\":[ \t]*\"\\([^\"]+\\)\"" out-str))
+                      (let* ((jid (match-string 1 out-str))
+                             (session (and (fboundp 'magent-tools--parent-session)
+                                           (magent-tools--parent-session)))
+                             (job (and session (fboundp 'magent-session-agent-job)
+                                       (magent-session-agent-job session jid)))
+                             (ttl (if (and (boundp 'magent-request-timeout)
+                                           (numberp magent-request-timeout)
+                                           (> magent-request-timeout 0))
+                                      magent-request-timeout
+                                    300)))
+                        (when job
+                          (when (fboundp 'magent-agent-job-add-observer)
+                            (magent-agent-job-add-observer
+                             job
+                             (lambda (j)
+                               (when (and (fboundp 'magent-tools--agent-job-terminal-p)
+                                          (magent-tools--agent-job-terminal-p j))
+                                 (+carlos/magent-cancel-job-watchdog jid)))))
+                          (let ((timer (run-at-time
+                                        ttl nil
+                                        (lambda ()
+                                          (when (and (fboundp 'magent-agent-job-status)
+                                                     (memq (magent-agent-job-status job)
+                                                           '(queued running waiting)))
+                                            (+carlos/magent-abort-and-cancel-job job "Job watchdog timeout"))))))
+                            (puthash jid timer +carlos/magent-job-watchdog-timers)))))))
+                (funcall callback result))))
+        (funcall orig-fn wrapped-callback agent-name prompt task-name))))))
+
+(with-eval-after-load 'magent-tools
+  (advice-add 'magent-tools--wait-agent :around #'+carlos/magent-tools-wait-agent-around)
+  (advice-add 'magent-tools--spawn-agent :around #'+carlos/magent-tools-spawn-agent-around))
+
 (provide 'custom-magent-subagent)
+
 ;;; custom-magent-subagent.el ends here

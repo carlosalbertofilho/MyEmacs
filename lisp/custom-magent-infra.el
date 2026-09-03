@@ -157,5 +157,41 @@ Accept &rest ARGS for Gemini streaming 5th argument."
                         arg))
                     (gptel-tool-args tool))))))
 
+;; ── Resiliência de Tool Results e Proteção do Sentinel ───────────────
+
+(defun +carlos/magent-tool-result-require-around (orig-fn value &optional name call-id)
+  "Normaliza qualquer retorno de ferramenta para um `magent-tool-result' válido.
+Se VALUE não for uma struct `magent-tool-result', em vez de sinalizar
+`wrong-type-argument' e derrubar o Sentinel da FSM, encapsula VALUE
+graciosamente em um resultado estruturado com status \='completed (ou \='failed
+se for erro/sinal de exceção)."
+  (condition-case err
+      (if (and (fboundp 'magent-tool-result-p) (magent-tool-result-p value))
+          (funcall orig-fn value name call-id)
+        (if (fboundp 'magent-tool-result-create)
+            (magent-tool-result-create
+             :name name
+             :call-id call-id
+             :status 'completed
+             :success t
+             :output (if (stringp value) value (format "%S" value)))
+          value))
+    (error
+     (let ((msg (format "Tool execution error in '%s': %s"
+                        (or name "unknown") (error-message-string err))))
+       (if (fboundp 'magent-tool-result-create)
+           (magent-tool-result-create
+            :name name
+            :call-id call-id
+            :status 'failed
+            :success nil
+            :output msg
+            :error msg)
+         msg)))))
+
+(with-eval-after-load 'magent-protocol
+  (advice-add 'magent-tool-result-require
+              :around #'+carlos/magent-tool-result-require-around))
+
 (provide 'custom-magent-infra)
 ;;; custom-magent-infra.el ends here

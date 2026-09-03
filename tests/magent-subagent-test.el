@@ -277,5 +277,65 @@ read/write/bash (interseção vazia) — code-repair batch falhava."
                                 enable)
                    '(read write edit bash)))))
 
+(ert-deftest myemacs-magent-orchestrator-hides-mutation-tools-test ()
+  "Verifica se ferramentas de mutação são filtradas para o orchestrator."
+  (skip-unless myemacs-subagent-available)
+  (let* ((tools '(read write edit elisp_smart_edit org_smart_edit write_to_file replace_file_content spawn_agent wait_agent))
+         (filtered (seq-filter
+                    (lambda (sym)
+                      (let ((s (symbol-name sym)))
+                        (not (or (memq sym '(read write edit snippet_expand buffer))
+                                 (string-match-p "smart_edit" s)
+                                 (string-match-p "write_to_file" s)
+                                 (string-match-p "replace_file" s)))))
+                    tools)))
+    (should-not (memq 'elisp_smart_edit filtered))
+    (should-not (memq 'org_smart_edit filtered))
+    (should-not (memq 'write_to_file filtered))
+    (should-not (memq 'replace_file_content filtered))
+    (should-not (memq 'write filtered))
+    (should (memq 'spawn_agent filtered))
+    (should (memq 'wait_agent filtered))))
+
+(ert-deftest myemacs-magent-subagent-spawn-validate-prompt-test ()
+  "Verifica se placeholders em spawn_agent são rejeitados."
+  (skip-unless myemacs-subagent-available)
+  (let ((failed-msg nil))
+    (cl-letf (((symbol-function 'magent-tools--fail)
+               (lambda (_cb msg) (setq failed-msg msg))))
+      ;; Placeholder [Insert Synthesis Here]
+      (+carlos/magent-tools-spawn-agent-around
+       (lambda (&rest _) nil)
+       #'ignore
+       "coder"
+       "[Insert Synthesis Here]")
+      (should (string-match-p "invalid placeholder" (or failed-msg "")))
+      
+      ;; Prompt vazio
+      (setq failed-msg nil)
+      (+carlos/magent-tools-spawn-agent-around
+       (lambda (&rest _) nil)
+       #'ignore
+       "coder"
+       "   ")
+      (should (string-match-p "required" (or failed-msg ""))))))
+
+(ert-deftest myemacs-magent-subagent-abort-and-cancel-job-test ()
+  "Verifica se abort-and-cancel-job transiciona o status para cancelled e limpa timers."
+  (skip-unless myemacs-subagent-available)
+  (when (myemacs-subagent-with-magent-p)
+    (let* ((job (magent-agent-job-create
+                 :parent-session-id "s-1"
+                 :agent-name "coder"
+                 :prompt "test task"))
+           (jid (magent-agent-job-id job)))
+      (magent-agent-job-set-status job 'running)
+      (puthash jid (run-at-time 100 nil #'ignore) +carlos/magent-job-watchdog-timers)
+      (+carlos/magent-abort-and-cancel-job job "Wait timed out")
+      (should (eq (magent-agent-job-status job) 'cancelled))
+      (should (equal (magent-agent-job-error job) "Wait timed out"))
+      (should-not (gethash jid +carlos/magent-job-watchdog-timers)))))
+
 (provide 'magent-subagent-test)
+
 ;;; magent-subagent-test.el ends here
