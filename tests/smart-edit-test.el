@@ -143,8 +143,11 @@ Garante cleanup automático e desfaz modificações no arquivo."
 
 (ert-deftest myemacs-smart-edit-org-toggle-checkbox-empty-args ()
   "toggle_checkbox sem args retorna erro de uso."
-  (let ((res (+carlos/magent-tool-org-smart-edit "/tmp/x.org" "toggle_checkbox" nil "")))
-    (should (string-match-p "Erro" res))))
+  (let* ((res (+carlos/magent-tool-org-smart-edit "/tmp/x.org" "toggle_checkbox" nil ""))
+         (str (if (and (fboundp 'magent-tool-result-p) (magent-tool-result-p res))
+                  (magent-tool-result-output-string res)
+                (format "%s" res))))
+    (should (string-match-p "Erro\\|Error" str))))
 
 (provide 'smart-edit-test)
 ;;; smart-edit-test.el ends here

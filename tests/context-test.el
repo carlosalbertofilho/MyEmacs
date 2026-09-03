@@ -97,10 +97,10 @@ teto local, cai para o primeiro modelo free da nuvem."
 (ert-deftest myemacs-context-cheap-model-local-when-online-and-fits ()
   "Garante que o modelo barato (B5.1) usa o modelo local quando online e
 a sessão cabe no teto de tokens."
-  (cl-letf (((symbol-function '+carlos/local-ai-server-ping-p))
-            (lambda () t)
-            ((symbol-function '+carlos/ai-local-backend))
-            (lambda () (cons "Ollama Local" 'qwen2.5-coder:3b)))
+  (cl-letf (((symbol-function '+carlos/local-ai-server-ping-p)
+             (lambda () t))
+            ((symbol-function '+carlos/ai-local-backend)
+             (lambda () (cons "Ollama Local" 'qwen2.5-coder:3b))))
     (let* ((backends '(("Ollama Local" . ("qwen2.5-coder:3b"))
                        ("Gemini" . ("gemini-3.5-flash"))))
            (local-models '("qwen2.5-coder:3b"))
