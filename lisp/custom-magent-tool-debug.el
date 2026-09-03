@@ -9,6 +9,7 @@
 
 (require 'dape nil t)
 (require 'custom-magent-infra)
+(require 'trace)
 
 ;; Garantir fallback para projeto ao rodar em batch (solução parcial até a Fase 6)
 (defun +carlos/--magent-debug-ensure-project-root ()
