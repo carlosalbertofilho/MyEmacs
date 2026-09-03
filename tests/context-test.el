@@ -8,6 +8,8 @@
 (require 'ert)
 (require 'custom-ai)
 (require 'custom-magent)
+(require 'custom-magent-context)
+(require 'magent-ledger nil t)
 
 (ert-deftest myemacs-context-cache-hit-rate-calc ()
   "Garante que o cálculo de cache hit-rate retorna a porcentagem correta."
@@ -339,9 +341,6 @@ Skip quando o source do ambiente-alvo ainda não tem a forward declaration
     (+carlos/magent-compaction-result-handler 'completed 1000 500)
     (should (= +carlos/magent-cumulative-tool-result-chars 0))))
 
-(provide 'context-test)
-;;; context-test.el ends here
-
 ;; ── RAG Sintático (Esqueletos AST) ───────────────────────────────────
 (ert-deftest myemacs-context-ast-skeletons-safe ()
   "Garante que a extração de esqueletos AST (Fase 5) roda sem erros."
@@ -349,3 +348,35 @@ Skip quando o source do ambiente-alvo ainda não tem a forward declaration
     (should (or (null skeletons)
                 (and (stringp skeletons)
                      (string-match-p "ESTRUTURA DE ARQUIVOS ABERTOS" skeletons))))))
+
+;; ── Poda Inteligente de Ferramentas Históricas ───────────────────────
+(ert-deftest myemacs-context-prune-historical-tool-entry-large ()
+  "Garante que resultados históricos maiores que o threshold são podados."
+  (let* ((orig (make-string 3000 ?x))
+         (entry (list :id "call_1" :name "read_file" :args '(:path "foo") :result orig))
+         (pruned (+carlos/magent-prune-historical-tool-entry entry 1200)))
+    (should (< (length (plist-get pruned :result)) 1000))
+    (should (string-match-p "historical tool output pruned" (plist-get pruned :result)))
+    (should (string= (plist-get pruned :id) "call_1"))
+    (should (string= (plist-get pruned :name) "read_file"))))
+
+(ert-deftest myemacs-context-prune-historical-tool-entry-small ()
+  "Garante que resultados pequenos não sofrem alteração."
+  (let* ((orig "ok (exit 0)")
+         (entry (list :id "call_2" :name "bash" :args '(:cmd "ls") :result orig))
+         (pruned (+carlos/magent-prune-historical-tool-entry entry 1200)))
+    (should (string= (plist-get pruned :result) orig))))
+
+(ert-deftest myemacs-context-compaction-decision-max-tokens ()
+  "Garante que o teto absoluto max-tokens dispara immediate mesmo em janelas gigantes."
+  (let ((+carlos/magent-context-compact-max-tokens 32000)
+        (+carlos/magent-context-compact-ratio 0.6))
+    ;; Janela de 1M tokens, 35K tokens acumulados -> dispara immediate pelo teto de 32K
+    (should (eq (+carlos/magent-compaction-decision 35000 1000000 0)
+                'immediate))
+    ;; Janela de 1M tokens, 20K tokens acumulados -> não dispara
+    (should (eq (+carlos/magent-compaction-decision 20000 1000000 0)
+                nil))))
+
+(provide 'context-test)
+;;; context-test.el ends here
