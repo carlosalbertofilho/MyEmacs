@@ -68,6 +68,23 @@ Previne thrashing quando tokens crescem rápido pós-compactação."
   :type 'integer
   :group '+carlos/ai)
 
+(defcustom +carlos/magent-context-compact-max-tokens 32000
+  "Teto absoluto de tokens para disparar auto-compactação.
+Modelos como Gemini possuem janela de 1M tokens, mas APIs impõem cotas
+rigorosas de TPM (Tokens Per Minute). Compactar aos 32K previne exaustão
+de quota upstream e estouro do erro 429."
+  :type 'integer
+  :group '+carlos/ai)
+
+(defcustom +carlos/magent-historical-tool-prune-chars 1200
+  "Teto máximo de caracteres para o resultado de ferramentas em turnos históricos.
+Resultados volumosos de ferramentas em turnos já concluídos são podados
+preservando início e fim, economizando massivamente tokens e prevenindo
+exaustão da cota TPM das APIs sem comprometer a semântica."
+  :type 'integer
+  :group '+carlos/ai)
+
+
 
 (defun +carlos/magent-context--agents-section (header-regex)
   "Extrai do AGENTS.md do projeto atual a seção iniciada por HEADER-REGEX.
@@ -307,11 +324,15 @@ Sem turno resolvido, retorna 0."
   "Decide se compactar com TOTAL-TOKENS em uma janela de CWINDOW.
 SUBAGENTS é o número de subagentes completados desde a última
 compactação.  Retorna `immediate' quando TOTAL-TOKENS excede
-`+carlos/magent-context-compact-ratio' da janela; `milestone' quando
+`+carlos/magent-context-compact-ratio' da janela ou
+`+carlos/magent-context-compact-max-tokens'; `milestone' quando
 SUBAGENTS atinge `+carlos/magent-milestone-subagents' e TOTAL-TOKENS
 excede `+carlos/magent-milestone-ratio'; senão nil."
   (cond
-   ((> total-tokens (* +carlos/magent-context-compact-ratio cwindow))
+   ((or (and (numberp +carlos/magent-context-compact-max-tokens)
+             (> +carlos/magent-context-compact-max-tokens 0)
+             (> total-tokens +carlos/magent-context-compact-max-tokens))
+        (> total-tokens (* +carlos/magent-context-compact-ratio cwindow)))
     'immediate)
    ((and (>= subagents +carlos/magent-milestone-subagents)
          (> total-tokens (* +carlos/magent-milestone-ratio cwindow)))
@@ -746,6 +767,35 @@ Filter-return de `magent-agent--compose-system-message'; orquestrador
   (advice-add 'magent-agent--compose-system-message
               :filter-return #'+carlos/magent-inject-child-parent-context))
 
+;; ── Poda Inteligente de Ferramentas Históricas (FinOps & Anti-429) ───
+(defun +carlos/magent-prune-historical-tool-entry (entry &optional max-chars)
+  "Retorna ENTRY com :result podado se exceder MAX-CHARS."
+  (let* ((max (or max-chars +carlos/magent-historical-tool-prune-chars 1200))
+         (res (plist-get entry :result)))
+    (if (and (numberp max)
+             (> max 0)
+             (stringp res)
+             (> (length res) max))
+        (let* ((head (substring res 0 (min 350 (length res))))
+               (tail (substring res (max 0 (- (length res) 150))))
+               (pruned-count (- (length res) 500))
+               (new-res (format "%s\n\n[... %d chars of historical tool output pruned for session efficiency ...]\n\n%s"
+                                head pruned-count tail)))
+          (plist-put (copy-sequence entry) :result new-res))
+      entry)))
+
+(defun +carlos/magent-prune-turn-tool-entries-a (orig-fn turn &rest args)
+  "Poda resultados de ferramentas volumosos em TURN quando concluído."
+  (let ((entries (apply orig-fn turn args)))
+    (if (and entries
+             (fboundp 'magent-thread-turn-status)
+             (eq (magent-thread-turn-status turn) 'completed))
+        (mapcar #'+carlos/magent-prune-historical-tool-entry entries)
+      entries)))
+
+(with-eval-after-load 'magent-session
+  (advice-add 'magent-session--turn-tool-prompt-entries
+              :around #'+carlos/magent-prune-turn-tool-entries-a))
 
 (provide 'custom-magent-context)
 ;;; custom-magent-context.el ends here
