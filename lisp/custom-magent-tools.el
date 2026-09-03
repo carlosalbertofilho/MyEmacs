@@ -393,7 +393,7 @@ first element and would miss every keyword otherwise."
                                (numberp magent-request-timeout)
                                (> magent-request-timeout 0)
                                magent-request-timeout)
-                          120))
+                          300))
              (timer nil)
              (done nil)
              (wrapped-callback

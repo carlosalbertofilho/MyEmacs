@@ -142,7 +142,10 @@ Accept &rest ARGS for Gemini streaming 5th argument."
         (magent-llm-gptel--sanitize-info info))))
   (when (fboundp 'magent-llm-gptel--handle-tool-use)
     (advice-add 'magent-llm-gptel--handle-tool-use
-                :around #'+carlos/magent-sanitize-tool-use-name-a)))
+                :around #'+carlos/magent-sanitize-tool-use-name-a))
+  (when (fboundp 'gptel--parse-response)
+    (advice-add 'gptel--parse-response
+                :around #'magent-llm-gptel--sanitize-after-parse-response-a)))
 
 (with-eval-after-load 'magent-tools
   (when (and (boundp 'magent-tools--wait-agent-tool)

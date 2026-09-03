@@ -92,6 +92,7 @@ roteamento para backends locais fica apenas como fallback final.")
   (gptel-include-tool-results t)
   (gptel-context-restrict-to-project-files nil)
   (gptel-use-curl t)
+  (gptel-stream t)
   :config
 
   ;; ── Backend: OpenCode Zen (OpenAI-compatible) ─────────────────────
@@ -221,6 +222,7 @@ roteamento para backends locais fica apenas como fallback final.")
   ;; roteador dinâmico.
   (setq-default gptel-backend (gptel-get-backend "Gemini"))
   (setq-default gptel-model 'gemini-2.5-flash)
+  (setq-default gptel-stream t)
   (when (fboundp '+carlos/gptel-setup-defaults-by-host)
     (+carlos/gptel-setup-defaults-by-host)))
 
