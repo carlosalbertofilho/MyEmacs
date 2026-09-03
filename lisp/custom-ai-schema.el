@@ -276,9 +276,16 @@ Automaticamente normaliza e registra o schema."
         (apply orig-fn (plist-put args :callback wrapped-cb)))
     (apply orig-fn args)))
 
+(defun gptel-schema--parse-response-a (orig-fn backend response info &rest args)
+  "Wrappeia gptel--parse-response preservando aridade para backends com 4+ argumentos (ex.: Gemini)."
+  (let ((result (apply orig-fn backend response info args)))
+    (if (and (stringp result) (gptel-schema--resolve-active))
+        (gptel-schema--parse-response result)
+      result)))
+
 (with-eval-after-load 'gptel
   (advice-add 'gptel--request-data :around #'gptel-schema--inject-response-format)
-  (advice-add 'gptel--parse-response :filter-return #'gptel-schema--parse-response)
+  (advice-add 'gptel--parse-response :around #'gptel-schema--parse-response-a)
   (advice-add 'gptel-request :around #'gptel-schema--capture-callback))
 
 (provide 'custom-ai-schema)
